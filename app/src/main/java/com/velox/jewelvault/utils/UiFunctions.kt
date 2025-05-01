@@ -21,6 +21,9 @@ fun isLandscape(): Boolean {
 val LocalNavController = staticCompositionLocalOf<NavHostController> {
     error("No NavController provided")
 }
+val LocalSubNavController = staticCompositionLocalOf<NavHostController> {
+    error("No NavController provided")
+}
 val LocalBaseViewModel = staticCompositionLocalOf<BaseViewModel> {
     error("BaseViewModel not provided")
 }

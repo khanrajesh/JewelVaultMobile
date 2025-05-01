@@ -10,10 +10,16 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -22,9 +28,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -42,6 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.velox.jewelvault.ui.components.CalculatorScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.toCustomFormat
 import kotlinx.coroutines.CoroutineScope
@@ -62,13 +74,16 @@ import java.time.LocalDateTime
 
 
 @Composable
-fun MetalRatesTicker(modifier: Modifier = Modifier) {
+fun MetalRatesTicker(
+    modifier: Modifier = Modifier,
+    textColor: Color = Color.Black
+) {
     val showEditDialog = remember { mutableStateOf(false) }
     val baseViewModel = LocalBaseViewModel.current
     val infiniteTransition = rememberInfiniteTransition()
     val animatedOffsetX by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = -1f,
+        initialValue = 1.5f,
+        targetValue = -1.5f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
@@ -112,7 +127,7 @@ fun MetalRatesTicker(modifier: Modifier = Modifier) {
 
         Text(
             text = tickerText,
-            color = Color.Black,
+            color = textColor,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
             maxLines = 1,
@@ -133,51 +148,86 @@ fun MetalRatesTicker(modifier: Modifier = Modifier) {
 fun EditMetalRatesDialog(
     showDialog: MutableState<Boolean>
 ) {
+
     val viewModel = LocalBaseViewModel.current
     val editedRates = remember { mutableStateListOf(*viewModel.metalRates.toTypedArray()) }
 
-    AlertDialog(
-        onDismissRequest = { /* Prevent dismissing by tapping outside */ },
-        title = { Text("Edit Metal Rates") },
-        text = {
-            LazyColumn {
-                itemsIndexed(editedRates) { index, metalRate ->
-                    Row {
-                        Text(
-                            text = "${metalRate.metal}, ${metalRate.caratOrPurity}",
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        TextField(
-                            modifier = Modifier.weight(1f),
-                            value = metalRate.price,
-                            onValueChange = { editedRates[index] = metalRate.copy(price = it) },
-                            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
-                        )
+    Dialog(
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false
+        ),
+        onDismissRequest = {},
+        content = {
+            Column(
+                Modifier
+                    .padding(vertical = 150.dp, horizontal = 200.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                    .fillMaxSize()
+                    .padding(10.dp)
+            ) {
+                Text("Edit Metal Rates", fontWeight = FontWeight.Black)
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.weight(1f)) {
+                    CalculatorScreen(
+                        Modifier
+                            .weight(0.6f)
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(10.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+                        itemsIndexed(editedRates) { index, metalRate ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${metalRate.metal}, ${metalRate.caratOrPurity}",
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                TextField(
+                                    modifier = Modifier.weight(2f),
+                                    value = metalRate.price,
+                                    singleLine = true,
+                                    onValueChange = {
+                                        editedRates[index] = metalRate.copy(price = it)
+                                    },
+                                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
+                        }
                     }
-                    Spacer(Modifier.height(2.dp))
+
                 }
+
+                Row(Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.weight(1f))
+
+                    TextButton(onClick = { showDialog.value = false }) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    TextButton(onClick = {
+                        editedRates.forEachIndexed { index, metalRate ->
+                            editedRates[index] =
+                                metalRate.copy(updatedDate = LocalDateTime.now().toCustomFormat())
+                        }
+                        viewModel.metalRates.clear()
+                        viewModel.metalRates.addAll(editedRates)
+                        showDialog.value = false
+
+                    }) {
+                        Text("Save")
+                    }
+
+                }
+
             }
         },
-        confirmButton = {
-            TextButton(onClick = {
-                editedRates.forEachIndexed { index, metalRate ->
-                    editedRates[index] =
-                        metalRate.copy(updatedDate = LocalDateTime.now().toCustomFormat())
-                }
-                viewModel.metalRates.clear()
-                viewModel.metalRates.addAll(editedRates)
-                showDialog.value = false
-            }) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { showDialog.value = false }) {
-                Text("Cancel")
-            }
-        }
-    )
+
+        )
 }
 
 data class MetalRate(

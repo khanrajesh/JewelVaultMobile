@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.components
+package com.velox.jewelvault.utils.permissions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +19,8 @@ import androidx.compose.ui.window.DialogProperties
 @Composable
 fun PermissionRequestDialog(
     showDialog: Boolean,
+    title: String,
+    message: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
@@ -40,11 +42,11 @@ fun PermissionRequestDialog(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Permission Required",
+                        text = title,
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "We need storage permission to save gold price data. Please grant it.",
+                        text = message,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Row(
@@ -63,3 +65,4 @@ fun PermissionRequestDialog(
         }
     }
 }
+

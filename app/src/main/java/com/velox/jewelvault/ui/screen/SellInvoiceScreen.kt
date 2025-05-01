@@ -1,6 +1,8 @@
 package com.velox.jewelvault.ui.screen
 
+import android.widget.Space
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.twotone.Add
@@ -29,6 +32,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -37,12 +42,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
@@ -60,10 +67,47 @@ fun SellInvoiceScreenPreview() {
 
 @Composable
 fun SellInvoiceScreen() {
-    if (isLandscape()) {
-        SellInvoiceLandscape()
-    } else {
-        SellInvoicePortrait()
+
+    val context = LocalContext.current
+    val showQrBarScanner = remember { mutableStateOf(false) }
+
+    if (!showQrBarScanner.value){
+        if (isLandscape()) {
+            SellInvoiceLandscape(showQrBarScanner)
+        } else {
+            SellInvoicePortrait()
+        }
+    }else{
+        QrBarScannerPage(
+            showPage = showQrBarScanner,
+            scanAndClose = true,
+            onCodeScanned = {
+                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            },
+            overlayContent = {
+                BackHandler(enabled = true) {
+                    // Do nothing = disable back button
+                }
+                Box (Modifier.fillMaxSize()){
+                    Row(Modifier.fillMaxWidth()) {
+                        Text(
+                            "Please scan the item code to add.",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                            )
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.Clear, null,
+                            modifier = Modifier
+                                .bounceClick {
+                                    showQrBarScanner.value = false
+                                }
+                                .size(50.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -73,7 +117,7 @@ fun SellInvoicePortrait() {
 }
 
 @Composable
-fun SellInvoiceLandscape() {
+fun SellInvoiceLandscape(showQrBarScanner: MutableState<Boolean>) {
     val context = LocalContext.current
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
@@ -96,7 +140,7 @@ fun SellInvoiceLandscape() {
             IconButton(onClick = {
                 coroutineScope.launch {
                     baseViewModel.refreshMetalRates(context = context)
-               }
+                }
             }) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
@@ -104,7 +148,9 @@ fun SellInvoiceLandscape() {
                 )
             }
 
-            MetalRatesTicker( Modifier.height(50.dp).weight(1f))
+            MetalRatesTicker(Modifier
+                .height(50.dp)
+                .weight(1f))
             Text(text = currentDateTime.value)
         }
 
@@ -121,244 +167,11 @@ fun SellInvoiceLandscape() {
 
                 Spacer(Modifier.height(5.dp))
 
-//                LazyColumn(
-//                    Modifier
-//                        .weight(1f)
-//                        .fillMaxWidth()
-//                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-//                        .padding(3.dp)
-//                ) {
-//
-//
-//                }
-
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) {
-
-                        Column(
-                            Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                                .padding(5.dp)
-                        ) {
-
-                            Column(
-                                Modifier
-                                    .padding(2.dp)
-                                    .fillMaxWidth()
-                                    .wrapContentHeight()
-                            ) {
-                                Row(Modifier.fillMaxWidth()) {
-                                    Text("S.No", fontWeight = FontWeight.Black, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
-                                    Text("Id", fontWeight = FontWeight.Black, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
-                                    Text(
-                                        "Item",
-                                        fontWeight = FontWeight.Black,
-                                        modifier = Modifier.weight(2f), textAlign = TextAlign.Center
-                                    )
-                                    Text("HSSN", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                                    Text("Gs Wt.", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                                    Text("Fine Wt.", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                                    Text("Metal", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                                    Text("M.Chr", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                                    Text("BSI No", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-
-                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                                }
-                                Spacer(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(1.dp)
-                                        .background(MaterialTheme.colorScheme.outline)
-                                )
-                            }
-                            LazyColumn(
-                                Modifier
-                                    .weight(1f)
-                            ) {
-
-                                items(5) {it->
-                                    Column(
-                                        Modifier
-                                            .padding(2.dp)
-                                            .fillMaxWidth()
-                                            .wrapContentHeight()
-                                    ) {
-                                        Row(Modifier.fillMaxWidth()) {
-                                            Text(
-                                                "${it+1}. ",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "${it+1}. ",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "Box Chain",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(2f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "1234567890",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "2.5g",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "2.45g",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "Gold/22k",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-                                            Text(
-                                                "16%",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-
-                                            Text(
-                                                "45554846465",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.DarkGray,
-                                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                                            )
-
-                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                                        }
-                                        Spacer(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .height(1.dp)
-                                                .background(MaterialTheme.colorScheme.outline)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                }
-
+                ItemSection(modifier = Modifier.weight(1f))
 
                 Spacer(Modifier.height(5.dp))
 
-                Row(
-                    Modifier
-                        .height(50.dp)
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                        .padding(3.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .padding(horizontal = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Add Different Item",
-                        )
-                    }
-
-                    Spacer(Modifier.weight(1f))
-
-                    Row(
-                        Modifier
-                            .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(10.dp)
-                            )
-                            .padding(3.dp)
-                    ) {
-                        Icon(
-                            Icons.TwoTone.DateRange, null,
-
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .aspectRatio(1f)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(10.dp)
-                                )
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center // this centers the text vertically and horizontally
-                        ) {
-                            BasicTextField(
-                                value = "123456789",
-                                onValueChange = { },
-                                textStyle = TextStyle(
-                                    fontSize = 16.sp,
-                                    textAlign = TextAlign.Center // <-- text will be centered horizontally
-                                ),
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp) // optional inner padding
-                            )
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Box (  modifier = Modifier
-                            .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(10.dp)
-                            ),
-                            contentAlignment = Alignment.Center
-                            ){
-                            Row {
-                                Spacer(Modifier.width(5.dp))
-                                Text("Add Item")
-                                Spacer(Modifier.width(5.dp))
-                                Icon(
-                                    Icons.TwoTone.Add,
-                                    null,
-
-                                    )
-                                Spacer(Modifier.width(5.dp))
-                            }
-                        }
-                    }
-                }
+                AddItemSection(showQrBarScanner)
             }
             Spacer(Modifier.width(5.dp))
             Column(
@@ -369,10 +182,9 @@ fun SellInvoiceLandscape() {
                     .padding(5.dp)
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                     .padding(3.dp)
-
             ) {
 
-                Spacer(Modifier.weight(1f))
+                DetailSection(Modifier.weight(1f))
 
                 Box(modifier = Modifier
                     .bounceClick {
@@ -383,22 +195,325 @@ fun SellInvoiceLandscape() {
                     .padding(10.dp), contentAlignment = Alignment.Center) {
                     Text("Proceed", textAlign = TextAlign.Center)
                 }
+            }
+        }
+    }
+}
 
+@Composable
+fun DetailSection(modifier: Modifier){
+    Column(modifier = modifier.padding(5.dp)) {
+
+        Row(Modifier.fillMaxWidth()) {
+            Text("Item", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text("Price", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text("Charge", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text("Total", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+        }
+
+        LazyColumn (Modifier.fillMaxWidth()){
+            item {
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Box Chain", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+                    Text("5000", modifier = Modifier.weight(1f), fontSize = 10.sp)
+                    Text("500", modifier = Modifier.weight(1f), fontSize = 10.sp)
+                    Text("150.45", modifier = Modifier.weight(1f), fontSize = 10.sp)
+                    Text("5615.45", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+                }
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+        Text("Total", fontSize = 10.sp)
+
+        Row(Modifier.fillMaxWidth()) {
+            Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text("5500", modifier = Modifier.weight(1f), fontSize = 10.sp)
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text("150.45", modifier = Modifier.weight(1f), fontSize = 10.sp)
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text("Grand Total (after tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text("5615.45", modifier = Modifier.weight(1f), fontSize = 10.sp)
+        }
+    }
+}
+
+@Composable
+fun ItemSection(modifier: Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .padding(5.dp)
+        ) {
+
+            Column(
+                Modifier
+                    .padding(2.dp)
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+            ) {
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        "S.No",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Id",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Item",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(2f), textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "HSSN",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Gs Wt.",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Fine Wt.",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Metal",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "Charge",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        "HUID No",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                }
+                Spacer(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.outline)
+                )
+            }
+            LazyColumn(
+                Modifier
+                    .weight(1f)
+            ) {
+                items(15) {
+                    Column(
+                        Modifier
+                            .padding(2.dp)
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                    ) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(
+                                "${it + 1}. ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "${it + 1}. ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "Box Chain",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(2f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "1234567890",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "2.5g",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "2.45g",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "Gold/22k",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            )
+                            Text(
+                                "16%",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            )
+
+                            Text(
+                                "4555",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
+                            )
+
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                        }
+                        Spacer(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outline)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddItemSection(showQrBarScanner: MutableState<Boolean>) {
+    Row(
+        Modifier
+            .height(50.dp)
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .padding(3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(10.dp)
+                )
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Add Different Item",
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Row(
+            Modifier
+                .fillMaxHeight()
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(10.dp)
+                )
+                .padding(3.dp)
+        ) {
+            Icon(
+                Icons.TwoTone.DateRange, null,
+                modifier = Modifier
+                    .bounceClick {
+                        showQrBarScanner.value = !showQrBarScanner.value
+                    }
+                    .fillMaxHeight()
+                    .aspectRatio(1f)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(10.dp)
+                    )
+            )
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center // this centers the text vertically and horizontally
+            ) {
+                BasicTextField(
+                    value = "123456789",
+                    onValueChange = { },
+                    textStyle = TextStyle(
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center // <-- text will be centered horizontally
+                    ),
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp) // optional inner padding
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Row {
+                    Spacer(Modifier.width(5.dp))
+                    Text("Add Item")
+                    Spacer(Modifier.width(5.dp))
+                    Icon(
+                        Icons.TwoTone.Add,
+                        null,
+                    )
+                    Spacer(Modifier.width(5.dp))
+                }
             }
         }
     }
 }
 
 
-
 @Composable
 fun CustomerDetails() {
-    /*
-    Name
-    Mobile No
-    Address
-
-    * */
     val name = remember { InputFieldState() }
     val mobileNo = remember { InputFieldState() }
     val context = LocalContext.current
@@ -410,13 +525,12 @@ fun CustomerDetails() {
             .padding(5.dp)
     ) {
         Text("Customer Details")
-
         Column {
-
             Row(Modifier) {
                 CusOutlinedTextField(name, placeholderText = "Name", modifier = Modifier.weight(2f))
                 Spacer(Modifier.width(5.dp))
-                CusOutlinedTextField(name,
+                CusOutlinedTextField(
+                    mobileNo,
                     placeholderText = "Mobile No",
                     modifier = Modifier.weight(1f),
                     trailingIcon = Icons.Default.Search,
@@ -424,7 +538,8 @@ fun CustomerDetails() {
                         Toast.makeText(context, "Search by customer number.", Toast.LENGTH_SHORT)
                             .show()
                     },
-                    maxLines = 1
+                    maxLines = 1,
+                    keyboardType = KeyboardType.Phone
                 )
             }
             Spacer(Modifier.height(5.dp))
@@ -451,6 +566,8 @@ fun CustomerDetails() {
                 )
             }
         }
+
+
     }
 }
 

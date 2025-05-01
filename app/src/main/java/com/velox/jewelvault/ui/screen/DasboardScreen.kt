@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +32,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,11 +41,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.InputIconState
+import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.TabDrawerValue
 import com.velox.jewelvault.ui.components.TabNavigationDrawer
 import com.velox.jewelvault.ui.components.rememberTabDrawerState
+import com.velox.jewelvault.ui.nav.AppNavigation
+import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.ui.nav.SubAppNavigation
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
@@ -59,6 +68,8 @@ fun DashboardScreenPreview(){
 fun DashboardScreen(){
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
+
+    val showBarcodeScanPage = remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
         if (baseViewModel.metalRates.isNotEmpty()){
@@ -81,27 +92,12 @@ fun DashboardScreen(){
         )
     }
 
-    if (isLandscape()){
-        LandscapeDashboardScreen(inputIconStates)
-    }else{
-        PortraitDashboardScreen(inputIconStates)
-    }
-
-
- /*   Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF9F9F9))) {
-        Column(Modifier.padding(5.dp).fillMaxWidth().height(100.dp).background(color = Color.White, shape = RoundedCornerShape(10.dp)).shadow(1.dp).padding(5.dp)) {
-            Text("Sell")
-            Text("comming soon")
+        if (isLandscape()){
+            LandscapeDashboardScreen(inputIconStates)
+        }else{
+            PortraitDashboardScreen(inputIconStates)
         }
 
-        LazyVerticalGrid(columns = GridCells.Fixed(2),
-            content = {
-                items(5) {
-                DashboardItems()
-                }
-            }
-        )
-    }*/
 }
 
 
@@ -158,11 +154,19 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
 private fun LandscapeDashboardScreen(inputIconStates: List<InputIconState>) {
   val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
     val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+    val subNavController = rememberNavController()
+
 
     TabNavigationDrawer(
         drawerState = drawerState,
         content = {
-            MainScreen()
+            SubAppNavigation(
+                subNavController,
+                navHost,
+                baseViewModel,
+                startDestination = SubScreens.Main.route
+            )
         },
         drawerContent = {
             LazyColumn() {

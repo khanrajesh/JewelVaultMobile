@@ -1,14 +1,5 @@
 package com.velox.jewelvault.ui.screen
 
-import android.Manifest
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.Settings
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,11 +23,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,13 +34,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.velox.jewelvault.ui.components.PermissionRequestDialog
+import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
-import com.velox.jewelvault.utils.needsStoragePermission
 
 
 @VaultPreview
@@ -62,52 +50,7 @@ fun MainScreenPreview() {
 
 @Composable
 fun MainScreen() {
-    val context = LocalContext.current
-    var showPermissionDialog by remember { mutableStateOf(false) }
-
-    if (isLandscape()) LandscapeMainScreen() else PortraitMainScreen()
-
-    val requestPermissionLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                Toast.makeText(context, "Permission granted!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Permission denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    val requestManageStorageLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    Environment.isExternalStorageManager()
-                } else false
-
-            ) {
-                Toast.makeText(context, "All files access granted!", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Access denied.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-    LaunchedEffect(Unit) {
-        showPermissionDialog = needsStoragePermission(context)
-    }
-
-    PermissionRequestDialog(
-        showDialog = showPermissionDialog,
-        onDismiss = { showPermissionDialog = false },
-        onConfirm = {
-            showPermissionDialog = false
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:" + context.packageName)
-                }
-                requestManageStorageLauncher.launch(intent)
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-        }
-    )
+    if ( isLandscape()) LandscapeMainScreen() else PortraitMainScreen()
 }
 
 @Composable
@@ -166,17 +109,44 @@ fun LandscapeMainScreen() {
                         Text("Create Invoice", textAlign = TextAlign.Center)
                     }
                     Spacer(Modifier.height(5.dp))
-                    Box(
+
+                    Row(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.surface,
-                                RoundedCornerShape(10.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize()
                     ) {
-                        Text("Buy", textAlign = TextAlign.Center)
+
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+                                    navHost.navigate(Screens.QrScanScreen.route)
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface,
+                                    RoundedCornerShape(10.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Cam", textAlign = TextAlign.Center)
+                        }
+                        Spacer(Modifier.width(5.dp))
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface,
+                                    RoundedCornerShape(10.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Buy", textAlign = TextAlign.Center)
+                        }
                     }
                 }
             }
@@ -214,10 +184,12 @@ fun CategorySales() {
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
         ) {
             items(15) {
-                Row(Modifier
-                    .padding(3.dp)
-                    .fillMaxWidth()
-                    .height(20.dp)) {
+                Row(
+                    Modifier
+                        .padding(3.dp)
+                        .fillMaxWidth()
+                        .height(20.dp)
+                ) {
                     Text(
                         "Category Nmae",
                         fontSize = 10.sp,
@@ -225,12 +197,16 @@ fun CategorySales() {
                             .weight(3f)
                             .height(20.dp)
                     )
-                    Text("1200", fontSize = 10.sp, modifier = Modifier
-                        .weight(1f)
-                        .height(20.dp))
-                    Text("700g", fontSize = 10.sp, modifier = Modifier
-                        .weight(1f)
-                        .height(20.dp))
+                    Text(
+                        "1200", fontSize = 10.sp, modifier = Modifier
+                            .weight(1f)
+                            .height(20.dp)
+                    )
+                    Text(
+                        "700g", fontSize = 10.sp, modifier = Modifier
+                            .weight(1f)
+                            .height(20.dp)
+                    )
                 }
             }
         }

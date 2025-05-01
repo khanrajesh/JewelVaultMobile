@@ -60,23 +60,36 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Hilt + Compose integration
     implementation("com.google.dagger:hilt-android:2.48")
     kapt("com.google.dagger:hilt-compiler:2.48")
-
-    // Hilt + Compose integration
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
+
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation ("org.jsoup:jsoup:1.15.3") // Use latest version
 
 
     // For OkHttp (network requests)
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation(libs.okhttp)
 
 // For JSON handling
-    implementation("org.json:json:20210307")
+    implementation(libs.json)
 
 // For Kotlin Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
+    implementation(libs.kotlinx.coroutines.android)
+
+    // CameraX
+    implementation (libs.androidx.camera.core)
+    implementation (libs.androidx.camera.camera2)
+    implementation (libs.androidx.camera.lifecycle)
+    implementation (libs.androidx.camera.view)
+
+// ML Kit Barcode Scanning
+    implementation (libs.barcode.scanning)
+
+    implementation (libs.exp4j)
+
 
 
 }

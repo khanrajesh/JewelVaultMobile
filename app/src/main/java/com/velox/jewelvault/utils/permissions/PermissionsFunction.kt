@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils
+package com.velox.jewelvault.utils.permissions
 
 import android.Manifest
 import android.content.Context
