@@ -9,6 +9,7 @@ import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.ui.screen.MainScreen
 import com.velox.jewelvault.ui.screen.LoginScreen
 import com.velox.jewelvault.ui.screen.DashboardScreen
+import com.velox.jewelvault.ui.screen.InventoryItemScreen
 import com.velox.jewelvault.ui.screen.InventoryScreen
 import com.velox.jewelvault.ui.screen.LedgerScreen
 import com.velox.jewelvault.ui.screen.ProfileScreen
@@ -82,6 +83,9 @@ fun SubAppNavigation(
             }
             composable(SubScreens.Report.route) {
                 ReportScreen()
+            }
+            composable(SubScreens.InventoryItem.route) {
+                InventoryItemScreen()
             }
         }
     }

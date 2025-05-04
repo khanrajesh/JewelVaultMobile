@@ -222,7 +222,6 @@ fun CategoryItem(height: Int) {
                     SubCategoryItem()
                 }
             }
-
         }
 
         if (showOption.value)

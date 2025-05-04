@@ -1,25 +1,18 @@
 package com.velox.jewelvault.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldColors
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
@@ -28,14 +21,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-
-import androidx.compose.runtime.*
-
 class InputFieldState(
     initValue: String = "",
     textState: MutableState<String>? = null
 ) {
-    // Use external MutableState if provided; else use internal state
     private val _text = textState ?: mutableStateOf(initValue)
     var text: String
         get() = _text.value
@@ -55,12 +44,13 @@ class InputFieldState(
     fun asState(): State<String> = _text
 }
 
-
 @Composable
 fun CusOutlinedTextField(
     state: InputFieldState,
     modifier: Modifier = Modifier,
     placeholderText: String,
+    dropdownItems: List<String> = emptyList(),
+    onDropdownItemSelected: ((String) -> Unit)? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
     leadingIcon: ImageVector? = null,
     onLeadingIconClick: (() -> Unit)? = null,
@@ -69,78 +59,138 @@ fun CusOutlinedTextField(
     enabled: Boolean = true,
     readOnly: Boolean = false,
     textStyle: TextStyle = LocalTextStyle.current,
-    prefix: @Composable() (() -> Unit)? = null,
-    suffix: @Composable() (() -> Unit)? = null,
-    supportingText: @Composable() (() -> Unit)? = null,
+    prefix: @Composable (() -> Unit)? = null,
+    suffix: @Composable (() -> Unit)? = null,
+    supportingText: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = false,
-    maxLines: Int = if (singleLine) 1 else Int. MAX_VALUE,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
+    var expanded by remember { mutableStateOf(false) }
 
-    Column(modifier) {
-        OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(),
-            value = state.text,
-            maxLines = maxLines,
-            onValueChange =state::onTextChanged,
-            placeholder = { Text("Enter $placeholderText") },
-            label = { Text(placeholderText) },
-            isError = state.error.isNotEmpty(),
-            enabled = enabled,
-            readOnly = readOnly,
-            prefix=prefix,
-            keyboardActions = keyboardActions,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType
-            ),
-            leadingIcon = if (leadingIcon != null) {
-                {
-                    if (onLeadingIconClick != null) {
-                        Icon(
-                            imageVector = leadingIcon,
-                            contentDescription = "Leading Icon",
-                            modifier = Modifier.bounceClick { onLeadingIconClick() }
-                        )
-                    } else {
-                        Icon(
-                            imageVector = leadingIcon,
-                            contentDescription = "Leading Icon"
-                        )
-                    }
+    Box(
+        modifier = modifier
+            .clickable(
+                enabled = dropdownItems.isNotEmpty(),
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                if (dropdownItems.isNotEmpty()) {
+                    expanded = !expanded
                 }
-            } else null,
-            trailingIcon = if (trailingIcon != null) {
-                {
-                    if (onTrailingIconClick != null) {
-                        Icon(
-                            imageVector = trailingIcon,
-                            contentDescription = "Trailing Icon",
-                            modifier = Modifier.bounceClick { onTrailingIconClick() }
-                        )
-                    } else {
-                        Icon(
-                            imageVector = trailingIcon,
-                            contentDescription = "Trailing Icon"
-                        )
+            }
+    ) {
+        Column {
+            OutlinedTextField(
+                modifier = Modifier
+                    .onFocusChanged {
+                        if (dropdownItems.isNotEmpty()) {
+                            expanded = it.isFocused
+                        }
+                    },
+                value = state.text,
+                onValueChange = {
+                    state.onTextChanged(it)
+                },
+                maxLines = maxLines,
+                placeholder = { Text("Enter $placeholderText") },
+                label = { Text(placeholderText) },
+                isError = state.error.isNotEmpty(),
+                enabled = enabled,
+                readOnly = readOnly || dropdownItems.isNotEmpty(),
+                prefix = prefix,
+                suffix = suffix,
+                keyboardActions = keyboardActions,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                leadingIcon = leadingIcon?.let {
+                    {
+                        if (onLeadingIconClick != null) {
+                            Icon(
+                                imageVector = it,
+                                contentDescription = "Leading Icon",
+                                modifier = Modifier
+                                    .clickable { onLeadingIconClick() }
+                                    .padding(8.dp)
+                            )
+                        } else {
+                            Icon(imageVector = it, contentDescription = "Leading Icon")
+                        }
                     }
-                }
-            } else null,
+                },
+                trailingIcon = {
+                    when {
+                        dropdownItems.isNotEmpty() -> {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (expanded) "Collapse dropdown" else "Expand dropdown",
+                                modifier = Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(8.dp)
+                            )
+                        }
 
-        )
+                        trailingIcon != null -> {
+                            if (onTrailingIconClick != null) {
+                                Icon(
+                                    imageVector = trailingIcon,
+                                    contentDescription = "Trailing Icon",
+                                    modifier = Modifier
+                                        .clickable { onTrailingIconClick() }
+                                        .padding(8.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = trailingIcon,
+                                    contentDescription = "Trailing Icon"
+                                )
+                            }
+                        }
 
-
-        if (state.error.isNotEmpty()) {
-            Text(
-                text = state.error,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 12.dp)
+                        else -> null
+                    }
+                },
+                visualTransformation = visualTransformation,
+                interactionSource = interactionSource,
+                textStyle = textStyle,
+                shape = shape,
+                colors = colors
             )
+
+            // Dropdown suggestions (full list, no "Select" placeholder)
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .width(200.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                dropdownItems
+                    .filter { it.isNotBlank() }
+                    .forEach { item ->
+                        DropdownMenuItem(
+                            text = { Text(item) },
+                            onClick = {
+                                state.onTextChanged(item)
+                                onDropdownItemSelected?.invoke(item)
+                                expanded = false
+                            }
+                        )
+                    }
+            }
+
+            // Error text
+            if (state.error.isNotEmpty()) {
+                Text(
+                    text = state.error,
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                )
+            }
         }
     }
 }
-
