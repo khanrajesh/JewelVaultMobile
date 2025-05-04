@@ -53,12 +53,11 @@ fun LoginScreen() {
 
     val isLogin = remember { mutableStateOf(true) }
 
-    val mobileNo = remember { InputFieldState() }
+    val mobileNo = remember { InputFieldState(textState = baseViewModel.phone) }
     val password = remember { InputFieldState() }
     val confirmPassword = remember { InputFieldState() }
     val email = remember { InputFieldState() }
 
-    mobileNo.text = "yayay"
     password.text = "yayay"
 
     val savePhoneChecked = remember { mutableStateOf(false) }
@@ -89,7 +88,7 @@ fun LoginScreen() {
 
 
         if (isLogin.value) {
-            navHost.navigate(Screens.Dashboard.route) {
+            navHost.navigate(Screens.Main.route) {
                 popUpTo(Screens.Login.route) {
                     inclusive = true
                 }

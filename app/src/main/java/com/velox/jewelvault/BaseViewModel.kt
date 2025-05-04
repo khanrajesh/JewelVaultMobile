@@ -18,6 +18,7 @@ class BaseViewModel @Inject constructor(
     var loading by mutableStateOf(false)
     var snackMessage by mutableStateOf("")
     val dataStoreManager = _dataStoreManager
+    val phone = mutableStateOf("8260636334")
 
 
     val metalRates = mutableStateListOf<MetalRate>()

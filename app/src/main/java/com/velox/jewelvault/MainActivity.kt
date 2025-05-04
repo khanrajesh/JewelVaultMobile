@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
                         AppNavigation(
                             navController,
                             baseViewModel,
-                            startDestination = Screens.Splash.route
+                            startDestination = Screens.Main.route
                         )
 
                         if (baseViewModel.loading) {
@@ -145,11 +145,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-
-
-
     }
-
 }
 

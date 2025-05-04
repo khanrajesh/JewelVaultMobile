@@ -14,6 +14,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,14 +29,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 
-class InputFieldState {
-    var text by mutableStateOf("")
+import androidx.compose.runtime.*
+
+class InputFieldState(
+    initValue: String = "",
+    textState: MutableState<String>? = null
+) {
+    // Use external MutableState if provided; else use internal state
+    private val _text = textState ?: mutableStateOf(initValue)
+    var text: String
+        get() = _text.value
+        set(value) {
+            _text.value = value
+        }
+
     var error by mutableStateOf("")
 
     fun onTextChanged(newText: String) {
         text = newText
-        if (error.isNotEmpty()) error = ""
+        if (error.isNotEmpty()) {
+            error = ""
+        }
     }
+
+    fun asState(): State<String> = _text
 }
 
 
@@ -64,7 +81,6 @@ fun CusOutlinedTextField(
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
 
-
     Column(modifier) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
@@ -74,6 +90,9 @@ fun CusOutlinedTextField(
             placeholder = { Text("Enter $placeholderText") },
             label = { Text(placeholderText) },
             isError = state.error.isNotEmpty(),
+            enabled = enabled,
+            readOnly = readOnly,
+            prefix=prefix,
             keyboardActions = keyboardActions,
             keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType

@@ -1,464 +1,212 @@
 package com.velox.jewelvault.ui.screen
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import android.annotation.SuppressLint
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.velox.jewelvault.ui.components.QrBarScannerPage
-import com.velox.jewelvault.ui.components.bounceClick
-import com.velox.jewelvault.ui.nav.Screens
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.velox.jewelvault.R
+import com.velox.jewelvault.ui.components.InputIconState
+import com.velox.jewelvault.ui.components.TabDrawerValue
+import com.velox.jewelvault.ui.components.TabNavigationDrawer
+import com.velox.jewelvault.ui.components.rememberTabDrawerState
+import com.velox.jewelvault.ui.nav.SubAppNavigation
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
+import kotlinx.coroutines.launch
 
-
-@VaultPreview
 @Composable
+@VaultPreview
 fun MainScreenPreview() {
     MainScreen()
 }
 
 @Composable
 fun MainScreen() {
-    if ( isLandscape()) LandscapeMainScreen() else PortraitMainScreen()
+    val baseViewModel = LocalBaseViewModel.current
+    val context = LocalContext.current
+    val subNavController = rememberNavController()
+    val showBarcodeScanPage = remember { mutableStateOf(false) }
+
+    LaunchedEffect(true) {
+        if (baseViewModel.metalRates.isNotEmpty()) {
+            baseViewModel.refreshMetalRates(context = context)
+        }
+    }
+    val inputIconStates = listOf(
+        InputIconState("Dashboard", R.drawable.dashboard_tr
+        ) {
+            subNavController.navigate(SubScreens.Dashboard.route)
+        },  InputIconState("Profile", R.drawable.dashboard_tr
+        ) {
+            subNavController.navigate(SubScreens.Profile.route)
+        },
+        InputIconState(
+            "Inventory",
+            R.drawable.category_tr
+        ) {
+            subNavController.navigate(SubScreens.Inventory.route)
+        },
+        InputIconState(
+            "Report",
+            R.drawable.trading_ts
+        ) { subNavController.navigate(SubScreens.Report.route) },
+        InputIconState(
+            "Ledger",
+            R.drawable.settings_rr
+        ) { subNavController.navigate(SubScreens.Ledger.route) },
+        InputIconState(
+            "",
+            R.drawable.logo_1
+        ) { subNavController.navigate(SubScreens.Dashboard.route) },
+    )
+
+
+
+    if (isLandscape()) {
+        LandscapeDashboardScreen(inputIconStates, subNavController)
+    } else {
+        PortraitDashboardScreen(inputIconStates)
+    }
+
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LandscapeMainScreen() {
-    val navHost = LocalNavController.current
+private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(5.dp)
-    ) {
-
-        Column(
-            Modifier
-                .fillMaxSize()
-        ) {
-            //cash flow over view
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.primary,
             ) {
-                //flow over view
-                FlowOverView()
-                Spacer(Modifier.width(5.dp))
-                TopFiveSales(Modifier.weight(1f))
-//                Spacer(Modifier.weight(1f))
-                Spacer(Modifier.width(5.dp))
-                CategorySales()
-                Spacer(Modifier.width(5.dp))
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(190.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(12.dp)
-                        )
-                        .padding(5.dp), verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .bounceClick {
-                                navHost.navigate(Screens.SellInvoice.route)
+                Text("Drawer Item 1", modifier = Modifier.padding(16.dp))
+                Text("Drawer Item 2", modifier = Modifier.padding(16.dp))
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Jewel Vault") },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            scope.launch {
+                                drawerState.open() // Open drawer on button click
                             }
-                            .weight(2f)
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(10.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Create Invoice", textAlign = TextAlign.Center)
-                    }
-                    Spacer(Modifier.height(5.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                    ) {
-
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-                                    navHost.navigate(Screens.QrScanScreen.route)
-                                }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Cam", textAlign = TextAlign.Center)
+                        }) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
                         }
-                        Spacer(Modifier.width(5.dp))
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-
-                                }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Buy", textAlign = TextAlign.Center)
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(5.dp))
-            //Recent Item Sold
-            RecentItemSold()
-        }
-    }
-}
-
-@Composable
-fun PortraitMainScreen() {
-
-}
-
-@Composable
-fun CategorySales() {
-    Column(
-        Modifier
-            .fillMaxHeight()
-            .width(200.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Category Overview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 9.sp, color = Color.Gray)
-        }
-
-        LazyColumn(
-            Modifier
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-        ) {
-            items(15) {
-                Row(
-                    Modifier
-                        .padding(3.dp)
-                        .fillMaxWidth()
-                        .height(20.dp)
-                ) {
-                    Text(
-                        "Category Nmae",
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .weight(3f)
-                            .height(20.dp)
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
-                    Text(
-                        "1200", fontSize = 10.sp, modifier = Modifier
-                            .weight(1f)
-                            .height(20.dp)
-                    )
-                    Text(
-                        "700g", fontSize = 10.sp, modifier = Modifier
-                            .weight(1f)
-                            .height(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TopFiveSales(modifier: Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Top 5 Selling Items", fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 9.sp, color = Color.Gray)
-        }
-
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-                .padding(8.dp)
-        ) {
-            items(5) { it ->
-                ItemViewItem()
-                if (it < 4) {
-                    Spacer(
-                        Modifier
-                            .padding(5.dp)
-                            .fillMaxHeight()
-                            .width(1.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-fun ItemViewItem() {
-    Column(modifier = Modifier.width(100.dp)) {
-        repeat(5) { index ->
-            Row(
-                modifier = Modifier.height(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Item ${index + 1}", fontSize = 10.sp, fontWeight = FontWeight.Normal)
-                Spacer(modifier = Modifier.weight(1f))
-                Text("${(10..50).random()}", fontSize = 10.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-        Text(
-            "Gold",
-            fontSize = 10.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp)
-        )
-    }
-}
-
-@Composable
-fun FlowOverView() {
-    Column(
-        Modifier
-            .fillMaxHeight()
-            .width(300.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
-    ) {
-        Row {
-            Text("Flow Overview", fontSize = 10.sp, fontWeight = FontWeight.Black)
-            Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 10.sp, color = Color.Gray)
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-                .padding(8.dp)
-        ) {
-            Spacer(Modifier.weight(1f))
-            Column {
-                Text("$ 100000", fontSize = 18.sp, fontWeight = FontWeight.Black)
-                Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
-            }
-            Spacer(Modifier.weight(1f))
-            Column {
-                Text("5", fontSize = 18.sp, fontWeight = FontWeight.Black)
-                Text("Total Invoice", fontSize = 10.sp, color = Color.Gray)
-            }
-        }
-
-    }
-}
-
-@Composable
-fun RecentItemSold() {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
-    ) {
-        Row {
-            Text("Recent Sells")
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Default.ArrowDropDown, null)
-        }
-        Spacer(Modifier.height(5.dp))
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .padding(5.dp)
-        ) {
-
-            Column(
-                Modifier
-                    .padding(2.dp)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-            ) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("Date", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Customer Name",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(2f)
-                    )
-                    Text("Mobile No", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Item", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Weight", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Total Price",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text("Tax", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Category", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Sub Category",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                }
-                Spacer(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline)
                 )
             }
-            LazyColumn(
-                Modifier
-                    .weight(1f)
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp)
             ) {
+                Text("Main content goes here")
+            }
+        }
+    }
+}
 
-                items(15) {
-                    Column(
+@SuppressLint("SuspiciousIndentation")
+@Composable
+private fun LandscapeDashboardScreen(
+    inputIconStates: List<InputIconState>,
+    subNavController: NavHostController
+) {
+    val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
+    val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+
+    TabNavigationDrawer(
+        drawerState = drawerState,
+        content = {
+            SubAppNavigation(
+                subNavController,
+                navHost,
+                baseViewModel,
+                startDestination = SubScreens.Inventory.route
+            )
+        },
+        drawerContent = {
+            LazyColumn() {
+                items(inputIconStates) { item ->
+                    Row(
                         Modifier
-                            .padding(2.dp)
+                            .clickable {
+                                item.onClick()
+                            }
                             .fillMaxWidth()
-                            .wrapContentHeight()
+                            .padding(vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(
-                                "01-May-2025",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
+                        item.icon?.let {
+                            Image(
+                                painter = painterResource(it),
+                                contentDescription = null,
+                                Modifier.size(30.dp)
                             )
-                            Text(
-                                "Rakesh Khan",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(2f)
-                            )
-                            Text(
-                                "1234567890",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "Box Chain",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "2.5g",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "10000",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "100",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "Gold",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "Chain",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
                         }
-                        Spacer(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outline)
-                        )
+                        if (drawerState.isOpen) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(item.text)
+                        }
                     }
                 }
             }
         }
-
-
-    }
+    )
 }
+
+
+
 
