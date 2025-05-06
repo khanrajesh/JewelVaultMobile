@@ -84,9 +84,9 @@ fun CusOutlinedTextField(
                 }
             }
     ) {
-        Column {
+        Column(Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                modifier = Modifier
+                modifier = Modifier.fillMaxWidth()
                     .onFocusChanged {
                         if (dropdownItems.isNotEmpty()) {
                             expanded = it.isFocused

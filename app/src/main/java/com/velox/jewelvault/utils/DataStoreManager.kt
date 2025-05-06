@@ -36,6 +36,4 @@ class DataStoreManager @Inject constructor(
             prefs[key] ?: default
         }
     }
-
-
 }

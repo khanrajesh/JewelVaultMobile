@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
                         AppNavigation(
                             navController,
                             baseViewModel,
-                            startDestination = Screens.Main.route
+                            startDestination = Screens.Splash.route
                         )
 
                         if (baseViewModel.loading) {

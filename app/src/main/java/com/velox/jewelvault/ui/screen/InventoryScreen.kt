@@ -41,7 +41,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalSubNavController
 
 @Composable
 fun InventoryScreen() {
@@ -244,8 +247,12 @@ fun CategoryItem(height: Int) {
 
 @Composable
 fun SubCategoryItem() {
+    val subNav = LocalSubNavController.current
     Column(
         Modifier
+            .bounceClick {
+                subNav.navigate(SubScreens.InventoryItem.route)
+            }
             .padding(3.dp)
             .wrapContentHeight()
             .background(

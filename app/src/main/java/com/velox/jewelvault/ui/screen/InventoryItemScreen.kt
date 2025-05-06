@@ -211,14 +211,14 @@ private fun AddItemSection(
                 Row(Modifier.fillMaxWidth()) {
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = addToName,
                         placeholderText = "Add to Name",
                         keyboardType = KeyboardType.Text
                     )
                     Spacer(Modifier.width(5.dp))
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = type,
                         placeholderText = "Type",
                         dropdownItems = listOf("piece", "lot"),
@@ -226,7 +226,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = qty,
                         placeholderText = "Qty",
                         keyboardType = KeyboardType.Number,
@@ -236,7 +236,7 @@ private fun AddItemSection(
 
                 Row {
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = GrWt,
                         placeholderText = "Gr.Wt/gm",
                         keyboardType = KeyboardType.Number,
@@ -244,7 +244,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = NtWt,
                         placeholderText = "NT.Wt/gm",
                         keyboardType = KeyboardType.Number,
@@ -252,7 +252,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = Purity,
                         placeholderText = "purity",
                         dropdownItems = listOf("750", "916")
@@ -260,7 +260,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = FnWt,
                         placeholderText = "Fn.Wt/gm",
                         keyboardType = KeyboardType.Number,
@@ -271,7 +271,7 @@ private fun AddItemSection(
                 Row {
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = ChargeType,
                         placeholderText = "Charge type",
                         dropdownItems = listOf("%", "piece"),
@@ -279,7 +279,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = Charge,
                         placeholderText = "charge",
                         keyboardType = KeyboardType.Number,
@@ -287,14 +287,14 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = OtherChargeDes,
                         placeholderText = "Oth Charge Des",
                     )
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = OthCharge,
                         placeholderText = "Oth Charge",
                         keyboardType = KeyboardType.Number,
@@ -304,7 +304,7 @@ private fun AddItemSection(
 
                 Row {
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = cgst,
                         placeholderText = "CGST",
                         keyboardType = KeyboardType.Number,
@@ -312,7 +312,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = sgst,
                         placeholderText = "SGST",
                         keyboardType = KeyboardType.Number,
@@ -320,7 +320,7 @@ private fun AddItemSection(
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
-                        modifier = Modifier,
+                        modifier = Modifier.weight(1f),
                         state = igst,
                         placeholderText = "IGST",
                         keyboardType = KeyboardType.Number,

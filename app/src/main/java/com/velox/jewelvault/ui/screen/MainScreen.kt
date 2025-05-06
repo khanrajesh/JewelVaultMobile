@@ -174,7 +174,7 @@ private fun LandscapeDashboardScreen(
                 subNavController,
                 navHost,
                 baseViewModel,
-                startDestination = SubScreens.InventoryItem.route
+                startDestination = SubScreens.Dashboard.route
             )
         },
         drawerContent = {

@@ -41,6 +41,13 @@ android {
     }
 }
 
+//for room database
+kapt {
+    arguments {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
+}
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -52,6 +59,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.junit.ktx)
+    implementation(libs.androidx.room.testing.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -61,13 +70,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     // Hilt + Compose integration
-    implementation("com.google.dagger:hilt-android:2.48")
-    kapt("com.google.dagger:hilt-compiler:2.48")
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
 
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-    implementation ("org.jsoup:jsoup:1.15.3") // Use latest version
+    implementation(libs.androidx.datastore.preferences)
+    implementation (libs.jsoup) // Use latest version
 
 
     // For OkHttp (network requests)
@@ -89,7 +98,15 @@ dependencies {
     implementation (libs.barcode.scanning)
 
     implementation (libs.exp4j)
+    implementation ("androidx.lifecycle:lifecycle-extensions:2.2.0")
 
+    //room
+    implementation ("androidx.room:room-runtime:2.7.1")
+    kapt("androidx.room:room-compiler:2.7.1")
+    implementation("androidx.room:room-ktx:2.7.1")
 
+    // Testing
+    androidTestImplementation( "androidx.room:room-testing:2.7.1")
+    androidTestImplementation( "androidx.test:core:1.5.0")
 
 }
