@@ -27,7 +27,3 @@ val LocalSubNavController = staticCompositionLocalOf<NavHostController> {
 val LocalBaseViewModel = staticCompositionLocalOf<BaseViewModel> {
     error("BaseViewModel not provided")
 }
-
-val LocalDataStoreManager = staticCompositionLocalOf<DataStoreManager> {
-    error("DataStoreManager not provided")
-}

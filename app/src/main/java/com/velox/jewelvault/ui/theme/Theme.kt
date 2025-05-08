@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.velox.jewelvault.ui.theme
 
 import android.app.Activity
@@ -96,7 +98,6 @@ private val darkScheme = darkColorScheme(
 @Composable
 fun JewelVaultTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

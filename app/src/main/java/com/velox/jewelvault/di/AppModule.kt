@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.utils.DataStoreManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -38,6 +39,12 @@ object AppModule {
         return PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("vault_datastore")
         }
+    }
+
+    @Provides
+    @Singleton
+    fun provideDataStoreManager(dataStore: DataStore<Preferences>): DataStoreManager {
+        return DataStoreManager(dataStore)
     }
 
     // ✅ Room Database

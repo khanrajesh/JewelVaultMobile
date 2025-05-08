@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -14,7 +15,15 @@ import java.util.Locale
 
 
 val mainScope = CoroutineScope(Dispatchers.Main)
+fun mainScope(func: suspend () -> Unit) {
+    CoroutineScope(Dispatchers.Main).launch { func() }
+}
+
 val ioScope = CoroutineScope(Dispatchers.IO)
+fun ioScope(func: suspend () -> Unit) {
+    CoroutineScope(Dispatchers.IO).launch { func() }
+}
+
 
 @Composable
 fun rememberCurrentDateTime(): State<String> {

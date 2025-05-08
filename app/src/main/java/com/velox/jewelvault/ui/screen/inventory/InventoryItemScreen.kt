@@ -1,9 +1,10 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.inventory
 
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,24 +23,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.utils.mainScope
+import kotlinx.coroutines.launch
+import java.sql.Timestamp
 
 @Composable
-fun InventoryItemScreen() {
-    LandscapeInventoryItemScreen()
+fun InventoryItemScreen(inventoryViewModel: InventoryViewModel) {
+    LandscapeInventoryItemScreen(inventoryViewModel)
 }
 
 @Composable
-fun LandscapeInventoryItemScreen() {
+fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
+
     val addItem = remember { mutableStateOf(false) }
     val addToName = remember { InputFieldState() }
     val type = remember { InputFieldState() }
@@ -91,86 +101,96 @@ fun LandscapeInventoryItemScreen() {
                 OthCharge,
                 cgst,
                 sgst,
-                igst
+                igst,
+                inventoryViewModel
             )
 
-            LazyColumn {
-                item {
-                    Column {
-                        Row {
-                            Text("Add to Name", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(2.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Type", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Qty", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Gr.Wt", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Nt.Wt", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Purity", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Fn.Wt", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("MC.Type", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("M.Chr", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Oth Chr", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("Chr", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("C-Gst", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("S-Gst", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("I-Gst", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                      Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                            Text("DOA", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        }
-                        Spacer(
-                            Modifier
-                                .height(2.dp)
-                                .fillMaxWidth()
-                                .background(Color.LightGray)
-                        )
-                    }
-                       }
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val columnCount = 15
+                val columnWidth = maxWidth / columnCount
 
-                item {
-                    Row {
-                        Text("Add to Name", modifier = Modifier.weight(2.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Type",  modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Qty", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Gr.Wt",  modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Nt.Wt",  modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Purity", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Fn.Wt", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Pieces", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("M.Chr", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Oth Chr", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("Chr", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("C-Gst", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("S-Gst", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("I-Gst", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("|", fontSize = 12.sp, textAlign = TextAlign.Center)
-                        Text("DOA", modifier = Modifier.weight(1.0f), fontSize = 12.sp, textAlign = TextAlign.Center)
+                val itemsWithHeader = listOf(null) + inventoryViewModel.itemList
+
+                LazyColumn {
+                    itemsIndexed(itemsWithHeader) { index, item ->
+                        val isHeader = index == 0
+                        val values = if (isHeader) {
+                            listOf(
+                                "To Name",
+                                "Type",
+                                "Qty",
+                                "Gr.Wt",
+                                "Nt.Wt",
+                                "Purity",
+                                "Fn.Wt",
+                                "MC.Type",
+                                "M.Chr",
+                                "Oth Chr",
+                                "Chr",
+                                "C-Gst",
+                                "S-Gst",
+                                "I-Gst",
+                                "DOA"
+                            )
+                        } else {
+                            listOf(
+                                item!!.itemAddName,
+                                item.type,
+                                item.quantity.toString(),
+                                item.gsWt.toString(),
+                                item.ntWt.toString(),
+                                item.purity,
+                                item.fnWt.toString(),
+                                item.quantity.toString(),
+                                item.crg.toString(),
+                                item.othCrgDes,
+                                item.othCrg.toString(),
+                                item.cgst.toString(),
+                                item.sgst.toString(),
+                                item.igst.toString(),
+                                item.addDate.toString()
+                            )
+                        }
+
+                        Row(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(30.dp)) {
+                            values.forEachIndexed { i, value ->
+                                Box(modifier = Modifier.width(columnWidth)) {
+                                    Text(
+                                        text = value,
+                                        fontWeight = if (isHeader) FontWeight.Normal else FontWeight.Normal,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 2.dp)
+                                    )
+                                }
+                                if (i < values.size - 1) {
+                                    Text(
+                                        "|",
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.width(2.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isHeader) {
+                            Spacer(
+                                Modifier
+                                    .height(2.dp)
+                                    .fillMaxWidth()
+                                    .background(Color.LightGray)
+                            )
+                        }
                     }
                 }
             }
+
+
         }
     }
 }
@@ -191,8 +211,10 @@ private fun AddItemSection(
     OthCharge: InputFieldState,
     cgst: InputFieldState,
     sgst: InputFieldState,
-    igst: InputFieldState
+    igst: InputFieldState,
+    inventoryViewModel: InventoryViewModel
 ) {
+    val context = LocalContext.current
     if (addItem.value) {
         Column(
             Modifier
@@ -216,13 +238,16 @@ private fun AddItemSection(
                         placeholderText = "Add to Name",
                         keyboardType = KeyboardType.Text
                     )
+
                     Spacer(Modifier.width(5.dp))
+
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
                         state = type,
                         placeholderText = "Type",
                         dropdownItems = listOf("piece", "lot"),
                     )
+
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
@@ -231,6 +256,7 @@ private fun AddItemSection(
                         placeholderText = "Qty",
                         keyboardType = KeyboardType.Number,
                     )
+
                 }
                 Spacer(Modifier.height(5.dp))
 
@@ -347,6 +373,55 @@ private fun AddItemSection(
                         "Add", Modifier
                             .bounceClick {
                                 addItem.value = false
+
+                                val newItem = ItemEntity(
+                                    itemAddName = addToName.text,
+                                    userId = 1,
+                                    storeId = 1,
+                                    catId = 1,
+                                    subCatId = 1,
+                                    catName = "Jewelry",
+                                    subCatName = "Rings",
+                                    type = type.text,
+                                    quantity = qty.text.toInt(),
+                                    gsWt = GrWt.text.toDouble(),
+                                    ntWt = NtWt.text.toDouble(),
+                                    fnWt = NtWt.text.toDouble(),
+                                    purity = Purity.text,
+                                    crgType = ChargeType.text,
+                                    crg = Charge.text.toDouble(),
+                                    othCrgDes = OtherChargeDes.text,
+                                    othCrg = OthCharge.text.toDouble(),
+                                    cgst = 1.5,
+                                    sgst = 1.5,
+                                    igst = 0.0,
+                                    huid = "",
+                                    addDate = Timestamp(System.currentTimeMillis()),
+                                    modifiedDate = Timestamp(System.currentTimeMillis())
+                                )
+
+                                inventoryViewModel.safeInsertItem(
+                                    newItem,
+                                    onFailure = {
+                                        mainScope.launch {
+                                            Toast.makeText(
+                                                context,
+                                                "failed to add item",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    },
+                                    onSuccess = { itemEntity, l ->
+                                        inventoryViewModel.getAllItems()
+                                        mainScope.launch {
+                                            Toast.makeText(
+                                                context,
+                                                "item added with id: $l",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    })
+
                             }
                             .background(
                                 MaterialTheme.colorScheme.primary,

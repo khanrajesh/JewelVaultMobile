@@ -1,5 +1,6 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.login
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,31 +24,38 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.R
+import com.velox.jewelvault.data.roomdb.entity.UsersEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 @VaultPreview
 fun LoginScreenPreview() {
-    LoginScreen()
+    LoginScreen(hiltViewModel<LoginViewModel>())
 }
 
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(loginViewModel: LoginViewModel) {
+    val context = LocalContext.current
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
 
@@ -58,7 +66,7 @@ fun LoginScreen() {
     val confirmPassword = remember { InputFieldState() }
     val email = remember { InputFieldState() }
 
-    password.text = "yayay"
+    password.text = "0000"
 
     val savePhoneChecked = remember { mutableStateOf(false) }
 
@@ -88,11 +96,23 @@ fun LoginScreen() {
 
 
         if (isLogin.value) {
-            navHost.navigate(Screens.Main.route) {
-                popUpTo(Screens.Login.route) {
-                    inclusive = true
+
+            loginViewModel.login(mobileNo.text, pass = password.text, onFailure = {
+                baseViewModel.snackMessage = it
+            }, onSuccess = {
+                ioScope {
+//todo save the user id in datastore
+                    mainScope {
+                        navHost.navigate(Screens.Main.route) {
+                            popUpTo(Screens.Login.route) {
+                                inclusive = true
+                            }
+                        }
+                    }
                 }
-            }
+            })
+
+
         } else {
 
 //            navHost.navigate(Screens.Login.route){
@@ -100,10 +120,23 @@ fun LoginScreen() {
 //                    inclusive = true
 //                }
 //            }
+            val user = UsersEntity(
+                name = mobileNo.text,
+                email = email.text,
+                mobileNo = mobileNo.text,
+                pin = password.text
+            )
+            loginViewModel.signup(user, onFailure = {
+                mainScope {
+                    baseViewModel.snackMessage = "Unable to create the user"
+                }
+            }, onSuccess = {
 
-            baseViewModel.snackMessage = "Will be setup soon !"
+                baseViewModel.snackMessage = "Signed up successfully"
+                isLogin.value = !isLogin.value
+            })
 
-            isLogin.value = !isLogin.value
+
         }
     }
 

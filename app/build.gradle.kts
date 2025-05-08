@@ -109,4 +109,10 @@ dependencies {
     androidTestImplementation( "androidx.room:room-testing:2.7.1")
     androidTestImplementation( "androidx.test:core:1.5.0")
 
+    implementation("org.apache.poi:poi:5.2.3")
+    implementation("org.apache.poi:poi-ooxml:5.2.3")
+    // Optional for Android compatibility
+    implementation("org.apache.xmlbeans:xmlbeans:5.1.1")
+    implementation("org.apache.commons:commons-collections4:4.4")
+
 }

@@ -70,6 +70,7 @@ fun CusOutlinedTextField(
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
+
     var expanded by remember { mutableStateOf(false) }
 
     Box(
