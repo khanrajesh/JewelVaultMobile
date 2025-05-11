@@ -44,7 +44,7 @@ import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
 
 @Composable
 @VaultPreview
@@ -99,10 +99,12 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
 
             loginViewModel.login(mobileNo.text, pass = password.text, onFailure = {
                 baseViewModel.snackMessage = it
-            }, onSuccess = {
+            }, onSuccess = {usersEntity->
                 ioScope {
-//todo save the user id in datastore
+                    //todo save the user id in datastore
+
                     mainScope {
+
                         navHost.navigate(Screens.Main.route) {
                             popUpTo(Screens.Login.route) {
                                 inclusive = true

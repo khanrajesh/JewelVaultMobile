@@ -15,7 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -51,7 +54,6 @@ fun CusOutlinedTextField(
     placeholderText: String,
     dropdownItems: List<String> = emptyList(),
     onDropdownItemSelected: ((String) -> Unit)? = null,
-    keyboardType: KeyboardType = KeyboardType.Text,
     leadingIcon: ImageVector? = null,
     onLeadingIconClick: (() -> Unit)? = null,
     trailingIcon: ImageVector? = null,
@@ -63,6 +65,8 @@ fun CusOutlinedTextField(
     suffix: @Composable (() -> Unit)? = null,
     supportingText: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Next,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = false,
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
@@ -70,7 +74,7 @@ fun CusOutlinedTextField(
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
 ) {
-
+    val haptic = LocalHapticFeedback.current
     var expanded by remember { mutableStateOf(false) }
 
     Box(
@@ -87,7 +91,8 @@ fun CusOutlinedTextField(
     ) {
         Column(Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .onFocusChanged {
                         if (dropdownItems.isNotEmpty()) {
                             expanded = it.isFocused
@@ -95,7 +100,16 @@ fun CusOutlinedTextField(
                     },
                 value = state.text,
                 onValueChange = {
-                    state.onTextChanged(it)
+                    if (keyboardType == KeyboardType.Number) {
+                        if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                            state.onTextChanged(it)
+                        } else {
+                            state.error = "Only numbers and one decimal point allowed"
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    } else {
+                        state.onTextChanged(it)
+                    }
                 },
                 maxLines = maxLines,
                 placeholder = { Text("Enter $placeholderText") },
@@ -106,7 +120,10 @@ fun CusOutlinedTextField(
                 prefix = prefix,
                 suffix = suffix,
                 keyboardActions = keyboardActions,
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = keyboardType,
+                    imeAction = imeAction
+                ),
                 leadingIcon = leadingIcon?.let {
                     {
                         if (onLeadingIconClick != null) {
@@ -185,6 +202,7 @@ fun CusOutlinedTextField(
 
             // Error text
             if (state.error.isNotEmpty()) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 Text(
                     text = state.error,
                     color = MaterialTheme.colorScheme.error,

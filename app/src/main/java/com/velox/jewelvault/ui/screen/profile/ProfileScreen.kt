@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.profile
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -16,14 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,18 +35,16 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.mainScope
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(profileViewModel: ProfileViewModel) {
     val baseViewModel = LocalBaseViewModel.current
     val isEditable = remember { mutableStateOf(false) }
-    val text = remember { InputFieldState("Proprietor") }
-    val phone = remember { InputFieldState(textState = baseViewModel.phone) }
     val context = LocalContext.current
 
     Box(
@@ -76,12 +71,16 @@ fun ProfileScreen() {
                 ) {
                     Spacer(Modifier.weight(0.5f))
                     BasicTextField(
-                        value = "Raj Jewellers",
-                        onValueChange = { },
+                        value = profileViewModel.shopName.text,
+                        onValueChange = {
+                            profileViewModel.shopName.onTextChanged(it)
+                        },
+
                         textStyle = TextStyle(
                             fontSize = 36.sp,
                             textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     )
                     Spacer(Modifier.weight(1f))
@@ -104,7 +103,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.propName,
                             placeholderText = "Proprietor",
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
@@ -113,7 +112,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.userEmail,
                             placeholderText = "Email",
                             keyboardType = KeyboardType.Email,
                             readOnly = !isEditable.value
@@ -122,7 +121,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = phone,
+                            state = profileViewModel.userMobile,
                             placeholderText = "Mobile No",
                             keyboardType = KeyboardType.Phone,
                             readOnly = !isEditable.value
@@ -132,7 +131,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.address,
                             placeholderText = "Address",
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value,
@@ -145,7 +144,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.registrationNo,
                             placeholderText = "Registration No",
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
@@ -154,7 +153,7 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.gstinNo,
                             placeholderText = "GSTIN No",
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
@@ -163,13 +162,12 @@ fun ProfileScreen() {
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
                                 .fillMaxWidth(),
-                            state = text,
+                            state = profileViewModel.panNumber,
                             placeholderText = "PAN No",
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
                         )
                     }
-
                 }
 
                 if (isEditable.value)
@@ -194,11 +192,28 @@ fun ProfileScreen() {
                         Text(
                             "Done", Modifier
                                 .clickable {
-                                    Toast.makeText(
-                                        context,
-                                        "Feature not implemented yet. Thank you!",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+
+                                    profileViewModel.saveStoreData(onSuccess = {
+                                        mainScope {
+                                            Toast.makeText(
+                                                context,
+                                                "Store Details updated. Thank you!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    },
+                                        onFailure = {
+                                            mainScope {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Unable to update Store Details.",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+
+                                    )
+
                                     isEditable.value = !isEditable.value
                                 }
                                 .background(

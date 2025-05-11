@@ -7,6 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -43,4 +45,13 @@ fun rememberCurrentDateTime(): State<String> {
 fun LocalDateTime.toCustomFormat(): String {
     val formatter = DateTimeFormatter.ofPattern("dd-MM hh:mm a")
     return this.format(formatter)
+}
+
+inline fun <reified T> T.log(message: String) {
+    val tag = T::class.java.simpleName
+    android.util.Log.d(tag, message)
+}
+
+fun Double.roundTo3Decimal(): Double {
+    return BigDecimal(this).setScale(3, RoundingMode.HALF_UP).toDouble()
 }

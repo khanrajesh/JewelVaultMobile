@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,9 +33,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
+import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 
 @VaultPreview
@@ -51,6 +58,19 @@ fun DashboardScreen() {
 @Composable
 fun LandscapeMainScreen() {
     val navHost = LocalNavController.current
+    val dashboardViewModel = LocalBaseViewModel.current
+    val subNavController = LocalSubNavController.current
+
+    LaunchedEffect(true) {
+        delay(5000)
+        val storeId = dashboardViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
+        if (storeId == null) {
+            dashboardViewModel.snackMessage = "Please Set Up Your Store First."
+            delay(2000)
+            subNavController.navigate(SubScreens.Profile.route)
+        }
+    }
+
 
     Box(
         Modifier

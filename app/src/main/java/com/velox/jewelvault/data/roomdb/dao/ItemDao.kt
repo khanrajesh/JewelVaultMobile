@@ -48,9 +48,12 @@ interface ItemDao {
     """)
     suspend fun updateQuantityIfLot(itemId: Int, newQuantity: Int, modifiedDate: Timestamp)
 
-    // ✅ Delete by orderId
+
     @Query("DELETE FROM ItemEntity WHERE itemId = :itemId")
     suspend fun deleteById(itemId: Int)
+
+    @Query("DELETE FROM ItemEntity WHERE itemId = :itemId AND catId = :catId AND subCatId = :subCatId")
+    suspend fun deleteById(itemId: Int, catId: Int, subCatId: Int): Int
 
     // ✅ Delete all (optional utility)
     @Query("DELETE FROM ItemEntity")
@@ -59,7 +62,7 @@ interface ItemDao {
     // ✅ Get by ID
     @Query("SELECT * FROM ItemEntity WHERE itemId = :itemId")
     suspend fun getItemById(itemId: Int): ItemEntity?
-
+    
     // ✅ Update item (full object update)
     @Update
     suspend fun updateItem(item: ItemEntity)

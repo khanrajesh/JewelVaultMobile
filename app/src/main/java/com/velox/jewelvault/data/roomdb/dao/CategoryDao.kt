@@ -28,6 +28,9 @@ interface CategoryDao {
     suspend fun deleteCategory(category: CategoryEntity): Int
     // Returns number of rows deleted
 
+    @Query("SELECT * FROM CategoryEntity WHERE userId = :userId AND storeId = :storeId")
+    suspend fun getCategoriesByUserIdAndStoreId(userId: Int, storeId:Int): List<CategoryEntity>
+
     @Query("SELECT * FROM CategoryEntity WHERE userId = :userId")
     suspend fun getCategoriesByUserId(userId: Int): List<CategoryEntity>
     // Empty list on failure or no data

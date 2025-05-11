@@ -4,20 +4,26 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.UsersEntity
+import com.velox.jewelvault.utils.DataStoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val appDatabase: AppDatabase
+    private val _appDatabase: AppDatabase,
+    private val _dataStoreManager: DataStoreManager
 ) : ViewModel() {
+
 
 
     fun signup(usersEntity: UsersEntity, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
             try {
-                val result = appDatabase.userDao().insertUser(usersEntity)
+                val result = _appDatabase.userDao().insertUser(usersEntity)
                 result?.let { onSuccess() } ?: onFailure()
             } catch (e: Exception) {
                 onFailure()
@@ -28,10 +34,15 @@ class LoginViewModel @Inject constructor(
     fun login(phone: String, pass: String, onSuccess: (UsersEntity) -> Unit, onFailure: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val result = appDatabase.userDao().getUserByMobile(phone)
+                val result = _appDatabase.userDao().getUserByMobile(phone)
                 result?.let {
                     if (it.pin!= null && it.pin == pass){
-                        onSuccess(it)
+                        try {
+                            _dataStoreManager.setValue(DataStoreManager.USER_ID_KEY,it.id)
+                            onSuccess(it)
+                        }catch (e:Exception){
+                            onFailure("Unable to store the user data")
+                        }
                     }else{
                         onFailure("Wrong Password")
                     }
@@ -41,4 +52,6 @@ class LoginViewModel @Inject constructor(
             }
         }
     }
+
+
 }

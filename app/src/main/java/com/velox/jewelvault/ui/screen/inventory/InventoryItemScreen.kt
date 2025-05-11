@@ -1,8 +1,10 @@
 package com.velox.jewelvault.ui.screen.inventory
 
+import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -11,22 +13,33 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -36,17 +49,37 @@ import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
 
 @Composable
-fun InventoryItemScreen(inventoryViewModel: InventoryViewModel) {
-    LandscapeInventoryItemScreen(inventoryViewModel)
+fun InventoryItemScreen(
+    inventoryViewModel: InventoryViewModel,
+    catId: Int,
+    catName: String,
+    subCatId: Int,
+    subCatName: String
+) {
+    LandscapeInventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
 }
 
 @Composable
-fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
+fun LandscapeInventoryItemScreen(
+    inventoryViewModel: InventoryViewModel,
+    catId: Int,
+    catName: String,
+    subCatId: Int,
+    subCatName: String
+) {
+
+
+    LaunchedEffect(true) {
+        inventoryViewModel.filterItems(catId = catId, subCatId = subCatId)
+    }
+
+    val showOption = remember { mutableStateOf(false) }
 
     val addItem = remember { mutableStateOf(false) }
     val addToName = remember { InputFieldState() }
@@ -60,9 +93,17 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
     val Charge = remember { InputFieldState() }
     val OtherChargeDes = remember { InputFieldState() }
     val OthCharge = remember { InputFieldState() }
-    val cgst = remember { InputFieldState() }
-    val sgst = remember { InputFieldState() }
+    val cgst = remember { InputFieldState("1.5") }
+    val sgst = remember { InputFieldState("1.5") }
     val igst = remember { InputFieldState() }
+    val huid = remember { InputFieldState() }
+
+    val showDialog = remember { mutableStateOf(false) }
+    val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
+
+    val baseViewModel = LocalBaseViewModel.current
+    val haptic = LocalHapticFeedback.current
+
 
     Box(
         Modifier
@@ -72,10 +113,14 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth()) {
-                Text("Gold > Ring")
+                Text("$catName ($catId) > $subCatName ($subCatId)")
                 Spacer(Modifier.weight(1f))
                 Text("Add Item", modifier = Modifier.clickable {
                     addItem.value = true
+                })
+                Spacer(Modifier.width(10.dp))
+                Icon(Icons.Default.MoreVert, null, modifier = Modifier.clickable {
+                    showOption.value = !showOption.value
                 })
             }
             Spacer(Modifier.height(5.dp))
@@ -102,6 +147,11 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
                 cgst,
                 sgst,
                 igst,
+                huid,
+                catId,
+                subCatId,
+                catName,
+                subCatName,
                 inventoryViewModel
             )
 
@@ -127,9 +177,8 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
                                 "M.Chr",
                                 "Oth Chr",
                                 "Chr",
-                                "C-Gst",
-                                "S-Gst",
-                                "I-Gst",
+                                "Tax",
+                                "H-UID",
                                 "DOA"
                             )
                         } else {
@@ -145,16 +194,28 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
                                 item.crg.toString(),
                                 item.othCrgDes,
                                 item.othCrg.toString(),
-                                item.cgst.toString(),
-                                item.sgst.toString(),
-                                item.igst.toString(),
+                                (item.cgst + item.sgst + item.igst).toString(),
+                                item.huid,
                                 item.addDate.toString()
                             )
                         }
 
-                        Row(modifier = Modifier
-                            .fillMaxWidth()
-                            .height(30.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .pointerInput(item) {
+                                    if (!isHeader && item != null) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                selectedItem.value = item
+                                                showDialog.value = true
+                                            }
+                                        )
+                                    }
+                                }
+                                .fillMaxWidth()
+                                .height(30.dp)
+                        ) {
                             values.forEachIndexed { i, value ->
                                 Box(modifier = Modifier.width(columnWidth)) {
                                     Text(
@@ -163,6 +224,7 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier
+
                                             .fillMaxWidth()
                                             .padding(horizontal = 2.dp)
                                     )
@@ -192,27 +254,103 @@ fun LandscapeInventoryItemScreen(inventoryViewModel: InventoryViewModel) {
 
 
         }
+
+        if (showOption.value)
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(y = 40.dp)
+                    .wrapContentHeight()
+                    .wrapContentWidth()
+                    .background(Color.White, RoundedCornerShape(16.dp))
+                    .padding(5.dp)
+            ) {
+                Text("Add Sub Category",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.clickable {
+
+                    })
+            }
+
+        if (showDialog.value && selectedItem.value != null) {
+            AlertDialog(
+                onDismissRequest = { showDialog.value = false },
+                title = { Text("Item Details") },
+                text = {
+                    Column {
+                        Text("Name: ${selectedItem.value?.itemAddName}")
+                        Text("id: ${selectedItem.value?.itemId},cat: ${selectedItem.value?.catId},id: ${selectedItem.value?.subCatId}")
+                        Text("Purity: ${selectedItem.value?.purity}")
+                        Text("Quantity: ${selectedItem.value?.quantity}")
+                        Text("Net Weight: ${selectedItem.value?.gsWt}")
+                        // Add more fields as needed...
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (selectedItem.value != null) {
+                            inventoryViewModel.safeDeleteItem(
+                                itemId = selectedItem.value!!.itemId,
+                                catId = selectedItem.value!!.catId,
+                                subCatId = selectedItem.value!!.subCatId,
+                                onSuccess = {
+                                    baseViewModel.snackMessage = "Item deleted successfully"
+                                },
+                                onFailure = {
+                                    baseViewModel.snackMessage = "Unable to delete item."
+                                }
+                            )
+
+                            selectedItem.value = null
+                        } else {
+                            baseViewModel.snackMessage = "Please select vail item"
+                        }
+
+                        showDialog.value = false
+                    }) {
+                        Text("Delete", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showDialog.value = false
+                    }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
     }
+
+
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun AddItemSection(
     addItem: MutableState<Boolean>,
     addToName: InputFieldState,
     type: InputFieldState,
     qty: InputFieldState,
-    GrWt: InputFieldState,
-    NtWt: InputFieldState,
-    Purity: InputFieldState,
-    FnWt: InputFieldState,
-    ChargeType: InputFieldState,
-    Charge: InputFieldState,
-    OtherChargeDes: InputFieldState,
-    OthCharge: InputFieldState,
+    grWt: InputFieldState,
+    ntWt: InputFieldState,
+    purity: InputFieldState,
+    fnWt: InputFieldState,
+    chargeType: InputFieldState,
+    charge: InputFieldState,
+    otherChargeDes: InputFieldState,
+    othCharge: InputFieldState,
     cgst: InputFieldState,
     sgst: InputFieldState,
     igst: InputFieldState,
-    inventoryViewModel: InventoryViewModel
+    huid: InputFieldState,
+    catId: Int,
+    subCatId: Int,
+    catName: String,
+    subCatName: String,
+    inventoryViewModel: InventoryViewModel,
 ) {
     val context = LocalContext.current
     if (addItem.value) {
@@ -246,6 +384,15 @@ private fun AddItemSection(
                         state = type,
                         placeholderText = "Type",
                         dropdownItems = listOf("piece", "lot"),
+                        onDropdownItemSelected = {
+                            when (it) {
+                                "piece" -> {
+                                    qty.text = "1"
+                                }
+
+                                else -> {}
+                            }
+                        }
                     )
 
                     Spacer(Modifier.width(5.dp))
@@ -263,7 +410,7 @@ private fun AddItemSection(
                 Row {
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = GrWt,
+                        state = grWt,
                         placeholderText = "Gr.Wt/gm",
                         keyboardType = KeyboardType.Number,
                     )
@@ -271,7 +418,7 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = NtWt,
+                        state = ntWt,
                         placeholderText = "NT.Wt/gm",
                         keyboardType = KeyboardType.Number,
                     )
@@ -279,15 +426,31 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = Purity,
+                        state = purity,
                         placeholderText = "purity",
-                        dropdownItems = listOf("750", "916")
+                        dropdownItems = listOf("", "585", "750", "833", "916", "999"),
+                        onDropdownItemSelected = { selected ->
+                            if (ntWt.text.isNotBlank()) {
+                                val ntWtValue = ntWt.text.toDoubleOrNull() ?: 0.0
+                                val multiplier = when (selected) {
+                                    "585" -> 0.585
+                                    "750" -> 0.750
+                                    "833" -> 0.833
+                                    "916" -> 0.916
+                                    "999" -> 0.999
+                                    else -> null
+                                }
+                                multiplier?.let {
+                                    fnWt.text = String.format("%.3f", ntWtValue * it)
+                                }
+                            }
+                        }
                     )
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = FnWt,
+                        state = fnWt,
                         placeholderText = "Fn.Wt/gm",
                         keyboardType = KeyboardType.Number,
                     )
@@ -298,7 +461,7 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = ChargeType,
+                        state = chargeType,
                         placeholderText = "Charge type",
                         dropdownItems = listOf("%", "piece"),
                     )
@@ -306,7 +469,7 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = Charge,
+                        state = charge,
                         placeholderText = "charge",
                         keyboardType = KeyboardType.Number,
                     )
@@ -314,14 +477,14 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = OtherChargeDes,
+                        state = otherChargeDes,
                         placeholderText = "Oth Charge Des",
                     )
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = OthCharge,
+                        state = othCharge,
                         placeholderText = "Oth Charge",
                         keyboardType = KeyboardType.Number,
                     )
@@ -351,6 +514,15 @@ private fun AddItemSection(
                         placeholderText = "IGST",
                         keyboardType = KeyboardType.Number,
                     )
+
+                    Spacer(Modifier.width(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier.weight(2f),
+                        state = huid,
+                        placeholderText = "H-UID",
+                        keyboardType = KeyboardType.Number,
+                    )
                     Spacer(Modifier.height(5.dp))
                 }
                 Spacer(Modifier.height(5.dp))
@@ -378,24 +550,24 @@ private fun AddItemSection(
                                     itemAddName = addToName.text,
                                     userId = 1,
                                     storeId = 1,
-                                    catId = 1,
-                                    subCatId = 1,
-                                    catName = "Jewelry",
-                                    subCatName = "Rings",
+                                    catId = catId,
+                                    subCatId = subCatId,
+                                    catName = catName,
+                                    subCatName = subCatName,
                                     type = type.text,
-                                    quantity = qty.text.toInt(),
-                                    gsWt = GrWt.text.toDouble(),
-                                    ntWt = NtWt.text.toDouble(),
-                                    fnWt = NtWt.text.toDouble(),
-                                    purity = Purity.text,
-                                    crgType = ChargeType.text,
-                                    crg = Charge.text.toDouble(),
-                                    othCrgDes = OtherChargeDes.text,
-                                    othCrg = OthCharge.text.toDouble(),
-                                    cgst = 1.5,
-                                    sgst = 1.5,
-                                    igst = 0.0,
-                                    huid = "",
+                                    quantity = qty.text.toIntOrNull() ?: 1,
+                                    gsWt = grWt.text.toDoubleOrNull() ?: 0.0,
+                                    ntWt = ntWt.text.toDoubleOrNull() ?: 0.0,
+                                    fnWt = fnWt.text.toDoubleOrNull() ?: 0.0,
+                                    purity = purity.text,
+                                    crgType = chargeType.text,
+                                    crg = charge.text.toDoubleOrNull() ?: 0.0,
+                                    othCrgDes = otherChargeDes.text,
+                                    othCrg = othCharge.text.toDoubleOrNull() ?: 0.0,
+                                    cgst = cgst.text.toDoubleOrNull() ?: 0.0,
+                                    sgst = sgst.text.toDoubleOrNull() ?: 0.0,
+                                    igst = igst.text.toDoubleOrNull() ?: 0.0,
+                                    huid = huid.text,
                                     addDate = Timestamp(System.currentTimeMillis()),
                                     modifiedDate = Timestamp(System.currentTimeMillis())
                                 )
@@ -412,7 +584,10 @@ private fun AddItemSection(
                                         }
                                     },
                                     onSuccess = { itemEntity, l ->
-                                        inventoryViewModel.getAllItems()
+                                        inventoryViewModel.filterItems(
+                                            catId = catId,
+                                            subCatId = subCatId
+                                        )
                                         mainScope.launch {
                                             Toast.makeText(
                                                 context,
@@ -421,7 +596,6 @@ private fun AddItemSection(
                                             ).show()
                                         }
                                     })
-
                             }
                             .background(
                                 MaterialTheme.colorScheme.primary,

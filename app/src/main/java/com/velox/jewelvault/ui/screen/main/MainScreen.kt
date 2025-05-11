@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.main
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image

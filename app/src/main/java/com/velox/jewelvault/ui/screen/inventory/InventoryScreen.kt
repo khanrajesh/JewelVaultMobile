@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -23,6 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,23 +37,36 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
+import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 
-@Composable
-fun InventoryScreen(inventoryViewModel: InventoryViewModel) {
-    LandscapeInventoryScreen()
+
+sealed class CatType(val type: String) {
+    data object Category : CatType("Category")
+    data object SubCategory : CatType("Sub Category")
 }
 
 @Composable
-fun LandscapeInventoryScreen() {
+fun InventoryScreen(inventoryViewModel: InventoryViewModel) {
+    LaunchedEffect(true) {
+        inventoryViewModel.init()
+    }
+    LandscapeInventoryScreen(inventoryViewModel)
+}
+
+@Composable
+fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val text = remember { InputFieldState("") }
     val height = LocalConfiguration.current.screenHeightDp / 3
     val showAddCatDialog = remember { mutableStateOf(false) }
     val addCatType = remember { mutableStateOf("") }
+    val selectedCatName = remember { mutableStateOf<String?>(null) }
+    val selectedCatId = remember { mutableStateOf<Int?>(null) }
 
     Box(
         Modifier
@@ -59,6 +75,16 @@ fun LandscapeInventoryScreen() {
             .padding(top = 5.dp, start = 5.dp)
     ) {
         LazyVerticalGrid(modifier = Modifier.fillMaxSize(), columns = GridCells.Fixed(2)) {
+
+            items(inventoryViewModel.catSubCatDto) {
+                CategoryItem(height, it, addSubCatClick = { showOption ->
+                    addCatType.value = CatType.SubCategory.type
+                    selectedCatName.value = it.catName
+                    selectedCatId.value = it.catId
+                    showOption.value = false
+                    showAddCatDialog.value = true
+                })
+            }
 
             item {
                 Column(
@@ -79,7 +105,7 @@ fun LandscapeInventoryScreen() {
                         Text(
                             "Add", Modifier
                                 .clickable {
-                                    addCatType.value = "Category"
+                                    addCatType.value = CatType.Category.type
                                     showAddCatDialog.value = true
                                 }
                                 .background(
@@ -91,21 +117,6 @@ fun LandscapeInventoryScreen() {
                         )
                     }
                 }
-            }
-            item {
-                CategoryItem(height)
-            }
-            item {
-                CategoryItem(height)
-            }
-            item {
-                CategoryItem(height)
-            }
-            item {
-                CategoryItem(height)
-            }
-            item {
-                CategoryItem(height)
             }
 
         }
@@ -138,6 +149,8 @@ fun LandscapeInventoryScreen() {
                         Text(
                             "Cancel", Modifier
                                 .clickable {
+                                    selectedCatName.value = null
+                                    selectedCatId.value = null
                                     showAddCatDialog.value = !showAddCatDialog.value
                                 }
                                 .background(
@@ -153,6 +166,21 @@ fun LandscapeInventoryScreen() {
                         Text(
                             "Add", Modifier
                                 .clickable {
+//                                    inventoryViewModel.catSubCatDto.clear()
+                                    if (addCatType.value == CatType.Category.type) {
+                                        inventoryViewModel.addCategory(text.text)
+                                    } else {
+                                        if (selectedCatId.value != null && selectedCatName.value != null) {
+                                            inventoryViewModel.addSubCategory(
+                                                subCatName = text.text,
+                                                catName = selectedCatName.value!!,
+                                                catId = selectedCatId.value!!
+                                            )
+                                        }
+                                    }
+
+                                    selectedCatName.value = null
+                                    selectedCatId.value = null
                                     showAddCatDialog.value = !showAddCatDialog.value
                                 }
                                 .background(
@@ -170,7 +198,11 @@ fun LandscapeInventoryScreen() {
 }
 
 @Composable
-fun CategoryItem(height: Int) {
+fun CategoryItem(
+    height: Int,
+    catSubCatDto: CatSubCatDto,
+    addSubCatClick: (MutableState<Boolean>) -> Unit,
+) {
 
     val showOption = remember { mutableStateOf(false) }
     Box(
@@ -189,14 +221,14 @@ fun CategoryItem(height: Int) {
             Row {
                 Column {
                     Text(
-                        "Gold",
+                        catSubCatDto.catName,
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp
                     )
 
                     Text(
                         """
-                Weight: 400gm
+                Id: ${catSubCatDto.catId}, Gs wt: ${catSubCatDto.gsWt}gm
             """.trimIndent()
                     )
 
@@ -215,8 +247,8 @@ fun CategoryItem(height: Int) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3)
             ) {
-                items(5) {
-                    SubCategoryItem()
+                items(catSubCatDto.subCategoryList) {
+                    SubCategoryItem(it)
                 }
             }
         }
@@ -232,20 +264,22 @@ fun CategoryItem(height: Int) {
             ) {
                 Text("Add Sub Category",
                     fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.clickable {
-                        showOption.value = false
+                        addSubCatClick(showOption)
                     })
             }
     }
 }
 
 @Composable
-fun SubCategoryItem() {
+fun SubCategoryItem(subCategoryEntity: SubCategoryEntity) {
     val subNav = LocalSubNavController.current
     Column(
         Modifier
             .bounceClick {
-                subNav.navigate(SubScreens.InventoryItem.route)
+                ///{catId}/{catName}/{subCatId}/{subCatName}
+                subNav.navigate("${SubScreens.InventoryItem.route}/${subCategoryEntity.catId}/${subCategoryEntity.catName}/${subCategoryEntity.subCatId}/${subCategoryEntity.subCatName}")
             }
             .padding(3.dp)
             .wrapContentHeight()
@@ -256,10 +290,10 @@ fun SubCategoryItem() {
             .padding(5.dp)
     ) {
         Text(
-            "Chain", fontWeight = FontWeight.Bold,
+            subCategoryEntity.subCatName, fontWeight = FontWeight.Bold,
             fontSize = 20.sp
         )
-        Text("Quantity")
-        Text("Weight: ")
+        Text("Qty: ${subCategoryEntity.quantity}")
+        Text("Gs Wt: ${subCategoryEntity.gsWt}gm")
     }
 }

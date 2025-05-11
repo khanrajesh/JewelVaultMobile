@@ -12,7 +12,7 @@ data class SubCategoryEntity(
     val storeId:Int,
     val catName: String,
     val subCatName: String,
-    val quantity: Int,
-    val gsWt: Double,
-    val fnWt: Double,
+    val quantity: Int = 0,
+    val gsWt: Double = 0.0,
+    val fnWt: Double = 0.0,
 )
