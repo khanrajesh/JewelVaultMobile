@@ -1,9 +1,10 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.sell_invoice
 
-import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,24 +14,37 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.DateRange
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -46,38 +60,34 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
 import kotlinx.coroutines.launch
 
-@Composable
-@VaultPreview
-fun SellInvoiceScreenPreview() {
-    SellInvoiceScreen()
-}
 
 @Composable
-fun SellInvoiceScreen() {
+fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
     val context = LocalContext.current
     val showQrBarScanner = remember { mutableStateOf(false) }
 
-    if (!showQrBarScanner.value){
+    if (!showQrBarScanner.value) {
         if (isLandscape()) {
-            SellInvoiceLandscape(showQrBarScanner)
+            SellInvoiceLandscape(showQrBarScanner, sellInvoiceViewModel)
         } else {
             SellInvoicePortrait()
         }
-    }else{
+    } else {
         QrBarScannerPage(
             showPage = showQrBarScanner,
             scanAndClose = true,
@@ -88,13 +98,13 @@ fun SellInvoiceScreen() {
                 BackHandler(enabled = true) {
                     // Do nothing = disable back button
                 }
-                Box (Modifier.fillMaxSize()){
+                Box(Modifier.fillMaxSize()) {
                     Row(Modifier.fillMaxWidth()) {
                         Text(
                             "Please scan the item code to add.",
                             color = Color.White,
                             fontWeight = FontWeight.Bold
-                            )
+                        )
                         Spacer(Modifier.weight(1f))
                         Icon(Icons.Default.Clear, null,
                             modifier = Modifier
@@ -117,91 +127,255 @@ fun SellInvoicePortrait() {
 }
 
 @Composable
-fun SellInvoiceLandscape(showQrBarScanner: MutableState<Boolean>) {
+fun SellInvoiceLandscape(
+    showQrBarScanner: MutableState<Boolean>,
+    viewModel: SellInvoiceViewModel
+) {
     val context = LocalContext.current
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
     val currentDateTime = rememberCurrentDateTime()
     val coroutineScope = rememberCoroutineScope()
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(5.dp)
-    ) {
 
-        Row(
+    val showOption = remember { mutableStateOf(false) }
+
+    Box(Modifier
+        .clickable {
+            if (showOption.value) {
+                showOption.value = false
+            }
+        }
+        .fillMaxSize()) {
+        Column(
             Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                .padding(5.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(5.dp)
         ) {
-            IconButton(onClick = {
-                coroutineScope.launch {
-                    baseViewModel.refreshMetalRates(context = context)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .padding(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = {
+                    coroutineScope.launch {
+                        baseViewModel.refreshMetalRates(context = context)
+                    }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh"
+                    )
                 }
-            }) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh"
+
+                MetalRatesTicker(
+                    Modifier
+                        .height(50.dp)
+                        .weight(1f)
                 )
+                Text(text = currentDateTime.value)
+                Spacer(Modifier.width(10.dp))
+                IconButton(onClick = {
+                    showOption.value = !showOption.value
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Refresh"
+                    )
+                }
             }
 
-            MetalRatesTicker(Modifier
-                .height(50.dp)
-                .weight(1f))
-            Text(text = currentDateTime.value)
+            Spacer(Modifier.height(5.dp))
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .weight(2.5f)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(5.dp)
+                ) {
+                    CustomerDetails()
+
+                    Spacer(Modifier.height(5.dp))
+
+                    ItemSection(modifier = Modifier.weight(1f), viewModel)
+
+                    Spacer(Modifier.height(5.dp))
+
+                    AddItemSection(showQrBarScanner, viewModel)
+                }
+                Spacer(Modifier.width(5.dp))
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(5.dp)
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                        .padding(3.dp)
+                ) {
+
+                    DetailSection(Modifier.weight(1f))
+
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.SellPreview.route)
+                        }
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .padding(10.dp), contentAlignment = Alignment.Center) {
+                        Text("Proceed", textAlign = TextAlign.Center)
+                    }
+                }
+            }
         }
 
-        Spacer(Modifier.height(5.dp))
-        Row(Modifier.fillMaxSize()) {
-            Column(
+        if (showOption.value)
+            Box(
                 Modifier
-                    .fillMaxSize()
-                    .weight(2.5f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .align(Alignment.TopEnd)
+                    .offset(y = 15.dp, x = (-45).dp)
+                    .wrapContentHeight()
+                    .wrapContentWidth()
+                    .background(Color.White, RoundedCornerShape(16.dp))
                     .padding(5.dp)
             ) {
-                CustomerDetails()
 
-                Spacer(Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = true,
+                        onCheckedChange = {
 
-                ItemSection(modifier = Modifier.weight(1f))
+                        }
+                    )
 
-                Spacer(Modifier.height(5.dp))
+                    Text("Show Charge",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable {
 
-                AddItemSection(showQrBarScanner)
+                        })
+                }
             }
-            Spacer(Modifier.width(5.dp))
+
+        if (viewModel.showAddItemDialog.value && viewModel.selectedItem.value != null) {
+            ViewItemDialog(viewModel)
+        }
+
+    }
+}
+
+@Composable
+fun ViewItemDialog(
+    viewModel: SellInvoiceViewModel,
+) {
+    val item = viewModel.selectedItem.value!!
+    val onDismiss = {
+        viewModel.showAddItemDialog.value = false
+        viewModel.selectedItem.value = null
+    }
+    val onAdd = {
+        ioScope {
+            if (!viewModel.selectedItemList.contains(item)) {
+                viewModel.selectedItemList.add(item)
+            }
+            viewModel.showAddItemDialog.value = false
+            viewModel.selectedItem.value = null
+        }
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            tonalElevation = 4.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
             Column(
-                Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                    .padding(5.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                    .padding(3.dp)
-            ) {
-
-                DetailSection(Modifier.weight(1f))
-
-                Box(modifier = Modifier
-                    .bounceClick {
-                        navHost.navigate(Screens.SellPreview.route)
-                    }
+                modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
-                    .padding(10.dp), contentAlignment = Alignment.Center) {
-                    Text("Proceed", textAlign = TextAlign.Center)
+                    .padding(16.dp)
+            ) {
+                Text("Item Details", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(12.dp))
+
+                val details = listOf(
+                    "Item Name" to item.itemAddName,
+                    "Category ID" to item.catId.toString(),
+                    "Category Name" to item.catName,
+                    "Sub-Category ID" to item.subCatId.toString(),
+                    "Sub-Category Name" to item.subCatName,
+                    "Type" to item.type,
+                    "Quantity" to item.quantity.toString(),
+                    "Gross Weight" to item.gsWt.toString(),
+                    "Net Weight" to item.ntWt.toString(),
+                    "Fine Weight" to item.fnWt.toString(),
+                    "Purity" to item.purity,
+                    "Making Charge Type" to item.crgType,
+                    "Making Charges" to item.crg.toString(),
+                    "Other Charge Description" to item.othCrgDes,
+                    "Other Charges" to item.othCrg.toString(),
+                    "CGST" to item.cgst.toString(),
+                    "SGST" to item.sgst.toString(),
+                    "IGST" to item.igst.toString(),
+                    "HUID" to item.huid,
+                    "Added On" to item.addDate.toString(),
+//                    "Modified On" to item.modifiedDate.toString(),
+//                    "Store ID" to item.storeId.toString(),
+//                    "User ID" to item.userId.toString()
+                )
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .heightIn(max = 400.dp) // Add scrolling if too long
+                        .padding(vertical = 8.dp)
+                ) {
+                    items(details) { (label, value) ->
+                        Column(
+                            modifier = Modifier
+                                .padding(6.dp)
+                        ) {
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(value, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Close")
+                    }
+                    Spacer(Modifier.width(30.dp))
+                    TextButton(onClick = { onAdd() }) {
+                        Text("Add")
+                    }
                 }
             }
         }
     }
 }
 
+
 @Composable
-fun DetailSection(modifier: Modifier){
+fun DetailSection(modifier: Modifier) {
     Column(modifier = modifier.padding(5.dp)) {
 
         Row(Modifier.fillMaxWidth()) {
@@ -212,7 +386,7 @@ fun DetailSection(modifier: Modifier){
             Text("Total", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
         }
 
-        LazyColumn (Modifier.fillMaxWidth()){
+        LazyColumn(Modifier.fillMaxWidth()) {
             item {
                 Row(Modifier.fillMaxWidth()) {
                     Text("Box Chain", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
@@ -243,7 +417,7 @@ fun DetailSection(modifier: Modifier){
 }
 
 @Composable
-fun ItemSection(modifier: Modifier) {
+fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
     Box(
         modifier
             .fillMaxWidth()
@@ -279,12 +453,7 @@ fun ItemSection(modifier: Modifier) {
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.weight(2f), textAlign = TextAlign.Center
                     )
-                    Text(
-                        "HSSN",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(0.5f),
-                        textAlign = TextAlign.Center
-                    )
+
                     Text(
                         "Gs Wt.",
                         fontWeight = FontWeight.Black,
@@ -310,6 +479,12 @@ fun ItemSection(modifier: Modifier) {
                         textAlign = TextAlign.Center
                     )
                     Text(
+                        "Tax",
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
                         "HUID No",
                         fontWeight = FontWeight.Black,
                         modifier = Modifier.weight(1f),
@@ -329,7 +504,7 @@ fun ItemSection(modifier: Modifier) {
                 Modifier
                     .weight(1f)
             ) {
-                items(15) {
+                itemsIndexed(viewModel.selectedItemList) { index, it ->
                     Column(
                         Modifier
                             .padding(2.dp)
@@ -338,56 +513,49 @@ fun ItemSection(modifier: Modifier) {
                     ) {
                         Row(Modifier.fillMaxWidth()) {
                             Text(
-                                "${it + 1}. ",
+                                "${index + 1}. ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
                             )
                             Text(
-                                "${it + 1}. ",
+                                "${it.itemId}. ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
                             )
                             Text(
-                                "Box Chain",
+                                "${it.itemAddName} ${it.subCatName} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(2f), textAlign = TextAlign.Center
                             )
+
                             Text(
-                                "1234567890",
-                                fontSize = 12.sp,
+                                "${it.gsWt}gm", fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
-                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
+                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
                             )
                             Text(
-                                "2.5g",
+                                "${it.fnWt}gm",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f), textAlign = TextAlign.Center
                             )
                             Text(
-                                "2.45g",
+                                "${it.catName}/(${it.purity})",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f), textAlign = TextAlign.Center
                             )
                             Text(
-                                "Gold/22k",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f), textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "16%",
+                                "${it.crg}${if (it.crgType == "%") "%" else ""}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
@@ -395,7 +563,15 @@ fun ItemSection(modifier: Modifier) {
                             )
 
                             Text(
-                                "4555",
+                                "${it.cgst + it.igst + it.sgst}%",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center
+                            )
+
+                            Text(
+                                "${it.huid}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
@@ -418,7 +594,13 @@ fun ItemSection(modifier: Modifier) {
 }
 
 @Composable
-private fun AddItemSection(showQrBarScanner: MutableState<Boolean>) {
+private fun AddItemSection(
+    showQrBarScanner: MutableState<Boolean>,
+    viewModel: SellInvoiceViewModel
+) {
+
+    val itemId = remember { mutableStateOf("") }
+
     Row(
         Modifier
             .height(50.dp)
@@ -476,11 +658,16 @@ private fun AddItemSection(showQrBarScanner: MutableState<Boolean>) {
                 contentAlignment = Alignment.Center // this centers the text vertically and horizontally
             ) {
                 BasicTextField(
-                    value = "123456789",
-                    onValueChange = { },
+                    value = itemId.value,
+                    onValueChange = {
+                        itemId.value = it
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    ),
                     textStyle = TextStyle(
                         fontSize = 16.sp,
-                        textAlign = TextAlign.Center // <-- text will be centered horizontally
+                        textAlign = TextAlign.Center,
                     ),
                     modifier = Modifier
                         .padding(horizontal = 8.dp) // optional inner padding
@@ -489,6 +676,16 @@ private fun AddItemSection(showQrBarScanner: MutableState<Boolean>) {
             Spacer(Modifier.width(10.dp))
             Box(
                 modifier = Modifier
+                    .bounceClick {
+                        if (itemId.value.isNotEmpty()) {
+                            viewModel.getItemById(itemId.value.toInt(),
+                                onFailure = {},
+                                onSuccess = {
+                                    viewModel.showAddItemDialog.value = true
+                                }
+                            )
+                        }
+                    }
                     .fillMaxHeight()
                     .background(
                         MaterialTheme.colorScheme.primary,

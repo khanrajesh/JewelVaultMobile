@@ -18,12 +18,13 @@ import com.velox.jewelvault.ui.screen.LedgerScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.QrBarScannerScreen
 import com.velox.jewelvault.ui.screen.ReportScreen
-import com.velox.jewelvault.ui.screen.SellInvoiceScreen
+import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.SplashScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
+import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.LocalNavController
@@ -39,6 +40,9 @@ fun AppNavigation(
         LocalNavController provides navController,
         LocalBaseViewModel provides baseViewModel,
     ) {
+
+        val sellInvoiceViewModel = hiltViewModel<SellInvoiceViewModel>()
+
         NavHost(navController = navController, startDestination = startDestination) {
             composable(Screens.Splash.route) {
                 SplashScreen(navHost = navController)
@@ -50,7 +54,7 @@ fun AppNavigation(
                 MainScreen()
             }
             composable(Screens.SellInvoice.route) {
-                SellInvoiceScreen()
+                SellInvoiceScreen(sellInvoiceViewModel)
             }
             composable(Screens.SellPreview.route) {
                 SellPreviewScreen()

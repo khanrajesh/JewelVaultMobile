@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.SimpleDateFormat
@@ -26,32 +27,41 @@ fun ioScope(func: suspend () -> Unit) {
     CoroutineScope(Dispatchers.IO).launch { func() }
 }
 
+suspend fun <T> withIo(block: suspend () -> T): T {
+    return withContext(Dispatchers.IO) {
+        block()
+    }
+}
 
-@Composable
-fun rememberCurrentDateTime(): State<String> {
-    val dateTimeState = remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            val formatter = SimpleDateFormat("dd-MM-yyyy hh:mm:ss a", Locale.getDefault())
-            dateTimeState.value = formatter.format(Date())
-            delay(1000L)
+
+
+
+    @Composable
+    fun rememberCurrentDateTime(): State<String> {
+        val dateTimeState = remember { mutableStateOf("") }
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                val formatter = SimpleDateFormat("dd-MM-yyyy hh:mm:ss a", Locale.getDefault())
+                dateTimeState.value = formatter.format(Date())
+                delay(1000L)
+            }
         }
+
+        return dateTimeState
     }
 
-    return dateTimeState
-}
+    fun LocalDateTime.toCustomFormat(): String {
+        val formatter = DateTimeFormatter.ofPattern("dd-MM hh:mm a")
+        return this.format(formatter)
+    }
 
-fun LocalDateTime.toCustomFormat(): String {
-    val formatter = DateTimeFormatter.ofPattern("dd-MM hh:mm a")
-    return this.format(formatter)
-}
+    inline fun <reified T> T.log(message: String) {
+        val tag = T::class.java.simpleName
+        android.util.Log.d(tag, message)
+    }
 
-inline fun <reified T> T.log(message: String) {
-    val tag = T::class.java.simpleName
-    android.util.Log.d(tag, message)
-}
-
-fun Double.roundTo3Decimal(): Double {
-    return BigDecimal(this).setScale(3, RoundingMode.HALF_UP).toDouble()
-}
+    fun Double.roundTo3Decimal(): Double {
+        return BigDecimal(this).setScale(3, RoundingMode.HALF_UP).toDouble()
+    }
