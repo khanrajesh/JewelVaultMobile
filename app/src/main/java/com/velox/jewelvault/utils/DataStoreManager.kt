@@ -3,6 +3,7 @@ package com.velox.jewelvault.utils
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +19,7 @@ class DataStoreManager @Inject constructor(
         val USER_NAME_KEY = stringPreferencesKey("user_name")
         val USER_ID_KEY = intPreferencesKey("user_id")
         val STORE_ID_KEY = intPreferencesKey("store_id")
+        val SHOW_SEPARATE_CHARGE = booleanPreferencesKey("show_separate_charge")
     }
 
     val userName: Flow<String> = dataStore.data.map { prefs -> prefs[USER_NAME_KEY] ?: "" }

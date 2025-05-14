@@ -1,5 +1,6 @@
 package com.velox.jewelvault.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Environment
 import android.util.Log
@@ -14,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,8 +30,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,16 +41,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.ui.components.CalculatorScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.toCustomFormat
@@ -148,7 +149,7 @@ fun MetalRatesTicker(
 fun EditMetalRatesDialog(
     showDialog: MutableState<Boolean>
 ) {
-
+    val context = LocalContext.current
     val viewModel = LocalBaseViewModel.current
     val editedRates = remember { mutableStateListOf(*viewModel.metalRates.toTypedArray()) }
 
@@ -178,6 +179,9 @@ fun EditMetalRatesDialog(
                             .padding(10.dp)
                     )
                     Spacer(Modifier.width(10.dp))
+
+
+
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                         itemsIndexed(editedRates) { index, metalRate ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,7 +195,21 @@ fun EditMetalRatesDialog(
                                     value = metalRate.price,
                                     singleLine = true,
                                     onValueChange = {
-                                        editedRates[index] = metalRate.copy(price = it)
+                                        try {
+                                            if (metalRate.metal == "Gold" && metalRate.caratOrPurity == "24K") {
+                                                updateConjugateMetalPrice(editedRates, it.toDouble())
+                                            } else if (metalRate.metal != "Gold") {
+                                                editedRates[index] = metalRate.copy(price = it)
+                                            } else {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Currently you can only edit 24K Gold and Silver",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Invalid input", Toast.LENGTH_SHORT).show()
+                                        }
                                     },
                                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
                                 )
@@ -199,6 +217,7 @@ fun EditMetalRatesDialog(
                             Spacer(Modifier.height(2.dp))
                         }
                     }
+
 
                 }
 
@@ -228,6 +247,35 @@ fun EditMetalRatesDialog(
         },
 
         )
+}
+
+@SuppressLint("DefaultLocale")
+fun updateConjugateMetalPrice(
+    editedRates: SnapshotStateList<MetalRate>,
+    value24k: Double
+) {
+    val gold100 = (100 / 99.9) * value24k
+//  val gold100 = value24k
+    val updatedList = editedRates.map { metalRate ->
+        if (metalRate.metal == "Gold") {
+            val updatedPrice = when (metalRate.caratOrPurity) {
+                "24K", "999" -> value24k
+                "22K", "916" -> gold100 * 0.916
+                "20K", "833" -> gold100 * 0.833
+                "18K", "750" -> gold100 * 0.750
+                else -> null
+            }
+            if (updatedPrice != null) {
+                metalRate.copy(price = String.format("%.0f", updatedPrice))
+            } else {
+                metalRate
+            }
+        } else {
+            metalRate
+        }
+    }
+    editedRates.clear()
+    editedRates.addAll(updatedList)
 }
 
 data class MetalRate(
