@@ -49,7 +49,10 @@ import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.utils.ChargeType
+import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
@@ -83,16 +86,16 @@ fun LandscapeInventoryItemScreen(
 
     val addItem = remember { mutableStateOf(false) }
     val addToName = remember { InputFieldState() }
-    val type = remember { InputFieldState() }
+    val entryType = remember { InputFieldState() }
     val qty = remember { InputFieldState() }
-    val GrWt = remember { InputFieldState() }
-    val NtWt = remember { InputFieldState() }
-    val Purity = remember { InputFieldState() }
-    val FnWt = remember { InputFieldState() }
-    val ChargeType = remember { InputFieldState() }
-    val Charge = remember { InputFieldState() }
-    val OtherChargeDes = remember { InputFieldState() }
-    val OthCharge = remember { InputFieldState() }
+    val grWt = remember { InputFieldState() }
+    val ntWt = remember { InputFieldState() }
+    val purity = remember { InputFieldState() }
+    val fnWt = remember { InputFieldState() }
+    val chargeType = remember { InputFieldState() }
+    val charge = remember { InputFieldState() }
+    val otherChargeDes = remember { InputFieldState() }
+    val othCharge = remember { InputFieldState() }
     val cgst = remember { InputFieldState("1.5") }
     val sgst = remember { InputFieldState("1.5") }
     val igst = remember { InputFieldState() }
@@ -134,16 +137,16 @@ fun LandscapeInventoryItemScreen(
             AddItemSection(
                 addItem,
                 addToName,
-                type,
+                entryType,
                 qty,
-                GrWt,
-                NtWt,
-                Purity,
-                FnWt,
-                ChargeType,
-                Charge,
-                OtherChargeDes,
-                OthCharge,
+                grWt,
+                ntWt,
+                purity,
+                fnWt,
+                chargeType,
+                charge,
+                otherChargeDes,
+                othCharge,
                 cgst,
                 sgst,
                 igst,
@@ -184,7 +187,7 @@ fun LandscapeInventoryItemScreen(
                         } else {
                             listOf(
                                 item!!.itemAddName,
-                                item.type,
+                                item.entryType,
                                 item.quantity.toString(),
                                 item.gsWt.toString(),
                                 item.ntWt.toString(),
@@ -332,7 +335,7 @@ fun LandscapeInventoryItemScreen(
 private fun AddItemSection(
     addItem: MutableState<Boolean>,
     addToName: InputFieldState,
-    type: InputFieldState,
+    entryType: InputFieldState,
     qty: InputFieldState,
     grWt: InputFieldState,
     ntWt: InputFieldState,
@@ -381,19 +384,21 @@ private fun AddItemSection(
 
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
-                        state = type,
-                        placeholderText = "Type",
-                        dropdownItems = listOf("piece", "lot"),
-                        onDropdownItemSelected = {
-                            when (it) {
-                                "piece" -> {
+                        state = entryType,
+                        placeholderText = "Entry Type",
+                        dropdownItems = EntryType.list(),
+                        onDropdownItemSelected = { selected ->
+                            when (selected) {
+                                EntryType.Piece.type -> {
                                     qty.text = "1"
                                 }
-
+//                                ChargeType.Percentage.type,
+//                                ChargeType.PerGm.type -> qty.text = ""
                                 else -> {}
                             }
                         }
                     )
+
 
                     Spacer(Modifier.width(5.dp))
 
@@ -427,25 +432,18 @@ private fun AddItemSection(
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
                         state = purity,
-                        placeholderText = "purity",
-                        dropdownItems = listOf("", "585", "750", "833", "916", "999"),
+                        placeholderText = "Purity",
+                        dropdownItems = Purity.list(),
                         onDropdownItemSelected = { selected ->
                             if (ntWt.text.isNotBlank()) {
                                 val ntWtValue = ntWt.text.toDoubleOrNull() ?: 0.0
-                                val multiplier = when (selected) {
-                                    "585" -> 0.585
-                                    "750" -> 0.750
-                                    "833" -> 0.833
-                                    "916" -> 0.916
-                                    "999" -> 0.999
-                                    else -> null
-                                }
-                                multiplier?.let {
-                                    fnWt.text = String.format("%.3f", ntWtValue * it)
-                                }
+                                val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                                fnWt.text = String.format("%.3f", ntWtValue * multiplier)
                             }
+                            purity.text = selected
                         }
                     )
+
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
@@ -459,11 +457,22 @@ private fun AddItemSection(
 
                 Row {
 
+
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
                         state = chargeType,
-                        placeholderText = "Charge type",
-                        dropdownItems = listOf("%", "piece"),
+                        placeholderText = "Charge Type",
+                        dropdownItems = ChargeType.list(),
+                        onDropdownItemSelected = { selected ->
+                            when (selected) {
+                                ChargeType.Piece.type -> {
+                                    qty.text = "1"
+                                }
+//                                ChargeType.Percentage.type,
+//                                ChargeType.PerGm.type -> qty.text = ""
+                                else -> {}
+                            }
+                        }
                     )
                     Spacer(Modifier.width(5.dp))
 
@@ -554,7 +563,7 @@ private fun AddItemSection(
                                     subCatId = subCatId,
                                     catName = catName,
                                     subCatName = subCatName,
-                                    type = type.text,
+                                    entryType = entryType.text,
                                     quantity = qty.text.toIntOrNull() ?: 1,
                                     gsWt = grWt.text.toDoubleOrNull() ?: 0.0,
                                     ntWt = ntWt.text.toDoubleOrNull() ?: 0.0,

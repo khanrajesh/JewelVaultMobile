@@ -5,8 +5,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,7 +35,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -56,8 +57,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -77,6 +81,7 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -85,6 +90,7 @@ import java.util.Locale
 @Composable
 fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
     val baseViewModel = LocalBaseViewModel.current
+    val navControl = LocalNavController.current
     val context = LocalContext.current
     val showQrBarScanner = remember { mutableStateOf(false) }
 
@@ -96,6 +102,7 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
     BackHandler {
         sellInvoiceViewModel.selectedItemList.clear()
+        navControl.popBackStack()
     }
 
     if (!showQrBarScanner.value) {
@@ -147,8 +154,10 @@ fun SellInvoiceLandscape(
 
     val showOption = remember { mutableStateOf(false) }
 
-    Box(Modifier
-        .fillMaxSize()) {
+    Box(
+        Modifier
+            .fillMaxSize()
+    ) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -241,7 +250,7 @@ fun SellInvoiceLandscape(
         if (showOption.value) Box(
             Modifier
                 .align(Alignment.TopEnd)
-                .offset(y = 15.dp, x = (-45).dp)
+                .offset(y = 15.dp, x = (-55).dp)
                 .wrapContentHeight()
                 .wrapContentWidth()
                 .background(Color.White, RoundedCornerShape(16.dp))
@@ -253,7 +262,7 @@ fun SellInvoiceLandscape(
                 }, verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {})
                     Text(
-                        "Show Separate Charge",
+                        "Show Charge",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -356,7 +365,7 @@ fun ViewAddItemDialog(
                     item.catName,
                     item.subCatId,
                     item.subCatName,
-                    item.type,
+                    item.entryType,
                     takeQuantity.text.toIntOrNull() ?: 0,
                     takeGsWt.text.toDoubleOrNull() ?: 0.0,
                     takeNtWt.text.toDoubleOrNull() ?: 0.0,
@@ -380,7 +389,9 @@ fun ViewAddItemDialog(
                     viewModel.selectedItemList.add(addItem)
                 }
             } else {
-                Toast.makeText(context, "Gold only", Toast.LENGTH_SHORT).show()
+                mainScope {
+                    Toast.makeText(context, "Gold only", Toast.LENGTH_SHORT).show()
+                }
             }
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
@@ -403,10 +414,10 @@ fun ViewAddItemDialog(
                 Spacer(Modifier.height(12.dp))
 
                 val details = listOf(
-                    "Item Name" to "${ item.itemAddName } (${item.itemId})",
-                    "Category Name" to "${ item.catName } (${item.catId})",
+                    "Item Name" to "${item.itemAddName} (${item.itemId})",
+                    "Category Name" to "${item.catName} (${item.catId})",
                     "Sub-Category Name" to "${item.subCatName} (${item.subCatId})",
-                    "Type" to item.type,
+                    "Type" to item.entryType,
                     "Quantity" to item.quantity.toString(),
                     "Gross Weight" to item.gsWt.toString(),
                     "Net Weight" to item.ntWt.toString(),
@@ -552,9 +563,11 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
 
             items(viewModel.selectedItemList) {
 
-                Row(Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(30.dp)
+                ) {
                     // Name
                     Text(
                         "${it.itemAddName} ${it.subCatName}",
@@ -609,6 +622,10 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
         Text("Total", fontSize = 10.sp)
 
         Row(Modifier.fillMaxWidth()) {
+            Text("Weight", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text("55/gm", modifier = Modifier.weight(1f), fontSize = 10.sp)
+        }
+        Row(Modifier.fillMaxWidth()) {
             Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text("5500", modifier = Modifier.weight(1f), fontSize = 10.sp)
         }
@@ -625,6 +642,8 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
 
 @Composable
 fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
+    val haptic = LocalHapticFeedback.current
+
     Box(
         modifier.fillMaxWidth()
     ) {
@@ -635,176 +654,185 @@ fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
                 .padding(5.dp)
         ) {
 
-            Column(
-                Modifier
-                    .padding(2.dp)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-            ) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text(
-                        "S.No",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(0.5f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Id",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(0.5f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Item",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(2f),
-                        textAlign = TextAlign.Center
-                    )
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val columnCount = 9
+                val columnWidth = maxWidth / columnCount
+                val itemsWithHeader = listOf(null) + viewModel.selectedItemList
 
-                    Text(
-                        "Gs Wt.",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Fine Wt.",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Metal",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Charge",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "Tax",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(0.5f),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        "HUID No",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
+                LazyColumn {
+                    itemsIndexed(itemsWithHeader) { index, item ->
+                        /*    Column(
+                                Modifier
+                                    .padding(2.dp)
+                                    .fillMaxWidth()
+                                    .wrapContentHeight()
+                            ) {
+                                Row(Modifier.fillMaxWidth()) {
+                                    Text(
+                                        "${index + 1}. ",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(0.5f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "${it.itemId}. ",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(0.5f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "${it.itemAddName} ${it.subCatName} ",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(2f),
+                                        textAlign = TextAlign.Center
+                                    )
 
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                }
-                Spacer(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline)
-                )
-            }
-            LazyColumn(
-                Modifier.weight(1f)
-            ) {
-                itemsIndexed(viewModel.selectedItemList) { index, it ->
-                    Column(
-                        Modifier
-                            .padding(2.dp)
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                    ) {
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(
-                                "${index + 1}. ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(0.5f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "${it.itemId}. ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(0.5f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "${it.itemAddName} ${it.subCatName} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(2f),
-                                textAlign = TextAlign.Center
-                            )
+                                    Text(
+                                        "${it.gsWt}gm",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "${it.fnWt}gm",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "${it.catName}/(${it.purity})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Text(
+                                        "${it.crg}${if (it.crgType == "%") "%" else ""}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
 
-                            Text(
-                                "${it.gsWt}gm",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "${it.fnWt}gm",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "${it.catName}/(${it.purity})",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                "${it.crg}${if (it.crgType == "%") "%" else ""}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
+                                    Text(
+                                        "${it.cgst + it.igst + it.sgst}%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(0.5f),
+                                        textAlign = TextAlign.Center
+                                    )
 
-                            Text(
-                                "${it.cgst + it.igst + it.sgst}%",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(0.5f),
-                                textAlign = TextAlign.Center
-                            )
+                                    Text(
+                                        "${it.huid}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.DarkGray,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Center
+                                    )
 
-                            Text(
-                                "${it.huid}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f),
-                                textAlign = TextAlign.Center
-                            )
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                                }
+                                Spacer(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(MaterialTheme.colorScheme.outline)
+                                )
+                            }*/
 
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
+                        val isHeader = index == 0
+                        val values = if (isHeader) {
+                            listOf(
+                                "Sl.No",
+                                "Id",
+                                "Item",
+                                "Qty",
+                                "Gs/Nt.Wt",
+                                "Fn.Wt",
+                                "Metal",
+                                "M.Chr",
+                                "Tax",
+                            )
+                        } else {
+                            listOf(
+                                "${index}.",
+                                "${item?.itemId}",
+                                "${item?.subCatName} ${item?.itemAddName}",
+                                "${item?.quantity} P",
+                                "${item?.gsWt}/${item?.ntWt}gm",
+                                "${item?.fnWt}/gm",
+                                "${item?.catName} (${item?.purity})",
+                                "${item?.crg}+${item?.othCrg}",
+                                "${(item?.cgst?:0.0) + (item?.sgst?:0.0) + (item?.igst?:0.0)} %",
+                            )
                         }
-                        Spacer(
-                            Modifier
+
+                        Row(
+                            modifier = Modifier
+                                .pointerInput(item) {
+                                    if (!isHeader && item != null) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                                            }
+                                        )
+                                    }
+                                }
                                 .fillMaxWidth()
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outline)
-                        )
+                                .height(30.dp)
+                        ) {
+                            values.forEachIndexed { i, value ->
+                                Box(modifier = Modifier.width(columnWidth)) {
+                                    Text(
+                                        text = value,
+                                        fontWeight = if (isHeader) FontWeight.Normal else FontWeight.Normal,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 2.dp)
+                                    )
+                                }
+                                if (i < values.size - 1) {
+                                    Text(
+                                        "|",
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.width(2.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isHeader) {
+                            Spacer(
+                                Modifier
+                                    .height(2.dp)
+                                    .fillMaxWidth()
+                                    .background(Color.LightGray)
+                            )
+                        }
                     }
                 }
             }
+
+
         }
     }
 }

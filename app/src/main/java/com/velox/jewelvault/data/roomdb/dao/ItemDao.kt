@@ -19,16 +19,18 @@ interface ItemDao {
     fun getAll(): Flow<List<ItemEntity>>
 
     // ✅ Filter by any combination of parameters (nullable allows for optional filters)
-    @Query("""
+    @Query(
+        """
         SELECT * FROM ItemEntity
         WHERE (:catId IS NULL OR catId = :catId)
           AND (:subCatId IS NULL OR subCatId = :subCatId)
-          AND (:type IS NULL OR type = :type)
+          AND (:type IS NULL OR entryType = :type)
           AND (:purity IS NULL OR purity = :purity)
           AND (:crgType IS NULL OR crgType = :crgType)
           AND (:startDate IS NULL OR addDate >= :startDate)
           AND (:endDate IS NULL OR addDate <= :endDate)
-    """)
+    """
+    )
     fun filterItems(
         catId: Int? = null,
         subCatId: Int? = null,
@@ -40,12 +42,14 @@ interface ItemDao {
     ): Flow<List<ItemEntity>>
 
     // ✅ Update quantity (especially when type is "lot")
-    @Query("""
+    @Query(
+        """
         UPDATE ItemEntity
         SET quantity = :newQuantity,
             modifiedDate = :modifiedDate
-        WHERE itemId = :itemId AND type = 'lot'
-    """)
+        WHERE itemId = :itemId AND entryType = 'lot'
+    """
+    )
     suspend fun updateQuantityIfLot(itemId: Int, newQuantity: Int, modifiedDate: Timestamp)
 
 

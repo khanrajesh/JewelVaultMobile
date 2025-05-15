@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,9 +61,12 @@ fun LandscapeMainScreen() {
     val navHost = LocalNavController.current
     val dashboardViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
-
+    val context = LocalContext.current
     LaunchedEffect(true) {
-        delay(5000)
+        if (dashboardViewModel.metalRates.isEmpty()){
+            dashboardViewModel.refreshMetalRates(context = context)
+        }
+        delay(2000)
         val storeId = dashboardViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
         if (storeId == null) {
             dashboardViewModel.snackMessage = "Please Set Up Your Store First."

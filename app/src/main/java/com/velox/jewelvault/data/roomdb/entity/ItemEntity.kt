@@ -14,7 +14,7 @@ data class ItemEntity(
     val catName: String,
     val subCatId: Int,
     val subCatName: String,
-    val type: String,
+    val entryType: String,
     val quantity: Int,
     val gsWt: Double,
     val ntWt: Double,
@@ -31,3 +31,5 @@ data class ItemEntity(
     val addDate: Timestamp,
     val modifiedDate: Timestamp
 )
+
+
