@@ -193,7 +193,7 @@ fun LandscapeInventoryItemScreen(
                                 item.ntWt.toString(),
                                 item.purity,
                                 item.fnWt.toString(),
-                                item.quantity.toString(),
+                                item.crgType,
                                 item.crg.toString(),
                                 item.othCrgDes,
                                 item.othCrg.toString(),
@@ -438,7 +438,7 @@ private fun AddItemSection(
                             if (ntWt.text.isNotBlank()) {
                                 val ntWtValue = ntWt.text.toDoubleOrNull() ?: 0.0
                                 val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                fnWt.text = String.format("%.3f", ntWtValue * multiplier)
+                                fnWt.text = String.format("%.2f", ntWtValue * multiplier)
                             }
                             purity.text = selected
                         }

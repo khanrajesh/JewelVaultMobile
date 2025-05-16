@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.screen.sell_invoice
 
+import android.widget.Toast
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
@@ -24,7 +25,7 @@ class SellInvoiceViewModel @Inject constructor(
 
     val showAddItemDialog = mutableStateOf(false)
     val showSeparateCharges = mutableStateOf(true)
-    val selectedItem = mutableStateOf<ItemEntity?>(null)
+    val selectedItem = mutableStateOf<ItemSelectedModel?>(null)
     val selectedItemList = SnapshotStateList<ItemSelectedModel>()
 
     init {
@@ -50,7 +51,33 @@ class SellInvoiceViewModel @Inject constructor(
             return@launch withIo {
                 val item = appDatabase.itemDao().getItemById(itemId)
                 if (item != null) {
-                        selectedItem.value = item
+                        val addItem = ItemSelectedModel(
+                            item.itemId,
+                            item.itemAddName,
+                            item.catId,
+                            item.userId,
+                            item.storeId,
+                            item.catName,
+                            item.subCatId,
+                            item.subCatName,
+                            item.entryType,
+                            item.quantity,
+                            item.gsWt,
+                            item.ntWt,
+                            item.fnWt,
+                            item.purity,
+                            item.crgType,
+                            item.crg,
+                            item.othCrgDes,
+                            item.othCrg,
+                            item.cgst,
+                            item.sgst,
+                            item.igst,
+                            item.huid,
+                            addDate = item.addDate
+                        )
+
+                        selectedItem.value = addItem
                         onSuccess()
                 } else {
                     onFailure("No Item Found")

@@ -3,6 +3,10 @@ package com.velox.jewelvault.utils
 import androidx.room.TypeConverter
 import java.sql.Timestamp
 
+
+/*
+* Don't add anything any more here it is used for SQL Migration
+* */
 class Converters {
 
     // Convert Timestamp to Long (milliseconds)

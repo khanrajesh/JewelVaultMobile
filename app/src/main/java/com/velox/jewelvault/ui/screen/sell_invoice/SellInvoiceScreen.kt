@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.annotation.SuppressLint
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -71,18 +72,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
-import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
+import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -299,104 +302,120 @@ fun SellInvoiceLandscape(
 fun ViewAddItemDialog(
     viewModel: SellInvoiceViewModel,
 ) {
+
     val item = viewModel.selectedItem.value!!
     val context = LocalContext.current
     val takeHUID = remember { (InputFieldState(item.huid)) }
     val takeQuantity = remember { (InputFieldState("${item.quantity}")) }
     val takeGsWt = remember { (InputFieldState("${item.gsWt}")) }
     val takeNtWt = remember { (InputFieldState("${item.ntWt}")) }
-    val takeFnWt = remember { (InputFieldState()) }
 
-    val multiplier = when (item.purity) {
-        "585" -> 0.585
-        "750" -> 0.750
-        "833" -> 0.833
-        "916" -> 0.916
-        "999" -> 0.999
-        else -> null
-    }
-    multiplier?.let {
-        takeFnWt.text = String.format("%.3f", (takeNtWt.text.toDoubleOrNull() ?: 0.0) * it)
-    }
+    val fn = if (takeNtWt.text.isNotBlank()) {
+        val ntWtValue = takeNtWt.text.toDoubleOrNull() ?: 0.0
+        val multiplier = Purity.fromLabel(item.purity)?.multiplier ?: 1.0
+        String.format("%.2f", ntWtValue * multiplier)
+    } else ""
 
+    val takeFnWt = remember { (InputFieldState(fn)) }
 
-    val othCrgDes = remember { (InputFieldState("${item.othCrgDes}")) }
+    val othCrgDes = remember { (InputFieldState("${item.othCrgDes} ")) }
     val othCrg = remember { (InputFieldState("${item.othCrg}")) }
 
     val isSingleItem = item.quantity == 1
 
     val baseViewModel = LocalBaseViewModel.current
 
-    val onDismiss = {
-        viewModel.showAddItemDialog.value = false
-        viewModel.selectedItem.value = null
+
+    baseViewModel.metalRates.forEach {
+        Log.d("ViewAddItemDialog", "|${it.metal}|${it.caratOrPurity}|${it.price}")
     }
-    val onAdd = {
-        ioScope {
-            if (item.catName.trim().lowercase() == "gold") {
-                val price24k =
-                    baseViewModel.metalRates.firstOrNull { price -> price.metal == "Gold" && price.caratOrPurity == "24K" }?.price
-                val gold100: Double = (100 / 99.9) * (price24k?.toDoubleOrNull() ?: 0.0)
 
-                if (price24k == null || gold100 == 0.0) {
-                    Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
-                        .show()
-                    viewModel.showAddItemDialog.value = false
-                    viewModel.selectedItem.value = null
-                }
+    val price = if (item.catName.trim().lowercase() == "gold") {
+        val price24kOneGram =
+            baseViewModel.metalRates.firstOrNull { price -> price.metal == "Gold" && price.caratOrPurity == "24K" }?.price
+        val gold100: Double = (100 / 99.9) * (price24kOneGram?.toDoubleOrNull() ?: 0.0)
 
-                val price = gold100 * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
-
-                val charge = when (item.crgType) {
-                    "%" -> price * (item.crg / 100)
-                    "piece" -> item.crg
-                    else -> 0.0
-                } * (takeQuantity.text.toIntOrNull() ?: 0)
-
-
-                val tax = (price + charge) * ((item.cgst + item.igst + item.sgst) / 100)
-
-                val addItem = ItemSelectedModel(
-                    item.itemId,
-                    item.itemAddName,
-                    item.catId,
-                    item.userId,
-                    item.storeId,
-                    item.catName,
-                    item.subCatId,
-                    item.subCatName,
-                    item.entryType,
-                    takeQuantity.text.toIntOrNull() ?: 0,
-                    takeGsWt.text.toDoubleOrNull() ?: 0.0,
-                    takeNtWt.text.toDoubleOrNull() ?: 0.0,
-                    takeFnWt.text.toDoubleOrNull() ?: 0.0,
-                    item.purity,
-                    item.crgType,
-                    item.crg,
-                    othCrgDes.text,
-                    othCrg.text.toDoubleOrNull() ?: 0.0,
-                    item.cgst,
-                    item.sgst,
-                    item.igst,
-                    takeHUID.text,
-                    price,
-                    charge,
-                    tax
-                )
-
-
-                if (!viewModel.selectedItemList.contains(addItem)) {
-                    viewModel.selectedItemList.add(addItem)
-                }
-            } else {
-                mainScope {
-                    Toast.makeText(context, "Gold only", Toast.LENGTH_SHORT).show()
-                }
+        if (price24kOneGram == null || gold100 == 0.0) {
+            mainScope {
+                Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
+                    .show()
             }
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
         }
+
+        gold100 * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
+    } else
+        if (item.catName.trim().lowercase() == "silver") {
+
+            val silverOneGm =
+                baseViewModel.metalRates.firstOrNull { price -> price.metal == "Silver" && price.caratOrPurity == "Silver /g" }?.price
+                    ?.toDoubleOrNull() ?: 0.0
+
+            if (silverOneGm == 0.0) {
+                mainScope {
+                    Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
+                        .show()
+                }
+                viewModel.showAddItemDialog.value = false
+                viewModel.selectedItem.value = null
+                return
+            }
+            silverOneGm * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
+        } else {
+            viewModel.showAddItemDialog.value = false
+            viewModel.selectedItem.value = null
+            mainScope {
+                Toast.makeText(context, "Only Gold and Silver", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+    val charge = when (item.crgType) {
+        ChargeType.Percentage.type -> price * (item.crg / 100)
+        ChargeType.Piece.type -> item.crg * (takeQuantity.text.toIntOrNull() ?: 0)
+        ChargeType.PerGm.type -> {
+            item.crg * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
+        }
+
+        else -> 0.0
     }
+
+
+    val tax = (price + charge) * ((item.cgst + item.igst + item.sgst) / 100)
+
+
+    val onDismiss = {
+        viewModel.showAddItemDialog.value = false
+        viewModel.selectedItem.value = null
+    }
+
+    val onAdd = {
+        ioScope {
+
+            val addItem = item.copy(
+                quantity = takeQuantity.text.toIntOrNull() ?: 0,
+                gsWt = takeGsWt.text.toDoubleOrNull() ?: 0.0,
+                ntWt = takeNtWt.text.toDoubleOrNull() ?: 0.0,
+                fnWt = takeFnWt.text.toDoubleOrNull() ?: 0.0,
+                othCrgDes = othCrgDes.text,
+                othCrg = othCrg.text.toDoubleOrNull() ?: 0.0,
+                huid = takeHUID.text,
+                price = price,
+                charge = charge,
+                tax = tax
+            )
+
+
+            if (!viewModel.selectedItemList.contains(addItem)) {
+                viewModel.selectedItemList.add(addItem)
+            }
+
+            viewModel.showAddItemDialog.value = false
+            viewModel.selectedItem.value = null
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(12.dp),
@@ -410,7 +429,7 @@ fun ViewAddItemDialog(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                Text("Item Details", style = MaterialTheme.typography.titleLarge)
+                Text("${item.catName} Item Details", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(12.dp))
 
                 val details = listOf(
@@ -440,7 +459,7 @@ fun ViewAddItemDialog(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         modifier = Modifier
-                            .heightIn(max = 400.dp) // Add scrolling if too long
+                            .heightIn(max = 270.dp)
                             .padding(vertical = 8.dp)
                     ) {
                         items(details) { (label, value) ->
@@ -473,6 +492,17 @@ fun ViewAddItemDialog(
                             maxLines = 1,
                             keyboardType = KeyboardType.Number
                         )
+
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row {
+                        CusOutlinedTextField(
+                            takeQuantity,
+                            placeholderText = "Take Qty",
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            keyboardType = KeyboardType.Number
+                        )
                         Spacer(Modifier.width(5.dp))
                         CusOutlinedTextField(
                             takeHUID,
@@ -486,14 +516,7 @@ fun ViewAddItemDialog(
                     if (!isSingleItem) {
                         Spacer(Modifier.height(10.dp))
                         Row {
-                            CusOutlinedTextField(
-                                takeQuantity,
-                                placeholderText = "Take Qty",
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                keyboardType = KeyboardType.Number
-                            )
-                            Spacer(Modifier.width(5.dp))
+
                             CusOutlinedTextField(
                                 takeGsWt,
                                 placeholderText = "Take Gs Wt",
@@ -518,6 +541,27 @@ fun ViewAddItemDialog(
                                 keyboardType = KeyboardType.Number
                             )
                         }
+
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Row(Modifier.height(50.dp)) {
+                        Text(
+                            "Price: ${String.format("%.2f", price)}",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "Charge: ${String.format("%.2f", charge)}",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "Tax: ${String.format("%.2f", tax)}",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
 
                     }
                 }
@@ -577,18 +621,14 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
 
                     // M.Amt
                     Text(
-                        String.format(
-                            Locale.US,
-                            "%.2f",
-                            if (viewModel.showSeparateCharges.value) it.price else it.price + it.charge
-                        ),
+                        (if (viewModel.showSeparateCharges.value) it.price else it.price + it.charge).to2FString(),
                         modifier = Modifier.weight(1f),
                         fontSize = 10.sp
                     )
 
                     // Charge
                     if (viewModel.showSeparateCharges.value) Text(
-                        String.format(Locale.US, "%.2f", it.charge),
+                        it.charge.to2FString(),
                         modifier = Modifier.weight(1f),
                         fontSize = 10.sp
                     )
@@ -777,7 +817,7 @@ fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
                                 "${item?.fnWt}/gm",
                                 "${item?.catName} (${item?.purity})",
                                 "${item?.crg}+${item?.othCrg}",
-                                "${(item?.cgst?:0.0) + (item?.sgst?:0.0) + (item?.igst?:0.0)} %",
+                                "${(item?.cgst ?: 0.0) + (item?.sgst ?: 0.0) + (item?.igst ?: 0.0)} %",
                             )
                         }
 

@@ -14,7 +14,7 @@ data class ItemSelectedModel(
     val catName: String,
     val subCatId: Int,
     val subCatName: String,
-    val type: String,
+    val entryType: String,
     val quantity: Int,
     val gsWt: Double,
     val ntWt: Double,
@@ -28,8 +28,9 @@ data class ItemSelectedModel(
     val sgst: Double=0.0,
     val igst: Double=0.0,
     val huid: String,
-    val price: Double,
-    val charge: Double,
-    val tax: Double,
+    val price: Double=0.0,
+    val charge: Double=0.0,
+    val tax: Double=0.0,
+    val addDate:Timestamp?=null
 
 )
