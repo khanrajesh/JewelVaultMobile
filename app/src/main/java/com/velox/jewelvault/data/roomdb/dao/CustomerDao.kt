@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
 interface CustomerDao {
 
     // Insert new customer, replace on conflict
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCustomer(customer: CustomerEntity)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertCustomer(customer: CustomerEntity):Long
 
     // Insert multiple customers
     @Insert(onConflict = OnConflictStrategy.REPLACE)

@@ -1,10 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dto
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import java.sql.Timestamp
 
-@Entity
 data class ItemSelectedModel(
     val itemId: Int,
     val itemAddName: String,
@@ -19,6 +16,7 @@ data class ItemSelectedModel(
     val gsWt: Double,
     val ntWt: Double,
     val fnWt: Double,
+    val fnMetalPrice: Double=0.0,
     val purity: String,
     val crgType: String,
     val crg: Double,

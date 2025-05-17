@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.DateRange
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
+import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
@@ -87,7 +89,6 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 
 @Composable
@@ -116,7 +117,9 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
         }
     } else {
         QrBarScannerPage(showPage = showQrBarScanner, scanAndClose = true, onCodeScanned = {
+            mainScope {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            }
         }, overlayContent = {
             BackHandler(enabled = true) {
                 // Do nothing = disable back button
@@ -210,7 +213,7 @@ fun SellInvoiceLandscape(
                         )
                         .padding(5.dp)
                 ) {
-                    CustomerDetails()
+                    CustomerDetails(viewModel)
 
                     Spacer(Modifier.height(5.dp))
 
@@ -589,17 +592,39 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
     Column(modifier = modifier.padding(5.dp)) {
 
         Row(Modifier.fillMaxWidth()) {
-            Text("Item", modifier = Modifier.weight(0.5f), fontSize = 10.sp)
-            Text("M.Amt", modifier = Modifier.weight(1f), fontSize = 10.sp)
-            if (viewModel.showSeparateCharges.value) Text(
-                "Charge",
-                modifier = Modifier.weight(1f),
-                fontSize = 10.sp
+            Text(
+                "Item",
+                modifier = Modifier.weight(0.7f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.Start
             )
-
-            Text("O.Crg", modifier = Modifier.weight(1f), fontSize = 10.sp)
-            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp)
-            Text("Total", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text(
+                "M.Amt",
+                modifier = Modifier.weight(1f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
+            if (viewModel.showSeparateCharges.value) {
+                Text(
+                    "Charge",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    "O.Crg",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.End
+                )
+            }
+            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End)
+            Text(
+                "Total",
+                modifier = Modifier.weight(1.5f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
         }
 
         LazyColumn(Modifier.fillMaxWidth()) {
@@ -615,70 +640,129 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
                     // Name
                     Text(
                         "${it.itemAddName} ${it.subCatName}",
-                        modifier = Modifier.weight(0.5f),
-                        fontSize = 10.sp
+                        modifier = Modifier.weight(0.7f),
+                        fontSize = 10.sp, textAlign = TextAlign.Start
                     )
 
                     // M.Amt
                     Text(
-                        (if (viewModel.showSeparateCharges.value) it.price else it.price + it.charge).to2FString(),
+                        (if (viewModel.showSeparateCharges.value) it.price else (it.price + it.charge + it.othCrg)).to2FString(),
                         modifier = Modifier.weight(1f),
-                        fontSize = 10.sp
+                        fontSize = 10.sp, textAlign = TextAlign.End
                     )
 
                     // Charge
-                    if (viewModel.showSeparateCharges.value) Text(
-                        it.charge.to2FString(),
-                        modifier = Modifier.weight(1f),
-                        fontSize = 10.sp
-                    )
+                    if (viewModel.showSeparateCharges.value) {
 
-                    // O.Charge
-                    Text(
-                        String.format(Locale.US, "%.2f", it.othCrg),
-                        modifier = Modifier.weight(1f),
-                        fontSize = 10.sp
-                    )
+                        Text(
+                            it.charge.to2FString(),
+                            modifier = Modifier.weight(1f),
+                            fontSize = 10.sp, textAlign = TextAlign.End
+                        )
+                        // O.Charge
+                        Text(
+                            it.othCrg.to2FString(),
+                            modifier = Modifier.weight(1f),
+                            fontSize = 10.sp, textAlign = TextAlign.End
+                        )
+                    }
+
 
                     // Tax
                     Text(
-                        String.format(Locale.US, "%.2f", it.tax),
+                        it.tax.to2FString(),
                         modifier = Modifier.weight(1f),
-                        fontSize = 10.sp
+                        fontSize = 10.sp, textAlign = TextAlign.End
                     )
 
                     // Total
                     val total = it.price + it.charge + it.othCrg + it.tax
                     Text(
-                        String.format(Locale.US, "%.2f", total),
+                        total.to2FString(),
                         modifier = Modifier.weight(1.5f),
-                        fontSize = 10.sp
+                        fontSize = 10.sp, textAlign = TextAlign.End
                     )
                 }
             }
         }
 
-        Spacer(Modifier.weight(1f))
-        Text("Total", fontSize = 10.sp)
 
-        Row(Modifier.fillMaxWidth()) {
-            Text("Weight", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text("55/gm", modifier = Modifier.weight(1f), fontSize = 10.sp)
+        viewModel.selectedItemList
+
+
+        Spacer(Modifier.weight(1f))
+        SummarySection(viewModel.selectedItemList)
+    }
+}
+
+@Composable
+fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
+    val groupedItems = selectedItemList.groupBy { it.catName }
+
+    Column(Modifier.padding(16.dp)) {
+        Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+        groupedItems.forEach { (metalType, items) ->
+            val totalGsWt = items.sumOf { it.gsWt }
+            val totalFnWt = items.sumOf { it.fnWt }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text("$metalType Gs/Fn Wt", modifier = Modifier.weight(1f), fontSize = 10.sp)
+                Text(
+                    "${totalGsWt.to2FString()}/${totalFnWt.to2FString()} gm",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp, textAlign = TextAlign.End
+                )
+            }
+
         }
+
+        Spacer(Modifier.height(5.dp))
+        HorizontalDivider(thickness = 1.dp)
+
+        // Total calculations
+        val totalPrice = selectedItemList.sumOf { it.price }
+        val totalTax = selectedItemList.sumOf { it.tax }
+        val grandTotal = totalPrice + totalTax
+
+        Spacer(Modifier.height(5.dp))
         Row(Modifier.fillMaxWidth()) {
             Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text("5500", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text(
+                "₹${"%.2f".format(totalPrice)}",
+                modifier = Modifier.weight(1f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
         }
         Row(Modifier.fillMaxWidth()) {
             Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text("150.45", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text(
+                "₹${"%.2f".format(totalTax)}",
+                modifier = Modifier.weight(1f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
         }
         Row(Modifier.fillMaxWidth()) {
-            Text("Grand Total (after tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text("5615.45", modifier = Modifier.weight(1f), fontSize = 10.sp)
+            Text(
+                "Grand Total (after tax)",
+                modifier = Modifier.weight(1.5f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "₹${"%.2f".format(grandTotal)}",
+                modifier = Modifier.weight(1f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End
+            )
         }
+
     }
 }
+
 
 @Composable
 fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
@@ -990,9 +1074,7 @@ private fun AddItemSection(
 
 
 @Composable
-fun CustomerDetails() {
-    val name = remember { InputFieldState() }
-    val mobileNo = remember { InputFieldState() }
+fun CustomerDetails(viewModel: SellInvoiceViewModel) {
     val context = LocalContext.current
 
     Column(
@@ -1004,24 +1086,47 @@ fun CustomerDetails() {
         Text("Customer Details")
         Column {
             Row(Modifier) {
-                CusOutlinedTextField(name, placeholderText = "Name", modifier = Modifier.weight(2f))
+                CusOutlinedTextField(
+                    viewModel.customerName,
+                    placeholderText = "Name",
+                    modifier = Modifier.weight(2f)
+                )
                 Spacer(Modifier.width(5.dp))
                 CusOutlinedTextField(
-                    mobileNo,
+                    viewModel.customerMobile,
                     placeholderText = "Mobile No",
                     modifier = Modifier.weight(1f),
                     trailingIcon = Icons.Default.Search,
                     onTrailingIconClick = {
-                        Toast.makeText(context, "Search by customer number.", Toast.LENGTH_SHORT)
-                            .show()
+                        viewModel.getCustomerByMobile {
+                            if (it == null) {
+                                mainScope {
+                                    Toast.makeText(
+                                        context,
+                                        "No Customer Found!",
+                                        Toast.LENGTH_SHORT
+                                    )
+                                        .show()
+                                }
+                            }
+                        }
                     },
                     maxLines = 1,
-                    keyboardType = KeyboardType.Phone
+                    keyboardType = KeyboardType.Phone,
+                    validation = { input ->
+                        when {
+                            input.length != 10 -> "Please Enter Valid Number"
+                            else -> null
+                        }
+                    }
                 )
             }
             Spacer(Modifier.height(5.dp))
             CusOutlinedTextField(
-                name, placeholderText = "Address", modifier = Modifier.fillMaxWidth(), maxLines = 1
+                viewModel.customerAddress,
+                placeholderText = "Address",
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1
             )
             Spacer(Modifier.height(5.dp))
 
@@ -1032,7 +1137,7 @@ fun CustomerDetails() {
 
                 Spacer(Modifier.width(5.dp))
                 CusOutlinedTextField(
-                    name,
+                    viewModel.customerGstin,
                     placeholderText = "GSTIN/PAN ID",
                     modifier = Modifier.weight(1f),
                     maxLines = 1

@@ -72,7 +72,8 @@ fun CusOutlinedTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     shape: Shape = OutlinedTextFieldDefaults.shape,
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors()
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    validation: ((String) -> String?)? = null
 ) {
     val haptic = LocalHapticFeedback.current
     var expanded by remember { mutableStateOf(false) }
@@ -103,12 +104,26 @@ fun CusOutlinedTextField(
                     if (keyboardType == KeyboardType.Number) {
                         if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*\$"))) {
                             state.onTextChanged(it)
+                            validation?.let { validate ->
+                                val errorMsg = validate(it)
+                                state.error = errorMsg ?: ""
+                                if (errorMsg != null) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
+                            }
                         } else {
                             state.error = "Only numbers and one decimal point allowed"
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     } else {
                         state.onTextChanged(it)
+                        validation?.let { validate ->
+                            val errorMsg = validate(it)
+                            state.error = errorMsg ?: ""
+                            if (errorMsg != null) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        }
                     }
                 },
                 maxLines = maxLines,
@@ -193,6 +208,13 @@ fun CusOutlinedTextField(
                             text = { Text(item) },
                             onClick = {
                                 state.onTextChanged(item)
+                                validation?.let { validate ->
+                                    val errorMsg = validate(item)
+                                    state.error = errorMsg ?: ""
+                                    if (errorMsg != null) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                }
                                 onDropdownItemSelected?.invoke(item)
                                 expanded = false
                             }

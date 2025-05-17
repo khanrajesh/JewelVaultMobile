@@ -66,3 +66,29 @@ fun Double.roundTo3Decimal(): Double {
 
 @SuppressLint("DefaultLocale")
 fun Double.to2FString() = String.format(Locale.US,"%.2f", this)
+
+fun numberToWords(number: Int): String {
+    if (number == 0) return "Zero"
+
+    val units = arrayOf(
+        "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+        "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
+        "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+    )
+    val tens = arrayOf(
+        "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+    )
+
+    fun convert(n: Int): String {
+        return when {
+            n < 20 -> units[n]
+            n < 100 -> tens[n / 10] + if (n % 10 != 0) " " + units[n % 10] else ""
+            n < 1000 -> units[n / 100] + " Hundred" + if (n % 100 != 0) " " + convert(n % 100) else ""
+            n < 100000 -> convert(n / 1000) + " Thousand" + if (n % 1000 != 0) " " + convert(n % 1000) else ""
+            n < 10000000 -> convert(n / 100000) + " Lakh" + if (n % 100000 != 0) " " + convert(n % 100000) else ""
+            else -> convert(n / 10000000) + " Crore" + if (n % 10000000 != 0) " " + convert(n % 10000000) else ""
+        }
+    }
+
+    return convert(number)
+}

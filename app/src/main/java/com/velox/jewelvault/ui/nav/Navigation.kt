@@ -57,7 +57,7 @@ fun AppNavigation(
                 SellInvoiceScreen(sellInvoiceViewModel)
             }
             composable(Screens.SellPreview.route) {
-                SellPreviewScreen()
+                SellPreviewScreen(sellInvoiceViewModel)
             }
             composable(Screens.QrScanScreen.route) {
                 QrBarScannerScreen()

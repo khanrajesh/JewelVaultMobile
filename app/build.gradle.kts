@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.velox.jewelvault"
-        minSdk = 28
+        minSdk = 29
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -114,5 +114,9 @@ dependencies {
     // Optional for Android compatibility
     implementation("org.apache.xmlbeans:xmlbeans:5.1.1")
     implementation("org.apache.commons:commons-collections4:4.4")
+
+    implementation("com.itextpdf:itext7-core:7.2.3") // For PDF generation
+
+
 
 }

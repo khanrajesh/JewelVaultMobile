@@ -1,24 +1,36 @@
 package com.velox.jewelvault.ui.screen.sell_invoice
 
+import android.content.Context
+import android.net.Uri
 import android.widget.Toast
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
+import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
+import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.io.File
+import java.sql.Timestamp
 import javax.inject.Inject
 
 @HiltViewModel
 class SellInvoiceViewModel @Inject constructor(
+    private val context: Context,
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
 ) : ViewModel() {
@@ -28,57 +40,73 @@ class SellInvoiceViewModel @Inject constructor(
     val selectedItem = mutableStateOf<ItemSelectedModel?>(null)
     val selectedItemList = SnapshotStateList<ItemSelectedModel>()
 
+    val customerName = InputFieldState()
+    val customerMobile = InputFieldState()
+    val customerAddress = InputFieldState()
+    val customerGstin = InputFieldState()
+    private val customerExists = mutableStateOf(false)
+    val ownerSign = mutableStateOf<ImageBitmap?>(null)
+    val customerSign = mutableStateOf<ImageBitmap?>(null)
+
+    var generatedPdfFile by mutableStateOf<Uri?>(null)
+        private set
+
     init {
         viewModelScope.launch {
             withIo {
-                showSeparateCharges.value =  _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()?:false
+                showSeparateCharges.value =
+                    _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()
+                        ?: false
             }
         }
     }
 
-    fun updateChargeView(state:Boolean){
+    fun updateChargeView(state: Boolean) {
         viewModelScope.launch {
             withIo {
-                _dataStoreManager.setValue(DataStoreManager.SHOW_SEPARATE_CHARGE,state)
+                _dataStoreManager.setValue(DataStoreManager.SHOW_SEPARATE_CHARGE, state)
                 delay(50)
-                showSeparateCharges.value =  _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()?:false
+                showSeparateCharges.value =
+                    _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()
+                        ?: false
             }
         }
     }
 
-    fun getItemById( itemId: Int, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
+    fun getItemById(itemId: Int, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
         viewModelScope.launch {
             return@launch withIo {
                 val item = appDatabase.itemDao().getItemById(itemId)
                 if (item != null) {
-                        val addItem = ItemSelectedModel(
-                            item.itemId,
-                            item.itemAddName,
-                            item.catId,
-                            item.userId,
-                            item.storeId,
-                            item.catName,
-                            item.subCatId,
-                            item.subCatName,
-                            item.entryType,
-                            item.quantity,
-                            item.gsWt,
-                            item.ntWt,
-                            item.fnWt,
-                            item.purity,
-                            item.crgType,
-                            item.crg,
-                            item.othCrgDes,
-                            item.othCrg,
-                            item.cgst,
-                            item.sgst,
-                            item.igst,
-                            item.huid,
-                            addDate = item.addDate
-                        )
+                    val addItem = ItemSelectedModel(
+                        item.itemId,
+                        item.itemAddName,
+                        item.catId,
+                        item.userId,
+                        item.storeId,
+                        item.catName,
+                        item.subCatId,
+                        item.subCatName,
+                        item.entryType,
+                        item.quantity,
+                        item.gsWt,
+                        item.ntWt,
+                        item.fnWt,
+                        0.0,
+                        item.purity,
+                        item.crgType,
+                        item.crg,
+                        item.othCrgDes,
+                        item.othCrg,
+                        item.cgst,
+                        item.sgst,
+                        item.igst,
+                        item.huid,
+                        addDate = item.addDate
+                    )
 
-                        selectedItem.value = addItem
-                        onSuccess()
+                    selectedItem.value = addItem
+                    onSuccess()
                 } else {
                     onFailure("No Item Found")
                 }
@@ -149,5 +177,96 @@ class SellInvoiceViewModel @Inject constructor(
             }
         }
     }*/
+
+
+    //region customer
+    fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit) {
+        viewModelScope.launch {
+            val mobile = customerMobile.text.trim()
+            if (mobile.isNotEmpty()) {
+                val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                customer?.let {
+                    customerExists.value = true
+                    customerName.text = it.name
+                    customerAddress.text = it.address ?: ""
+                    customerGstin.text = it.gstin_pan ?: ""
+                } ?: run {
+                    customerExists.value = false
+                }
+                onFound(customer)
+            } else {
+                customerExists.value = false
+                onFound(null)
+            }
+        }
+    }
+
+    fun addCustomer(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            val mobile = customerMobile.text.trim()
+            if (mobile.isEmpty()) {
+                onError("Mobile number is required")
+                return@launch
+            }
+
+            val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
+            if (existingCustomer != null) {
+                onError("Customer already exists")
+                return@launch
+            }
+
+            val newCustomer = CustomerEntity(
+                mobileNo = mobile,
+                name = customerName.text.trim(),
+                address = customerAddress.text.trim(),
+                gstin_pan = customerGstin.text.trim(),
+                addDate = Timestamp(System.currentTimeMillis()),
+                modifiedDate = Timestamp(System.currentTimeMillis())
+            )
+
+            val id = appDatabase.customerDao().insertCustomer(newCustomer)
+            if (id > 0) {
+                onSuccess()
+            } else {
+                onError("Failed to add customer")
+            }
+        }
+    }
+    //endregion
+
+
+    fun generateInvoice() {
+        viewModelScope.launch {
+            withIo {
+                val storeId = _dataStoreManager.storeId.first()
+                val store = appDatabase.storeDao().getStoreById(storeId)
+
+                val cus = CustomerEntity(
+                    mobileNo = customerMobile.text.trim(),
+                    name = customerName.text.trim(),
+                    address = customerAddress.text.trim(),
+                    gstin_pan = customerGstin.text.trim(),
+                    addDate = Timestamp(System.currentTimeMillis()),
+                    modifiedDate = Timestamp(System.currentTimeMillis())
+                )
+
+                if (store != null && customerSign.value != null && ownerSign.value !=null){
+                    generateInvoicePdf(
+                        context = context,
+                        store = store,
+                        customer = cus,
+                        items = selectedItemList,
+                        customerSign = customerSign.value!!,
+                        ownerSign = ownerSign.value!!
+                    ) { file ->
+                        generatedPdfFile = file
+                    }
+                }else{
+
+                }
+            }
+        }
+    }
+
 
 }
