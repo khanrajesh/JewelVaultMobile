@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen
+package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.utils.sharePdf
 
 

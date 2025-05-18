@@ -2,7 +2,6 @@ package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.content.Context
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,21 +9,20 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
-import com.velox.jewelvault.data.roomdb.entity.ItemEntity
-import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
+import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.withIo
+import com.velox.jewelvault.utils.withMain
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.io.File
 import java.sql.Timestamp
 import javax.inject.Inject
 
@@ -179,60 +177,133 @@ class SellInvoiceViewModel @Inject constructor(
     }*/
 
 
-    //region customer
-    fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit) {
-        viewModelScope.launch {
-            val mobile = customerMobile.text.trim()
-            if (mobile.isNotEmpty()) {
-                val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
-                customer?.let {
-                    customerExists.value = true
-                    customerName.text = it.name
-                    customerAddress.text = it.address ?: ""
-                    customerGstin.text = it.gstin_pan ?: ""
-                } ?: run {
+        //region customer
+        fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit) {
+            viewModelScope.launch {
+                val mobile = customerMobile.text.trim()
+                if (mobile.isNotEmpty()) {
+                    val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                    customer?.let {
+                        customerExists.value = true
+                        customerName.text = it.name
+                        customerAddress.text = it.address ?: ""
+                        customerGstin.text = it.gstin_pan ?: ""
+                    } ?: run {
+                        customerExists.value = false
+                    }
+                    onFound(customer)
+                } else {
                     customerExists.value = false
+                    onFound(null)
                 }
-                onFound(customer)
-            } else {
-                customerExists.value = false
-                onFound(null)
             }
         }
-    }
 
-    fun addCustomer(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        fun addCustomer(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+            viewModelScope.launch {
+                val mobile = customerMobile.text.trim()
+                if (mobile.isEmpty()) {
+                    onError("Mobile number is required")
+                    return@launch
+                }
+
+                val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                if (existingCustomer != null) {
+                    onError("Customer already exists")
+                    return@launch
+                }
+
+                val newCustomer = CustomerEntity(
+                    mobileNo = mobile,
+                    name = customerName.text.trim(),
+                    address = customerAddress.text.trim(),
+                    gstin_pan = customerGstin.text.trim(),
+                    addDate = Timestamp(System.currentTimeMillis()),
+                )
+
+                val id = appDatabase.customerDao().insertCustomer(newCustomer)
+                if (id > 0) {
+                    onSuccess()
+                } else {
+                    onError("Failed to add customer")
+                }
+            }
+        }
+        //endregion
+
+    fun addOrderWithItems(
+        storeId: Int,
+        userId: Int,
+        note: String? = null,
+        onSuccess: (Long) -> Unit = {},
+        onFailure: (Throwable) -> Unit = {}
+    ) {
         viewModelScope.launch {
-            val mobile = customerMobile.text.trim()
-            if (mobile.isEmpty()) {
-                onError("Mobile number is required")
-                return@launch
-            }
+            try {
+                withIo {
+                    val mobile = customerMobile.text.trim()
 
-            val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
-            if (existingCustomer != null) {
-                onError("Customer already exists")
-                return@launch
-            }
+                    // Calculate totals
+                    val totalAmount = selectedItemList.sumOf { it.price }
+                    val totalTax = selectedItemList.sumOf { it.tax }
+                    val totalCharge = selectedItemList.sumOf { it.charge }
 
-            val newCustomer = CustomerEntity(
-                mobileNo = mobile,
-                name = customerName.text.trim(),
-                address = customerAddress.text.trim(),
-                gstin_pan = customerGstin.text.trim(),
-                addDate = Timestamp(System.currentTimeMillis()),
-                modifiedDate = Timestamp(System.currentTimeMillis())
-            )
+                    val order = OrderEntity(
+                        customerMobile = mobile,
+                        storeId = storeId,
+                        userId = userId,
+                        orderDate = Timestamp(System.currentTimeMillis()),
+                        totalAmount = totalAmount,
+                        totalTax = totalTax,
+                        totalCharge = totalCharge,
+                        note = note
+                    )
 
-            val id = appDatabase.customerDao().insertCustomer(newCustomer)
-            if (id > 0) {
-                onSuccess()
-            } else {
-                onError("Failed to add customer")
+                    val orderId = appDatabase.orderDao().insertOrder(order)
+
+                    val orderItems = selectedItemList.map {
+                        OrderItemEntity(
+                            orderId = orderId,
+                            itemId = it.itemId,
+                            itemAddName = it.itemAddName,
+                            catId = it.catId,
+                            catName = it.catName,
+                            subCatId = it.subCatId,
+                            subCatName = it.subCatName,
+                            entryType = it.entryType,
+                            quantity = it.quantity,
+                            gsWt = it.gsWt,
+                            ntWt = it.ntWt,
+                            fnWt = it.fnWt,
+                            fnMetalPrice = it.fnMetalPrice,
+                            purity = it.purity,
+                            crgType = it.crgType,
+                            crg = it.crg,
+                            othCrgDes = it.othCrgDes,
+                            othCrg = it.othCrg,
+                            cgst = it.cgst,
+                            sgst = it.sgst,
+                            igst = it.igst,
+                            huid = it.huid,
+                            price = it.price,
+                            charge = it.charge,
+                            tax = it.tax
+                        )
+                    }
+
+                    appDatabase.orderDao().insertItems(orderItems)
+
+                    withMain {
+                        onSuccess(orderId)
+                    }
+                }
+            } catch (e: Exception) {
+               withMain {
+                    onFailure(e)
+                }
             }
         }
     }
-    //endregion
 
 
     fun generateInvoice() {
@@ -247,7 +318,6 @@ class SellInvoiceViewModel @Inject constructor(
                     address = customerAddress.text.trim(),
                     gstin_pan = customerGstin.text.trim(),
                     addDate = Timestamp(System.currentTimeMillis()),
-                    modifiedDate = Timestamp(System.currentTimeMillis())
                 )
 
                 if (store != null && customerSign.value != null && ownerSign.value !=null){

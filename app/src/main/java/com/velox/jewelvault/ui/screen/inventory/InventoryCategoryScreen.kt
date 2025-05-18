@@ -52,7 +52,7 @@ sealed class CatType(val type: String) {
 }
 
 @Composable
-fun InventoryScreen(inventoryViewModel: InventoryViewModel) {
+fun InventoryCategoryScreen(inventoryViewModel: InventoryViewModel) {
     LaunchedEffect(true) {
         inventoryViewModel.init()
     }
@@ -67,6 +67,8 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val addCatType = remember { mutableStateOf("") }
     val selectedCatName = remember { mutableStateOf<String?>(null) }
     val selectedCatId = remember { mutableStateOf<Int?>(null) }
+
+    val subNavController = LocalSubNavController.current
 
     Box(
         Modifier
@@ -89,6 +91,9 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
             item {
                 Column(
                     Modifier
+                        .clickable {
+                            subNavController.navigate(SubScreens.InventoryFilter.route)
+                        }
                         .padding(end = 5.dp, bottom = 5.dp)
                         .height(height.dp)
                         .background(

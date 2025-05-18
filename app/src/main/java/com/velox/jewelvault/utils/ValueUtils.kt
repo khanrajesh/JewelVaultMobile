@@ -34,6 +34,12 @@ suspend fun <T> withIo(block: suspend () -> T): T {
     }
 }
 
+suspend fun <T> withMain(block: suspend () -> T): T {
+    return withContext(Dispatchers.Main) {
+        block()
+    }
+}
+
 
 @Composable
 fun rememberCurrentDateTime(): State<String> {

@@ -42,6 +42,12 @@ class InventoryViewModel @Inject constructor(
     val itemList: SnapshotStateList<ItemEntity> = SnapshotStateList()
     val catSubCatDto: SnapshotStateList<CatSubCatDto> = SnapshotStateList()
 
+   val itemHeaderList =  listOf(
+    "S.No", "Category","Sub Category","Item Id",
+    "To Name", "Type", "Qty", "Gr.Wt", "Nt.Wt",
+    "Unit", "Purity", "Fn.Wt", "MC.Type", "M.Chr", "Oth Chr",
+    "Chr", "Tax", "H-UID", "DOA", "Extra"
+    )
 
     fun init() {
         checkForCategory()

@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import kotlinx.coroutines.flow.Flow
 import java.sql.Timestamp
@@ -40,6 +42,10 @@ interface ItemDao {
         startDate: Timestamp? = null,
         endDate: Timestamp? = null
     ): Flow<List<ItemEntity>>
+
+    @RawQuery(observedEntities = [ItemEntity::class])
+    fun filterItems(query: SupportSQLiteQuery): Flow<List<ItemEntity>>
+
 
     // ✅ Update quantity (especially when type is "lot")
     @Query(

@@ -162,7 +162,7 @@ fun generateInvoicePdf(
     val contentValues = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, fileName)
         put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault")
+        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Invoice")
     }
 
     val resolver = context.contentResolver

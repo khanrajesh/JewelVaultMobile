@@ -11,5 +11,4 @@ data class CustomerEntity(
     val address: String? = null,
     val gstin_pan: String? = null,
     val addDate: Timestamp,
-    val modifiedDate: Timestamp
 )

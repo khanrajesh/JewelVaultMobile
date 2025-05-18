@@ -44,3 +44,9 @@ sealed class Purity(val label: String, val multiplier: Double) {
         }
     }
 }
+
+enum class ExportFormat {
+    CSV, XLS, XLSX
+}
+
+enum class OrderSort { ASCENDING, DESCENDING }

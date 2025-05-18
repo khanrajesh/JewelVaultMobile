@@ -15,4 +15,5 @@ data class StoreEntity (
     val gstinNo:String,
     val panNo:String,
     val image:String,
+    val invoiceNo:Int=0,
 )
