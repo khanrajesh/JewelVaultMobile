@@ -108,7 +108,7 @@ fun QrBarScannerPage(
                                         if (scanAndClose){
                                             barcodeResults.firstOrNull()?.let {res->
                                                 onCodeScanned(res.second)
-                                                showPage.value = ! showPage.value
+                                                showPage.value = false
                                             }
                                         }
                                     }

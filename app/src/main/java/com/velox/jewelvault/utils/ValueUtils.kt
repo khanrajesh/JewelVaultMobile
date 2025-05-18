@@ -98,3 +98,7 @@ fun numberToWords(number: Int): String {
 
     return convert(number)
 }
+
+fun String.canBeInt(): Boolean {
+    return this.toIntOrNull() != null
+}

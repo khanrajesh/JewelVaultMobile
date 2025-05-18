@@ -83,6 +83,7 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.canBeInt
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
@@ -97,6 +98,7 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
     val navControl = LocalNavController.current
     val context = LocalContext.current
     val showQrBarScanner = remember { mutableStateOf(false) }
+    val itemId = remember { mutableStateOf("") }
 
     LaunchedEffect(true) {
         if (baseViewModel.metalRates.isEmpty()) {
@@ -111,15 +113,28 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
     if (!showQrBarScanner.value) {
         if (isLandscape()) {
-            SellInvoiceLandscape(showQrBarScanner, sellInvoiceViewModel)
+            SellInvoiceLandscape(showQrBarScanner, sellInvoiceViewModel,itemId)
         } else {
             SellInvoicePortrait()
         }
     } else {
-        QrBarScannerPage(showPage = showQrBarScanner, scanAndClose = true, onCodeScanned = {
-            mainScope {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            }
+        QrBarScannerPage(showPage = showQrBarScanner, scanAndClose = true,
+            onCodeScanned = { code ->
+                showQrBarScanner.value = false
+                itemId.value = code
+                if (code.isNotEmpty() && code.canBeInt()) {
+                    sellInvoiceViewModel.getItemById(
+                        itemId.value.toInt(),
+                        onFailure = {
+                            sellInvoiceViewModel.snackBarState.value = "No item found with the id: $code"
+                        },
+                        onSuccess = {
+                            sellInvoiceViewModel.showAddItemDialog.value = true
+                        })
+                    itemId.value = ""
+                }else{
+                    sellInvoiceViewModel.snackBarState.value = "Please Scan Valid Code"
+                }
         }, overlayContent = {
             BackHandler(enabled = true) {
                 // Do nothing = disable back button
@@ -150,7 +165,9 @@ fun SellInvoicePortrait() {
 
 @Composable
 fun SellInvoiceLandscape(
-    showQrBarScanner: MutableState<Boolean>, viewModel: SellInvoiceViewModel
+    showQrBarScanner: MutableState<Boolean>,
+    viewModel: SellInvoiceViewModel,
+    itemId: MutableState<String>
 ) {
     val context = LocalContext.current
     val navHost = LocalNavController.current
@@ -221,7 +238,7 @@ fun SellInvoiceLandscape(
 
                     Spacer(Modifier.height(5.dp))
 
-                    AddItemSection(showQrBarScanner, viewModel)
+                    AddItemSection(showQrBarScanner, viewModel,itemId)
                 }
                 Spacer(Modifier.width(5.dp))
                 Column(
@@ -971,10 +988,11 @@ fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
 
 @Composable
 private fun AddItemSection(
-    showQrBarScanner: MutableState<Boolean>, viewModel: SellInvoiceViewModel
+    showQrBarScanner: MutableState<Boolean>,
+    viewModel: SellInvoiceViewModel,
+    itemId: MutableState<String>
 ) {
     val focusManager = LocalFocusManager.current
-    val itemId = remember { mutableStateOf("") }
     val baseViewModel = LocalBaseViewModel.current
 
     Row(

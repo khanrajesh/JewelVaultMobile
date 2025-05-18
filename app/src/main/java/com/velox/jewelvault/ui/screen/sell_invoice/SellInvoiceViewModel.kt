@@ -37,6 +37,7 @@ class SellInvoiceViewModel @Inject constructor(
     private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
+    val snackBarState = _snackBarState
     val showAddItemDialog = mutableStateOf(false)
     val showSeparateCharges = mutableStateOf(true)
     val selectedItem = mutableStateOf<ItemSelectedModel?>(null)
