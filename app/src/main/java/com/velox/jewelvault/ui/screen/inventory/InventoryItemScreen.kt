@@ -81,13 +81,13 @@ fun LandscapeInventoryItemScreen(
 
     val addItem = remember { mutableStateOf(false) }
     val addToName = remember { InputFieldState() }
-    val entryType = remember { InputFieldState(EntryType.Piece.type) }
+    val entryType = remember { InputFieldState() }
     val qty = remember { InputFieldState() }
     val grWt = remember { InputFieldState() }
     val ntWt = remember { InputFieldState() }
-    val purity = remember { InputFieldState(Purity.P1000.label) }
+    val purity = remember { InputFieldState() }
     val fnWt = remember { InputFieldState() }
-    val chargeType = remember { InputFieldState(ChargeType.Percentage.type) }
+    val chargeType = remember { InputFieldState() }
     val charge = remember { InputFieldState() }
     val otherChargeDes = remember { InputFieldState() }
     val othCharge = remember { InputFieldState() }
@@ -434,6 +434,22 @@ private fun AddItemSection(
                     Spacer(Modifier.weight(1f))
                     Text("Cancel", Modifier
                         .bounceClick {
+                            addToName.text = ""
+                            entryType.text = ""
+                            qty.text = ""
+                            grWt.text = ""
+                            ntWt.text = ""
+                            purity.text = ""
+                            fnWt.text = ""
+                            chargeType.text = ""
+                            charge.text = ""
+                            otherChargeDes.text = ""
+                            othCharge.text = ""
+                            cgst.text = ""
+                            sgst.text = ""
+                            igst.text = ""
+                            huid.text = ""
+
                             addItem.value = false
                         }
                         .background(
@@ -472,16 +488,29 @@ private fun AddItemSection(
                                 modifiedDate = Timestamp(System.currentTimeMillis())
                             )
 
-                            inventoryViewModel.safeInsertItem(newItem, onFailure = {
-                                mainScope.launch {
-                                    Toast.makeText(
-                                        context, "failed to add item", Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                            }, onSuccess = { itemEntity, l ->
+                            inventoryViewModel.safeInsertItem(newItem,
+                                onFailure = {},
+                                onSuccess = { itemEntity, l ->
+
                                 inventoryViewModel.filterItems(
                                     catId = catId, subCatId = subCatId
                                 )
+                                    addToName.text = ""
+                                    entryType.text = ""
+                                    qty.text = ""
+                                    grWt.text = ""
+                                    ntWt.text = ""
+                                    purity.text = ""
+                                    fnWt.text = ""
+                                    chargeType.text = ""
+                                    charge.text = ""
+                                    otherChargeDes.text = ""
+                                    othCharge.text = ""
+                                    cgst.text = ""
+                                    sgst.text = ""
+                                    igst.text = ""
+                                    huid.text = ""
+
                                 mainScope.launch {
                                     Toast.makeText(
                                         context, "item added with id: $l", Toast.LENGTH_SHORT

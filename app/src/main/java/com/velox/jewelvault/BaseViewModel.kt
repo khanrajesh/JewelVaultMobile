@@ -12,15 +12,15 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BaseViewModel @Inject constructor(
-    private val _dataStoreManager: DataStoreManager
+    private val _dataStoreManager: DataStoreManager,
+    private val _loadingState : MutableState<Boolean>,
+    private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
-    var loading by mutableStateOf(false)
-    var snackMessage by mutableStateOf("")
+    var loading by _loadingState
+    var snackMessage by _snackBarState
     val dataStoreManager = _dataStoreManager
     val phone = mutableStateOf("8260636334")
-
-
     val metalRates = mutableStateListOf<MetalRate>()
     val metalRatesLoading = mutableStateOf(false)
 

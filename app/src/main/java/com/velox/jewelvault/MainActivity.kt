@@ -35,8 +35,10 @@ import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.log
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import java.sql.Timestamp
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -55,9 +57,14 @@ class MainActivity : ComponentActivity() {
 
             JewelVaultTheme {
                 LaunchedEffect(baseViewModel.snackMessage) {
+                    log("snackMessage: ${baseViewModel.snackMessage}")
                     if (baseViewModel.snackMessage.isNotBlank())
                         delay(5000)
                     baseViewModel.snackMessage = ""
+                }
+
+                LaunchedEffect (baseViewModel.loading){
+                    log("loading: ${baseViewModel.loading}. time: ${Timestamp(System.currentTimeMillis())}")
                 }
 
 
@@ -99,11 +106,10 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        if (baseViewModel.snackMessage.isNotBlank()) {
+                        if (baseViewModel.snackMessage.isNotEmpty()) {
                             Text(
-
                                 modifier = Modifier
-                                    .align(Alignment.BottomCenter)
+                                    .align(Alignment.TopCenter)
                                     .fillMaxWidth()
                                     .wrapContentHeight()
                                     .padding(10.dp)

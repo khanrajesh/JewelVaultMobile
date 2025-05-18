@@ -17,7 +17,7 @@ interface CustomerDao {
 
     // Update existing customer
     @Update
-    suspend fun updateCustomer(customer: CustomerEntity)
+    suspend fun updateCustomer(customer: CustomerEntity):Int
 
     // Delete customer
     @Delete

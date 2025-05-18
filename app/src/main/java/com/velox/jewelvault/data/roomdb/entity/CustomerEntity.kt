@@ -11,4 +11,7 @@ data class CustomerEntity(
     val address: String? = null,
     val gstin_pan: String? = null,
     val addDate: Timestamp,
+    val lastModifiedDate: Timestamp,
+    val totalItemBought :Int=0,
+    val totalAmount: Double = 0.0
 )

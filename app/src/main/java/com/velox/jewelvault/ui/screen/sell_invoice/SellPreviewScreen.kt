@@ -32,7 +32,7 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
 
@@ -47,7 +47,7 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
             Text("Customer Signature")
             SignatureBox(
                 modifier = Modifier
-                    .height(150.dp)
+                    .height(250.dp)
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant,
@@ -61,7 +61,7 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
             Text("Owner Signature")
             SignatureBox(
                 modifier = Modifier
-                    .height(150.dp)
+                    .height(250.dp)
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant,
@@ -74,12 +74,19 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
             Button(onClick = {
                 if (sellInvoiceViewModel.customerSign.value != null && sellInvoiceViewModel.ownerSign.value != null) {
-                    sellInvoiceViewModel.generateInvoice()
+                    sellInvoiceViewModel.completeOrder(
+                        onSuccess = {
+
+                        },
+                        onFailure = {
+
+                        }
+                    )
                 }else{
                     Toast.makeText(context, "Please Sign ", Toast.LENGTH_SHORT).show()
                 }
             }) {
-                Text("Generate Invoice")
+                Text("Complete Order")
             }
 
             pdfFile?.let {

@@ -27,7 +27,7 @@ data class ItemSelectedModel(
     val igst: Double=0.0,
     val huid: String,
     val price: Double=0.0,
-    val charge: Double=0.0,
+    val chargeAmount: Double=0.0,
     val tax: Double=0.0,
     val addDate:Timestamp?=null
 

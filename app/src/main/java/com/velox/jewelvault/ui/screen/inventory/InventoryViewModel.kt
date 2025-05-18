@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.content.Context
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.datastore.core.DataStore
@@ -19,6 +20,7 @@ import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
+import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +36,8 @@ import javax.inject.Inject
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
+    private val _loadingState: MutableState<Boolean>,
+    private val _snackBarState: MutableState<String>,
     context: Context
 ) : ViewModel() {
 
@@ -144,12 +148,15 @@ class InventoryViewModel @Inject constructor(
                     )
                 )
                 if (s != -1L) {
+                    _snackBarState.value="Added new category id: $s"
                     this@InventoryViewModel.log("Added new category id: $s")
                     getCategoryAndSubCategoryDetails()
                 } else {
+                    _snackBarState.value="failed to add category"
                     this@InventoryViewModel.log("failed to add category")
                 }
             } catch (e: Exception) {
+                _snackBarState.value="unable to add category error: ${e.message}"
                 this@InventoryViewModel.log("unable to add category error: ${e.message}")
             }
         }
@@ -170,12 +177,15 @@ class InventoryViewModel @Inject constructor(
                     )
                 )
                 if (s != -1L) {
+                    _snackBarState.value="Added new sub category id: $s"
                     this@InventoryViewModel.log("Added new sub category id: $s")
                     getCategoryAndSubCategoryDetails()
                 } else {
+                    _snackBarState.value="failed to add sub category"
                     this@InventoryViewModel.log("failed to add sub category")
                 }
             } catch (e: Exception) {
+                _snackBarState.value="unable to add sub category"
                 this@InventoryViewModel.log("unable to add sub category")
             }
         }
@@ -201,7 +211,7 @@ class InventoryViewModel @Inject constructor(
         endDate: Timestamp? = null
     ) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            withIo {
                 try {
                     appDatabase.itemDao()
                         .filterItems(catId, subCatId, type, purity, crgType, startDate, endDate)
@@ -209,7 +219,9 @@ class InventoryViewModel @Inject constructor(
                             itemList.clear() // Clear the list before adding new data
                             itemList.addAll(items) // Add all items to the SnapshotStateList
                         }
+//                    _snackBarState.value = "Item Filtered"
                 } catch (e: Exception) {
+                    _snackBarState.value="failed to filler item list"
                     this@InventoryViewModel.log("failed to filler item list")
                 }
             }
@@ -222,8 +234,9 @@ class InventoryViewModel @Inject constructor(
         onFailure: (Throwable) -> Unit
     ) {
         viewModelScope.launch {
+            _loadingState.value = true
             try {
-                withContext(Dispatchers.IO) {
+                withIo {
                     val userId = dataStoreManager.userId.first()
                     val storeId = dataStoreManager.storeId.first()
                     val it = item.copy(
@@ -252,7 +265,6 @@ class InventoryViewModel @Inject constructor(
 
                                 if (upSub != -1) {
                                     this@InventoryViewModel.log("Sub Cat id: ${insertedItem.subCatId} update with weight")
-
                                     val cat = appDatabase.categoryDao().getCategoryById(catId = insertedItem.catId)
                                     cat?.let { catEntity ->
                                         val catGsWt = (catEntity.gsWt + insertedItem.gsWt).roundTo3Decimal()
@@ -263,20 +275,32 @@ class InventoryViewModel @Inject constructor(
                                             fnWt = catFnWt
                                         )
                                         if (upCat != -1) {
+                                            _loadingState.value = false
                                             this@InventoryViewModel.log("Cat id: ${insertedItem.catId} update with weight")
+                                            _snackBarState.value = "Item Added and categories updated."
+                                            onSuccess(insertedItem, newItemId)
                                         }
                                     }
+                                }else{
+                                    _snackBarState.value = "Failed to update Sub Category Weight"
+                                    _loadingState.value = false
                                 }
                             }
                         } catch (e: Exception) {
+                            _loadingState.value = false
+                            _snackBarState.value = ("Error updating cat and sub cat weight: ${e.message}")
                             this@InventoryViewModel.log("Error updating cat and sub cat weight: ${e.message}")
                         }
-                        onSuccess(insertedItem, newItemId)
+                        _loadingState.value = true
                     } else {
+                        _loadingState.value = false
+                        _snackBarState.value = ("Failed to insert item")
                         this@InventoryViewModel.log("Failed to insert item")
                     }
                 }
             } catch (e: Exception) {
+                _loadingState.value = false
+                _snackBarState.value = "Error inserting item error: ${e.message}"
                 onFailure(e)
             }
         }

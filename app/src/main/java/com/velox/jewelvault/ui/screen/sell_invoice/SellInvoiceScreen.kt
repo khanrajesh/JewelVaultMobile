@@ -240,7 +240,9 @@ fun SellInvoiceLandscape(
 
                     Box(modifier = Modifier
                         .bounceClick {
+
                             navHost.navigate(Screens.SellPreview.route)
+
                         }
                         .fillMaxWidth()
                         .background(
@@ -333,7 +335,7 @@ fun ViewAddItemDialog(
         Log.d("ViewAddItemDialog", "|${it.metal}|${it.caratOrPurity}|${it.price}")
     }
 
-    val price = if (item.catName.trim().lowercase() == "gold") {
+    val oneUnitPrice = if (item.catName.trim().lowercase() == "gold") {
         val price24kOneGram =
             baseViewModel.metalRates.firstOrNull { price -> price.metal == "Gold" && price.caratOrPurity == "24K" }?.price
         val gold100: Double = (100 / 99.9) * (price24kOneGram?.toDoubleOrNull() ?: 0.0)
@@ -347,7 +349,7 @@ fun ViewAddItemDialog(
             viewModel.selectedItem.value = null
         }
 
-        gold100 * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
+        gold100
     } else
         if (item.catName.trim().lowercase() == "silver") {
 
@@ -364,7 +366,7 @@ fun ViewAddItemDialog(
                 viewModel.selectedItem.value = null
                 return
             }
-            silverOneGm * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
+            silverOneGm
         } else {
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
@@ -373,6 +375,9 @@ fun ViewAddItemDialog(
             }
             return
         }
+
+
+    val price = oneUnitPrice * (takeFnWt.text.toDoubleOrNull() ?: 0.0)
 
     val charge = when (item.crgType) {
         ChargeType.Percentage.type -> price * (item.crg / 100)
@@ -401,12 +406,13 @@ fun ViewAddItemDialog(
                 gsWt = takeGsWt.text.toDoubleOrNull() ?: 0.0,
                 ntWt = takeNtWt.text.toDoubleOrNull() ?: 0.0,
                 fnWt = takeFnWt.text.toDoubleOrNull() ?: 0.0,
+                fnMetalPrice = oneUnitPrice ,
                 othCrgDes = othCrgDes.text,
                 othCrg = othCrg.text.toDoubleOrNull() ?: 0.0,
                 huid = takeHUID.text,
                 price = price,
-                charge = charge,
-                tax = tax
+                chargeAmount = charge,
+                tax = tax,
             )
 
 
@@ -646,7 +652,7 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
 
                     // M.Amt
                     Text(
-                        (if (viewModel.showSeparateCharges.value) it.price else (it.price + it.charge + it.othCrg)).to2FString(),
+                        (if (viewModel.showSeparateCharges.value) it.price else (it.price + it.chargeAmount + it.othCrg)).to2FString(),
                         modifier = Modifier.weight(1f),
                         fontSize = 10.sp, textAlign = TextAlign.End
                     )
@@ -655,7 +661,7 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
                     if (viewModel.showSeparateCharges.value) {
 
                         Text(
-                            it.charge.to2FString(),
+                            it.chargeAmount.to2FString(),
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp, textAlign = TextAlign.End
                         )
@@ -676,7 +682,7 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
                     )
 
                     // Total
-                    val total = it.price + it.charge + it.othCrg + it.tax
+                    val total = it.price + it.chargeAmount + it.othCrg + it.tax
                     Text(
                         total.to2FString(),
                         modifier = Modifier.weight(1.5f),
@@ -694,6 +700,7 @@ fun DetailSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
         SummarySection(viewModel.selectedItemList)
     }
 }
+
 
 @Composable
 fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
@@ -961,6 +968,7 @@ fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
     }
 }
 
+
 @Composable
 private fun AddItemSection(
     showQrBarScanner: MutableState<Boolean>, viewModel: SellInvoiceViewModel
@@ -1098,18 +1106,7 @@ fun CustomerDetails(viewModel: SellInvoiceViewModel) {
                     modifier = Modifier.weight(1f),
                     trailingIcon = Icons.Default.Search,
                     onTrailingIconClick = {
-                        viewModel.getCustomerByMobile {
-                            if (it == null) {
-                                mainScope {
-                                    Toast.makeText(
-                                        context,
-                                        "No Customer Found!",
-                                        Toast.LENGTH_SHORT
-                                    )
-                                        .show()
-                                }
-                            }
-                        }
+                        viewModel.getCustomerByMobile()
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,

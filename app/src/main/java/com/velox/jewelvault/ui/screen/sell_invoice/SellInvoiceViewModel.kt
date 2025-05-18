@@ -2,6 +2,7 @@ package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -17,6 +18,7 @@ import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.withMain
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +33,8 @@ class SellInvoiceViewModel @Inject constructor(
     private val context: Context,
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
+    private val _loadingState: MutableState<Boolean>,
+    private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
     val showAddItemDialog = mutableStateOf(false)
@@ -77,30 +81,30 @@ class SellInvoiceViewModel @Inject constructor(
                 val item = appDatabase.itemDao().getItemById(itemId)
                 if (item != null) {
                     val addItem = ItemSelectedModel(
-                        item.itemId,
-                        item.itemAddName,
-                        item.catId,
-                        item.userId,
-                        item.storeId,
-                        item.catName,
-                        item.subCatId,
-                        item.subCatName,
-                        item.entryType,
-                        item.quantity,
-                        item.gsWt,
-                        item.ntWt,
-                        item.fnWt,
-                        0.0,
-                        item.purity,
-                        item.crgType,
-                        item.crg,
-                        item.othCrgDes,
-                        item.othCrg,
-                        item.cgst,
-                        item.sgst,
-                        item.igst,
-                        item.huid,
-                        addDate = item.addDate
+                        itemId = item.itemId,
+                        itemAddName = item.itemAddName,
+                        catId = item.catId,
+                        userId = item.userId,
+                        storeId = item.storeId,
+                        catName = item.catName,
+                        subCatId = item.subCatId,
+                        subCatName = item.subCatName,
+                        entryType = item.entryType,
+                        quantity = item.quantity,
+                        gsWt = item.gsWt,
+                        ntWt = item.ntWt,
+                        fnWt = item.fnWt,
+                        fnMetalPrice = 0.0,
+                        purity = item.purity,
+                        crgType = item.crgType,
+                        crg = item.crg,
+                        othCrgDes = item.othCrgDes,
+                        othCrg = item.othCrg,
+                        cgst = item.cgst,
+                        sgst = item.sgst,
+                        igst = item.igst,
+                        huid = item.huid,
+                        addDate = item.addDate,
                     )
 
                     selectedItem.value = addItem
@@ -113,140 +117,148 @@ class SellInvoiceViewModel @Inject constructor(
     }
 
 
-    /*fun getItemById(metalRates:SnapshotStateList<MetalRate>, itemId: Int, onSuccess: (ItemSelectedModel) -> Unit, onFailure: (String) -> Unit = {}) {
+    //region customer
+    fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit={}) {
         viewModelScope.launch {
-           return@launch withIo {
-                val item = appDatabase.itemDao().getItemById(itemId)
-                if (item != null) {
-                    if (item.catName.trim().lowercase() == "gold"){
-                        val price24k = metalRates.firstOrNull { price -> price.metal == "Gold" && price.caratOrPurity == "24K" }?.price
-                        val gold100: Double = (100 / 99.9) * (price24k?.toDoubleOrNull() ?: 0.0)
-
-                        if (price24k == null || gold100 == 0.0){
-                            onFailure("")
-                            return@withIo
+            ioScope {
+                try {
+                    _loadingState.value =true
+                    val mobile = customerMobile.text.trim()
+                    if (mobile.isNotEmpty()) {
+                        val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                        customer?.let {
+                            customerExists.value = true
+                            customerName.text = it.name
+                            customerAddress.text = it.address ?: ""
+                            customerGstin.text = it.gstin_pan ?: ""
+                            _loadingState.value = false
+                            _snackBarState.value = "Customer Found"
+                            onFound(customer)
+                        } ?: run {
+                            customerExists.value = false
+                            _loadingState.value = false
+                            _snackBarState.value = "No Customer Found"
+                            onFound(null)
                         }
 
-                        val price = gold100 * item.fnWt
-                        val charge = when (item.crgType) {
-                            "%" -> price * (item.crg / 100)
-                            "piece" -> item.crg
-                            else -> 0.0
-                        }
-
-                        val tax = (price+charge) * ((item.cgst + item.igst + item.sgst) / 100)
-
-                        val modifiedItems = ItemSelectedModel(
-                            item.itemId,
-                            item.itemAddName,
-                            item.catId,
-                            item.userId,
-                            item.storeId,
-                            item.catName,
-                            item.subCatId,
-                            item.subCatName,
-                            item.type,
-                            item.quantity,
-                            item.gsWt,
-                            item.ntWt,
-                            item.fnWt,
-                            item.purity,
-                            item.crgType,
-                            item.crg,
-                            item.othCrgDes,
-                            item.othCrg,
-                            item.cgst,
-                            item.sgst,
-                            item.igst,
-                            item.huid,
-                            price,
-                            charge,
-                            tax
-                        )
-                        selectedItem.value = modifiedItems
-                        onSuccess(modifiedItems)
-                    }else{
-                        onFailure("current we are only calculating gold items only")
-                    }
-
-                } else {
-                    onFailure("No Item Found")
-                }
-            }
-        }
-    }*/
-
-
-        //region customer
-        fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit) {
-            viewModelScope.launch {
-                val mobile = customerMobile.text.trim()
-                if (mobile.isNotEmpty()) {
-                    val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
-                    customer?.let {
-                        customerExists.value = true
-                        customerName.text = it.name
-                        customerAddress.text = it.address ?: ""
-                        customerGstin.text = it.gstin_pan ?: ""
-                    } ?: run {
+                    } else {
                         customerExists.value = false
+                        _loadingState.value = false
+                        _snackBarState.value = "No Customer Found"
+                        onFound(null)
                     }
-                    onFound(customer)
-                } else {
-                    customerExists.value = false
-                    onFound(null)
+
+                }catch (e:Exception){
+                    _loadingState.value = false
+                    _snackBarState.value = "Error fetching customer details"
                 }
             }
         }
+    }
 
-        fun addCustomer(onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
-            viewModelScope.launch {
-                val mobile = customerMobile.text.trim()
-                if (mobile.isEmpty()) {
-                    onError("Mobile number is required")
-                    return@launch
-                }
+    //endregion
 
-                val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
-                if (existingCustomer != null) {
-                    onError("Customer already exists")
-                    return@launch
-                }
 
-                val newCustomer = CustomerEntity(
-                    mobileNo = mobile,
-                    name = customerName.text.trim(),
-                    address = customerAddress.text.trim(),
-                    gstin_pan = customerGstin.text.trim(),
-                    addDate = Timestamp(System.currentTimeMillis()),
-                )
-
-                val id = appDatabase.customerDao().insertCustomer(newCustomer)
-                if (id > 0) {
-                    onSuccess()
-                } else {
-                    onError("Failed to add customer")
-                }
-            }
-        }
-        //endregion
-
-    fun addOrderWithItems(
-        storeId: Int,
-        userId: Int,
-        note: String? = null,
-        onSuccess: (Long) -> Unit = {},
-        onFailure: (Throwable) -> Unit = {}
+    fun completeOrder(
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
     ) {
         viewModelScope.launch {
-            try {
-                withIo {
+            withIo {
+                _loadingState.value = true
+                try {
+                    //1. check if customer exist
                     val mobile = customerMobile.text.trim()
+
+                    val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
+
+                    //2. add customer if not exist
+                    if (existingCustomer == null) {
+                        val newCustomer = CustomerEntity(
+                            mobileNo = mobile,
+                            name = customerName.text.trim(),
+                            address = customerAddress.text.trim(),
+                            gstin_pan = customerGstin.text.trim(),
+                            addDate = Timestamp(System.currentTimeMillis()),
+                            lastModifiedDate = Timestamp(System.currentTimeMillis()),
+                        )
+                        appDatabase.customerDao().insertCustomer(newCustomer)
+                    }
 
                     // Calculate totals
                     val totalAmount = selectedItemList.sumOf { it.price }
                     val totalTax = selectedItemList.sumOf { it.tax }
-                    val totalCharge = selectedItemList.sumOf { it.charge }
+                    val totalCharge = selectedItemList.sumOf { it.chargeAmount }
+                    val userId = _dataStoreManager.userId.first()
+                    val storeId = _dataStoreManager.storeId.first()
+                    //3. add order and its item details
+                    addOrderWithItems(userId = userId,
+                        storeId = storeId,
+                        mobile = mobile,
+                        totalAmount = totalAmount,
+                        totalTax = totalTax,
+                        totalCharge = totalCharge,
+                        onSuccess = {
+                            ioScope {
+                                val cus = appDatabase.customerDao().getCustomerByMobile(mobile)
+
+                                if (cus != null) {
+                                    val ta =
+                                        cus.totalAmount + (totalAmount + totalTax + totalCharge)
+                                    val qty =
+                                        cus.totalItemBought + selectedItemList.sumOf { it.quantity }
+
+                                    //4. update the customer details
+                                    val a = appDatabase.customerDao().updateCustomer(
+                                        cus.copy(
+                                            lastModifiedDate = Timestamp(System.currentTimeMillis()),
+                                            totalAmount = ta,
+                                            totalItemBought = qty,
+                                        )
+                                    )
+
+                                    if (a != -1) {
+                                        //successfully update the customer details
+
+                                        //5. generate the pdf
+                                        generateInvoice(
+                                            storeId, cus,
+                                            onSuccess=onSuccess,
+                                            onFailure = onFailure
+                                        )
+                                    } else {
+                                        //failed to update the customer details
+                                        _loadingState.value = false
+                                        onFailure("Failed to update customer details")
+                                    }
+                                }
+                            }
+                        },
+                        onFailure = onFailure)
+                } catch (e: Exception) {
+                    _loadingState.value = false
+                    onFailure("")
+                }
+            }
+        }
+
+    }
+
+    private fun addOrderWithItems(
+        userId: Int,
+        storeId: Int,
+        mobile: String,
+        totalAmount: Double,
+        totalTax: Double,
+        totalCharge: Double,
+        onSuccess: (Long) -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _loadingState.value = true
+            try {
+                withIo {
+
 
                     val order = OrderEntity(
                         customerMobile = mobile,
@@ -256,7 +268,7 @@ class SellInvoiceViewModel @Inject constructor(
                         totalAmount = totalAmount,
                         totalTax = totalTax,
                         totalCharge = totalCharge,
-                        note = note
+                        note = "note"
                     )
 
                     val orderId = appDatabase.orderDao().insertOrder(order)
@@ -286,53 +298,55 @@ class SellInvoiceViewModel @Inject constructor(
                             igst = it.igst,
                             huid = it.huid,
                             price = it.price,
-                            charge = it.charge,
+                            charge = it.chargeAmount,
                             tax = it.tax
                         )
                     }
 
                     appDatabase.orderDao().insertItems(orderItems)
-
                     withMain {
+                        _loadingState.value = false
                         onSuccess(orderId)
                     }
                 }
             } catch (e: Exception) {
-               withMain {
-                    onFailure(e)
+                _loadingState.value = false
+                withMain {
+                    e.message?.let { onFailure(it) }
                 }
             }
         }
     }
 
 
-    fun generateInvoice() {
+    private fun generateInvoice(
+        storeId: Int, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
+    ) {
         viewModelScope.launch {
             withIo {
-                val storeId = _dataStoreManager.storeId.first()
-                val store = appDatabase.storeDao().getStoreById(storeId)
-
-                val cus = CustomerEntity(
-                    mobileNo = customerMobile.text.trim(),
-                    name = customerName.text.trim(),
-                    address = customerAddress.text.trim(),
-                    gstin_pan = customerGstin.text.trim(),
-                    addDate = Timestamp(System.currentTimeMillis()),
-                )
-
-                if (store != null && customerSign.value != null && ownerSign.value !=null){
-                    generateInvoicePdf(
-                        context = context,
-                        store = store,
-                        customer = cus,
-                        items = selectedItemList,
-                        customerSign = customerSign.value!!,
-                        ownerSign = ownerSign.value!!
-                    ) { file ->
-                        generatedPdfFile = file
+                _loadingState.value = true
+                try {
+                    val store = appDatabase.storeDao().getStoreById(storeId)
+                    if (store != null && customerSign.value != null && ownerSign.value != null) {
+                        generateInvoicePdf(
+                            context = context,
+                            store = store,
+                            customer = cus,
+                            items = selectedItemList,
+                            customerSign = customerSign.value!!,
+                            ownerSign = ownerSign.value!!
+                        ) { file ->
+                            generatedPdfFile = file
+                            _loadingState.value = false
+                            onSuccess()
+                        }
+                    } else {
+                        _loadingState.value = false
+                        onFailure("Store Details Not Found")
                     }
-                }else{
-
+                } catch (e: Exception) {
+                    _loadingState.value = false
+                    onFailure("Unable to Generate Invoice PDF")
                 }
             }
         }

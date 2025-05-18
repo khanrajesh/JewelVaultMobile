@@ -2,6 +2,8 @@ package com.velox.jewelvault.di
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -39,6 +41,18 @@ object AppModule {
         return PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("vault_datastore")
         }
+    }
+
+    @Provides
+    @Singleton
+    fun provideLoadingState(): MutableState<Boolean> {
+        return mutableStateOf(false)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSnackMessageState(): MutableState<String> {
+        return mutableStateOf("")
     }
 
     @Provides
