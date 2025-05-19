@@ -50,6 +50,7 @@ class InputFieldState(
 @Composable
 fun CusOutlinedTextField(
     state: InputFieldState,
+    onTextChange:(String)->Unit={},
     modifier: Modifier = Modifier,
     placeholderText: String,
     dropdownItems: List<String> = emptyList(),
@@ -125,6 +126,7 @@ fun CusOutlinedTextField(
                             }
                         }
                     }
+                    onTextChange(it)
                 },
                 maxLines = maxLines,
                 placeholder = { Text("Enter $placeholderText") },

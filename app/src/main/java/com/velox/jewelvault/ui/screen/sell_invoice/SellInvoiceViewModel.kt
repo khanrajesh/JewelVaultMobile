@@ -17,10 +17,12 @@ import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
-import com.velox.jewelvault.utils.withMain
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -47,6 +49,7 @@ class SellInvoiceViewModel @Inject constructor(
     val customerMobile = InputFieldState()
     val customerAddress = InputFieldState()
     val customerGstin = InputFieldState()
+
     private val customerExists = mutableStateOf(false)
     val ownerSign = mutableStateOf<ImageBitmap?>(null)
     val customerSign = mutableStateOf<ImageBitmap?>(null)
@@ -111,6 +114,7 @@ class SellInvoiceViewModel @Inject constructor(
                     selectedItem.value = addItem
                     onSuccess()
                 } else {
+                    _snackBarState.value = "No Item Found"
                     onFailure("No Item Found")
                 }
             }
@@ -119,11 +123,11 @@ class SellInvoiceViewModel @Inject constructor(
 
 
     //region customer
-    fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit={}) {
+    fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit = {}) {
         viewModelScope.launch {
             ioScope {
                 try {
-                    _loadingState.value =true
+                    _loadingState.value = true
                     val mobile = customerMobile.text.trim()
                     if (mobile.isNotEmpty()) {
                         val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
@@ -149,7 +153,7 @@ class SellInvoiceViewModel @Inject constructor(
                         onFound(null)
                     }
 
-                }catch (e:Exception){
+                } catch (e: Exception) {
                     _loadingState.value = false
                     _snackBarState.value = "Error fetching customer details"
                 }
@@ -161,8 +165,7 @@ class SellInvoiceViewModel @Inject constructor(
 
 
     fun completeOrder(
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
+        onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         viewModelScope.launch {
             withIo {
@@ -193,7 +196,8 @@ class SellInvoiceViewModel @Inject constructor(
                     val userId = _dataStoreManager.userId.first()
                     val storeId = _dataStoreManager.storeId.first()
                     //3. add order and its item details
-                    addOrderWithItems(userId = userId,
+                    addOrderWithItems(
+                        userId = userId,
                         storeId = storeId,
                         mobile = mobile,
                         totalAmount = totalAmount,
@@ -220,13 +224,16 @@ class SellInvoiceViewModel @Inject constructor(
 
                                     if (a != -1) {
                                         //successfully update the customer details
-
-                                        //5. generate the pdf
-                                        generateInvoice(
-                                            storeId, cus,
-                                            onSuccess=onSuccess,
-                                            onFailure = onFailure
-                                        )
+                                        //5. remove item from items, subcategory, category
+                                        removeItemSafely(onSuccess = {
+                                            //6. generate the pdf
+                                            generateInvoice(
+                                                storeId,
+                                                cus,
+                                                onSuccess = onSuccess,
+                                                onFailure = onFailure
+                                            )
+                                        }, onFailure)
                                     } else {
                                         //failed to update the customer details
                                         _loadingState.value = false
@@ -235,14 +242,14 @@ class SellInvoiceViewModel @Inject constructor(
                                 }
                             }
                         },
-                        onFailure = onFailure)
+                        onFailure = onFailure
+                    )
                 } catch (e: Exception) {
                     _loadingState.value = false
                     onFailure("")
                 }
             }
         }
-
     }
 
     private fun addOrderWithItems(
@@ -252,15 +259,13 @@ class SellInvoiceViewModel @Inject constructor(
         totalAmount: Double,
         totalTax: Double,
         totalCharge: Double,
-        onSuccess: (Long) -> Unit = {},
+        onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             _loadingState.value = true
             try {
                 withIo {
-
-
                     val order = OrderEntity(
                         customerMobile = mobile,
                         storeId = storeId,
@@ -274,46 +279,155 @@ class SellInvoiceViewModel @Inject constructor(
 
                     val orderId = appDatabase.orderDao().insertOrder(order)
 
-                    val orderItems = selectedItemList.map {
-                        OrderItemEntity(
-                            orderId = orderId,
-                            itemId = it.itemId,
-                            itemAddName = it.itemAddName,
-                            catId = it.catId,
-                            catName = it.catName,
-                            subCatId = it.subCatId,
-                            subCatName = it.subCatName,
-                            entryType = it.entryType,
-                            quantity = it.quantity,
-                            gsWt = it.gsWt,
-                            ntWt = it.ntWt,
-                            fnWt = it.fnWt,
-                            fnMetalPrice = it.fnMetalPrice,
-                            purity = it.purity,
-                            crgType = it.crgType,
-                            crg = it.crg,
-                            othCrgDes = it.othCrgDes,
-                            othCrg = it.othCrg,
-                            cgst = it.cgst,
-                            sgst = it.sgst,
-                            igst = it.igst,
-                            huid = it.huid,
-                            price = it.price,
-                            charge = it.chargeAmount,
-                            tax = it.tax
-                        )
-                    }
+                    if (orderId != -1L) {
+                        val orderItems = selectedItemList.map {
+                            OrderItemEntity(
+                                orderId = orderId.toInt(),
+                                itemId = it.itemId,
+                                itemAddName = it.itemAddName,
+                                catId = it.catId,
+                                catName = it.catName,
+                                subCatId = it.subCatId,
+                                subCatName = it.subCatName,
+                                entryType = it.entryType,
+                                quantity = it.quantity,
+                                gsWt = it.gsWt,
+                                ntWt = it.ntWt,
+                                fnWt = it.fnWt,
+                                fnMetalPrice = it.fnMetalPrice,
+                                purity = it.purity,
+                                crgType = it.crgType,
+                                crg = it.crg,
+                                othCrgDes = it.othCrgDes,
+                                othCrg = it.othCrg,
+                                cgst = it.cgst,
+                                sgst = it.sgst,
+                                igst = it.igst,
+                                huid = it.huid,
+                                price = it.price,
+                                charge = it.chargeAmount,
+                                tax = it.tax
+                            )
+                        }
+                        val res = appDatabase.orderDao().insertItems(orderItems)
 
-                    appDatabase.orderDao().insertItems(orderItems)
-                    withMain {
+                        if (res.isNotEmpty()) {
+                            onSuccess()
+                        } else {
+                            _loadingState.value = false
+                            onFailure("Failed to insert all the items to DB")
+                        }
+                    } else {
                         _loadingState.value = false
-                        onSuccess(orderId)
+                        onFailure("Failed to insert order to DB")
                     }
                 }
             } catch (e: Exception) {
                 _loadingState.value = false
-                withMain {
-                    e.message?.let { onFailure(it) }
+                onFailure("Error inserting order and items error: ${e.message}")
+            }
+        }
+    }
+
+
+    private fun removeItemSafely(
+        onSuccess: () -> Unit = {}, onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            withIo {
+                _loadingState.value = true
+                try {
+                    selectedItemList.forEach { item ->
+                        try {
+                            val itemId = item.itemId
+                            val catId = item.catId
+                            val subCatId = item.subCatId
+                            val itemGsWt = item.gsWt
+                            val itemNtWt = item.ntWt
+                            val itemFnWt = item.fnWt
+                            val itemQty = item.quantity
+                            val result = if (item.entryType == EntryType.Lot.type) {
+                                val itemEntity = appDatabase.itemDao().getItemById(itemId)
+                                if (itemEntity != null) {
+                                    if ( (itemEntity.quantity - itemQty) <= 0){
+                                        appDatabase.itemDao().deleteById(itemId, catId, subCatId)
+                                    }else{
+                                        appDatabase.itemDao().updateItem(
+                                            itemEntity.copy(
+                                                gsWt = (itemEntity.gsWt - itemGsWt),
+                                                ntWt = (itemEntity.ntWt - itemNtWt),
+                                                fnWt = (itemEntity.fnWt - itemFnWt),
+                                                quantity = (itemEntity.quantity - itemQty)
+                                            )
+                                        )
+                                    }
+                                } else {
+                                    onFailure("Item with lot failed to delete from DB")
+                                    -1
+                                }
+                            } else {
+                                appDatabase.itemDao().deleteById(itemId, catId, subCatId)
+                            }
+                            if (result > 0) {
+                                try {
+                                    val subCategory =
+                                        appDatabase.subCategoryDao().getSubCategoryById(subCatId)
+                                    subCategory?.let {
+                                        val updatedSubCatGsWt =
+                                            (it.gsWt - itemGsWt).coerceAtLeast(0.0)
+                                                .roundTo3Decimal()
+                                        val updatedSubCatFnWt =
+                                            (it.fnWt - itemFnWt).coerceAtLeast(0.0)
+                                                .roundTo3Decimal()
+                                        val updatedSubCatQty =
+                                            (it.quantity - itemQty).coerceAtLeast(0)
+
+                                        appDatabase.subCategoryDao().updateWeightsAndQuantity(
+                                            subCatId = subCatId,
+                                            gsWt = updatedSubCatGsWt,
+                                            fnWt = updatedSubCatFnWt,
+                                            quantity = updatedSubCatQty
+                                        )
+                                    }
+
+                                    val category = appDatabase.categoryDao().getCategoryById(catId)
+                                    category?.let {
+                                        val updatedCatGsWt = (it.gsWt - itemGsWt).coerceAtLeast(0.0)
+                                            .roundTo3Decimal()
+                                        val updatedCatFnWt = (it.fnWt - itemFnWt).coerceAtLeast(0.0)
+                                            .roundTo3Decimal()
+
+                                        appDatabase.categoryDao().updateWeights(
+                                            catId = catId,
+                                            gsWt = updatedCatGsWt,
+                                            fnWt = updatedCatFnWt
+                                        )
+                                    }
+
+                                    onSuccess()
+                                } catch (e: Exception) {
+                                    _loadingState.value = false
+                                    onFailure("Error updating Cat and SubCat Weight error: ${e.message}")
+                                    this@SellInvoiceViewModel.log("Error updating Cat and SubCat Weight error: ${e.message}")
+
+                                }
+                            } else {
+                                _loadingState.value = false
+                                onFailure("No rows deleted. Check itemId, catId, and subCatId.")
+                                this@SellInvoiceViewModel.log("No rows deleted. Check itemId, catId, and subCatId.")
+                            }
+
+                        } catch (e: Exception) {
+                            _loadingState.value = false
+                            onFailure("Error removing the item from DB, error: ${e.message}")
+                            this@SellInvoiceViewModel.log("Error removing the item from DB, error: ${e.message}")
+
+                        }
+                    }
+                } catch (e: Exception) {
+                    _loadingState.value = false
+                    onFailure("Error removing the item safely DB, error: ${e.message}")
+                    this@SellInvoiceViewModel.log("Error removing the item safely DB, error: ${e.message}")
                 }
             }
         }
@@ -353,5 +467,16 @@ class SellInvoiceViewModel @Inject constructor(
         }
     }
 
+    fun clearData() {
+        selectedItem.value = null
+        selectedItemList.clear()
+        customerName.text = ""
+        customerMobile.text = ""
+        customerAddress.text = ""
+        customerGstin.text = ""
+        ownerSign.value =null
+        customerSign.value = null
+        generatedPdfFile =null
+    }
 
 }

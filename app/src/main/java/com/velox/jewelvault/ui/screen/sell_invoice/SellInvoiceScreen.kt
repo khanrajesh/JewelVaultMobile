@@ -331,14 +331,11 @@ fun ViewAddItemDialog(
     val takeQuantity = remember { (InputFieldState("${item.quantity}")) }
     val takeGsWt = remember { (InputFieldState("${item.gsWt}")) }
     val takeNtWt = remember { (InputFieldState("${item.ntWt}")) }
+    val takeFnWt = remember { (InputFieldState("${item.fnWt}")) }
 
-    val fn = if (takeNtWt.text.isNotBlank()) {
-        val ntWtValue = takeNtWt.text.toDoubleOrNull() ?: 0.0
-        val multiplier = Purity.fromLabel(item.purity)?.multiplier ?: 1.0
-        String.format("%.2f", ntWtValue * multiplier)
-    } else ""
 
-    val takeFnWt = remember { (InputFieldState(fn)) }
+
+
 
     val othCrgDes = remember { (InputFieldState("${item.othCrgDes} ")) }
     val othCrg = remember { (InputFieldState("${item.othCrg}")) }
@@ -556,7 +553,15 @@ fun ViewAddItemDialog(
                                 placeholderText = "Take Nt Wt",
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
-                                keyboardType = KeyboardType.Number
+                                keyboardType = KeyboardType.Number,
+                                onTextChange = {
+                                    if (it.isNotBlank()) {
+                                        val ntWtValue = takeNtWt.text.toDoubleOrNull() ?: 0.0
+                                        val multiplier =
+                                            Purity.fromLabel(item.purity)?.multiplier ?: 1.0
+                                        takeFnWt.text  = String.format("%.2f", ntWtValue * multiplier)
+                                    }
+                                }
                             )
                             Spacer(Modifier.width(5.dp))
                             CusOutlinedTextField(

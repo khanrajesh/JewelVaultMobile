@@ -36,13 +36,14 @@ import javax.inject.Inject
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    private val _loadingState: MutableState<Boolean>,
+//    private val _loadingState: MutableState<Boolean>,
     private val _snackBarState: MutableState<String>,
     context: Context
 ) : ViewModel() {
 
     val dataStoreManager = _dataStoreManager
-
+//    val loadingState = _loadingState
+    val snackBarState = _snackBarState
     val itemList: SnapshotStateList<ItemEntity> = SnapshotStateList()
     val catSubCatDto: SnapshotStateList<CatSubCatDto> = SnapshotStateList()
 
@@ -213,6 +214,7 @@ class InventoryViewModel @Inject constructor(
         viewModelScope.launch {
             withIo {
                 try {
+//                    _loadingState.value = true
                     appDatabase.itemDao()
                         .filterItems(catId, subCatId, type, purity, crgType, startDate, endDate)
                         .collectLatest { items ->
@@ -224,6 +226,7 @@ class InventoryViewModel @Inject constructor(
                     _snackBarState.value="failed to filler item list"
                     this@InventoryViewModel.log("failed to filler item list")
                 }
+//                _loadingState.value = false
             }
         }
     }
@@ -234,7 +237,7 @@ class InventoryViewModel @Inject constructor(
         onFailure: (Throwable) -> Unit
     ) {
         viewModelScope.launch {
-            _loadingState.value = true
+//            _loadingState.value = true
             try {
                 withIo {
                     val userId = dataStoreManager.userId.first()
@@ -275,31 +278,31 @@ class InventoryViewModel @Inject constructor(
                                             fnWt = catFnWt
                                         )
                                         if (upCat != -1) {
-                                            _loadingState.value = false
                                             this@InventoryViewModel.log("Cat id: ${insertedItem.catId} update with weight")
                                             _snackBarState.value = "Item Added and categories updated."
+//                                            _loadingState.value = false
                                             onSuccess(insertedItem, newItemId)
                                         }
                                     }
                                 }else{
                                     _snackBarState.value = "Failed to update Sub Category Weight"
-                                    _loadingState.value = false
+//                                    _loadingState.value = false
                                 }
                             }
                         } catch (e: Exception) {
-                            _loadingState.value = false
+//                            _loadingState.value = false
                             _snackBarState.value = ("Error updating cat and sub cat weight: ${e.message}")
                             this@InventoryViewModel.log("Error updating cat and sub cat weight: ${e.message}")
                         }
-                        _loadingState.value = true
+//                        _loadingState.value = true
                     } else {
-                        _loadingState.value = false
+//                        _loadingState.value = false
                         _snackBarState.value = ("Failed to insert item")
                         this@InventoryViewModel.log("Failed to insert item")
                     }
                 }
             } catch (e: Exception) {
-                _loadingState.value = false
+//                _loadingState.value = false
                 _snackBarState.value = "Error inserting item error: ${e.message}"
                 onFailure(e)
             }

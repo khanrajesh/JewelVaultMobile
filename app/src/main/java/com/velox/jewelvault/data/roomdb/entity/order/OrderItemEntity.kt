@@ -16,8 +16,8 @@ import androidx.room.PrimaryKey
 )
 data class OrderItemEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val orderId: Long,
+    val id: Int = 0,
+    val orderId: Int,
     val itemId: Int,
     val itemAddName: String,
     val catId: Int,

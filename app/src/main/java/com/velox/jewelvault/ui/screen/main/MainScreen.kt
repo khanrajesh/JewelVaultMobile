@@ -63,7 +63,6 @@ fun MainScreen() {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
     val subNavController = rememberNavController()
-    val showBarcodeScanPage = remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
         if (baseViewModel.metalRates.isNotEmpty()) {
@@ -71,34 +70,61 @@ fun MainScreen() {
         }
     }
     val inputIconStates = listOf(
-        InputIconState("Dashboard", R.drawable.dashboard_tr
+        InputIconState(
+            "Dashboard", R.drawable.dashboard_tr
         ) {
-            subNavController.navigate(SubScreens.Dashboard.route)
-        },  InputIconState("Profile", R.drawable.dashboard_tr
-        ) {
-            subNavController.navigate(SubScreens.Profile.route)
+            subNavController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
         },
         InputIconState(
-            "Inventory",
-            R.drawable.category_tr
+            "Profile", R.drawable.dashboard_tr
         ) {
-            subNavController.navigate(SubScreens.Inventory.route)
+            subNavController.navigate(SubScreens.Profile.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
         },
         InputIconState(
-            "Report",
-            R.drawable.trading_ts
-        ) { subNavController.navigate(SubScreens.Report.route) },
+            "Inventory", R.drawable.category_tr
+        ) {
+            subNavController.navigate(SubScreens.Inventory.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
         InputIconState(
-            "Ledger",
-            R.drawable.settings_rr
-        ) { subNavController.navigate(SubScreens.Ledger.route) },
+            "Report", R.drawable.trading_ts
+        ) {
+            subNavController.navigate(SubScreens.Report.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
         InputIconState(
-            "",
-            R.drawable.logo_1
-        ) { subNavController.navigate(SubScreens.Dashboard.route) },
+            "Ledger", R.drawable.settings_rr
+        ) {
+            subNavController.navigate(SubScreens.Ledger.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "", R.drawable.logo_1
+        ) {
+            subNavController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
     )
-
-
 
     if (isLandscape()) {
         LandscapeDashboardScreen(inputIconStates, subNavController)
@@ -115,36 +141,28 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = MaterialTheme.colorScheme.primary,
-            ) {
-                Text("Drawer Item 1", modifier = Modifier.padding(16.dp))
-                Text("Drawer Item 2", modifier = Modifier.padding(16.dp))
-            }
+    ModalNavigationDrawer(drawerState = drawerState, drawerContent = {
+        ModalDrawerSheet(
+            drawerContainerColor = MaterialTheme.colorScheme.primary,
+        ) {
+            Text("Drawer Item 1", modifier = Modifier.padding(16.dp))
+            Text("Drawer Item 2", modifier = Modifier.padding(16.dp))
         }
-    ) {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Jewel Vault") },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            scope.launch {
-                                drawerState.open() // Open drawer on button click
-                            }
-                        }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-            }
-        ) { innerPadding ->
+    }) {
+        Scaffold(topBar = {
+            TopAppBar(title = { Text("Jewel Vault") }, navigationIcon = {
+                IconButton(onClick = {
+                    scope.launch {
+                        drawerState.open() // Open drawer on button click
+                    }
+                }) {
+                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                }
+            }, colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+            )
+        }) { innerPadding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -160,51 +178,44 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
 @SuppressLint("SuspiciousIndentation")
 @Composable
 private fun LandscapeDashboardScreen(
-    inputIconStates: List<InputIconState>,
-    subNavController: NavHostController
+    inputIconStates: List<InputIconState>, subNavController: NavHostController
 ) {
     val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
 
-    TabNavigationDrawer(
-        drawerState = drawerState,
-        content = {
-            SubAppNavigation(
-                subNavController,
-                navHost,
-                baseViewModel,
-                startDestination = SubScreens.Dashboard.route
-            )
-        },
-        drawerContent = {
-            LazyColumn() {
-                items(inputIconStates) { item ->
-                    Row(
-                        Modifier
-                            .clickable {
-                                item.onClick()
-                            }
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        item.icon?.let {
-                            Image(
-                                painter = painterResource(it),
-                                contentDescription = null,
-                                Modifier.size(30.dp)
-                            )
-                        }
-                        if (drawerState.isOpen) {
-                            Spacer(Modifier.width(10.dp))
-                            Text(item.text)
-                        }
+    TabNavigationDrawer(drawerState = drawerState, content = {
+        SubAppNavigation(
+            subNavController,
+            navHost,
+            baseViewModel,
+            startDestination = SubScreens.Dashboard.route
+        )
+    }, drawerContent = {
+        LazyColumn {
+            items(inputIconStates) { item ->
+                Row(Modifier
+                    .clickable {
+                        item.onClick()
+                    }
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    item.icon?.let {
+                        Image(
+                            painter = painterResource(it),
+                            contentDescription = null,
+                            Modifier.size(30.dp)
+                        )
+                    }
+                    if (drawerState.isOpen) {
+                        Spacer(Modifier.width(10.dp))
+                        Text(item.text)
                     }
                 }
             }
         }
-    )
+    })
 }
 
 

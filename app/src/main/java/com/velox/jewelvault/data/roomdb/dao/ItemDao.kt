@@ -75,5 +75,5 @@ interface ItemDao {
     
     // ✅ Update item (full object update)
     @Update
-    suspend fun updateItem(item: ItemEntity)
+    suspend fun updateItem(item: ItemEntity):Int
 }

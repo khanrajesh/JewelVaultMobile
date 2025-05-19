@@ -291,10 +291,12 @@ private fun AddItemSection(
                                 EntryType.Piece.type -> {
                                     qty.text = "1"
                                 }
-//                                ChargeType.Percentage.type,
-//                                ChargeType.PerGm.type -> qty.text = ""
-                                else -> {}
+                                EntryType.Lot.type->{
+
+                                }
+                                else -> {entryType.text = selected}
                             }
+                            entryType.text = selected
                         })
 
 
@@ -303,7 +305,7 @@ private fun AddItemSection(
                     CusOutlinedTextField(
                         modifier = Modifier.weight(1f),
                         state = qty,
-                        placeholderText = "Qty",
+                        placeholderText = "Quantity",
                         keyboardType = KeyboardType.Number,
                     )
 
@@ -316,6 +318,9 @@ private fun AddItemSection(
                         state = grWt,
                         placeholderText = "Gr.Wt/gm",
                         keyboardType = KeyboardType.Number,
+                        onTextChange = {
+                            ntWt.text = it
+                        }
                     )
                     Spacer(Modifier.width(5.dp))
 
@@ -359,16 +364,7 @@ private fun AddItemSection(
                         state = chargeType,
                         placeholderText = "Charge Type",
                         dropdownItems = ChargeType.list(),
-                        onDropdownItemSelected = { selected ->
-                            when (selected) {
-                                ChargeType.Piece.type -> {
-                                    qty.text = "1"
-                                }
-//                                ChargeType.Percentage.type,
-//                                ChargeType.PerGm.type -> qty.text = ""
-                                else -> {}
-                            }
-                        })
+                     )
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
@@ -445,9 +441,6 @@ private fun AddItemSection(
                             charge.text = ""
                             otherChargeDes.text = ""
                             othCharge.text = ""
-                            cgst.text = ""
-                            sgst.text = ""
-                            igst.text = ""
                             huid.text = ""
 
                             addItem.value = false
@@ -489,12 +482,15 @@ private fun AddItemSection(
                             )
 
                             inventoryViewModel.safeInsertItem(newItem,
-                                onFailure = {},
+                                onFailure = {
+
+                                },
                                 onSuccess = { itemEntity, l ->
 
                                 inventoryViewModel.filterItems(
                                     catId = catId, subCatId = subCatId
                                 )
+
                                     addToName.text = ""
                                     entryType.text = ""
                                     qty.text = ""
@@ -506,16 +502,8 @@ private fun AddItemSection(
                                     charge.text = ""
                                     otherChargeDes.text = ""
                                     othCharge.text = ""
-                                    cgst.text = ""
-                                    sgst.text = ""
-                                    igst.text = ""
                                     huid.text = ""
-
-                                mainScope.launch {
-                                    Toast.makeText(
-                                        context, "item added with id: $l", Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+//                                    inventoryViewModel.loadingState.value = false
                             })
                         }
                         .background(
