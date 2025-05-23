@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
+import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
@@ -46,7 +47,9 @@ interface OrderDao {
     ): List<LedgerEntry>
 
     @Query("""
-    SELECT itemAddName, catName AS category, subCatName AS subCategory,
+    SELECT itemAddName,
+           catName AS category,
+           subCatName AS subCategory,
            SUM(quantity) AS totalQuantity,
            SUM(gsWt) AS totalWeight,
            SUM(price) AS totalRevenue
@@ -66,6 +69,8 @@ interface OrderDao {
         subCategory: String? = null
     ): List<ItemSalesReport>
 
+
+
     @Query("""
     SELECT c.name AS customerName, c.mobileNo,
            COUNT(o.orderId) AS totalOrders,
@@ -82,12 +87,106 @@ interface OrderDao {
         end: Timestamp? = null
     ): List<CustomerPurchaseSummary>
 
+
+    @Query("""
+    SELECT 
+        c.mobileNo,
+        c.name,
+        c.address,
+        c.gstin_pan,
+
+        oi.id,
+        oi.orderId,
+        oi.orderDate,
+        oi.itemId,
+        oi.customerMobile,
+        oi.catId,
+        oi.catName,
+        oi.itemAddName,
+        oi.subCatId,
+        oi.subCatName,
+        oi.entryType,
+        oi.quantity,
+        oi.gsWt,
+        oi.ntWt,
+        oi.fnWt,
+        oi.fnMetalPrice,
+        oi.purity,
+        oi.crgType,
+        oi.crg,
+        oi.othCrgDes,
+        oi.othCrg,
+        oi.cgst,
+        oi.sgst,
+        oi.igst,
+        oi.huid,
+        oi.price,
+        oi.charge,
+        oi.tax
+
+    FROM OrderItemEntity AS oi
+    INNER JOIN CustomerEntity AS c ON oi.customerMobile = c.mobileNo
+
+    WHERE (:start IS NULL OR oi.orderDate >= :start)
+      AND (:end IS NULL OR oi.orderDate <= :end)
+      AND (:category IS NULL OR oi.catName = :category)
+      AND (:subCategory IS NULL OR oi.subCatName = :subCategory)
+
+    ORDER BY oi.orderDate DESC
+    LIMIT :limit
+""")
+    suspend fun getIndividualSellItems(
+        start: Timestamp? = null,
+        end: Timestamp? = null,
+        category: String? = null,
+        subCategory: String? = null,
+        limit: Int = 10
+    ): List<IndividualSellItem>
+
+
+
 }
 
 fun getStartOfMonth(): Timestamp = Timestamp(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
 
 fun getToday(): Timestamp = Timestamp(System.currentTimeMillis())
 
+data class IndividualSellItem(
+    //customer details
+    val mobileNo: String,
+    val name: String,
+    val address: String? = null,
+    val gstin_pan: String? = null,
+    //item details
+    val id: Int = 0,
+    val orderId: Int,
+    val orderDate: Timestamp,
+    val itemId: Int,
+    val customerMobile:String,
+    val catId: Int,
+    val catName: String,
+    val itemAddName: String,
+    val subCatId: Int,
+    val subCatName: String,
+    val entryType: String,
+    val quantity: Int,
+    val gsWt: Double,
+    val ntWt: Double,
+    val fnWt: Double,
+    val fnMetalPrice: Double,
+    val purity: String,
+    val crgType: String,
+    val crg: Double,
+    val othCrgDes: String,
+    val othCrg: Double,
+    val cgst: Double,
+    val sgst: Double,
+    val igst: Double,
+    val huid: String,
+    val price: Double,
+    val charge: Double,
+    val tax: Double,
+)
 
 data class LedgerEntry(
     val orderId: Long,

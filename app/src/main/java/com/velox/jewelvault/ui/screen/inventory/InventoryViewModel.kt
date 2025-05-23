@@ -218,12 +218,12 @@ class InventoryViewModel @Inject constructor(
                     appDatabase.itemDao()
                         .filterItems(catId, subCatId, type, purity, crgType, startDate, endDate)
                         .collectLatest { items ->
-                            itemList.clear() // Clear the list before adding new data
-                            itemList.addAll(items) // Add all items to the SnapshotStateList
+                            itemList.clear()
+                            itemList.addAll(items)
                         }
 //                    _snackBarState.value = "Item Filtered"
                 } catch (e: Exception) {
-                    _snackBarState.value="failed to filler item list"
+//                    _snackBarState.value="failed to filler item list error: ${e.localizedMessage}"
                     this@InventoryViewModel.log("failed to filler item list")
                 }
 //                _loadingState.value = false

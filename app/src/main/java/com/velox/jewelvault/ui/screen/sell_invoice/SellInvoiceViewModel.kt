@@ -266,11 +266,13 @@ class SellInvoiceViewModel @Inject constructor(
             _loadingState.value = true
             try {
                 withIo {
+
+                    val justNowTime = Timestamp(System.currentTimeMillis())
                     val order = OrderEntity(
                         customerMobile = mobile,
                         storeId = storeId,
                         userId = userId,
-                        orderDate = Timestamp(System.currentTimeMillis()),
+                        orderDate = justNowTime,
                         totalAmount = totalAmount,
                         totalTax = totalTax,
                         totalCharge = totalCharge,
@@ -283,7 +285,9 @@ class SellInvoiceViewModel @Inject constructor(
                         val orderItems = selectedItemList.map {
                             OrderItemEntity(
                                 orderId = orderId.toInt(),
+                                orderDate = justNowTime,
                                 itemId = it.itemId,
+                                customerMobile = mobile,
                                 itemAddName = it.itemAddName,
                                 catId = it.catId,
                                 catName = it.catName,

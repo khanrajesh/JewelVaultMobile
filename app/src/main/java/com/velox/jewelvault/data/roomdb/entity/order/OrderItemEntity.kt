@@ -3,6 +3,7 @@ package com.velox.jewelvault.data.roomdb.entity.order
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import java.sql.Timestamp
 
 @Entity(
     foreignKeys = [
@@ -18,10 +19,12 @@ data class OrderItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val orderId: Int,
+    val orderDate: Timestamp,
     val itemId: Int,
-    val itemAddName: String,
+    val customerMobile:String,
     val catId: Int,
     val catName: String,
+    val itemAddName: String,
     val subCatId: Int,
     val subCatName: String,
     val entryType: String,

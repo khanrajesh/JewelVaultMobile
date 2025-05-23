@@ -107,6 +107,12 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
     }
 
     BackHandler {
+        sellInvoiceViewModel.customerGstin.text = ""
+        sellInvoiceViewModel.customerAddress.text = ""
+        sellInvoiceViewModel.customerName.text = ""
+        sellInvoiceViewModel.customerMobile.text = ""
+        sellInvoiceViewModel.customerSign.value = null
+        sellInvoiceViewModel.ownerSign.value = null
         sellInvoiceViewModel.selectedItemList.clear()
         navControl.popBackStack()
     }
@@ -257,8 +263,13 @@ fun SellInvoiceLandscape(
 
                     Box(modifier = Modifier
                         .bounceClick {
-
-                            navHost.navigate(Screens.SellPreview.route)
+                            if(viewModel.customerMobile.text.isNotEmpty()
+                                && viewModel.selectedItemList.isNotEmpty()
+                                ){
+                                navHost.navigate(Screens.SellPreview.route)
+                            }else{
+                                viewModel.snackBarState.value="Please ensure to add customer and items details"
+                            }
 
                         }
                         .fillMaxWidth()
@@ -364,8 +375,7 @@ fun ViewAddItemDialog(
         }
 
         gold100
-    } else
-        if (item.catName.trim().lowercase() == "silver") {
+    } else if (item.catName.trim().lowercase() == "silver") {
 
             val silverOneGm =
                 baseViewModel.metalRates.firstOrNull { price -> price.metal == "Silver" && price.caratOrPurity == "Silver /g" }?.price
@@ -735,7 +745,6 @@ fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
             val totalGsWt = items.sumOf { it.gsWt }
             val totalFnWt = items.sumOf { it.fnWt }
 
-            Spacer(modifier = Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth()) {
                 Text("$metalType Gs/Fn Wt", modifier = Modifier.weight(1f), fontSize = 10.sp)
                 Text(
@@ -744,14 +753,13 @@ fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
                     fontSize = 10.sp, textAlign = TextAlign.End
                 )
             }
-
         }
 
         Spacer(Modifier.height(5.dp))
         HorizontalDivider(thickness = 1.dp)
 
         // Total calculations
-        val totalPrice = selectedItemList.sumOf { it.price }
+        val totalPrice = selectedItemList.sumOf { it.price+it.chargeAmount }
         val totalTax = selectedItemList.sumOf { it.tax }
         val grandTotal = totalPrice + totalTax
 

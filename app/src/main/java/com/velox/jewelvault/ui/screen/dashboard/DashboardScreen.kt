@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -24,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
@@ -41,6 +45,7 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
@@ -48,28 +53,35 @@ import kotlinx.coroutines.flow.first
 @VaultPreview
 @Composable
 fun DashboardScreenPreview() {
-    DashboardScreen()
+    DashboardScreen(hiltViewModel<DashboardViewModel>())
 }
 
 @Composable
-fun DashboardScreen() {
-    if ( isLandscape()) LandscapeMainScreen() else PortraitMainScreen()
+fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
+    if ( isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
 }
 
 @Composable
-fun LandscapeMainScreen() {
+fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
     val navHost = LocalNavController.current
-    val dashboardViewModel = LocalBaseViewModel.current
+    val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     LaunchedEffect(true) {
-        if (dashboardViewModel.metalRates.isEmpty()){
-            dashboardViewModel.refreshMetalRates(context = context)
+        //refreshing the metal rate here
+        if (baseViewModel.metalRates.isEmpty()){
+            baseViewModel.refreshMetalRates(context = context)
         }
+
+        if (dashboardViewModel.recentSellsItem.isEmpty()){
+            dashboardViewModel.getRecentSellItem()
+        }
+
+        //checking if the user setup the store or not
         delay(2000)
-        val storeId = dashboardViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
+        val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
         if (storeId == null) {
-            dashboardViewModel.snackMessage = "Please Set Up Your Store First."
+            baseViewModel.snackMessage = "Please Set Up Your Store First."
             delay(2000)
             subNavController.navigate(SubScreens.Profile.route)
         }
@@ -172,7 +184,7 @@ fun LandscapeMainScreen() {
 
             Spacer(Modifier.height(5.dp))
             //Recent Item Sold
-            RecentItemSold()
+            RecentItemSold(dashboardViewModel.recentSellsItem)
         }
     }
 }
@@ -330,7 +342,7 @@ fun FlowOverView() {
 }
 
 @Composable
-fun RecentItemSold() {
+fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
     Column(
         Modifier
             .fillMaxSize()
@@ -393,7 +405,7 @@ fun RecentItemSold() {
                     .weight(1f)
             ) {
 
-                items(15) {
+                items(recentSellsItem){
                     Column(
                         Modifier
                             .padding(2.dp)
@@ -402,63 +414,63 @@ fun RecentItemSold() {
                     ) {
                         Row(Modifier.fillMaxWidth()) {
                             Text(
-                                "01-May-2025",
+                                "${it.orderDate}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "Rakesh Khan",
+                                "${it.name} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(2f)
                             )
                             Text(
-                                "1234567890",
+                                "${it.mobileNo} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "Box Chain",
+                                "${it.itemAddName} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "2.5g",
+                                "${it.gsWt.to2FString()}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "10000",
+                                "${(it.price+it.charge+it.tax).to2FString()}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "100",
+                                "${it.tax.to2FString()}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "Gold",
+                                "${it.catName} (${it.catId})",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "Chain",
+                                "${it.subCatName} (${it.subCatId})",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
@@ -473,6 +485,7 @@ fun RecentItemSold() {
                                 .background(MaterialTheme.colorScheme.outline)
                         )
                     }
+
                 }
             }
         }

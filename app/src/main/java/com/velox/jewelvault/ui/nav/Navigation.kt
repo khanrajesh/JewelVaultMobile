@@ -9,27 +9,29 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.velox.jewelvault.BaseViewModel
-import com.velox.jewelvault.ui.screen.main.MainScreen
-import com.velox.jewelvault.ui.screen.login.LoginScreen
-import com.velox.jewelvault.ui.screen.dashboard.DashboardScreen
-import com.velox.jewelvault.ui.screen.inventory.InventoryItemScreen
-import com.velox.jewelvault.ui.screen.inventory.InventoryCategoryScreen
-import com.velox.jewelvault.ui.screen.order_and_report.OrderDetailScreen
-import com.velox.jewelvault.ui.screen.profile.ProfileScreen
-import com.velox.jewelvault.ui.screen.QrBarScannerScreen
-import com.velox.jewelvault.ui.screen.order_and_report.ReportScreen
-import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
-import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.SplashScreen
+import com.velox.jewelvault.ui.screen.dashboard.DashboardScreen
+import com.velox.jewelvault.ui.screen.dashboard.DashboardViewModel
+import com.velox.jewelvault.ui.screen.inventory.InventoryCategoryScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryFilterScreen
+import com.velox.jewelvault.ui.screen.inventory.InventoryItemScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
+import com.velox.jewelvault.ui.screen.login.LoginScreen
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
+import com.velox.jewelvault.ui.screen.main.MainScreen
 import com.velox.jewelvault.ui.screen.order_and_report.OrderAndReportViewModel
+import com.velox.jewelvault.ui.screen.order_and_report.OrderDetailScreen
+import com.velox.jewelvault.ui.screen.order_and_report.ReportScreen
+import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
+import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerScreen
+import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerViewModel
+import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
+import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
-import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.LocalNavController
+import com.velox.jewelvault.utils.LocalSubNavController
 
 @Composable
 fun AppNavigation(
@@ -39,12 +41,10 @@ fun AppNavigation(
 ) {
 
 
-
     CompositionLocalProvider(
         LocalNavController provides navController,
         LocalBaseViewModel provides baseViewModel,
     ) {
-
         val sellInvoiceViewModel = hiltViewModel<SellInvoiceViewModel>()
 
         NavHost(navController = navController, startDestination = startDestination) {
@@ -64,7 +64,7 @@ fun AppNavigation(
                 SellPreviewScreen(sellInvoiceViewModel)
             }
             composable(Screens.QrScanScreen.route) {
-                QrBarScannerScreen()
+                QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>())
             }
         }
     }
@@ -79,8 +79,7 @@ fun SubAppNavigation(
 ) {
 
     val inventoryViewModel = hiltViewModel<InventoryViewModel>()
-    val profileViewModel = hiltViewModel<ProfileViewModel>()
-    val orderAndReportViewModel = hiltViewModel<OrderAndReportViewModel>()
+    val dashboardViewModel = hiltViewModel<DashboardViewModel>()
 
     CompositionLocalProvider(
         LocalSubNavController provides subNavController,
@@ -89,10 +88,10 @@ fun SubAppNavigation(
     ) {
         NavHost(navController = subNavController, startDestination = startDestination) {
             composable(SubScreens.Dashboard.route) {
-                DashboardScreen()
+                DashboardScreen(dashboardViewModel)
             }
             composable(SubScreens.Profile.route) {
-                ProfileScreen(profileViewModel)
+                ProfileScreen(hiltViewModel<ProfileViewModel>())
             }
             composable(SubScreens.Inventory.route) {
                 InventoryCategoryScreen(inventoryViewModel)
@@ -105,12 +104,13 @@ fun SubAppNavigation(
                     navArgument("subCatId") { type = NavType.IntType },
                     navArgument("subCatName") { type = NavType.StringType },
                 )
-            ) {backStackEntry->
+            ) { backStackEntry ->
                 val catId = backStackEntry.arguments?.getInt("catId") ?: return@composable
                 val catName = backStackEntry.arguments?.getString("catName") ?: return@composable
                 val subCatId = backStackEntry.arguments?.getInt("subCatId") ?: return@composable
-                val subCatName = backStackEntry.arguments?.getString("subCatName") ?: return@composable
-                InventoryItemScreen(inventoryViewModel,catId,catName,subCatId,subCatName)
+                val subCatName =
+                    backStackEntry.arguments?.getString("subCatName") ?: return@composable
+                InventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
             }
 
 
@@ -119,7 +119,7 @@ fun SubAppNavigation(
             }
 
             composable(SubScreens.Ledger.route) {
-                OrderDetailScreen(orderAndReportViewModel)
+                OrderDetailScreen(hiltViewModel<OrderAndReportViewModel>())
             }
             composable(SubScreens.Report.route) {
                 ReportScreen()
