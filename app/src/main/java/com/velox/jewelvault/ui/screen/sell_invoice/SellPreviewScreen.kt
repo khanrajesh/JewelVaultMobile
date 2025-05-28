@@ -69,24 +69,29 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text("Customer Signature")
-            SignatureBox(modifier = Modifier
+            SignatureBox(
+                modifier = Modifier
                 .height(250.dp)
                 .fillMaxWidth()
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
-                ), onSignatureCaptured = { bitmap ->
+                ),
+                check = sellInvoiceViewModel.customerSign.value!=null,
+                onSignatureCaptured = { bitmap ->
                 sellInvoiceViewModel.customerSign.value = bitmap
             })
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text("Owner Signature")
-            SignatureBox(modifier = Modifier
+            SignatureBox(
+                modifier = Modifier
                 .height(250.dp)
                 .fillMaxWidth()
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
                 ),
+                check = sellInvoiceViewModel.ownerSign.value!=null,
                 onSignatureCaptured = { bitmap -> sellInvoiceViewModel.ownerSign.value = bitmap })
 
             Spacer(modifier = Modifier.height(24.dp))

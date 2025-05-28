@@ -18,8 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -27,14 +30,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
+import com.velox.jewelvault.utils.OrderSort
 import com.velox.jewelvault.utils.to2FString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 
 @OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun OrderDetailScreen(viewModel: OrderAndReportViewModel) {
 
-    Column {
+    LaunchedEffect(true) {
+        CoroutineScope(Dispatchers.IO).async {
+            viewModel.getAllOrdersSorted(OrderSort.DESCENDING)
+        }.await()
+    }
+
+    Column(
+        modifier = Modifier.background(
+            MaterialTheme.colorScheme.surface,
+            RoundedCornerShape(topStart = 18.dp)
+        )
+    ) {
         val scrollState = rememberScrollState()
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -48,18 +66,18 @@ fun OrderDetailScreen(viewModel: OrderAndReportViewModel) {
                         val values = if (isHeader) {
                             viewModel.orderHeaderList
                         } else {
-                            if (item != null){
+                            if (item != null) {
                                 //"S.No", "Order Id","Order Date","Customer Name","Customer No", "Total Amount", "Total Charge"
                                 listOf(
                                     "$index",
                                     "${item.orderId}",
                                     "${item.orderDate}",
-                                    "${item.customerMobile}",
-                                    "${item.customerMobile}",
-                                    "${item.totalAmount}",
-                                    "${item.totalCharge}"
+                                    "${item.customerMobile} ",
+                                    "${item.customerMobile} ",
+                                    "${item.totalAmount.to2FString()} ",
+                                    "${item.totalCharge.to2FString()} "
                                 )
-                            }else{
+                            } else {
                                 emptyList()
                             }
                         }
@@ -68,14 +86,13 @@ fun OrderDetailScreen(viewModel: OrderAndReportViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(30.dp)
-                                .combinedClickable(
-                                    onClick = {},
-                                    onLongClick = {
-                                        if (!isHeader && item != null) {
+                                .combinedClickable(onClick = {
 
-                                        }
+                                }, onLongClick = {
+                                    if (!isHeader && item != null) {
+
                                     }
-                                )
+                                })
                         ) {
                             values.forEachIndexed { i, value ->
                                 Box(

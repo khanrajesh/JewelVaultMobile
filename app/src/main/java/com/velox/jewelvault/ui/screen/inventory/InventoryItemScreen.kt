@@ -1,7 +1,6 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -48,8 +47,6 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
-import com.velox.jewelvault.utils.mainScope
-import kotlinx.coroutines.launch
 import java.sql.Timestamp
 
 @Composable
@@ -94,6 +91,8 @@ fun LandscapeInventoryItemScreen(
     val cgst = remember { InputFieldState("1.5") }
     val sgst = remember { InputFieldState("1.5") }
     val igst = remember { InputFieldState() }
+    val desKey = remember { InputFieldState() }
+    val desValue = remember { InputFieldState() }
     val huid = remember { InputFieldState() }
 
     val showDialog = remember { mutableStateOf(false) }
@@ -150,11 +149,13 @@ fun LandscapeInventoryItemScreen(
                 subCatId,
                 catName,
                 subCatName,
-                inventoryViewModel
+                inventoryViewModel,
+                desKey,
+                desValue
+
             )
 
-            ItemListViewComponent(
-                inventoryViewModel.itemHeaderList,
+            ItemListViewComponent(inventoryViewModel.itemHeaderList,
                 inventoryViewModel.itemList,
                 onItemLongClick = { item ->
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -174,7 +175,7 @@ fun LandscapeInventoryItemScreen(
         ) {
             Text("Add Sub Category",
                 fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable {
 
                 })
@@ -208,7 +209,7 @@ fun LandscapeInventoryItemScreen(
 
                             selectedItem.value = null
                         } else {
-                            baseViewModel.snackMessage = "Please select vail item"
+                            baseViewModel.snackMessage = "Please select valid item"
                         }
 
                         showDialog.value = false
@@ -254,6 +255,8 @@ private fun AddItemSection(
     catName: String,
     subCatName: String,
     inventoryViewModel: InventoryViewModel,
+    desKey: InputFieldState,
+    desValue: InputFieldState,
 ) {
     val context = LocalContext.current
     if (addItem.value) {
@@ -291,10 +294,14 @@ private fun AddItemSection(
                                 EntryType.Piece.type -> {
                                     qty.text = "1"
                                 }
-                                EntryType.Lot.type->{
+
+                                EntryType.Lot.type -> {
 
                                 }
-                                else -> {entryType.text = selected}
+
+                                else -> {
+                                    entryType.text = selected
+                                }
                             }
                             entryType.text = selected
                         })
@@ -313,15 +320,13 @@ private fun AddItemSection(
                 Spacer(Modifier.height(5.dp))
 
                 Row {
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
+                    CusOutlinedTextField(modifier = Modifier.weight(1f),
                         state = grWt,
                         placeholderText = "Gr.Wt/gm",
                         keyboardType = KeyboardType.Number,
                         onTextChange = {
                             ntWt.text = it
-                        }
-                    )
+                        })
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
@@ -360,11 +365,12 @@ private fun AddItemSection(
                 Row {
 
 
-                    CusOutlinedTextField(modifier = Modifier.weight(1f),
+                    CusOutlinedTextField(
+                        modifier = Modifier.weight(1f),
                         state = chargeType,
                         placeholderText = "Charge Type",
                         dropdownItems = ChargeType.list(),
-                     )
+                    )
                     Spacer(Modifier.width(5.dp))
 
                     CusOutlinedTextField(
@@ -426,6 +432,25 @@ private fun AddItemSection(
                     Spacer(Modifier.height(5.dp))
                 }
                 Spacer(Modifier.height(5.dp))
+                Row {
+
+                    CusOutlinedTextField(
+                        modifier = Modifier.weight(1f),
+                        state = desKey,
+                        placeholderText = "Description",
+                        keyboardType = KeyboardType.Text,
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    CusOutlinedTextField(
+                        modifier = Modifier.weight(2f),
+                        state = desValue,
+                        placeholderText = "Value",
+                        keyboardType = KeyboardType.Text,
+                    )
+
+                }
+
+                Spacer(Modifier.height(5.dp))
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.weight(1f))
                     Text("Cancel", Modifier
@@ -442,6 +467,7 @@ private fun AddItemSection(
                             otherChargeDes.text = ""
                             othCharge.text = ""
                             huid.text = ""
+                            desValue.text = ""
 
                             addItem.value = false
                         }
@@ -476,33 +502,34 @@ private fun AddItemSection(
                                 cgst = cgst.text.toDoubleOrNull() ?: 0.0,
                                 sgst = sgst.text.toDoubleOrNull() ?: 0.0,
                                 igst = igst.text.toDoubleOrNull() ?: 0.0,
+                                addDesKey = desKey.text,
+                                addDesValue = desValue.text,
                                 huid = huid.text,
                                 addDate = Timestamp(System.currentTimeMillis()),
                                 modifiedDate = Timestamp(System.currentTimeMillis())
                             )
 
-                            inventoryViewModel.safeInsertItem(newItem,
-                                onFailure = {
+                            inventoryViewModel.safeInsertItem(newItem, onFailure = {
 
-                                },
-                                onSuccess = { itemEntity, l ->
+                            }, onSuccess = { itemEntity, l ->
 
                                 inventoryViewModel.filterItems(
                                     catId = catId, subCatId = subCatId
                                 )
 
-                                    addToName.text = ""
-                                    entryType.text = ""
-                                    qty.text = ""
-                                    grWt.text = ""
-                                    ntWt.text = ""
-                                    purity.text = ""
-                                    fnWt.text = ""
-                                    chargeType.text = ""
-                                    charge.text = ""
-                                    otherChargeDes.text = ""
-                                    othCharge.text = ""
-                                    huid.text = ""
+                                addToName.text = ""
+                                entryType.text = ""
+                                qty.text = ""
+                                grWt.text = ""
+                                ntWt.text = ""
+                                purity.text = ""
+                                fnWt.text = ""
+                                chargeType.text = ""
+                                charge.text = ""
+                                otherChargeDes.text = ""
+                                othCharge.text = ""
+                                desValue.text = ""
+                                huid.text = ""
 //                                    inventoryViewModel.loadingState.value = false
                             })
                         }

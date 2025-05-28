@@ -21,14 +21,17 @@ import com.velox.jewelvault.ui.screen.login.LoginViewModel
 import com.velox.jewelvault.ui.screen.main.MainScreen
 import com.velox.jewelvault.ui.screen.order_and_report.OrderAndReportViewModel
 import com.velox.jewelvault.ui.screen.order_and_report.OrderDetailScreen
-import com.velox.jewelvault.ui.screen.order_and_report.ReportScreen
+import com.velox.jewelvault.ui.screen.order_and_report.OrderItemDetailScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
+import com.velox.jewelvault.ui.screen.purchase.PurchaseScreen
+import com.velox.jewelvault.ui.screen.purchase.PurchaseViewModel
 import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerScreen
 import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
+import com.velox.jewelvault.ui.screen.setting.SettingScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -66,6 +69,9 @@ fun AppNavigation(
             composable(Screens.QrScanScreen.route) {
                 QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>())
             }
+            composable(Screens.Purchase.route) {
+                PurchaseScreen(hiltViewModel<PurchaseViewModel>())
+            }
         }
     }
 }
@@ -87,6 +93,9 @@ fun SubAppNavigation(
         LocalBaseViewModel provides baseViewModel
     ) {
         NavHost(navController = subNavController, startDestination = startDestination) {
+            composable(SubScreens.Setting.route) {
+                SettingScreen(dashboardViewModel)
+            }
             composable(SubScreens.Dashboard.route) {
                 DashboardScreen(dashboardViewModel)
             }
@@ -121,8 +130,8 @@ fun SubAppNavigation(
             composable(SubScreens.Ledger.route) {
                 OrderDetailScreen(hiltViewModel<OrderAndReportViewModel>())
             }
-            composable(SubScreens.Report.route) {
-                ReportScreen()
+            composable(SubScreens.OrderItemDetail.route) {
+                OrderItemDetailScreen()
             }
         }
     }

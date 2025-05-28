@@ -42,6 +42,8 @@ data class OrderItemEntity(
     val sgst: Double,
     val igst: Double,
     val huid: String,
+    val addDesKey:String,
+    val addDesValue:String,
     val price: Double,
     val charge: Double,
     val tax: Double

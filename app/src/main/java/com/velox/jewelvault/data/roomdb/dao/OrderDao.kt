@@ -120,6 +120,8 @@ interface OrderDao {
         oi.sgst,
         oi.igst,
         oi.huid,
+        oi.addDesKey,
+        oi.addDesValue,
         oi.price,
         oi.charge,
         oi.tax
@@ -143,13 +145,107 @@ interface OrderDao {
         limit: Int = 10
     ): List<IndividualSellItem>
 
+    @Query("""
+    SELECT 
+        subCatName,
+        SUM(price+charge+tax) AS totalPrice,
+        SUM(fnWt) AS totalFnWt
+    FROM OrderItemEntity
+    WHERE (:start IS NULL OR orderDate >= :start)
+      AND (:end IS NULL OR orderDate <= :end)
+    GROUP BY subCatName
+    ORDER BY totalPrice DESC
+    LIMIT 10
+""")
+    suspend fun getTopSellingSubcategories(
+        start: Timestamp? = null,
+        end: Timestamp? = null
+    ): List<TopSubCategory>
 
 
+    @Query("""
+    SELECT 
+        catName AS category,
+        subCatName,
+        itemAddName,
+        SUM(fnWt) AS totalFnWt
+    FROM OrderItemEntity
+    WHERE (:start IS NULL OR orderDate >= :start)
+      AND (:end IS NULL OR orderDate <= :end)
+    GROUP BY catName, itemAddName
+    ORDER BY category ASC, totalFnWt DESC
+""")
+    suspend fun getGroupedItemWeights(
+        start: Timestamp? = null,
+        end: Timestamp? = null
+    ): List<TopItemByCategory>
+
+
+
+    @Query("""
+    SELECT 
+        catName AS category,
+        subCatName,
+        itemAddName,
+        SUM(fnWt) AS totalFnWt
+    FROM OrderItemEntity
+    WHERE (:start IS NULL OR orderDate >= :start)
+      AND (:end IS NULL OR orderDate <= :end)
+    GROUP BY catName, subCatName
+    ORDER BY totalFnWt DESC
+    LIMIT 5
+    """)
+    suspend fun getTopSellingItemsByCategory(
+        start: Timestamp? = null,
+        end: Timestamp? = null
+    ): List<TopItemByCategory>
+
+    @Query("""
+    SELECT 
+        COUNT(DISTINCT orderId) AS invoiceCount,
+        SUM(totalAmount+totalCharge+totalTax) AS totalAmount
+    FROM OrderEntity
+    WHERE (:start IS NULL OR orderDate >= :start)
+      AND (:end IS NULL OR orderDate <= :end)
+""")
+    suspend fun getTotalSalesSummary(
+        start: Timestamp? = null,
+        end: Timestamp? = null
+    ): SalesSummary
+
+}
+
+
+fun getTimestampDaysAgo(days: Int): Timestamp {
+    val millis = System.currentTimeMillis() - days * 24L * 60 * 60 * 1000
+    return Timestamp(millis)
+}
+
+fun TimeRange.range(): Pair<Timestamp, Timestamp> = getTimeRange(this)
+
+fun getTimeRange(range: TimeRange): Pair<Timestamp, Timestamp> {
+    val now = today
+    val start = when (range) {
+        TimeRange.WEEKLY -> getTimestampDaysAgo(7)
+        TimeRange.MONTHLY -> getTimestampDaysAgo(30)
+        TimeRange.THREE_MONTHS -> getTimestampDaysAgo(90)
+        TimeRange.SIX_MONTHS -> getTimestampDaysAgo(180)
+        TimeRange.YEARLY -> getTimestampDaysAgo(365)
+    }
+    return start to now
 }
 
 fun getStartOfMonth(): Timestamp = Timestamp(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000)
 
-fun getToday(): Timestamp = Timestamp(System.currentTimeMillis())
+val today: Timestamp = Timestamp(System.currentTimeMillis())
+
+enum class TimeRange {
+    WEEKLY,
+    MONTHLY,
+    THREE_MONTHS,
+    SIX_MONTHS,
+    YEARLY
+}
 
 data class IndividualSellItem(
     //customer details
@@ -183,9 +279,12 @@ data class IndividualSellItem(
     val sgst: Double,
     val igst: Double,
     val huid: String,
+    val addDesKey:String,
+    val addDesValue:String,
     val price: Double,
     val charge: Double,
     val tax: Double,
+
 )
 
 data class LedgerEntry(
@@ -212,4 +311,22 @@ data class CustomerPurchaseSummary(
     val mobileNo: String,
     val totalSpent: Double,
     val totalOrders: Int
+)
+
+data class TopItemByCategory(
+    val category: String,
+    val subCatName: String,
+    val itemAddName: String,
+    val totalFnWt: Double
+)
+
+data class SalesSummary(
+    val invoiceCount: Int,
+    val totalAmount: Double
+)
+
+data class TopSubCategory(
+    val subCatName: String,
+    val totalPrice: Double,
+    val totalFnWt: Double
 )

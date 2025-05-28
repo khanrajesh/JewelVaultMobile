@@ -32,10 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
+import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
@@ -45,9 +47,14 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to2FString
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 
 @VaultPreview
@@ -69,23 +76,28 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
     val context = LocalContext.current
     LaunchedEffect(true) {
         //refreshing the metal rate here
-        if (baseViewModel.metalRates.isEmpty()){
-            baseViewModel.refreshMetalRates(context = context)
-        }
+        CoroutineScope(Dispatchers.IO).async {
+            if (baseViewModel.metalRates.isEmpty()){
+                baseViewModel.refreshMetalRates(context = context)
+            }
 
-        if (dashboardViewModel.recentSellsItem.isEmpty()){
             dashboardViewModel.getRecentSellItem()
-        }
-
-        //checking if the user setup the store or not
-        delay(2000)
-        val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
-        if (storeId == null) {
-            baseViewModel.snackMessage = "Please Set Up Your Store First."
+            dashboardViewModel.getSalesSummary()
+            dashboardViewModel.getTopSellingItems()
+            dashboardViewModel.getTopSellingSubCategories()
+            //checking if the user setup the store or not
             delay(2000)
-            subNavController.navigate(SubScreens.Profile.route)
-        }
+            val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
+            if (storeId == null) {
+                baseViewModel.snackMessage = "Please Set Up Your Store First."
+                delay(2000)
+                mainScope {
+                    subNavController.navigate(SubScreens.Profile.route)
+                }
+            }
+        }.await()
     }
+
 
 
     Box(
@@ -106,12 +118,12 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                     .height(200.dp)
             ) {
                 //flow over view
-                FlowOverView()
+                FlowOverView(dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
-                TopFiveSales(Modifier.weight(1f))
+                TopFiveSales(Modifier.weight(1f),dashboardViewModel)
 //                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(5.dp))
-                CategorySales()
+                CategorySales(dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
 
                 Column(
@@ -137,7 +149,7 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Create Invoice", textAlign = TextAlign.Center)
+                        Text("Create Invoice", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.height(5.dp))
 
@@ -166,7 +178,7 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                         Box(
                             modifier = Modifier
                                 .bounceClick {
-
+                                    navHost.navigate(Screens.Purchase.route)
                                 }
                                 .weight(1f)
                                 .fillMaxSize()
@@ -176,7 +188,7 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Buy", textAlign = TextAlign.Center)
+                            Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -195,7 +207,7 @@ fun PortraitMainScreen() {
 }
 
 @Composable
-fun CategorySales() {
+fun CategorySales(dashboardViewModel: DashboardViewModel) {
     Column(
         Modifier
             .fillMaxHeight()
@@ -214,7 +226,8 @@ fun CategorySales() {
                 .fillMaxHeight()
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
         ) {
-            items(15) {
+
+            items(dashboardViewModel.topSubCategories){
                 Row(
                     Modifier
                         .padding(3.dp)
@@ -222,30 +235,32 @@ fun CategorySales() {
                         .height(20.dp)
                 ) {
                     Text(
-                        "Category Nmae",
+                        "${it.subCatName}",
                         fontSize = 10.sp,
                         modifier = Modifier
                             .weight(3f)
                             .height(20.dp)
                     )
                     Text(
-                        "1200", fontSize = 10.sp, modifier = Modifier
+                        "${it.totalPrice.to2FString()?:""} ", fontSize = 10.sp, modifier = Modifier
                             .weight(1f)
                             .height(20.dp)
                     )
                     Text(
-                        "700g", fontSize = 10.sp, modifier = Modifier
+                        "${it.totalFnWt.to2FString()}g", fontSize = 10.sp, modifier = Modifier
                             .weight(1f)
                             .height(20.dp)
                     )
                 }
+
             }
+
         }
     }
 }
 
 @Composable
-fun TopFiveSales(modifier: Modifier) {
+fun TopFiveSales(modifier: Modifier, dashboardViewModel: DashboardViewModel) {
     Column(
         modifier = modifier
             .fillMaxHeight()
@@ -264,16 +279,18 @@ fun TopFiveSales(modifier: Modifier) {
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
                 .padding(8.dp)
         ) {
-            items(5) { it ->
-                ItemViewItem()
-                if (it < 4) {
-                    Spacer(
-                        Modifier
-                            .padding(5.dp)
-                            .fillMaxHeight()
-                            .width(1.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant)
-                    )
+            dashboardViewModel.topSellingItemsMap.entries.forEachIndexed { index, entry ->
+                item {
+                    ItemViewItem(category = entry.key, items = entry.value)
+                    if (index < dashboardViewModel.topSellingItemsMap.size - 1) {
+                        Spacer(
+                            Modifier
+                                .padding(horizontal = 8.dp)
+                                .fillMaxHeight()
+                                .width(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant)
+                        )
+                    }
                 }
             }
         }
@@ -282,31 +299,46 @@ fun TopFiveSales(modifier: Modifier) {
 
 
 @Composable
-fun ItemViewItem() {
-    Column(modifier = Modifier.width(100.dp)) {
-        repeat(5) { index ->
+fun ItemViewItem(
+    category: String,
+    items: List<TopItemByCategory>
+) {
+    Column(modifier = Modifier.width(120.dp)) {
+        items.take(5).forEach { item ->
             Row(
                 modifier = Modifier.height(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Item ${index + 1}", fontSize = 10.sp, fontWeight = FontWeight.Normal)
+                Text(
+                    item.subCatName.take(10),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(modifier = Modifier.weight(1f))
-                Text("${(10..50).random()}", fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    item.totalFnWt.toString(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
         Text(
-            "Gold",
+            category,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 2.dp)
+                .padding(top = 4.dp),
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
 
+
 @Composable
-fun FlowOverView() {
+fun FlowOverView(dashboardViewModel: DashboardViewModel) {
     Column(
         Modifier
             .fillMaxHeight()
@@ -328,12 +360,12 @@ fun FlowOverView() {
         ) {
             Spacer(Modifier.weight(1f))
             Column {
-                Text("$ 100000", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("$ ${(dashboardViewModel.salesSummary.value?.totalAmount?:0.0).to2FString()}", fontSize = 18.sp, fontWeight = FontWeight.Black)
                 Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
             }
             Spacer(Modifier.weight(1f))
             Column {
-                Text("5", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("${dashboardViewModel.salesSummary.value?.invoiceCount?:0} ", fontSize = 18.sp, fontWeight = FontWeight.Black)
                 Text("Total Invoice", fontSize = 10.sp, color = Color.Gray)
             }
         }

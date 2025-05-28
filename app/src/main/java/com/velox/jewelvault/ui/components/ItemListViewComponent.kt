@@ -73,6 +73,8 @@ fun ItemListViewComponent(
                                 (item.cgst + item.sgst + item.igst).to2FString(),
                                 item.huid,
                                 item.addDate.toString(),
+                                item.addDesKey,
+                                item.addDesValue,
                                 "Extra value"
                             )
                         } else {

@@ -2,6 +2,8 @@ package com.velox.jewelvault.ui.screen.login
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -180,6 +184,8 @@ private fun LandscapeLoginScreen(
     savePhoneChecked: MutableState<Boolean>,
     onAuthFunction: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     Row(
         modifier = modifier.fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically,
@@ -203,7 +209,9 @@ private fun LandscapeLoginScreen(
                 .padding(26.dp),
             elevation = CardDefaults.cardElevation()
         ) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(16.dp)
+                .verticalScroll(scrollState)
+            ) {
                 Text("Welcome", fontWeight = FontWeight.Bold, fontSize = 32.sp)
                 Spacer(Modifier.height(10.dp))
                 AuthScreen(
@@ -280,7 +288,6 @@ private fun AuthScreen(
     savePhoneChecked: MutableState<Boolean>,
     onAuthFunction: () -> Unit
 ) {
-
     val forgotPassClick = remember { mutableStateOf(false) }
 
     LaunchedEffect(forgotPassClick.value) {
@@ -290,6 +297,8 @@ private fun AuthScreen(
             forgotPassClick.value = false
         }
     }
+
+
 
     if (!forgotPassClick.value) {
         Column(

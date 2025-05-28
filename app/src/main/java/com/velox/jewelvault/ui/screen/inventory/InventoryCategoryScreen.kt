@@ -80,11 +80,13 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
 
             items(inventoryViewModel.catSubCatDto) {
                 CategoryItem(height, it, addSubCatClick = { showOption ->
+
                     addCatType.value = CatType.SubCategory.type
                     selectedCatName.value = it.catName
                     selectedCatId.value = it.catId
                     showOption.value = false
                     showAddCatDialog.value = true
+
                 })
             }
 
@@ -150,10 +152,10 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                         keyboardType = KeyboardType.Text,
                     )
                     Row {
-
                         Text(
                             "Cancel", Modifier
                                 .clickable {
+                                    text.clear
                                     selectedCatName.value = null
                                     selectedCatId.value = null
                                     showAddCatDialog.value = !showAddCatDialog.value
@@ -186,6 +188,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
 
                                     selectedCatName.value = null
                                     selectedCatId.value = null
+                                    text.clear
                                     showAddCatDialog.value = !showAddCatDialog.value
                                 }
                                 .background(
@@ -269,7 +272,7 @@ fun CategoryItem(
             ) {
                 Text("Add Sub Category",
                     fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.surface,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.clickable {
                         addSubCatClick(showOption)
                     })

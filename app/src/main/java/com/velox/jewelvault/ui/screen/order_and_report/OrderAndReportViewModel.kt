@@ -40,11 +40,7 @@ class OrderAndReportViewModel @Inject constructor(
     )
     val orderList: SnapshotStateList<OrderEntity> = SnapshotStateList()
 
-    init {
-        getAllOrdersSorted(OrderSort.ASCENDING)
-    }
-
-    private fun getAllOrdersSorted(sort: OrderSort) {
+    fun getAllOrdersSorted(sort: OrderSort) {
         viewModelScope.launch {
             withIo {
                 when (sort) {

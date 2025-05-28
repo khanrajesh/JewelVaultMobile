@@ -29,8 +29,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +69,7 @@ fun MainScreen() {
     }
     val inputIconStates = listOf(
         InputIconState(
-            "Dashboard", R.drawable.dashboard_tr
+            "Dashboard", R.drawable.dashboard_fill
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -80,16 +78,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Profile", R.drawable.dashboard_tr
-        ) {
-            subNavController.navigate(SubScreens.Profile.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-        },
-        InputIconState(
-            "Inventory", R.drawable.category_tr
+            "Inventory", R.drawable.shapes_fil
         ) {
             subNavController.navigate(SubScreens.Inventory.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -97,17 +86,17 @@ fun MainScreen() {
                 }
             }
         },
+//        InputIconState(
+//            "Report", R.drawable.trading_ts
+//        ) {
+//            subNavController.navigate(SubScreens.Report.route) {
+//                popUpTo(SubScreens.Dashboard.route) {
+//                    inclusive = true
+//                }
+//            }
+//        },
         InputIconState(
-            "Report", R.drawable.trading_ts
-        ) {
-            subNavController.navigate(SubScreens.Report.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-        },
-        InputIconState(
-            "Ledger", R.drawable.settings_rr
+            "Ledger", R.drawable.report_fill
         ) {
             subNavController.navigate(SubScreens.Ledger.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -116,9 +105,18 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "", R.drawable.logo_1
+            "Profile", R.drawable.account_fill
         ) {
-            subNavController.navigate(SubScreens.Dashboard.route) {
+            subNavController.navigate(SubScreens.Profile.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "Setting", R.drawable.settings_fill
+        ) {
+            subNavController.navigate(SubScreens.Setting.route) {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }
@@ -186,10 +184,7 @@ private fun LandscapeDashboardScreen(
 
     TabNavigationDrawer(drawerState = drawerState, content = {
         SubAppNavigation(
-            subNavController,
-            navHost,
-            baseViewModel,
-            startDestination = SubScreens.Dashboard.route
+            subNavController, navHost, baseViewModel, startDestination = SubScreens.Dashboard.route
         )
     }, drawerContent = {
         LazyColumn {

@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.screen.profile
 
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
@@ -26,21 +27,21 @@ class ProfileViewModel @Inject constructor(
     val userEmail = InputFieldState()
     val userMobile = InputFieldState()
 
-    init {
-        getStoreData()
-    }
+    val storeEntity = mutableStateOf<StoreEntity?>(null)
 
-    private fun getStoreData() {
+
+    fun getStoreData() {
         ioScope {
             val userId = _datastoreManage.userId.first()
             val userData = appDatabase.userDao().getUserById(userId)
-            val storeData = appDatabase.storeDao().getStoreById(userId)
+            storeEntity.value = appDatabase.storeDao().getStoreById(userId)
 
             userData?.let {
                 userEmail.text = it.email ?: ""
+                userMobile.text = it.mobileNo?:""
             }
 
-            storeData?.let {
+            storeEntity.value?.let {
                 propName.text = it.proprietor
                 userMobile.text = it.phone
                 shopName.text = it.name
@@ -49,7 +50,6 @@ class ProfileViewModel @Inject constructor(
                 registrationNo.text = it.registrationNo
                 gstinNo.text = it.gstinNo
                 panNumber.text = it.panNo
-                userMobile.text = it.phone
             }
         }
     }

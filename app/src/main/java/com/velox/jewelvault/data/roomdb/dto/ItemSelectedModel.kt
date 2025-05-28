@@ -25,6 +25,8 @@ data class ItemSelectedModel(
     val cgst: Double=0.0,
     val sgst: Double=0.0,
     val igst: Double=0.0,
+    val addDesKey:String,
+    val addDesValue:String,
     val huid: String,
     val price: Double=0.0,
     val chargeAmount: Double=0.0,

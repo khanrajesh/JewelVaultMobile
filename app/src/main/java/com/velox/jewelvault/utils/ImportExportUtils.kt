@@ -68,6 +68,8 @@ fun exportItemListInBackground(
                                 (item.cgst + item.sgst + item.igst).toString(),
                                 item.huid,
                                 item.addDate.toString(),
+                                item.addDesKey,
+                                item.addDesValue,
                                 "Extra"
                             )
                             writer.write(values.joinToString(","))
@@ -77,7 +79,8 @@ fun exportItemListInBackground(
                     }
 
                     ExportFormat.XLS, ExportFormat.XLSX -> {
-                        val workbook = if (format == ExportFormat.XLS) HSSFWorkbook() else XSSFWorkbook()
+                        val workbook =
+                            if (format == ExportFormat.XLS) HSSFWorkbook() else XSSFWorkbook()
                         val sheet = workbook.createSheet("Inventory")
 
                         val headerRow = sheet.createRow(0)

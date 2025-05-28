@@ -109,6 +109,8 @@ class SellInvoiceViewModel @Inject constructor(
                         igst = item.igst,
                         huid = item.huid,
                         addDate = item.addDate,
+                        addDesKey = item.addDesKey,
+                        addDesValue = item.addDesValue
                     )
 
                     selectedItem.value = addItem
@@ -310,7 +312,9 @@ class SellInvoiceViewModel @Inject constructor(
                                 huid = it.huid,
                                 price = it.price,
                                 charge = it.chargeAmount,
-                                tax = it.tax
+                                tax = it.tax,
+                                addDesKey = it.addDesKey,
+                                addDesValue = it.addDesValue
                             )
                         }
                         val res = appDatabase.orderDao().insertItems(orderItems)

@@ -51,7 +51,7 @@ class InventoryViewModel @Inject constructor(
     "S.No", "Category","Sub Category","Item Id",
     "To Name", "Type", "Qty", "Gr.Wt", "Nt.Wt",
     "Unit", "Purity", "Fn.Wt", "MC.Type", "M.Chr", "Oth Chr",
-    "Chr", "Tax", "H-UID", "DOA", "Extra"
+    "Chr", "Tax", "H-UID", "DOA", "Des","Value","Extra"
     )
 
     fun init() {

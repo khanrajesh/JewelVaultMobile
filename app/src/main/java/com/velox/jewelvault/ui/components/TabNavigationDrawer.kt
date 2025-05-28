@@ -180,7 +180,7 @@ fun TabNavigationDrawer(
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
-    val width = if (drawerState.isOpen) 250.dp else 60.dp
+    val width = if (drawerState.isOpen) 200.dp else 60.dp
     Row {
         Row(modifier.fillMaxSize()) {
             Column(
@@ -263,8 +263,6 @@ fun TabNavigationDrawer(
                 }
             }
         }
-
-
     }
 }
 
@@ -280,8 +278,6 @@ class InputIconState(
     fun onTextChanged(newText: String) {
         text = newText
     }
-
-    // No need to define setOnClick, as the `onClick` is automatically mutable.
 }
 
 

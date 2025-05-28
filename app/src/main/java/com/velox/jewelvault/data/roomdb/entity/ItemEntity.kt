@@ -29,6 +29,8 @@ data class ItemEntity(
     val igst: Double,
     val huid: String,
     val unit: String = "gm",
+    val addDesKey:String,
+    val addDesValue:String,
     val addDate: Timestamp,
     val modifiedDate: Timestamp
 )
