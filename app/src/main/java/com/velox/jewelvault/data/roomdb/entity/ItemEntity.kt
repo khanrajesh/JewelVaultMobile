@@ -32,7 +32,10 @@ data class ItemEntity(
     val addDesKey:String,
     val addDesValue:String,
     val addDate: Timestamp,
-    val modifiedDate: Timestamp
-)
-
+    val modifiedDate: Timestamp,
+    //seller info
+    val sellerFirmId: Int = 0,
+    val purchaseOrderId: Int = 0,
+    val purchaseItemId: Int = 0,
+    )
 

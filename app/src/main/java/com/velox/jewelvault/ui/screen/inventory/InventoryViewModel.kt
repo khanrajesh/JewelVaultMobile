@@ -84,10 +84,36 @@ class InventoryViewModel @Inject constructor(
                         )
                     )
 
-                    if (g != -1L && s != -1L) {
-                        this@InventoryViewModel.log("Added new category gold and silver")
+                    if (g != -1L) {
+                        val goldCat = appDatabase.categoryDao().getCategoryByName("Gold")
+                        if (goldCat != null){
+                            addSubCategory(
+                                "Fine",
+                                catName = goldCat.catName,
+                                catId = goldCat.catId
+                            )
+                        }else{
+                            this@InventoryViewModel.log("Unable to found newly added gold category")
+                        }
+                        this@InventoryViewModel.log("Added new category gold")
                     } else {
-                        this@InventoryViewModel.log("Unable to added new category gold and silver")
+                        this@InventoryViewModel.log("Unable to added new category gold")
+                    }
+
+                    if (s != -1L) {
+                        val silverCat = appDatabase.categoryDao().getCategoryByName("Silver")
+                        if (silverCat != null){
+                            addSubCategory(
+                                "Fine",
+                                catName = silverCat.catName,
+                                catId = silverCat.catId
+                            )
+                        }else{
+                            this@InventoryViewModel.log("Unable to found newly added silver category")
+                        }
+                        this@InventoryViewModel.log("Added new category silver")
+                    } else {
+                        this@InventoryViewModel.log("Unable to added new category silver")
                     }
                 } else {
                     this@InventoryViewModel.log("Category exists")

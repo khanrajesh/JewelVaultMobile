@@ -7,7 +7,8 @@ import java.sql.Timestamp
 
 @Entity
 data class OrderEntity(
-    @PrimaryKey(autoGenerate = true) val orderId: Long = 0,
+    @PrimaryKey(autoGenerate = true)
+    val orderId: Int = 0,
     val customerMobile: String,
     val storeId: Int,
     val userId: Int,

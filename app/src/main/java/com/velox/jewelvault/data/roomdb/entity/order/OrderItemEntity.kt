@@ -17,7 +17,7 @@ import java.sql.Timestamp
 )
 data class OrderItemEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    val orderItemId: Int = 0,
     val orderId: Int,
     val orderDate: Timestamp,
     val itemId: Int,
@@ -46,5 +46,10 @@ data class OrderItemEntity(
     val addDesValue:String,
     val price: Double,
     val charge: Double,
-    val tax: Double
+    val tax: Double,
+
+    //seller info
+    val sellerFirmId: Int = 0,
+    val purchaseOrderId: Int = 0,
+    val purchaseItemId: Int = 0,
 )

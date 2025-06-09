@@ -88,14 +88,15 @@ interface OrderDao {
     ): List<CustomerPurchaseSummary>
 
 
-    @Query("""
+    @Query(
+        """
     SELECT 
         c.mobileNo,
         c.name,
         c.address,
         c.gstin_pan,
 
-        oi.id,
+        oi.orderItemId,
         oi.orderId,
         oi.orderDate,
         oi.itemId,
@@ -136,7 +137,8 @@ interface OrderDao {
 
     ORDER BY oi.orderDate DESC
     LIMIT :limit
-""")
+"""
+    )
     suspend fun getIndividualSellItems(
         start: Timestamp? = null,
         end: Timestamp? = null,
@@ -254,7 +256,7 @@ data class IndividualSellItem(
     val address: String? = null,
     val gstin_pan: String? = null,
     //item details
-    val id: Int = 0,
+    val orderItemId: Int = 0,
     val orderId: Int,
     val orderDate: Timestamp,
     val itemId: Int,

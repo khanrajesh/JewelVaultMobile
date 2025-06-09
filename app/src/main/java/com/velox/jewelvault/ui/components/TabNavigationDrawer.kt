@@ -139,7 +139,6 @@ private val MinimumDrawerWidth = 240.dp
 
 @Suppress("NotCloseable")
 @Stable
-@OptIn(ExperimentalMaterial3Api::class)
 class TabDrawerState(
     initialValue: TabDrawerValue,
     val confirmStateChange: (TabDrawerValue) -> Boolean = { true }

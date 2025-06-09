@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -23,6 +25,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 class InputFieldState(
     initValue: String = "",
@@ -52,8 +57,8 @@ class InputFieldState(
 @Composable
 fun CusOutlinedTextField(
     state: InputFieldState,
-    onTextChange:(String)->Unit={},
     modifier: Modifier = Modifier,
+    onTextChange:(String)->Unit={},
     placeholderText: String,
     dropdownItems: List<String> = emptyList(),
     onDropdownItemSelected: ((String) -> Unit)? = null,
@@ -62,7 +67,7 @@ fun CusOutlinedTextField(
     trailingIcon: ImageVector? = null,
     onTrailingIconClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    readOnly: Boolean = false,
+    readOnly: Boolean = false ,
     textStyle: TextStyle = LocalTextStyle.current,
     prefix: @Composable (() -> Unit)? = null,
     suffix: @Composable (() -> Unit)? = null,
@@ -76,11 +81,31 @@ fun CusOutlinedTextField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     shape: Shape = OutlinedTextFieldDefaults.shape,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
-    validation: ((String) -> String?)? = null
+    validation: ((String) -> String?)? = null,
+    isDatePicker: Boolean = false,
+    initialDate: LocalDate = LocalDate.now(),
+    onDateSelected: ((LocalDate) -> Unit)? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     var expanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val formatter = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
 
+
+    fun showDatePicker() {
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val pickedDate = LocalDate.of(year, month + 1, day)
+                state.onTextChanged(pickedDate.format(formatter))
+                onDateSelected?.invoke(pickedDate)
+            },
+            initialDate.year,
+            initialDate.monthValue - 1,
+            initialDate.dayOfMonth
+        ).show()
+
+    }
     Box(
         modifier = modifier
             .clickable(
@@ -135,7 +160,7 @@ fun CusOutlinedTextField(
                 label = { Text(placeholderText) },
                 isError = state.error.isNotEmpty(),
                 enabled = enabled,
-                readOnly = readOnly || dropdownItems.isNotEmpty(),
+                readOnly = readOnly || dropdownItems.isNotEmpty() || isDatePicker,
                 prefix = prefix,
                 suffix = suffix,
                 keyboardActions = keyboardActions,
@@ -160,6 +185,15 @@ fun CusOutlinedTextField(
                 },
                 trailingIcon = {
                     when {
+                        isDatePicker -> {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Pick Date",
+                                modifier = Modifier
+                                    .clickable { showDatePicker() }
+                                    .padding(8.dp)
+                            )
+                        }
                         dropdownItems.isNotEmpty() -> {
                             Icon(
                                 imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
