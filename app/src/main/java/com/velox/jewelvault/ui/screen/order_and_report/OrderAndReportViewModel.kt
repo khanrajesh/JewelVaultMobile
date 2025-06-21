@@ -8,6 +8,7 @@ import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.OrderSort
+import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -41,8 +42,7 @@ class OrderAndReportViewModel @Inject constructor(
     val orderList: SnapshotStateList<OrderEntity> = SnapshotStateList()
 
     fun getAllOrdersSorted(sort: OrderSort) {
-        viewModelScope.launch {
-            withIo {
+        ioLaunch {
                 when (sort) {
                     OrderSort.ASCENDING -> appDatabase.orderDao().getAllOrdersAsc()
                     OrderSort.DESCENDING -> appDatabase.orderDao().getAllOrdersDesc()
@@ -50,7 +50,7 @@ class OrderAndReportViewModel @Inject constructor(
                     orderList.clear()
                     orderList.addAll(it)
                 }
-            }
+
         }
     }
 

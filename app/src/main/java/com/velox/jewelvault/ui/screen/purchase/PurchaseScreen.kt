@@ -1,8 +1,12 @@
 package com.velox.jewelvault.ui.screen.purchase
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -26,12 +31,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,9 +55,11 @@ import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
 
 
@@ -68,10 +82,10 @@ fun PurchaseScreen(viewModel: PurchaseViewModel) {
 
 @Composable
 fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
-    val scrollState = rememberScrollState()
     val context = LocalContext.current
     val baseViewModel = LocalBaseViewModel.current
     val currentDateTime = rememberCurrentDateTime()
+    val purchaseItemScrollState = remember { mutableStateOf("None") }
 
     Column(
         modifier = Modifier
@@ -118,9 +132,9 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
                 }
             }
 
-            FirmDetails(viewModel)
+            FirmDetails(viewModel, purchaseItemScrollState)
             Spacer(Modifier.height(5.dp))
-            PurchaseItemDetails(Modifier.weight(1f), viewModel)
+            PurchaseItemDetails(Modifier.weight(1f), viewModel, purchaseItemScrollState)
             Spacer(Modifier.height(5.dp))
             DetailSection(Modifier, viewModel)
 
@@ -129,7 +143,10 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
 }
 
 @Composable
-fun DetailSection(modifier:Modifier, viewModel: PurchaseViewModel) {
+fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
+
+    val navController = LocalNavController.current
+
     Row(
         modifier
             .fillMaxWidth()
@@ -137,28 +154,85 @@ fun DetailSection(modifier:Modifier, viewModel: PurchaseViewModel) {
             .padding(5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+
+        val purGoldFnWt =
+            viewModel.purchaseItemList.filter { it.catName == "Gold" }.sumOf { it.fnWt }
+        val purGoldFnWtWastage = viewModel.purchaseItemList.filter { it.catName == "Gold" }
+            .sumOf { it.fnWt * (it.wastage / 100) }
+        val purGoldExtraCharge =
+            viewModel.purchaseItemList.filter { it.catName == "Gold" }.sumOf { it.extraCharge }
+
+
+        val purSilverFnWtWastage = viewModel.purchaseItemList.filter { it.catName == "Silver" }
+            .sumOf { it.fnWt * (it.wastage / 100) }
+        val purSilverFnWt =
+            viewModel.purchaseItemList.filter { it.catName == "Silver" }.sumOf { it.fnWt }
+        val purSilverExtraCharge =
+            viewModel.purchaseItemList.filter { it.catName == "Silver" }.sumOf { it.extraCharge }
+
+        val exchangeGoldFnWt =
+            viewModel.exchangeMetalRateDto.filter { it.catName == "Gold" }.sumOf { it.fnWt }
+        val exchangeSilverFnWt =
+            viewModel.exchangeMetalRateDto.filter { it.catName == "Silver" }.sumOf { it.fnWt }
+
         Text(
             """
-            Purchase Fn.Wt: 123.00g,  Exchange Fn.Wt: 123.00g,  Settling Fn.Wt: 123.00g, Amt to: $123456789
+            Gold Fine Rate: esaf , Silver Fine Rate: 
+           Gold Pur Fn.Wt: $purGoldFnWt g, Exc Fn.Wt: $exchangeGoldFnWt g, Wastage: $purGoldFnWtWastage g, Extra: $purGoldExtraCharge Settling Fn.Wt: ${(purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt}g, Amt to: $123456789
+           Silver Pur Fn.Wt: $purSilverFnWt g, Exc Fn.Wt: $exchangeSilverFnWt g, Wastage: $purSilverFnWtWastage g, Extra: $purSilverExtraCharge Settling Fn.Wt: ${(purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt}g, Amt to: $123456789
         """.trimIndent(), modifier = Modifier.weight(1f)
         )
 
-            Text("ADD TO REG", Modifier
-                .bounceClick {
+        Text("ADD TO REG", Modifier
+            .bounceClick {
+                if (viewModel.purchaseItemList.isNotEmpty() && viewModel.addBillNo.text.isNotBlank() &&
+                    viewModel.addBillDate.text.isNotBlank() && viewModel.firmName.text.isNotBlank() &&
+                    viewModel.sellerName.text.isNotBlank() && viewModel.sellerMobile.text.isNotBlank() &&
+                    viewModel.firmMobile.text.isNotBlank() &&
+                    viewModel.purchaseItemList.none { it.fnRate == 0.0 || it.fnWt == 0.0 }) {
 
+
+                    viewModel.addToReg(onComplete = {
+                        viewModel.clearPurchaseInputs()
+                        viewModel.purchaseItemList.clear()
+                        viewModel.exchangeMetalRateDto.clear()
+                        viewModel.firmName.clear()
+                        viewModel.firmMobile.clear()
+                        viewModel.firmAddress.clear()
+                        viewModel.firmGstin.clear()
+                        viewModel.sellerName.clear()
+                        viewModel.sellerMobile.clear()
+                        viewModel.addBillNo.clear()
+                        viewModel.addBillDate.clear()
+                        viewModel.addExchangeCategory.clear()
+                        viewModel.addExchangeFnWeight.clear()
+                        viewModel.catSubCatDto.clear()
+                        viewModel.snackBarState.value = "Purchase Bill added"
+                        mainScope {
+                            navController.popBackStack()
+                        }
+                    })
+
+
+                } else {
+                    viewModel.snackBarState.value =
+                        "Please fill all firm details fields and make sure all fine rates are set"
                 }
-                .background(
-                    MaterialTheme.colorScheme.primary,
-                    RoundedCornerShape(16.dp),
-                )
-                .padding(10.dp), fontWeight = FontWeight.Bold)
 
-        }
+
+            }
+            .background(
+                MaterialTheme.colorScheme.primary,
+                RoundedCornerShape(16.dp),
+            )
+            .padding(10.dp), fontWeight = FontWeight.Bold)
+
+    }
 
 }
 
 @Composable
-fun FirmDetails(viewModel: PurchaseViewModel) {
+fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableState<String>) {
     val context = LocalContext.current
 
     Column(
@@ -190,104 +264,202 @@ fun FirmDetails(viewModel: PurchaseViewModel) {
                             input.length != 10 -> "Please Enter Valid Number"
                             else -> null
                         }
-                    })
-            }
-
-            Row(Modifier) {
-                CusOutlinedTextField(
-                    viewModel.sellerName,
-                    placeholderText = "Seller Name",
-                    modifier = Modifier.weight(2f)
-                )
-                Spacer(Modifier.width(5.dp))
-                CusOutlinedTextField(viewModel.sellerMobile,
-                    placeholderText = "Seller Mobile No",
-                    modifier = Modifier.weight(1f),
-                    trailingIcon = Icons.Default.Search,
-                    onTrailingIconClick = {
-                        viewModel.getFirmBySellerMobile()
                     },
-                    maxLines = 1,
-                    keyboardType = KeyboardType.Phone,
-                    validation = { input ->
-                        when {
-                            input.length != 10 -> "Please Enter Valid Number"
-                            else -> null
-                        }
+                    imeAction = ImeAction.Done,
+                    keyboardActions = KeyboardActions {
+                        viewModel.getFirmByFirmMobile()
                     })
             }
-            Spacer(Modifier.height(5.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CusOutlinedTextField(
-                    viewModel.firmAddress,
-                    placeholderText = "Address",
-                    modifier = Modifier.weight(1f),
-                    maxLines = 3
-                )
-                Spacer(Modifier.width(5.dp))
-                CusOutlinedTextField(
-                    viewModel.firmGstin,
-                    placeholderText = "GSTIN/PAN ID",
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1
-                )
-                Spacer(Modifier.width(5.dp))
-                CusOutlinedTextField(
-                    viewModel.addBillNo, placeholderText = "Bill No", modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(5.dp))
-                CusOutlinedTextField(
-                    viewModel.addBillDate, placeholderText = "Date of Bill", modifier = Modifier.weight(1f),
-                    isDatePicker = true,
-                    onDateSelected = {
-                        Toast.makeText(context, "$it", Toast.LENGTH_SHORT).show()
-                    }
-                )
+            val scrolling = remember { mutableStateOf(true) }
+            val check =
+                (viewModel.firmMobile.text.isNotBlank() && viewModel.sellerMobile.text.isNotBlank() && viewModel.addBillNo.text.isNotBlank())
+
+            LaunchedEffect(
+                purchaseItemScrollState.value
+            ) {
+                scrolling.value = !(purchaseItemScrollState.value == "Down" && check)
             }
+
+            AnimatedVisibility(visible = scrolling.value,
+                enter = slideInVertically(initialOffsetY = { -it }),
+                exit = slideOutVertically(targetOffsetY = { -it })
+            ) {
+                FirmDetailsExtra(viewModel, context)
+            }
+            if (!scrolling.value) {
+                Spacer(Modifier.height(8.dp))
+                Row {
+                    Spacer(Modifier.weight(1f))
+                    Text("Show more", modifier = Modifier.bounceClick {
+                        scrolling.value = true
+                    })
+                }
+            }
+
         }
     }
 }
 
 @Composable
-fun PurchaseItemDetails(modifier: Modifier, viewModel: PurchaseViewModel) {
+private fun FirmDetailsExtra(
+    viewModel: PurchaseViewModel, context: Context
+) {
+    Column {
+        Row(Modifier) {
+            CusOutlinedTextField(
+                viewModel.sellerName,
+                placeholderText = "Seller Name",
+                modifier = Modifier.weight(2f)
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(viewModel.sellerMobile,
+                placeholderText = "Seller Mobile No",
+                modifier = Modifier.weight(1f),
+                trailingIcon = Icons.Default.Search,
+                onTrailingIconClick = {
+                    viewModel.getFirmBySellerMobile()
+                },
+                maxLines = 1,
+                keyboardType = KeyboardType.Phone,
+                validation = { input ->
+                    when {
+                        input.length != 10 -> "Please Enter Valid Number"
+                        else -> null
+                    }
+                },
+                imeAction = ImeAction.Done,
+                keyboardActions = KeyboardActions {
+                    viewModel.getFirmBySellerMobile()
+                })
+        }
+        Spacer(Modifier.height(5.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CusOutlinedTextField(
+                viewModel.firmAddress,
+                placeholderText = "Address",
+                modifier = Modifier.weight(1f),
+                maxLines = 3
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(
+                viewModel.firmGstin,
+                placeholderText = "GSTIN/PAN ID",
+                modifier = Modifier.weight(1f),
+                maxLines = 1
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(
+                viewModel.addBillNo, placeholderText = "Bill No", modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(viewModel.addBillDate,
+                placeholderText = "Date of Bill",
+                modifier = Modifier.weight(1f),
+                isDatePicker = true,
+                onDateSelected = {
+                    Toast.makeText(context, "$it", Toast.LENGTH_SHORT).show()
+                })
+        }
+        Spacer(Modifier.height(5.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CusOutlinedTextField(
+                viewModel.addCGst,
+                placeholderText = "C.Gst",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(
+                viewModel.addIGst,
+                placeholderText = "I.Gst",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(
+                viewModel.addSGst,
+                placeholderText = "S.Gst",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
+            )
+        }
+    }
+}
+
+@Composable
+fun PurchaseItemDetails(
+    modifier: Modifier, viewModel: PurchaseViewModel, purchaseItemScrollState: MutableState<String>
+) {
+    val listState = rememberLazyListState()
+    val previousIndex = remember { mutableIntStateOf(0) }
+    val previousOffset = remember { mutableIntStateOf(0) }
+    var upIgnoreCount by remember { mutableStateOf(0) }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
+                val isScrollingDown =
+                    index > previousIndex.intValue || (index == previousIndex.intValue && offset > previousOffset.intValue)
+
+                val isScrollingUp =
+                    index < previousIndex.intValue || (index == previousIndex.intValue && offset < previousOffset.intValue)
+
+                previousIndex.intValue = index
+                previousOffset.intValue = offset
+
+                when {
+                    isScrollingDown && purchaseItemScrollState.value != "Down" -> {
+                        purchaseItemScrollState.value = "Down"
+                        upIgnoreCount = 1
+                        println("Scroll Down")
+                    }
+
+                    isScrollingUp && purchaseItemScrollState.value == "Down" -> {
+                        if (upIgnoreCount > 0) {
+                            upIgnoreCount--
+                            println("Ignored Up (#${2 - upIgnoreCount})")
+                        } else {
+                            purchaseItemScrollState.value = "Up"
+                            println("Scroll Up")
+                        }
+                    }
+
+                    // Ignore idle or no movement
+                }
+            }
+    }
+
     LazyColumn(
-        modifier
+        state = listState,
+        modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
-
-        item {
-            PurchaseItemListComponent(viewModel.purchaseItemList)
-        }
-
-        item {
-            MetalRateListComponent(viewModel.purchaseMetalRateDtos)
-        }
-
-        item {
-            AddItemComponent(viewModel)
-        }
-
-
-        item {
-            Spacer(Modifier.height(32.dp))
-        }
+        item { PurchaseItemListComponent(viewModel.purchaseItemList) }
+        item { MetalRateListComponent(viewModel.exchangeMetalRateDto) }
+        item { AddItemComponent(viewModel) }
+        item { Spacer(Modifier.height(32.dp)) }
     }
 }
 
+
 @Composable
 fun MetalRateListComponent(rates: List<PurchaseMetalRateDto>) {
-    Column(Modifier
-        .fillMaxWidth()
-        .padding(8.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
         Text("Metal Rates", style = MaterialTheme.typography.titleMedium)
-        if (rates.isEmpty()){
-            Text("Metal exchange info will be shown here!", modifier = Modifier.fillMaxWidth(),
+        if (rates.isEmpty()) {
+            Text(
+                "Metal exchange info will be shown here!",
+                modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
-        }else{
+        } else {
             rates.forEach {
                 Card(
                     modifier = Modifier
@@ -295,14 +467,13 @@ fun MetalRateListComponent(rates: List<PurchaseMetalRateDto>) {
                         .padding(vertical = 4.dp),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("${it.metalName} (${it.categoryId})")
-                        Text("₹${it.ratePerGram}/g")
-                    }
+                    Text(
+                        "${it.catName} (${it.catId}) -> ${it.fnWt} gm",
+                        modifier = Modifier.padding(8.dp)
+                    )
                 }
             }
         }
-
 
 
     }
@@ -310,16 +481,20 @@ fun MetalRateListComponent(rates: List<PurchaseMetalRateDto>) {
 
 @Composable
 fun PurchaseItemListComponent(items: List<PurchaseItemInputDto>) {
-    Column(Modifier
-        .fillMaxWidth()
-        .padding(8.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
         Text("Added Items", style = MaterialTheme.typography.titleMedium)
 
-        if (items.isEmpty()){
-            Text("Added items details will be shown here!", modifier = Modifier.fillMaxWidth(),
+        if (items.isEmpty()) {
+            Text(
+                "Added items details will be shown here!",
+                modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center
-                )
-        }else{
+            )
+        } else {
             items.forEachIndexed { index, item ->
                 Card(
                     modifier = Modifier
@@ -328,9 +503,11 @@ fun PurchaseItemListComponent(items: List<PurchaseItemInputDto>) {
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(Modifier.padding(8.dp)) {
-                        Text("Item ${index + 1}: ${item.name}", fontWeight = FontWeight.Bold)
-                        Text("GS Wt: ${item.gsWt}, FN Wt: ${item.fnWt}, Metal Rate: ₹${item.fnMetalRate}")
-                        Text("GST: CGST ${item.cgst}%, SGST ${item.sgst}%, IGST ${item.igst}%")
+                        Text(
+                            "Item ${index + 1}: ${item.name},  Cat/Sub Cat: ${item.catId}/${item.subCatId}",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("GS Wt: ${item.gsWt}, Purity: ${item.purity}, FN Wt: ${item.fnWt}")
                         if (item.extraChargeDes.isNotEmpty()) {
                             Text("Extra: ${item.extraChargeDes} - ₹${item.extraCharge}")
                         }
@@ -338,11 +515,11 @@ fun PurchaseItemListComponent(items: List<PurchaseItemInputDto>) {
                 }
             }
         }
-
     }
 }
 
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun AddItemComponent(viewModel: PurchaseViewModel) {
     val subCategories = remember { mutableStateListOf<SubCategoryEntity>() }
@@ -351,77 +528,92 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
         Text("Add Item")
         Row {
             CusOutlinedTextField(modifier = Modifier.weight(1f),
-                state = viewModel.addCat,
+                state = viewModel.addItemCat,
                 placeholderText = "Category",
                 dropdownItems = viewModel.catSubCatDto.map { it.catName },
                 onDropdownItemSelected = { selected ->
-                    viewModel.addCat.text = selected
+                    viewModel.addItemCat.text = selected
                     // Set subcategories from the selected category
                     val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
                     subCategories.clear()
                     selectedCat?.subCategoryList?.let { subCategories.addAll(it) }
-                    viewModel.addSubCat.text = ""
+                    viewModel.addItemSubCat.text = ""
                 })
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(modifier = Modifier.weight(1f),
-                state = viewModel.addSubCat,
+                state = viewModel.addItemSubCat,
                 placeholderText = "Sub Category",
                 dropdownItems = subCategories.map { it.subCatName },
                 onDropdownItemSelected = { selected ->
-                    viewModel.addSubCat.text = selected
+                    viewModel.addItemSubCat.text = selected
                 })
-            Spacer(Modifier.width(5.dp))
-            CusOutlinedTextField(
-                viewModel.addMetalRate,
-                placeholderText = "Fn Metal Rate",
-                modifier = Modifier.weight(1f)
-            )
+
         }
         Spacer(Modifier.height(5.dp))
         Row {
             CusOutlinedTextField(
-                viewModel.addGsWt, placeholderText = "Gross Weight", modifier = Modifier.weight(1f)
+                viewModel.addItemGsWt,
+                placeholderText = "Gross Weight",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(
-                viewModel.addPurity,
+                viewModel.addItemNtWt,
+                placeholderText = "Nt Weight",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(viewModel.addItemPurity,
                 placeholderText = "Purity",
                 modifier = Modifier.weight(1f),
                 dropdownItems = Purity.list(),
+                onDropdownItemSelected = { selected ->
+                    if (viewModel.addItemGsWt.text.isNotBlank()) {
+                        val ntWtValue = viewModel.addItemGsWt.text.toDoubleOrNull() ?: 0.0
+                        val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                        viewModel.addItemFnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                    }
+                    viewModel.addItemPurity.text = selected
+                })
+            Spacer(Modifier.width(5.dp))
+            CusOutlinedTextField(
+                viewModel.addItemFnWt,
+                placeholderText = "Fine Weight",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(
-                viewModel.addFnWt, placeholderText = "Fine Weight", modifier = Modifier.weight(1f)
+                viewModel.addItemWastage,
+                placeholderText = "Wastage",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
-            Spacer(Modifier.width(5.dp))
-            CusOutlinedTextField(
-                viewModel.addWastage, placeholderText = "Wastage", modifier = Modifier.weight(1f)
-            )
+
         }
         Spacer(Modifier.height(5.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             CusOutlinedTextField(
-                viewModel.addCGst, placeholderText = "C.Gst", modifier = Modifier.weight(1f)
+                viewModel.addItemFineRate,
+                placeholderText = "Fn Rate",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
             )
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(
-                viewModel.addIGst, placeholderText = "I.Gst", modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(5.dp))
-            CusOutlinedTextField(
-                viewModel.addSGst, placeholderText = "S.Gst", modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(5.dp))
-            CusOutlinedTextField(
-                viewModel.addExtraChargeDes,
+                viewModel.addItemExtraChargeDes,
                 placeholderText = "E.Charge Des",
                 modifier = Modifier.weight(1.5f)
             )
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(
-                viewModel.addExtraCharge,
+                viewModel.addItemExtraCharge,
                 placeholderText = "Extra Charge",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
             )
 
             Spacer(Modifier.weight(0.5f))
@@ -437,7 +629,12 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
             Spacer(Modifier.width(8.dp))
             Text("Add", Modifier
                 .bounceClick {
-                    viewModel.addPurchaseItem()
+                    if (viewModel.addItemFnWt.text.isNotBlank() && viewModel.addItemNtWt.text.isNotBlank() && viewModel.addItemGsWt.text.isNotBlank() && viewModel.addItemPurity.text.isNotBlank() && viewModel.addItemSubCat.text.isNotBlank() && viewModel.addItemCat.text.isNotBlank() && viewModel.addItemWastage.text.isNotBlank()) {
+
+                        viewModel.addPurchaseItem()
+                    } else {
+                        viewModel.snackBarState.value = "Please fill all items fields"
+                    }
                 }
                 .background(
                     MaterialTheme.colorScheme.primary,
@@ -458,14 +655,17 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
             Spacer(Modifier.width(5.dp))
             CusOutlinedTextField(
                 viewModel.addExchangeFnWeight,
-                placeholderText = "Fine Weight",
-                modifier = Modifier.weight(1f)
+                placeholderText = "Fine Weight (gm)",
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
             )
 
             Spacer(Modifier.weight(0.5f))
             Text("Clear", Modifier
                 .bounceClick {
-
+                    viewModel.addExchangeCategory.clear()
+                    viewModel.addExchangeFnWeight.clear()
                 }
                 .background(
                     MaterialTheme.colorScheme.primary,
@@ -475,7 +675,11 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
             Spacer(Modifier.width(8.dp))
             Text("Add", Modifier
                 .bounceClick {
-
+                    if (viewModel.addExchangeCategory.text.isNotBlank() && viewModel.addExchangeFnWeight.text.isNotBlank()) {
+                        viewModel.setMetalRate()
+                    } else {
+                        viewModel.snackBarState.value = "Please fill all exchange metal fields"
+                    }
                 }
                 .background(
                     MaterialTheme.colorScheme.primary,

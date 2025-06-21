@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.SalesSummary
@@ -14,9 +13,8 @@ import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.data.roomdb.dao.TopSubCategory
 import com.velox.jewelvault.data.roomdb.dao.range
 import com.velox.jewelvault.utils.DataStoreManager
-import com.velox.jewelvault.utils.withIo
+import com.velox.jewelvault.utils.ioLaunch
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -35,51 +33,50 @@ class DashboardViewModel @Inject constructor(
     val salesSummary: MutableState<SalesSummary?> = mutableStateOf(null)
 
     fun getRecentSellItem() {
-        viewModelScope.launch {
-            withIo {
-                val (start, end) = selectedRange.range()
-                val list = appDatabase.orderDao().getIndividualSellItems(start, end)
-                recentSellsItem.clear()
-                recentSellsItem.addAll(list)
-            }
+        ioLaunch {
+            val (start, end) = selectedRange.range()
+            val list = appDatabase.orderDao().getIndividualSellItems(start, end)
+            recentSellsItem.clear()
+            recentSellsItem.addAll(list)
         }
     }
 
     fun getTopSellingItems() {
-        viewModelScope.launch {
-            withIo {
-                val (start, end) = selectedRange.range()
-                val allItems = appDatabase.orderDao().getGroupedItemWeights(start, end)
-                val topItemsPerCategory = allItems
-                    .groupBy { it.category }
-                    .mapValues { (_, items) -> items.sortedByDescending { it.totalFnWt }.take(5) }
+        ioLaunch {
+            val (start, end) = selectedRange.range()
+            val allItems = appDatabase.orderDao().getGroupedItemWeights(start, end)
+            val topItemsPerCategory = allItems.groupBy { it.category }
+                .mapValues { (_, items) -> items.sortedByDescending { it.totalFnWt }.take(5) }
 
-                // Step 3: Store for UI or other processing
-                topSellingItemsMap.clear()
-                topSellingItemsMap.putAll(topItemsPerCategory)
-            }
+            // Step 3: Store for UI or other processing
+            topSellingItemsMap.clear()
+            topSellingItemsMap.putAll(topItemsPerCategory)
         }
     }
 
 
     fun getTopSellingSubCategories() {
-        viewModelScope.launch {
-            withIo {
-                val (start, end) = selectedRange.range()
-                val list = appDatabase.orderDao().getTopSellingSubcategories(start, end)
-                topSubCategories.clear()
-                topSubCategories.addAll(list)
-            }
+        ioLaunch {
+            val (start, end) = selectedRange.range()
+            val list = appDatabase.orderDao().getTopSellingSubcategories(start, end)
+            topSubCategories.clear()
+            topSubCategories.addAll(list)
         }
+
     }
 
     fun getSalesSummary() {
-        viewModelScope.launch {
-            withIo {
-                val (start, end) = selectedRange.range()
-                val summary = appDatabase.orderDao().getTotalSalesSummary(start, end)
-                salesSummary.value = summary
-            }
+        ioLaunch {
+            val (start, end) = selectedRange.range()
+            val summary = appDatabase.orderDao().getTotalSalesSummary(start, end)
+            salesSummary.value = summary
+        }
+    }
+
+    fun getSubCategoryCount(onComplete: (Int) -> Unit) {
+        ioLaunch {
+            val count = appDatabase.subCategoryDao().getSubCategoryCount()
+            onComplete(count)
         }
     }
 }

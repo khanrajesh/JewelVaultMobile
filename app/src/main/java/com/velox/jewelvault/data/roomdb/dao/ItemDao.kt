@@ -58,6 +58,14 @@ interface ItemDao {
     )
     suspend fun updateQuantityIfLot(itemId: Int, newQuantity: Int, modifiedDate: Timestamp)
 
+    @Query("""
+    SELECT * FROM ItemEntity 
+    WHERE  catId = :catId AND subCatName = 'Fine' 
+    LIMIT 1
+""")
+    suspend fun getFineItemByCat(catId: Int): ItemEntity?
+
+
 
     @Query("DELETE FROM ItemEntity WHERE itemId = :itemId")
     suspend fun deleteById(itemId: Int)

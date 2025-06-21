@@ -155,7 +155,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                         Text(
                             "Cancel", Modifier
                                 .clickable {
-                                    text.clear
+                                    text.clear()
                                     selectedCatName.value = null
                                     selectedCatId.value = null
                                     showAddCatDialog.value = !showAddCatDialog.value
@@ -188,7 +188,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
 
                                     selectedCatName.value = null
                                     selectedCatId.value = null
-                                    text.clear
+                                    text.clear()
                                     showAddCatDialog.value = !showAddCatDialog.value
                                 }
                                 .background(

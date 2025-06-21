@@ -3,55 +3,91 @@ package com.velox.jewelvault.ui.screen.inventory
 import android.content.Context
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.datastore.core.DataStore
-import androidx.datastore.dataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.data.roomdb.dao.ItemDao
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
 import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
+import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.sql.Timestamp
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
-    private val appDatabase: AppDatabase,
-    private val _dataStoreManager: DataStoreManager,
+    private val appDatabase: AppDatabase, private val _dataStoreManager: DataStoreManager,
 //    private val _loadingState: MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>,
-    context: Context
+    private val _snackBarState: MutableState<String>, context: Context
 ) : ViewModel() {
 
     val dataStoreManager = _dataStoreManager
-//    val loadingState = _loadingState
+
+    //    val loadingState = _loadingState
     val snackBarState = _snackBarState
     val itemList: SnapshotStateList<ItemEntity> = SnapshotStateList()
     val catSubCatDto: SnapshotStateList<CatSubCatDto> = SnapshotStateList()
+    val purchaseOrdersByDate: SnapshotStateList<PurchaseOrderEntity> = SnapshotStateList()
 
-   val itemHeaderList =  listOf(
-    "S.No", "Category","Sub Category","Item Id",
-    "To Name", "Type", "Qty", "Gr.Wt", "Nt.Wt",
-    "Unit", "Purity", "Fn.Wt", "MC.Type", "M.Chr", "Oth Chr",
-    "Chr", "Tax", "H-UID", "DOA", "Des","Value","Extra"
+
+    val addToName = InputFieldState()
+    val entryType = InputFieldState()
+    val qty = InputFieldState()
+    val grWt = InputFieldState()
+    val ntWt = InputFieldState()
+    val purity = InputFieldState()
+    val fnWt = InputFieldState()
+    val chargeType = InputFieldState()
+    val charge = InputFieldState()
+    val otherChargeDes = InputFieldState()
+    val othCharge = InputFieldState()
+    val cgst = InputFieldState("1.5")
+    val sgst = InputFieldState("1.5")
+    val igst = InputFieldState()
+    val desKey = InputFieldState()
+    val desValue = InputFieldState()
+    val huid = InputFieldState()
+    val billDate = InputFieldState()
+    val billNo = InputFieldState()
+    val billItemDetails = mutableStateOf("")
+
+    val itemHeaderList = listOf(
+        "S.No",
+        "Category",
+        "Sub Category",
+        "Item Id",
+        "To Name",
+        "Type",
+        "Qty",
+        "Gr.Wt",
+        "Nt.Wt",
+        "Unit",
+        "Purity",
+        "Fn.Wt",
+        "MC.Type",
+        "M.Chr",
+        "Oth Chr",
+        "Chr",
+        "Tax",
+        "H-UID",
+        "DOA",
+        "Des",
+        "Value",
+        "Extra"
     )
 
     fun init() {
@@ -71,28 +107,22 @@ class InventoryViewModel @Inject constructor(
                     this@InventoryViewModel.log("No Category exists")
                     val g = appDatabase.categoryDao().insertCategory(
                         CategoryEntity(
-                            catName = "Gold",
-                            userId = userId,
-                            storeId = storeId
+                            catName = "Gold", userId = userId, storeId = storeId
                         )
                     )
                     val s = appDatabase.categoryDao().insertCategory(
                         CategoryEntity(
-                            catName = "Silver",
-                            userId = userId,
-                            storeId = storeId
+                            catName = "Silver", userId = userId, storeId = storeId
                         )
                     )
 
                     if (g != -1L) {
                         val goldCat = appDatabase.categoryDao().getCategoryByName("Gold")
-                        if (goldCat != null){
+                        if (goldCat != null) {
                             addSubCategory(
-                                "Fine",
-                                catName = goldCat.catName,
-                                catId = goldCat.catId
+                                "Fine", catName = goldCat.catName, catId = goldCat.catId
                             )
-                        }else{
+                        } else {
                             this@InventoryViewModel.log("Unable to found newly added gold category")
                         }
                         this@InventoryViewModel.log("Added new category gold")
@@ -102,13 +132,11 @@ class InventoryViewModel @Inject constructor(
 
                     if (s != -1L) {
                         val silverCat = appDatabase.categoryDao().getCategoryByName("Silver")
-                        if (silverCat != null){
+                        if (silverCat != null) {
                             addSubCategory(
-                                "Fine",
-                                catName = silverCat.catName,
-                                catId = silverCat.catId
+                                "Fine", catName = silverCat.catName, catId = silverCat.catId
                             )
-                        }else{
+                        } else {
                             this@InventoryViewModel.log("Unable to found newly added silver category")
                         }
                         this@InventoryViewModel.log("Added new category silver")
@@ -136,8 +164,7 @@ class InventoryViewModel @Inject constructor(
 
                 val newList = result.map { cat ->
                     val subList = appDatabase.subCategoryDao().getSubCategoriesByCatId(cat.catId)
-                    CatSubCatDto(
-                        catId = cat.catId,
+                    CatSubCatDto(catId = cat.catId,
                         catName = cat.catName,
                         gsWt = cat.gsWt,
                         fnWt = cat.fnWt,
@@ -145,8 +172,7 @@ class InventoryViewModel @Inject constructor(
                         storeId = storeId,
                         subCategoryList = mutableStateListOf<SubCategoryEntity>().apply {
                             addAll(subList)
-                        }
-                    )
+                        })
                 }
 
                 mainScope {
@@ -169,21 +195,19 @@ class InventoryViewModel @Inject constructor(
                 val storeId = dataStoreManager.storeId.first()
                 val s = appDatabase.categoryDao().insertCategory(
                     CategoryEntity(
-                        catName = catName,
-                        userId = userId,
-                        storeId = storeId
+                        catName = catName, userId = userId, storeId = storeId
                     )
                 )
                 if (s != -1L) {
-                    _snackBarState.value="Added new category id: $s"
+                    _snackBarState.value = "Added new category id: $s"
                     this@InventoryViewModel.log("Added new category id: $s")
                     getCategoryAndSubCategoryDetails()
                 } else {
-                    _snackBarState.value="failed to add category"
+                    _snackBarState.value = "failed to add category"
                     this@InventoryViewModel.log("failed to add category")
                 }
             } catch (e: Exception) {
-                _snackBarState.value="unable to add category error: ${e.message}"
+                _snackBarState.value = "unable to add category error: ${e.message}"
                 this@InventoryViewModel.log("unable to add category error: ${e.message}")
             }
         }
@@ -204,15 +228,15 @@ class InventoryViewModel @Inject constructor(
                     )
                 )
                 if (s != -1L) {
-                    _snackBarState.value="Added new sub category id: $s"
+                    _snackBarState.value = "Added new sub category id: $s"
                     this@InventoryViewModel.log("Added new sub category id: $s")
                     getCategoryAndSubCategoryDetails()
                 } else {
-                    _snackBarState.value="failed to add sub category"
+                    _snackBarState.value = "failed to add sub category"
                     this@InventoryViewModel.log("failed to add sub category")
                 }
             } catch (e: Exception) {
-                _snackBarState.value="unable to add sub category"
+                _snackBarState.value = "unable to add sub category"
                 this@InventoryViewModel.log("unable to add sub category")
             }
         }
@@ -258,9 +282,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun safeInsertItem(
-        item: ItemEntity,
-        onSuccess: (ItemEntity, Long) -> Unit,
-        onFailure: (Throwable) -> Unit
+        item: ItemEntity, onSuccess: (ItemEntity, Long) -> Unit, onFailure: (Throwable) -> Unit
     ) {
         viewModelScope.launch {
 //            _loadingState.value = true
@@ -269,8 +291,7 @@ class InventoryViewModel @Inject constructor(
                     val userId = dataStoreManager.userId.first()
                     val storeId = dataStoreManager.storeId.first()
                     val it = item.copy(
-                        userId = userId,
-                        storeId = storeId
+                        userId = userId, storeId = storeId
                     )
 
                     val newItemId = appDatabase.itemDao().insert(it)
@@ -279,7 +300,8 @@ class InventoryViewModel @Inject constructor(
                         val insertedItem = it.copy(itemId = newItemId.toInt())
 
                         try {
-                            val subCategory = appDatabase.subCategoryDao().getSubCategoryById(subCatId = it.subCatId)
+                            val subCategory = appDatabase.subCategoryDao()
+                                .getSubCategoryById(subCatId = it.subCatId)
                             subCategory?.let { subCat ->
                                 val subCatGsWt = (subCat.gsWt + insertedItem.gsWt).roundTo3Decimal()
                                 val subCatFnWt = (subCat.fnWt + insertedItem.fnWt).roundTo3Decimal()
@@ -294,10 +316,13 @@ class InventoryViewModel @Inject constructor(
 
                                 if (upSub != -1) {
                                     this@InventoryViewModel.log("Sub Cat id: ${insertedItem.subCatId} update with weight")
-                                    val cat = appDatabase.categoryDao().getCategoryById(catId = insertedItem.catId)
+                                    val cat = appDatabase.categoryDao()
+                                        .getCategoryById(catId = insertedItem.catId)
                                     cat?.let { catEntity ->
-                                        val catGsWt = (catEntity.gsWt + insertedItem.gsWt).roundTo3Decimal()
-                                        val catFnWt = (catEntity.fnWt + insertedItem.fnWt).roundTo3Decimal()
+                                        val catGsWt =
+                                            (catEntity.gsWt + insertedItem.gsWt).roundTo3Decimal()
+                                        val catFnWt =
+                                            (catEntity.fnWt + insertedItem.fnWt).roundTo3Decimal()
                                         val upCat = appDatabase.categoryDao().updateWeights(
                                             catId = insertedItem.catId,
                                             gsWt = catGsWt,
@@ -305,19 +330,21 @@ class InventoryViewModel @Inject constructor(
                                         )
                                         if (upCat != -1) {
                                             this@InventoryViewModel.log("Cat id: ${insertedItem.catId} update with weight")
-                                            _snackBarState.value = "Item Added and categories updated."
+                                            _snackBarState.value =
+                                                "Item Added and categories updated."
 //                                            _loadingState.value = false
                                             onSuccess(insertedItem, newItemId)
                                         }
                                     }
-                                }else{
+                                } else {
                                     _snackBarState.value = "Failed to update Sub Category Weight"
 //                                    _loadingState.value = false
                                 }
                             }
                         } catch (e: Exception) {
 //                            _loadingState.value = false
-                            _snackBarState.value = ("Error updating cat and sub cat weight: ${e.message}")
+                            _snackBarState.value =
+                                ("Error updating cat and sub cat weight: ${e.message}")
                             this@InventoryViewModel.log("Error updating cat and sub cat weight: ${e.message}")
                         }
 //                        _loadingState.value = true
@@ -344,17 +371,21 @@ class InventoryViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                withIo {
                     val item = appDatabase.itemDao().getItemById(itemId)
                     if (item != null) {
                         val rowsDeleted = appDatabase.itemDao().deleteById(itemId, catId, subCatId)
                         if (rowsDeleted > 0) {
                             try {
-                                val subCategory = appDatabase.subCategoryDao().getSubCategoryById(subCatId)
+                                val subCategory =
+                                    appDatabase.subCategoryDao().getSubCategoryById(subCatId)
                                 subCategory?.let {
-                                    val updatedSubCatGsWt = (it.gsWt - item.gsWt).coerceAtLeast(0.0).roundTo3Decimal()
-                                    val updatedSubCatFnWt = (it.fnWt - item.fnWt).coerceAtLeast(0.0).roundTo3Decimal()
-                                    val updatedSubCatQty = (it.quantity - item.quantity).coerceAtLeast(0)
+                                    val updatedSubCatGsWt =
+                                        (it.gsWt - item.gsWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedSubCatFnWt =
+                                        (it.fnWt - item.fnWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedSubCatQty =
+                                        (it.quantity - item.quantity).coerceAtLeast(0)
 
                                     appDatabase.subCategoryDao().updateWeightsAndQuantity(
                                         subCatId = subCatId,
@@ -366,13 +397,13 @@ class InventoryViewModel @Inject constructor(
 
                                 val category = appDatabase.categoryDao().getCategoryById(catId)
                                 category?.let {
-                                    val updatedCatGsWt = (it.gsWt - item.gsWt).coerceAtLeast(0.0).roundTo3Decimal()
-                                    val updatedCatFnWt = (it.fnWt - item.fnWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedCatGsWt =
+                                        (it.gsWt - item.gsWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedCatFnWt =
+                                        (it.fnWt - item.fnWt).coerceAtLeast(0.0).roundTo3Decimal()
 
                                     appDatabase.categoryDao().updateWeights(
-                                        catId = catId,
-                                        gsWt = updatedCatGsWt,
-                                        fnWt = updatedCatFnWt
+                                        catId = catId, gsWt = updatedCatGsWt, fnWt = updatedCatFnWt
                                     )
                                 }
 
@@ -394,8 +425,52 @@ class InventoryViewModel @Inject constructor(
     }
 
 
+    fun getBillsFromDate() {
+        ioLaunch {
+            billItemDetails.value = ""
+            purchaseOrdersByDate.clear()
+            billNo.clear()
+            val data = appDatabase.purchaseDao().getOrdersByBillDate(billDate.text)
+            purchaseOrdersByDate.addAll(data)
+
+            if (purchaseOrdersByDate.isEmpty()){
+                _snackBarState.value = "No purchase bill found"
+            }
+        }
+    }
+
+    fun getPurchaseOrderItemDetails(item: PurchaseOrderEntity, subCatName: String) {
+        ioLaunch {
+            val purchaseItemList = appDatabase.purchaseDao()
+                .getItemsByOrderIdAndSubCatName(item.purchaseOrderId, subCatName)
 
 
+
+            billItemDetails.value = ""
+            if (purchaseItemList.isNotEmpty()){
+                val sellerInfo = appDatabase.purchaseDao().getSellerById(item.sellerId)
+
+                if (sellerInfo!=null){
+//                    sellerFirmId = 0,
+//                    purchaseOrderId = 0,
+//                    purchaseItemId = 0,
+                    val firInfo = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
+                    val t = "${firInfo?.firmName} by ${sellerInfo.name} (${sellerInfo.mobileNumber})"
+                    val u = purchaseItemList.groupBy { it.purity }.map { (purity, items) ->
+                        val total = items.sumOf { it.gsWt }
+                        "Purity: $purity: Total Gs Wt: $total gm "
+                    }.joinToString(", ")
+                    billItemDetails.value  = "$t \n$u"
+
+
+                }
+
+            }
+
+
+
+        }
+    }
 
 
 }

@@ -6,6 +6,7 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
@@ -31,7 +32,7 @@ class ProfileViewModel @Inject constructor(
 
 
     fun getStoreData() {
-        ioScope {
+        ioLaunch {
             val userId = _datastoreManage.userId.first()
             val userData = appDatabase.userDao().getUserById(userId)
             storeEntity.value = appDatabase.storeDao().getStoreById(userId)
@@ -55,7 +56,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun saveStoreData(onSuccess: () -> Unit, onFailure: () -> Unit) {
-        ioScope {
+        ioLaunch {
             try {
                 val storeId = _datastoreManage.storeId.first()
                 val userId = _datastoreManage.userId.first()

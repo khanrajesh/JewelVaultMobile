@@ -53,4 +53,10 @@ interface SubCategoryDao {
 
     @Query("DELETE FROM SubCategoryEntity")
     suspend fun deleteAllSubCategories(): Int
+
+
+    @Query("""
+    SELECT COUNT(*)
+    FROM SubCategoryEntity""")
+    suspend fun getSubCategoryCount(): Int
 }

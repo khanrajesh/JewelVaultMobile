@@ -7,11 +7,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
+import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
+import com.velox.jewelvault.data.roomdb.entity.purchase.FirmWithSellers
 import com.velox.jewelvault.data.roomdb.entity.purchase.MetalExchangeEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
-import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
-import com.velox.jewelvault.data.roomdb.entity.purchase.FirmWithSellers
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 
 @Dao
@@ -24,7 +24,12 @@ interface PurchaseDao {
     suspend fun insertFirm(firm: FirmEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertSeller(seller: SellerEntity):Long
+    suspend fun insertSeller(seller: SellerEntity): Long
+
+    @Query("SELECT * FROM seller WHERE sellerId = :sellerId")
+    suspend fun getSellerById(sellerId: Int): SellerEntity?
+
+
 
     @Transaction
     @Query("SELECT * FROM firm")
@@ -43,7 +48,7 @@ interface PurchaseDao {
     suspend fun getFirmById(firmId: Int): FirmEntity?
 
     @Query("SELECT * FROM firm WHERE firmMobileNumber = :firmMobileNumber LIMIT 1")
-    suspend fun getFirmByMobile(firmMobileNumber:String): FirmEntity?
+    suspend fun getFirmByMobile(firmMobileNumber: String): FirmEntity?
 
 
     // ------------------------
@@ -60,6 +65,20 @@ interface PurchaseDao {
 
     @Delete
     suspend fun deleteOrder(order: PurchaseOrderEntity)
+
+    @Query("SELECT * FROM purchase_orders WHERE billDate = :billDate")
+    suspend fun getOrdersByBillDate(billDate: String): List<PurchaseOrderEntity>
+
+    @Query(
+        """
+    SELECT * FROM purchase_order_items 
+    WHERE purchaseOrderId = :orderId AND subCatName = :subCatName
+    """
+    )
+    suspend fun getItemsByOrderIdAndSubCatName(
+        orderId: Int,
+        subCatName: String
+    ): List<PurchaseOrderItemEntity>
 
 
     // ------------------------

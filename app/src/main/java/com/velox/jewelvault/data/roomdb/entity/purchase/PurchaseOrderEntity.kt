@@ -26,5 +26,8 @@ data class PurchaseOrderEntity(
     val extraCharge: Double?,
     val totalFinalWeight: Double?, // Total fnWt after exchange
     val totalFinalAmount: Double?, // Final calculated value
-    val notes: String?
-)
+    val notes: String?,
+    val cgstPercent: Double,
+    val sgstPercent: Double,
+    val igstPercent: Double,
+    )

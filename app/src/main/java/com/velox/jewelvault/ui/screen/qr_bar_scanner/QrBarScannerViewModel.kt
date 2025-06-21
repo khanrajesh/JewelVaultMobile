@@ -37,14 +37,14 @@ class QrBarScannerViewModel @Inject constructor(
     private suspend fun checkAndAddList(
         id: Int,
         metalRates: SnapshotStateList<MetalRate>
-    ): String = withContext(Dispatchers.IO) {
+    ): String = withIo  {
         val existing = selectedItemList.find { it.first == id }?.second
         if (existing != null) {
-            return@withContext "Id: $id\nWt: ${existing.gsWt.to2FString()} (${existing.fnWt.to2FString()})\n(${existing.purity}) P: $${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
+            return@withIo "Id: $id\nWt: ${existing.gsWt.to2FString()} (${existing.fnWt.to2FString()})\n(${existing.purity}) P: $${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
         }
 
         val item = getItemByIdSync(id)
-        if (item == null) return@withContext "Id: $id\nItem Not Found"
+        if (item == null) return@withIo "Id: $id\nItem Not Found"
 
         val oneUnitPrice = when (item.catName.trim().lowercase()) {
             "gold" -> {
@@ -61,7 +61,7 @@ class QrBarScannerViewModel @Inject constructor(
             else -> null
         }
 
-        if (oneUnitPrice == null) return@withContext "Id: $id\nPlease load metal price"
+        if (oneUnitPrice == null) return@withIo "Id: $id\nPlease load metal price"
 
         val price = oneUnitPrice * item.fnWt
         val charge = when (item.crgType) {
@@ -74,10 +74,10 @@ class QrBarScannerViewModel @Inject constructor(
         val updatedItem = item.copy(price = price, chargeAmount = charge, tax = tax)
         selectedItemList.add(id to updatedItem)
 
-        return@withContext "Id: $id\nWt: ${item.gsWt.to2FString()} (${item.fnWt.to2FString()})\n(${item.purity}) P: $${(price + charge + tax).to2FString()}"
+        return@withIo "Id: $id\nWt: ${item.gsWt.to2FString()} (${item.fnWt.to2FString()})\n(${item.purity}) P: $${(price + charge + tax).to2FString()}"
     }
 
-    suspend fun getItemByIdSync(itemId: Int): ItemSelectedModel? = withContext(Dispatchers.IO) {
+    private suspend fun getItemByIdSync(itemId: Int): ItemSelectedModel? = withIo {
         val entity = appDatabase.itemDao().getItemById(itemId)
         entity?.let { item ->
             ItemSelectedModel(

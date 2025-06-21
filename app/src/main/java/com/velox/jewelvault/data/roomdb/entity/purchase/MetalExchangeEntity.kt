@@ -19,6 +19,8 @@ data class MetalExchangeEntity(
     @PrimaryKey(autoGenerate = true) val exchangeId: Int = 0,
     val purchaseOrderId: Int,
     val catId: Int,
-    val categoryName: String,
+    val catName: String,
+    val subCatId: Int,
+    val subCatName: String,
     val fnWeight: Double
 )

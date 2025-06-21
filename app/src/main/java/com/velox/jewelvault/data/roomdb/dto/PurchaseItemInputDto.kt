@@ -2,22 +2,25 @@ package com.velox.jewelvault.data.roomdb.dto
 
 data class PurchaseItemInputDto(
     val billNo: String = "",
-    val catId: String = "",
-    val subCatId: String = "",
+    val catId: Int = -1,
+    val catName: String = "",
+    val subCatId: Int = -1,
+    val subCatName: String = "",
     val name: String = "",
-    val gsWt: String = "",
+    val gsWt: Double = 0.0,
+    val ntWt: Double = 0.0,
     val purity: String = "",
-    val fnWt: String = "",
-    val wastage: String = "",
-    val fnMetalRate: String = "",
-    val cgst: String = "1.5",
-    val sgst: String = "1.5",
-    val igst: String = "",
+    val fnWt: Double = 0.0,
+    val fnRate: Double=0.0,
+    val wastage: Double = 0.0,
     val extraChargeDes: String = "",
-    val extraCharge: String = ""
+    val extraCharge: Double = 0.0,
+    val toAdd:Boolean
 )
 data class PurchaseMetalRateDto(
-    val categoryId: String,
-    val metalName: String, // e.g., "Gold", "Silver"
-    val ratePerGram: String // or Float/Double if you're doing calculations
+    val catId: Int,
+    val catName: String,
+    val subCatId: Int,
+    val subCatName: String,
+    val fnWt: Double
 )

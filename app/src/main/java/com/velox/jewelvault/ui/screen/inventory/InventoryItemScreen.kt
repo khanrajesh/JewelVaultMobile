@@ -1,12 +1,16 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.ItemListViewComponent
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.ChargeType
@@ -76,25 +79,8 @@ fun LandscapeInventoryItemScreen(
 
     val showOption = remember { mutableStateOf(false) }
 
-    val addItem = remember { mutableStateOf(false) }
-    val addToName = remember { InputFieldState() }
-    val entryType = remember { InputFieldState() }
-    val qty = remember { InputFieldState() }
-    val grWt = remember { InputFieldState() }
-    val ntWt = remember { InputFieldState() }
-    val purity = remember { InputFieldState() }
-    val fnWt = remember { InputFieldState() }
-    val chargeType = remember { InputFieldState() }
-    val charge = remember { InputFieldState() }
-    val otherChargeDes = remember { InputFieldState() }
-    val othCharge = remember { InputFieldState() }
-    val cgst = remember { InputFieldState("1.5") }
-    val sgst = remember { InputFieldState("1.5") }
-    val igst = remember { InputFieldState() }
-    val desKey = remember { InputFieldState() }
-    val desValue = remember { InputFieldState() }
-    val huid = remember { InputFieldState() }
 
+    val addItem = remember { mutableStateOf(false) }
     val showDialog = remember { mutableStateOf(false) }
     val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
 
@@ -130,29 +116,11 @@ fun LandscapeInventoryItemScreen(
             Spacer(Modifier.height(5.dp))
             AddItemSection(
                 addItem,
-                addToName,
-                entryType,
-                qty,
-                grWt,
-                ntWt,
-                purity,
-                fnWt,
-                chargeType,
-                charge,
-                otherChargeDes,
-                othCharge,
-                cgst,
-                sgst,
-                igst,
-                huid,
                 catId,
                 subCatId,
                 catName,
                 subCatName,
                 inventoryViewModel,
-                desKey,
-                desValue
-
             )
 
             ItemListViewComponent(inventoryViewModel.itemHeaderList,
@@ -235,28 +203,11 @@ fun LandscapeInventoryItemScreen(
 @Composable
 private fun AddItemSection(
     addItem: MutableState<Boolean>,
-    addToName: InputFieldState,
-    entryType: InputFieldState,
-    qty: InputFieldState,
-    grWt: InputFieldState,
-    ntWt: InputFieldState,
-    purity: InputFieldState,
-    fnWt: InputFieldState,
-    chargeType: InputFieldState,
-    charge: InputFieldState,
-    otherChargeDes: InputFieldState,
-    othCharge: InputFieldState,
-    cgst: InputFieldState,
-    sgst: InputFieldState,
-    igst: InputFieldState,
-    huid: InputFieldState,
     catId: Int,
     subCatId: Int,
     catName: String,
     subCatName: String,
-    inventoryViewModel: InventoryViewModel,
-    desKey: InputFieldState,
-    desValue: InputFieldState,
+    viewModel: InventoryViewModel,
 ) {
     val context = LocalContext.current
     if (addItem.value) {
@@ -274,271 +225,331 @@ private fun AddItemSection(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                     .padding(5.dp)
             ) {
-                Row(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                    ) { //purchase order section
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = addToName,
-                        placeholderText = "Add to Name",
-                        keyboardType = KeyboardType.Text
-                    )
-
+                    TextButton(onClick = {
+                        Toast.makeText(context, "self", Toast.LENGTH_SHORT).show()
+                    },
+                        ) {
+                        Text("SELF")
+                    }
                     Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(modifier = Modifier.weight(1f),
-                        state = entryType,
-                        placeholderText = "Entry Type",
-                        dropdownItems = EntryType.list(),
-                        onDropdownItemSelected = { selected ->
-                            when (selected) {
-                                EntryType.Piece.type -> {
-                                    qty.text = "1"
-                                }
-
-                                EntryType.Lot.type -> {
-
-                                }
-
-                                else -> {
-                                    entryType.text = selected
-                                }
-                            }
-                            entryType.text = selected
+                    CusOutlinedTextField(viewModel.billDate,
+                        placeholderText = "Bill Date",
+                        modifier = Modifier.weight(1f),
+                        isDatePicker = true,
+                        onDateSelected = {
+                            viewModel.getBillsFromDate()
                         })
 
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = qty,
-                        placeholderText = "Quantity",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                }
-                Spacer(Modifier.height(5.dp))
-
-                Row {
-                    CusOutlinedTextField(modifier = Modifier.weight(1f),
-                        state = grWt,
-                        placeholderText = "Gr.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                        onTextChange = {
-                            ntWt.text = it
-                        })
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = ntWt,
-                        placeholderText = "NT.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(modifier = Modifier.weight(1f),
-                        state = purity,
-                        placeholderText = "Purity",
-                        dropdownItems = Purity.list(),
-                        onDropdownItemSelected = { selected ->
-                            if (ntWt.text.isNotBlank()) {
-                                val ntWtValue = ntWt.text.toDoubleOrNull() ?: 0.0
-                                val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                fnWt.text = String.format("%.2f", ntWtValue * multiplier)
-                            }
-                            purity.text = selected
-                        })
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = fnWt,
-                        placeholderText = "Fn.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                    )
-                }
-                Spacer(Modifier.height(5.dp))
-
-                Row {
-
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = chargeType,
-                        placeholderText = "Charge Type",
-                        dropdownItems = ChargeType.list(),
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = charge,
-                        placeholderText = "charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = otherChargeDes,
-                        placeholderText = "Oth Charge Des",
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = othCharge,
-                        placeholderText = "Oth Charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-                }
-                Spacer(Modifier.height(5.dp))
-
-                Row {
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = cgst,
-                        placeholderText = "CGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = sgst,
-                        placeholderText = "SGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = igst,
-                        placeholderText = "IGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(2f),
-                        state = huid,
-                        placeholderText = "H-UID",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.height(5.dp))
-                }
-                Spacer(Modifier.height(5.dp))
-                Row {
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = desKey,
-                        placeholderText = "Description",
-                        keyboardType = KeyboardType.Text,
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(2f),
-                        state = desValue,
-                        placeholderText = "Value",
-                        keyboardType = KeyboardType.Text,
-                    )
-
-                }
-
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.weight(1f))
-                    Text("Cancel", Modifier
-                        .bounceClick {
-                            addToName.text = ""
-                            entryType.text = ""
-                            qty.text = ""
-                            grWt.text = ""
-                            ntWt.text = ""
-                            purity.text = ""
-                            fnWt.text = ""
-                            chargeType.text = ""
-                            charge.text = ""
-                            otherChargeDes.text = ""
-                            othCharge.text = ""
-                            huid.text = ""
-                            desValue.text = ""
-
-                            addItem.value = false
-                        }
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(16.dp),
-                        )
-                        .padding(10.dp), fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(15.dp))
-                    Text("Add", Modifier
-                        .bounceClick {
-                            addItem.value = false
-
-                            val newItem = ItemEntity(
-                                itemAddName = addToName.text,
-                                userId = 1,
-                                storeId = 1,
-                                catId = catId,
-                                subCatId = subCatId,
-                                catName = catName,
-                                subCatName = subCatName,
-                                entryType = entryType.text,
-                                quantity = qty.text.toIntOrNull() ?: 1,
-                                gsWt = grWt.text.toDoubleOrNull() ?: 0.0,
-                                ntWt = ntWt.text.toDoubleOrNull() ?: 0.0,
-                                fnWt = fnWt.text.toDoubleOrNull() ?: 0.0,
-                                purity = purity.text,
-                                crgType = chargeType.text,
-                                crg = charge.text.toDoubleOrNull() ?: 0.0,
-                                othCrgDes = otherChargeDes.text,
-                                othCrg = othCharge.text.toDoubleOrNull() ?: 0.0,
-                                cgst = cgst.text.toDoubleOrNull() ?: 0.0,
-                                sgst = sgst.text.toDoubleOrNull() ?: 0.0,
-                                igst = igst.text.toDoubleOrNull() ?: 0.0,
-                                addDesKey = desKey.text,
-                                addDesValue = desValue.text,
-                                huid = huid.text,
-                                addDate = Timestamp(System.currentTimeMillis()),
-                                modifiedDate = Timestamp(System.currentTimeMillis())
-                            )
-
-                            inventoryViewModel.safeInsertItem(newItem, onFailure = {
-
-                            }, onSuccess = { itemEntity, l ->
-
-                                inventoryViewModel.filterItems(
-                                    catId = catId, subCatId = subCatId
-                                )
-
-                                addToName.text = ""
-                                entryType.text = ""
-                                qty.text = ""
-                                grWt.text = ""
-                                ntWt.text = ""
-                                purity.text = ""
-                                fnWt.text = ""
-                                chargeType.text = ""
-                                charge.text = ""
-                                otherChargeDes.text = ""
-                                othCharge.text = ""
-                                desValue.text = ""
-                                huid.text = ""
-//                                    inventoryViewModel.loadingState.value = false
+                    if (viewModel.purchaseOrdersByDate.isNotEmpty()){
+                        Spacer(Modifier.width(5.dp))
+                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                            state = viewModel.billNo,
+                            placeholderText = "Bill No",
+                            readOnly = true,
+                            dropdownItems = viewModel.purchaseOrdersByDate.map { it.billNo },
+                            onDropdownItemSelected = { sel ->
+                                val item = viewModel.purchaseOrdersByDate.find { it.billNo == sel }
+                                if (item != null) {
+                                    viewModel.getPurchaseOrderItemDetails(item, subCatName)
+                                } else {
+                                    viewModel.snackBarState.value = "Unable to find purchase order item"
+                                }
                             })
+
+                        if (viewModel.billItemDetails.value.isNotBlank()){
+                            Spacer(Modifier.width(5.dp))
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(5.dp)
+                            ) {
+                                Text(viewModel.billItemDetails.value, fontSize = 10.sp)
+                            }
                         }
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(16.dp),
-                        )
-                        .padding(10.dp), fontWeight = FontWeight.Bold)
+                    }
                 }
+
+                if (viewModel.billItemDetails.value.isNotBlank()){
+                    Spacer(Modifier.height(5.dp))
+
+                    Row(Modifier.fillMaxWidth()) {
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.addToName,
+                            placeholderText = "Add to Name",
+                            keyboardType = KeyboardType.Text
+                        )
+
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                            state = viewModel.entryType,
+                            placeholderText = "Entry Type",
+                            dropdownItems = EntryType.list(),
+                            onDropdownItemSelected = { selected ->
+                                when (selected) {
+                                    EntryType.Piece.type -> {
+                                        viewModel.qty.text = "1"
+                                    }
+
+                                    EntryType.Lot.type -> {
+
+                                    }
+
+                                    else -> {
+                                        viewModel.entryType.text = selected
+                                    }
+                                }
+                                viewModel.entryType.text = selected
+                            })
+
+
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.qty,
+                            placeholderText = "Quantity",
+                            keyboardType = KeyboardType.Number,
+                        )
+
+                    }
+                    Spacer(Modifier.height(5.dp))
+
+                    Row {
+                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                            state = viewModel.grWt,
+                            placeholderText = "Gr.Wt/gm",
+                            keyboardType = KeyboardType.Number,
+                            onTextChange = {
+                                viewModel.ntWt.text = it
+                            })
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.ntWt,
+                            placeholderText = "NT.Wt/gm",
+                            keyboardType = KeyboardType.Number,
+                        )
+
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                            state = viewModel.purity,
+                            placeholderText = "Purity",
+                            dropdownItems = Purity.list(),
+                            onDropdownItemSelected = { selected ->
+                                if (viewModel.ntWt.text.isNotBlank()) {
+                                    val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+                                    val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                }
+                                viewModel.purity.text = selected
+                            })
+
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.fnWt,
+                            placeholderText = "Fn.Wt/gm",
+                            keyboardType = KeyboardType.Number,
+                        )
+                    }
+                    Spacer(Modifier.height(5.dp))
+
+                    Row {
+
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.chargeType,
+                            placeholderText = "Charge Type",
+                            dropdownItems = ChargeType.list(),
+                        )
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.charge,
+                            placeholderText = "charge",
+                            keyboardType = KeyboardType.Number,
+                        )
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.otherChargeDes,
+                            placeholderText = "Oth Charge Des",
+                        )
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.othCharge,
+                            placeholderText = "Oth Charge",
+                            keyboardType = KeyboardType.Number,
+                        )
+                    }
+                    Spacer(Modifier.height(5.dp))
+
+                    Row {
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.cgst,
+                            placeholderText = "CGST",
+                            keyboardType = KeyboardType.Number,
+                        )
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.sgst,
+                            placeholderText = "SGST",
+                            keyboardType = KeyboardType.Number,
+                        )
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.igst,
+                            placeholderText = "IGST",
+                            keyboardType = KeyboardType.Number,
+                        )
+
+                        Spacer(Modifier.width(5.dp))
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(2f),
+                            state = viewModel.huid,
+                            placeholderText = "H-UID",
+                            keyboardType = KeyboardType.Number,
+                        )
+                        Spacer(Modifier.height(5.dp))
+                    }
+                    Spacer(Modifier.height(5.dp))
+                    Row {
+
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
+                            state = viewModel.desKey,
+                            placeholderText = "Description",
+                            keyboardType = KeyboardType.Text,
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(2f),
+                            state = viewModel.desValue,
+                            placeholderText = "Value",
+                            keyboardType = KeyboardType.Text,
+                        )
+
+                    }
+
+                    Spacer(Modifier.height(5.dp))
+                    Row(Modifier.fillMaxWidth()) {
+                        Spacer(Modifier.weight(1f))
+                        Text("Cancel", Modifier
+                            .bounceClick {
+                                viewModel.addToName.clear()
+                                viewModel.entryType.clear()
+                                viewModel.qty.clear()
+                                viewModel.grWt.clear()
+                                viewModel.ntWt.clear()
+                                viewModel.purity.clear()
+                                viewModel.fnWt.clear()
+                                viewModel.chargeType.clear()
+                                viewModel.charge.clear()
+                                viewModel.otherChargeDes.clear()
+                                viewModel.othCharge.clear()
+                                viewModel.huid.clear()
+                                viewModel.desValue.clear()
+
+                                addItem.value = false
+                            }
+                            .background(
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(16.dp),
+                            )
+                            .padding(10.dp), fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(15.dp))
+                        Text("Add", Modifier
+                            .bounceClick {
+                                addItem.value = false
+
+                                val newItem = ItemEntity(
+                                    itemAddName = viewModel.addToName.text,
+                                    userId = 1,
+                                    storeId = 1,
+                                    catId = catId,
+                                    subCatId = subCatId,
+                                    catName = catName,
+                                    subCatName = subCatName,
+                                    entryType = viewModel.entryType.text,
+                                    quantity = viewModel.qty.text.toIntOrNull() ?: 1,
+                                    gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
+                                    ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
+                                    fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
+                                    purity = viewModel.purity.text,
+                                    crgType = viewModel.chargeType.text,
+                                    crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
+                                    othCrgDes = viewModel.otherChargeDes.text,
+                                    othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
+                                    cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
+                                    sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
+                                    igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
+                                    addDesKey = viewModel.desKey.text,
+                                    addDesValue = viewModel.desValue.text,
+                                    huid = viewModel.huid.text,
+                                    addDate = Timestamp(System.currentTimeMillis()),
+                                    modifiedDate = Timestamp(System.currentTimeMillis()),
+
+                                    //seller info todo
+                                    sellerFirmId = 0,
+                                    purchaseOrderId = 0,
+                                    purchaseItemId = 0,
+
+                                    )
+
+                                viewModel.safeInsertItem(newItem, onFailure = {
+
+                                }, onSuccess = { itemEntity, l ->
+
+                                    viewModel.filterItems(
+                                        catId = catId, subCatId = subCatId
+                                    )
+
+                                    viewModel.addToName.text = ""
+                                    viewModel.entryType.text = ""
+                                    viewModel.qty.text = ""
+                                    viewModel.grWt.text = ""
+                                    viewModel.ntWt.text = ""
+                                    viewModel.purity.text = ""
+                                    viewModel.fnWt.text = ""
+                                    viewModel.chargeType.text = ""
+                                    viewModel.charge.text = ""
+                                    viewModel.otherChargeDes.text = ""
+                                    viewModel.othCharge.text = ""
+                                    viewModel.desValue.text = ""
+                                    viewModel.huid.text = ""
+//                                    inventoryViewModel.loadingState.value = false
+                                })
+                            }
+                            .background(
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(16.dp),
+                            )
+                            .padding(10.dp), fontWeight = FontWeight.Bold)
+                    }
+                }
+
+
             }
         }
     }

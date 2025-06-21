@@ -178,7 +178,16 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                         Box(
                             modifier = Modifier
                                 .bounceClick {
-                                    navHost.navigate(Screens.Purchase.route)
+                                    dashboardViewModel.getSubCategoryCount{
+                                        if (it>2){
+                                            mainScope {
+                                                navHost.navigate(Screens.Purchase.route)
+                                            }
+                                        }else{
+                                            baseViewModel.snackMessage = "Please add more sub categories."
+                                        }
+                                    }
+
                                 }
                                 .weight(1f)
                                 .fillMaxSize()
@@ -235,7 +244,7 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
                         .height(20.dp)
                 ) {
                     Text(
-                        "${it.subCatName}",
+                        "${it.subCatName} ",
                         fontSize = 10.sp,
                         modifier = Modifier
                             .weight(3f)
@@ -474,21 +483,21 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "${it.gsWt.to2FString()}",
+                                "${it.gsWt.to2FString()} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "${(it.price+it.charge+it.tax).to2FString()}",
+                                "${(it.price+it.charge+it.tax).to2FString()} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "${it.tax.to2FString()}",
+                                "${it.tax.to2FString()} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,

@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -11,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -38,6 +41,22 @@ suspend fun <T> withMain(block: suspend () -> T): T {
     return withContext(Dispatchers.Main) {
         block()
     }
+}
+
+fun ViewModel.ioLaunch(block: suspend () -> Unit) {
+    viewModelScope.launch {
+        withContext(Dispatchers.IO) {
+            block()
+        }
+    }
+}
+
+fun getCurrentDate(): String {
+    val formatter = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+    return formatter.format(Date())
+}
+fun getCurrentTimestamp(): Timestamp {
+    return Timestamp(System.currentTimeMillis())
 }
 
 

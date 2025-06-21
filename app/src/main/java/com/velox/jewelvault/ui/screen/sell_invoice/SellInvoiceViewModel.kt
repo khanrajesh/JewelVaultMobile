@@ -19,6 +19,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.roundTo3Decimal
@@ -58,24 +59,19 @@ class SellInvoiceViewModel @Inject constructor(
         private set
 
     init {
-        viewModelScope.launch {
-            withIo {
-                showSeparateCharges.value =
-                    _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()
-                        ?: false
-            }
+        ioLaunch {
+            showSeparateCharges.value =
+                _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first() ?: false
         }
+
     }
 
     fun updateChargeView(state: Boolean) {
-        viewModelScope.launch {
-            withIo {
-                _dataStoreManager.setValue(DataStoreManager.SHOW_SEPARATE_CHARGE, state)
-                delay(50)
-                showSeparateCharges.value =
-                    _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first()
-                        ?: false
-            }
+        ioLaunch {
+            _dataStoreManager.setValue(DataStoreManager.SHOW_SEPARATE_CHARGE, state)
+            delay(50)
+            showSeparateCharges.value =
+                _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first() ?: false
         }
     }
 
@@ -126,39 +122,37 @@ class SellInvoiceViewModel @Inject constructor(
 
     //region customer
     fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit = {}) {
-        viewModelScope.launch {
-            ioScope {
-                try {
-                    _loadingState.value = true
-                    val mobile = customerMobile.text.trim()
-                    if (mobile.isNotEmpty()) {
-                        val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
-                        customer?.let {
-                            customerExists.value = true
-                            customerName.text = it.name
-                            customerAddress.text = it.address ?: ""
-                            customerGstin.text = it.gstin_pan ?: ""
-                            _loadingState.value = false
-                            _snackBarState.value = "Customer Found"
-                            onFound(customer)
-                        } ?: run {
-                            customerExists.value = false
-                            _loadingState.value = false
-                            _snackBarState.value = "No Customer Found"
-                            onFound(null)
-                        }
-
-                    } else {
+        ioLaunch {
+            try {
+                _loadingState.value = true
+                val mobile = customerMobile.text.trim()
+                if (mobile.isNotEmpty()) {
+                    val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                    customer?.let {
+                        customerExists.value = true
+                        customerName.text = it.name
+                        customerAddress.text = it.address ?: ""
+                        customerGstin.text = it.gstin_pan ?: ""
+                        _loadingState.value = false
+                        _snackBarState.value = "Customer Found"
+                        onFound(customer)
+                    } ?: run {
                         customerExists.value = false
                         _loadingState.value = false
                         _snackBarState.value = "No Customer Found"
                         onFound(null)
                     }
 
-                } catch (e: Exception) {
+                } else {
+                    customerExists.value = false
                     _loadingState.value = false
-                    _snackBarState.value = "Error fetching customer details"
+                    _snackBarState.value = "No Customer Found"
+                    onFound(null)
                 }
+
+            } catch (e: Exception) {
+                _loadingState.value = false
+                _snackBarState.value = "Error fetching customer details"
             }
         }
     }
@@ -169,87 +163,84 @@ class SellInvoiceViewModel @Inject constructor(
     fun completeOrder(
         onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
-        viewModelScope.launch {
-            withIo {
-                _loadingState.value = true
-                try {
-                    //1. check if customer exist
-                    val mobile = customerMobile.text.trim()
+        ioLaunch {
+            _loadingState.value = true
+            try {
+                //1. check if customer exist
+                val mobile = customerMobile.text.trim()
 
-                    val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
 
-                    //2. add customer if not exist
-                    if (existingCustomer == null) {
-                        val newCustomer = CustomerEntity(
-                            mobileNo = mobile,
-                            name = customerName.text.trim(),
-                            address = customerAddress.text.trim(),
-                            gstin_pan = customerGstin.text.trim(),
-                            addDate = Timestamp(System.currentTimeMillis()),
-                            lastModifiedDate = Timestamp(System.currentTimeMillis()),
-                        )
-                        appDatabase.customerDao().insertCustomer(newCustomer)
-                    }
+                //2. add customer if not exist
+                if (existingCustomer == null) {
+                    val newCustomer = CustomerEntity(
+                        mobileNo = mobile,
+                        name = customerName.text.trim(),
+                        address = customerAddress.text.trim(),
+                        gstin_pan = customerGstin.text.trim(),
+                        addDate = Timestamp(System.currentTimeMillis()),
+                        lastModifiedDate = Timestamp(System.currentTimeMillis()),
+                    )
+                    appDatabase.customerDao().insertCustomer(newCustomer)
+                }
 
-                    // Calculate totals
-                    val totalAmount = selectedItemList.sumOf { it.price }
-                    val totalTax = selectedItemList.sumOf { it.tax }
-                    val totalCharge = selectedItemList.sumOf { it.chargeAmount }
-                    val userId = _dataStoreManager.userId.first()
-                    val storeId = _dataStoreManager.storeId.first()
-                    //3. add order and its item details
-                    addOrderWithItems(
-                        userId = userId,
-                        storeId = storeId,
-                        mobile = mobile,
-                        totalAmount = totalAmount,
-                        totalTax = totalTax,
-                        totalCharge = totalCharge,
-                        onSuccess = {
-                            ioScope {
-                                val cus = appDatabase.customerDao().getCustomerByMobile(mobile)
+                // Calculate totals
+                val totalAmount = selectedItemList.sumOf { it.price }
+                val totalTax = selectedItemList.sumOf { it.tax }
+                val totalCharge = selectedItemList.sumOf { it.chargeAmount }
+                val userId = _dataStoreManager.userId.first()
+                val storeId = _dataStoreManager.storeId.first()
+                //3. add order and its item details
+                addOrderWithItems(
+                    userId = userId,
+                    storeId = storeId,
+                    mobile = mobile,
+                    totalAmount = totalAmount,
+                    totalTax = totalTax,
+                    totalCharge = totalCharge,
+                    onSuccess = {
+                        ioScope {
+                            val cus = appDatabase.customerDao().getCustomerByMobile(mobile)
 
-                                if (cus != null) {
-                                    val ta =
-                                        cus.totalAmount + (totalAmount + totalTax + totalCharge)
-                                    val qty =
-                                        cus.totalItemBought + selectedItemList.sumOf { it.quantity }
+                            if (cus != null) {
+                                val ta = cus.totalAmount + (totalAmount + totalTax + totalCharge)
+                                val qty =
+                                    cus.totalItemBought + selectedItemList.sumOf { it.quantity }
 
-                                    //4. update the customer details
-                                    val a = appDatabase.customerDao().updateCustomer(
-                                        cus.copy(
-                                            lastModifiedDate = Timestamp(System.currentTimeMillis()),
-                                            totalAmount = ta,
-                                            totalItemBought = qty,
-                                        )
+                                //4. update the customer details
+                                val a = appDatabase.customerDao().updateCustomer(
+                                    cus.copy(
+                                        lastModifiedDate = Timestamp(System.currentTimeMillis()),
+                                        totalAmount = ta,
+                                        totalItemBought = qty,
                                     )
+                                )
 
-                                    if (a != -1) {
-                                        //successfully update the customer details
-                                        //5. remove item from items, subcategory, category
-                                        removeItemSafely(onSuccess = {
-                                            //6. generate the pdf
-                                            generateInvoice(
-                                                storeId,
-                                                cus,
-                                                onSuccess = onSuccess,
-                                                onFailure = onFailure
-                                            )
-                                        }, onFailure)
-                                    } else {
-                                        //failed to update the customer details
-                                        _loadingState.value = false
-                                        onFailure("Failed to update customer details")
-                                    }
+                                if (a != -1) {
+                                    //successfully update the customer details
+                                    //5. remove item from items, subcategory, category
+                                    removeItemSafely(onSuccess = {
+                                        //6. generate the pdf
+                                        generateInvoice(
+                                            storeId,
+                                            cus,
+                                            onSuccess = onSuccess,
+                                            onFailure = onFailure
+                                        )
+                                    }, onFailure)
+                                } else {
+                                    //failed to update the customer details
+                                    _loadingState.value = false
+                                    onFailure("Failed to update customer details")
                                 }
                             }
-                        },
-                        onFailure = onFailure
-                    )
-                } catch (e: Exception) {
-                    _loadingState.value = false
-                    onFailure("")
-                }
+                        }
+                    },
+                    onFailure = onFailure
+                )
+            } catch (e: Exception) {
+                _loadingState.value = false
+                onFailure("")
             }
         }
     }
@@ -341,102 +332,95 @@ class SellInvoiceViewModel @Inject constructor(
     private fun removeItemSafely(
         onSuccess: () -> Unit = {}, onFailure: (String) -> Unit = {}
     ) {
-        viewModelScope.launch {
-            withIo {
-                _loadingState.value = true
-                try {
-                    selectedItemList.forEach { item ->
-                        try {
-                            val itemId = item.itemId
-                            val catId = item.catId
-                            val subCatId = item.subCatId
-                            val itemGsWt = item.gsWt
-                            val itemNtWt = item.ntWt
-                            val itemFnWt = item.fnWt
-                            val itemQty = item.quantity
-                            val result = if (item.entryType == EntryType.Lot.type) {
-                                val itemEntity = appDatabase.itemDao().getItemById(itemId)
-                                if (itemEntity != null) {
-                                    if ( (itemEntity.quantity - itemQty) <= 0){
-                                        appDatabase.itemDao().deleteById(itemId, catId, subCatId)
-                                    }else{
-                                        appDatabase.itemDao().updateItem(
-                                            itemEntity.copy(
-                                                gsWt = (itemEntity.gsWt - itemGsWt),
-                                                ntWt = (itemEntity.ntWt - itemNtWt),
-                                                fnWt = (itemEntity.fnWt - itemFnWt),
-                                                quantity = (itemEntity.quantity - itemQty)
-                                            )
-                                        )
-                                    }
+        ioLaunch {
+            _loadingState.value = true
+            try {
+                selectedItemList.forEach { item ->
+                    try {
+                        val itemId = item.itemId
+                        val catId = item.catId
+                        val subCatId = item.subCatId
+                        val itemGsWt = item.gsWt
+                        val itemNtWt = item.ntWt
+                        val itemFnWt = item.fnWt
+                        val itemQty = item.quantity
+                        val result = if (item.entryType == EntryType.Lot.type) {
+                            val itemEntity = appDatabase.itemDao().getItemById(itemId)
+                            if (itemEntity != null) {
+                                if ((itemEntity.quantity - itemQty) <= 0) {
+                                    appDatabase.itemDao().deleteById(itemId, catId, subCatId)
                                 } else {
-                                    onFailure("Item with lot failed to delete from DB")
-                                    -1
+                                    appDatabase.itemDao().updateItem(
+                                        itemEntity.copy(
+                                            gsWt = (itemEntity.gsWt - itemGsWt),
+                                            ntWt = (itemEntity.ntWt - itemNtWt),
+                                            fnWt = (itemEntity.fnWt - itemFnWt),
+                                            quantity = (itemEntity.quantity - itemQty)
+                                        )
+                                    )
                                 }
                             } else {
-                                appDatabase.itemDao().deleteById(itemId, catId, subCatId)
+                                onFailure("Item with lot failed to delete from DB")
+                                -1
                             }
-                            if (result > 0) {
-                                try {
-                                    val subCategory =
-                                        appDatabase.subCategoryDao().getSubCategoryById(subCatId)
-                                    subCategory?.let {
-                                        val updatedSubCatGsWt =
-                                            (it.gsWt - itemGsWt).coerceAtLeast(0.0)
-                                                .roundTo3Decimal()
-                                        val updatedSubCatFnWt =
-                                            (it.fnWt - itemFnWt).coerceAtLeast(0.0)
-                                                .roundTo3Decimal()
-                                        val updatedSubCatQty =
-                                            (it.quantity - itemQty).coerceAtLeast(0)
-
-                                        appDatabase.subCategoryDao().updateWeightsAndQuantity(
-                                            subCatId = subCatId,
-                                            gsWt = updatedSubCatGsWt,
-                                            fnWt = updatedSubCatFnWt,
-                                            quantity = updatedSubCatQty
-                                        )
-                                    }
-
-                                    val category = appDatabase.categoryDao().getCategoryById(catId)
-                                    category?.let {
-                                        val updatedCatGsWt = (it.gsWt - itemGsWt).coerceAtLeast(0.0)
-                                            .roundTo3Decimal()
-                                        val updatedCatFnWt = (it.fnWt - itemFnWt).coerceAtLeast(0.0)
-                                            .roundTo3Decimal()
-
-                                        appDatabase.categoryDao().updateWeights(
-                                            catId = catId,
-                                            gsWt = updatedCatGsWt,
-                                            fnWt = updatedCatFnWt
-                                        )
-                                    }
-
-                                    onSuccess()
-                                } catch (e: Exception) {
-                                    _loadingState.value = false
-                                    onFailure("Error updating Cat and SubCat Weight error: ${e.message}")
-                                    this@SellInvoiceViewModel.log("Error updating Cat and SubCat Weight error: ${e.message}")
-
-                                }
-                            } else {
-                                _loadingState.value = false
-                                onFailure("No rows deleted. Check itemId, catId, and subCatId.")
-                                this@SellInvoiceViewModel.log("No rows deleted. Check itemId, catId, and subCatId.")
-                            }
-
-                        } catch (e: Exception) {
-                            _loadingState.value = false
-                            onFailure("Error removing the item from DB, error: ${e.message}")
-                            this@SellInvoiceViewModel.log("Error removing the item from DB, error: ${e.message}")
-
+                        } else {
+                            appDatabase.itemDao().deleteById(itemId, catId, subCatId)
                         }
+                        if (result > 0) {
+                            try {
+                                val subCategory =
+                                    appDatabase.subCategoryDao().getSubCategoryById(subCatId)
+                                subCategory?.let {
+                                    val updatedSubCatGsWt =
+                                        (it.gsWt - itemGsWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedSubCatFnWt =
+                                        (it.fnWt - itemFnWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedSubCatQty = (it.quantity - itemQty).coerceAtLeast(0)
+
+                                    appDatabase.subCategoryDao().updateWeightsAndQuantity(
+                                        subCatId = subCatId,
+                                        gsWt = updatedSubCatGsWt,
+                                        fnWt = updatedSubCatFnWt,
+                                        quantity = updatedSubCatQty
+                                    )
+                                }
+
+                                val category = appDatabase.categoryDao().getCategoryById(catId)
+                                category?.let {
+                                    val updatedCatGsWt =
+                                        (it.gsWt - itemGsWt).coerceAtLeast(0.0).roundTo3Decimal()
+                                    val updatedCatFnWt =
+                                        (it.fnWt - itemFnWt).coerceAtLeast(0.0).roundTo3Decimal()
+
+                                    appDatabase.categoryDao().updateWeights(
+                                        catId = catId, gsWt = updatedCatGsWt, fnWt = updatedCatFnWt
+                                    )
+                                }
+
+                                onSuccess()
+                            } catch (e: Exception) {
+                                _loadingState.value = false
+                                onFailure("Error updating Cat and SubCat Weight error: ${e.message}")
+                                this@SellInvoiceViewModel.log("Error updating Cat and SubCat Weight error: ${e.message}")
+
+                            }
+                        } else {
+                            _loadingState.value = false
+                            onFailure("No rows deleted. Check itemId, catId, and subCatId.")
+                            this@SellInvoiceViewModel.log("No rows deleted. Check itemId, catId, and subCatId.")
+                        }
+
+                    } catch (e: Exception) {
+                        _loadingState.value = false
+                        onFailure("Error removing the item from DB, error: ${e.message}")
+                        this@SellInvoiceViewModel.log("Error removing the item from DB, error: ${e.message}")
+
                     }
-                } catch (e: Exception) {
-                    _loadingState.value = false
-                    onFailure("Error removing the item safely DB, error: ${e.message}")
-                    this@SellInvoiceViewModel.log("Error removing the item safely DB, error: ${e.message}")
                 }
+            } catch (e: Exception) {
+                _loadingState.value = false
+                onFailure("Error removing the item safely DB, error: ${e.message}")
+                this@SellInvoiceViewModel.log("Error removing the item safely DB, error: ${e.message}")
             }
         }
     }
@@ -445,32 +429,30 @@ class SellInvoiceViewModel @Inject constructor(
     private fun generateInvoice(
         storeId: Int, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
-        viewModelScope.launch {
-            withIo {
-                _loadingState.value = true
-                try {
-                    val store = appDatabase.storeDao().getStoreById(storeId)
-                    if (store != null && customerSign.value != null && ownerSign.value != null) {
-                        generateInvoicePdf(
-                            context = context,
-                            store = store,
-                            customer = cus,
-                            items = selectedItemList,
-                            customerSign = customerSign.value!!,
-                            ownerSign = ownerSign.value!!
-                        ) { file ->
-                            generatedPdfFile = file
-                            _loadingState.value = false
-                            onSuccess()
-                        }
-                    } else {
+        ioLaunch {
+            _loadingState.value = true
+            try {
+                val store = appDatabase.storeDao().getStoreById(storeId)
+                if (store != null && customerSign.value != null && ownerSign.value != null) {
+                    generateInvoicePdf(
+                        context = context,
+                        store = store,
+                        customer = cus,
+                        items = selectedItemList,
+                        customerSign = customerSign.value!!,
+                        ownerSign = ownerSign.value!!
+                    ) { file ->
+                        generatedPdfFile = file
                         _loadingState.value = false
-                        onFailure("Store Details Not Found")
+                        onSuccess()
                     }
-                } catch (e: Exception) {
+                } else {
                     _loadingState.value = false
-                    onFailure("Unable to Generate Invoice PDF")
+                    onFailure("Store Details Not Found")
                 }
+            } catch (e: Exception) {
+                _loadingState.value = false
+                onFailure("Unable to Generate Invoice PDF")
             }
         }
     }
@@ -482,9 +464,9 @@ class SellInvoiceViewModel @Inject constructor(
         customerMobile.text = ""
         customerAddress.text = ""
         customerGstin.text = ""
-        ownerSign.value =null
+        ownerSign.value = null
         customerSign.value = null
-        generatedPdfFile =null
+        generatedPdfFile = null
     }
 
 }

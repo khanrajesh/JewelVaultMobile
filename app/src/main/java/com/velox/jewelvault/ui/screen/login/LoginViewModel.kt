@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.UsersEntity
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.ioLaunch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -21,7 +22,7 @@ class LoginViewModel @Inject constructor(
 
 
     fun signup(usersEntity: UsersEntity, onSuccess: () -> Unit, onFailure: () -> Unit) {
-        viewModelScope.launch {
+       ioLaunch {
             try {
                 val result = _appDatabase.userDao().insertUser(usersEntity)
                 result?.let { onSuccess() } ?: onFailure()
@@ -32,7 +33,7 @@ class LoginViewModel @Inject constructor(
     }
 
     fun login(phone: String, pass: String, onSuccess: (UsersEntity) -> Unit, onFailure: (String) -> Unit) {
-        viewModelScope.launch {
+       ioLaunch {
             try {
                 val result = _appDatabase.userDao().getUserByMobile(phone)
                 result?.let {

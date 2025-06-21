@@ -49,7 +49,9 @@ class InputFieldState(
         }
     }
 
-    val clear = { text = "" }
+    fun clear() {
+        text = ""
+    }
 
     fun asState(): State<String> = _text
 }
