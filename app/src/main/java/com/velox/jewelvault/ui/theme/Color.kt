@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.theme
 import androidx.compose.ui.graphics.Color
 
+
 val primaryLight = Color(0xFFD0B17D)
 val onPrimaryLight = Color(0xFFFFFFFF)
 val primaryContainerLight = Color(0xFFFFDEA8)
@@ -72,6 +73,12 @@ val surfaceContainerLowDark = Color(0xFF1E1B13)
 val surfaceContainerDark = Color(0xFF221F17)
 val surfaceContainerHighDark = Color(0xFF2D2A21)
 val surfaceContainerHighestDark = Color(0xFF38342B)
+
+
+//custom color component
+val LightGreen = Color(0xFF90EE90)
+val LightRed = Color(0xFFF08080)
+
 
 
 

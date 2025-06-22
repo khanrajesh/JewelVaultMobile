@@ -9,10 +9,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
+import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
+import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
@@ -43,6 +45,8 @@ class InventoryViewModel @Inject constructor(
     val catSubCatDto: SnapshotStateList<CatSubCatDto> = SnapshotStateList()
     val purchaseOrdersByDate: SnapshotStateList<PurchaseOrderEntity> = SnapshotStateList()
 
+    val purchaseItems: SnapshotStateList<PurchaseOrderItemEntity> = SnapshotStateList()
+
 
     val addToName = InputFieldState()
     val entryType = InputFieldState()
@@ -64,6 +68,9 @@ class InventoryViewModel @Inject constructor(
     val billDate = InputFieldState()
     val billNo = InputFieldState()
     val billItemDetails = mutableStateOf("")
+
+
+    val isSelf = mutableStateOf(true)
 
     val itemHeaderList = listOf(
         "S.No",
@@ -443,14 +450,13 @@ class InventoryViewModel @Inject constructor(
         ioLaunch {
             val purchaseItemList = appDatabase.purchaseDao()
                 .getItemsByOrderIdAndSubCatName(item.purchaseOrderId, subCatName)
-
-
-
+            purchaseItems.clear()
             billItemDetails.value = ""
             if (purchaseItemList.isNotEmpty()){
                 val sellerInfo = appDatabase.purchaseDao().getSellerById(item.sellerId)
 
                 if (sellerInfo!=null){
+                    //todo
 //                    sellerFirmId = 0,
 //                    purchaseOrderId = 0,
 //                    purchaseItemId = 0,
@@ -462,7 +468,7 @@ class InventoryViewModel @Inject constructor(
                     }.joinToString(", ")
                     billItemDetails.value  = "$t \n$u"
 
-
+                    purchaseItems.addAll(purchaseItemList)
                 }
 
             }

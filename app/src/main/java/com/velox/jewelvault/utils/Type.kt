@@ -49,4 +49,4 @@ enum class ExportFormat {
     CSV, XLS, XLSX
 }
 
-enum class OrderSort { ASCENDING, DESCENDING }
+enum class SortOrder { ASCENDING, DESCENDING }

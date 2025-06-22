@@ -3,14 +3,11 @@ package com.velox.jewelvault.ui.screen.inventory
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +45,8 @@ import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ItemListViewComponent
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.theme.LightGreen
+import com.velox.jewelvault.ui.theme.LightRed
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.LocalBaseViewModel
@@ -225,55 +226,61 @@ private fun AddItemSection(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                     .padding(5.dp)
             ) {
-                Row(Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                    ) { //purchase order section
+                Row(
+                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+                ) { //purchase order section
 
-                    TextButton(onClick = {
-                        Toast.makeText(context, "self", Toast.LENGTH_SHORT).show()
-                    },
-                        ) {
-                        Text("SELF")
+                    Button(
+                        onClick = {
+                            viewModel.isSelf.value = !viewModel.isSelf.value
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (viewModel.isSelf.value) LightGreen else LightRed
+                        )
+                    ) {
+                        Text("SELF", fontWeight = FontWeight.SemiBold)
                     }
+                    if (!viewModel.isSelf.value){
                     Spacer(Modifier.width(5.dp))
-                    CusOutlinedTextField(viewModel.billDate,
-                        placeholderText = "Bill Date",
-                        modifier = Modifier.weight(1f),
-                        isDatePicker = true,
-                        onDateSelected = {
-                            viewModel.getBillsFromDate()
-                        })
-
-                    if (viewModel.purchaseOrdersByDate.isNotEmpty()){
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(modifier = Modifier.weight(1f),
-                            state = viewModel.billNo,
-                            placeholderText = "Bill No",
-                            readOnly = true,
-                            dropdownItems = viewModel.purchaseOrdersByDate.map { it.billNo },
-                            onDropdownItemSelected = { sel ->
-                                val item = viewModel.purchaseOrdersByDate.find { it.billNo == sel }
-                                if (item != null) {
-                                    viewModel.getPurchaseOrderItemDetails(item, subCatName)
-                                } else {
-                                    viewModel.snackBarState.value = "Unable to find purchase order item"
-                                }
+                        CusOutlinedTextField(viewModel.billDate,
+                            placeholderText = "Bill Date",
+                            modifier = Modifier.weight(1f),
+                            isDatePicker = true,
+                            onDateSelected = {
+                                viewModel.getBillsFromDate()
                             })
 
-                        if (viewModel.billItemDetails.value.isNotBlank()){
+                        if (viewModel.purchaseOrdersByDate.isNotEmpty()) {
                             Spacer(Modifier.width(5.dp))
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(5.dp)
-                            ) {
-                                Text(viewModel.billItemDetails.value, fontSize = 10.sp)
-                            }
+                            CusOutlinedTextField(modifier = Modifier.weight(1f),
+                                state = viewModel.billNo,
+                                placeholderText = "Bill No",
+                                readOnly = true,
+                                dropdownItems = viewModel.purchaseOrdersByDate.map { it.billNo },
+                                onDropdownItemSelected = { sel ->
+                                    val item = viewModel.purchaseOrdersByDate.find { it.billNo == sel }
+                                    if (item != null) {
+                                        viewModel.getPurchaseOrderItemDetails(item, subCatName)
+                                    } else {
+                                        viewModel.snackBarState.value =
+                                            "Unable to find purchase order item"
+                                    }
+                                })
+                        }
+
+                        if (viewModel.billItemDetails.value.isNotBlank()) {
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                modifier = Modifier.weight(1f),
+                                text = "${viewModel.billItemDetails.value} ",
+                                fontSize = 10.sp
+                            )
                         }
                     }
                 }
 
-                if (viewModel.billItemDetails.value.isNotBlank()){
+                if (viewModel.billItemDetails.value.isNotBlank() || viewModel.isSelf.value) {
+
                     Spacer(Modifier.height(5.dp))
 
                     Row(Modifier.fillMaxWidth()) {
@@ -324,7 +331,7 @@ private fun AddItemSection(
                     Row {
                         CusOutlinedTextField(modifier = Modifier.weight(1f),
                             state = viewModel.grWt,
-                            placeholderText = "Gr.Wt/gm",
+                            placeholderText = "Gs.Wt/gm",
                             keyboardType = KeyboardType.Number,
                             onTextChange = {
                                 viewModel.ntWt.text = it
@@ -334,7 +341,7 @@ private fun AddItemSection(
                         CusOutlinedTextField(
                             modifier = Modifier.weight(1f),
                             state = viewModel.ntWt,
-                            placeholderText = "NT.Wt/gm",
+                            placeholderText = "Nt.Wt/gm",
                             keyboardType = KeyboardType.Number,
                         )
 
@@ -348,7 +355,8 @@ private fun AddItemSection(
                                 if (viewModel.ntWt.text.isNotBlank()) {
                                     val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
                                     val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                    viewModel.fnWt.text =
+                                        String.format("%.2f", ntWtValue * multiplier)
                                 }
                                 viewModel.purity.text = selected
                             })
@@ -453,8 +461,30 @@ private fun AddItemSection(
                     }
 
                     Spacer(Modifier.height(5.dp))
-                    Row(Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.weight(1f))
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+                        val purItem =
+                            viewModel.purchaseItems.filter { it.subCatName.lowercase() == subCatName.lowercase() && it.purity == viewModel.purity.text }
+
+                        val text = purItem.joinToString(", ") {
+                            "${it.purity} - Gs.Wt${it.gsWt},  Fn.Wt: ${it.fnWt}/₹${it.fnRate},  wastage: ${it.wastagePercent}%"
+                        }
+
+                        if (!viewModel.isSelf.value) {
+                            Text(
+                                text, modifier = Modifier
+                                    .weight(1f)
+                                    .padding(5.dp),
+                                fontSize = 16.sp
+                            )
+
+                        }else{
+                            Spacer(Modifier.weight(1f))
+                        }
+
+
+
+                        Spacer(Modifier.width(5.dp))
                         Text("Cancel", Modifier
                             .bounceClick {
                                 viewModel.addToName.clear()
@@ -481,7 +511,11 @@ private fun AddItemSection(
                         Spacer(Modifier.width(15.dp))
                         Text("Add", Modifier
                             .bounceClick {
-                                addItem.value = false
+                                if (purItem.isEmpty() && !viewModel.isSelf.value) {
+                                    viewModel.snackBarState.value =
+                                        "No corresponding item found in purchase order"
+                                    return@bounceClick
+                                }
 
                                 val newItem = ItemEntity(
                                     itemAddName = viewModel.addToName.text,
@@ -512,13 +546,13 @@ private fun AddItemSection(
 
                                     //seller info todo
                                     sellerFirmId = 0,
-                                    purchaseOrderId = 0,
-                                    purchaseItemId = 0,
+                                    purchaseOrderId = if (viewModel.isSelf.value) 0 else if (purItem.isEmpty()) 0 else purItem[0].purchaseOrderId,
+                                    purchaseItemId = if (viewModel.isSelf.value) 0 else if (purItem.isEmpty()) 0 else purItem[0].purchaseItemId,
 
                                     )
 
                                 viewModel.safeInsertItem(newItem, onFailure = {
-
+                                    viewModel.snackBarState.value = "Add Item Failed"
                                 }, onSuccess = { itemEntity, l ->
 
                                     viewModel.filterItems(
@@ -538,8 +572,11 @@ private fun AddItemSection(
                                     viewModel.othCharge.text = ""
                                     viewModel.desValue.text = ""
                                     viewModel.huid.text = ""
+
 //                                    inventoryViewModel.loadingState.value = false
                                 })
+
+                                addItem.value = false
                             }
                             .background(
                                 MaterialTheme.colorScheme.primary,

@@ -13,6 +13,7 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.MetalExchangeEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PurchaseDao {
@@ -117,4 +118,12 @@ interface PurchaseDao {
     @Transaction
     @Query("SELECT * FROM purchase_orders")
     suspend fun getAllOrdersWithDetails(): List<PurchaseOrderWithDetails>
+
+    @Transaction
+    @Query("SELECT * FROM purchase_orders ORDER BY billDate ASC")
+     fun getAllOrdersWithDetailsByBillDateAsc(): Flow<List<PurchaseOrderWithDetails>>
+
+    @Transaction
+    @Query("SELECT * FROM purchase_orders ORDER BY billDate DESC")
+     fun getAllOrdersWithDetailsByBillDateDesc(): Flow<List<PurchaseOrderWithDetails>>
 }

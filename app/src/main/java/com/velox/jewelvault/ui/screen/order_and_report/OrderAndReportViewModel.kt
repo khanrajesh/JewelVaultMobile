@@ -2,19 +2,14 @@ package com.velox.jewelvault.ui.screen.order_and_report
 
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.data.roomdb.entity.ItemEntity
+import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.utils.DataStoreManager
-import com.velox.jewelvault.utils.OrderSort
+import com.velox.jewelvault.utils.SortOrder
 import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -39,16 +34,34 @@ class OrderAndReportViewModel @Inject constructor(
     val orderHeaderList =  listOf(
         "S.No", "Order Id","Order Date","Customer Name","Customer No", "Total Amount", "Total Charge"
     )
+    val purchaseHeaderList =  listOf(
+        "S.No", "Order Id","Bill Date","Firm Name","Seller Name No", "Bill No", "Item Details","Exchange Details"
+    )
     val orderList: SnapshotStateList<OrderEntity> = SnapshotStateList()
 
-    fun getAllOrdersSorted(sort: OrderSort) {
+    val purchase: SnapshotStateList<PurchaseOrderWithDetails> = SnapshotStateList()
+
+    fun getAllOrdersSorted(sort: SortOrder) {
         ioLaunch {
                 when (sort) {
-                    OrderSort.ASCENDING -> appDatabase.orderDao().getAllOrdersAsc()
-                    OrderSort.DESCENDING -> appDatabase.orderDao().getAllOrdersDesc()
+                    SortOrder.ASCENDING -> appDatabase.orderDao().getAllOrdersAsc()
+                    SortOrder.DESCENDING -> appDatabase.orderDao().getAllOrdersDesc()
                 }.collectLatest {
                     orderList.clear()
                     orderList.addAll(it)
+                }
+
+        }
+    }
+
+    fun getAllPurchaseSorted(sort: SortOrder) {
+        ioLaunch {
+                when (sort) {
+                    SortOrder.ASCENDING -> appDatabase.purchaseDao().getAllOrdersWithDetailsByBillDateAsc()
+                    SortOrder.DESCENDING -> appDatabase.purchaseDao().getAllOrdersWithDetailsByBillDateDesc()
+                }.collectLatest {
+                    purchase.clear()
+                    purchase.addAll(it)
                 }
 
         }

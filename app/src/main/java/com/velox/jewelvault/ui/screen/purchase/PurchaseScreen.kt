@@ -61,6 +61,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
+import com.velox.jewelvault.utils.to2FString
 
 
 @Composable
@@ -175,11 +176,13 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
         val exchangeSilverFnWt =
             viewModel.exchangeMetalRateDto.filter { it.catName == "Silver" }.sumOf { it.fnWt }
 
+        val goldFnWtRate = try{ viewModel.purchaseItemList.filter { it.catName == "Gold" }[0].fnRate}catch (_:Exception){1.0}
+        val silverFnWtRate = try{viewModel.purchaseItemList.filter { it.catName == "Silver" }[0].fnRate}catch (_:Exception){1.0}
+
         Text(
             """
-            Gold Fine Rate: esaf , Silver Fine Rate: 
-           Gold Pur Fn.Wt: $purGoldFnWt g, Exc Fn.Wt: $exchangeGoldFnWt g, Wastage: $purGoldFnWtWastage g, Extra: $purGoldExtraCharge Settling Fn.Wt: ${(purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt}g, Amt to: $123456789
-           Silver Pur Fn.Wt: $purSilverFnWt g, Exc Fn.Wt: $exchangeSilverFnWt g, Wastage: $purSilverFnWtWastage g, Extra: $purSilverExtraCharge Settling Fn.Wt: ${(purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt}g, Amt to: $123456789
+           Gold Pur Fn.Wt: $purGoldFnWt g, Exc Fn.Wt: ${exchangeGoldFnWt.to2FString()} g, Wastage: ${purGoldFnWtWastage.to2FString()} g, Extra: $purGoldExtraCharge Settling Fn.Wt: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to2FString()} g, Amt to: ${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*goldFnWtRate).to2FString()}
+           Silver Pur Fn.Wt: $purSilverFnWt g, Exc Fn.Wt: ${exchangeSilverFnWt.to2FString()} g, Wastage: ${purSilverFnWtWastage.to2FString()} g, Extra: $purSilverExtraCharge Settling Fn.Wt: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to2FString()}g, Amt to: ${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*silverFnWtRate).to2FString()}
         """.trimIndent(), modifier = Modifier.weight(1f)
         )
 

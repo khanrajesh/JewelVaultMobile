@@ -452,9 +452,8 @@ class PurchaseViewModel @Inject constructor(
                             gsWt = fnWt,
                             fnWt = fnWt,
                             ntWt = fnWt,
-
                             entryType = "",
-                            purity = "",
+                            purity = "1000",
                             crgType = "",
                             crg = 0.0,
                             othCrgDes = "",
@@ -463,7 +462,7 @@ class PurchaseViewModel @Inject constructor(
                             sgst = 0.0,
                             igst = 1.5,
                             huid = "",
-                            unit = "",
+                            unit = "gm",
                             addDesKey = "",
                             addDesValue = "",
                             addDate = getCurrentTimestamp(),
@@ -552,8 +551,8 @@ class PurchaseViewModel @Inject constructor(
                         totalFinalAmount = purchaseItemList.sumOf { it.fnWt * 0.0 + it.extraCharge },
                         notes = "purchaseNote.text",
                         cgstPercent = addCGst.text.toDoubleOrNull()?:1.5,
-                        sgstPercent = addSGst.text.toDoubleOrNull()?:1.5,
-                        igstPercent = addIGst.text.toDoubleOrNull()?:0.0,
+                        sgstPercent = addSGst.text.toDoubleOrNull()?:0.0,
+                        igstPercent = addIGst.text.toDoubleOrNull()?:1.5,
                     )
                 ).toInt()
 
