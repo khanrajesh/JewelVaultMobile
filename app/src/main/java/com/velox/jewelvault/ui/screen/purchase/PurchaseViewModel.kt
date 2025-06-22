@@ -353,14 +353,16 @@ class PurchaseViewModel @Inject constructor(
                     val subCategory =
                         appDatabase.subCategoryDao().getSubCategoryById(subCatId = subCatId)
                     subCategory?.let { subCat ->
-                        val subCatGsWt =if(toAdd){(subCat.gsWt + insertedItem.gsWt)}else{(subCat.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
-                        val subCatFnWt = if(toAdd){(subCat.fnWt + insertedItem.fnWt)}else{(subCat.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
+//                        val subCatGsWt =if(toAdd){(subCat.gsWt + insertedItem.gsWt)}else{(subCat.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
+//                        val subCatFnWt = if(toAdd){(subCat.fnWt + insertedItem.fnWt)}else{(subCat.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
 
+                        val subCatGsWt = insertedItem.gsWt
+                        val subCatFnWt = insertedItem.fnWt
 
                         val upSub = appDatabase.subCategoryDao().updateWeightsAndQuantity(
                             subCatId = insertedItem.subCatId,
-                            gsWt = subCatGsWt,
-                            fnWt = subCatFnWt,
+                            gsWt = subCatGsWt.roundTo3Decimal(),
+                            fnWt = subCatFnWt.roundTo3Decimal(),
                             quantity = 1
                         )
 
@@ -370,8 +372,13 @@ class PurchaseViewModel @Inject constructor(
                                 .getCategoryById(catId = insertedItem.catId)
                             cat?.let { catEntity ->
 
-                                val catGsWt = if (toAdd){(catEntity.gsWt + insertedItem.gsWt)}else{(catEntity.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
-                                val catFnWt = if (toAdd){(catEntity.fnWt + insertedItem.fnWt)}else{(catEntity.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
+                                val subCatItem = appDatabase.subCategoryDao().getSubCategoriesByCatId(catId = insertedItem.catId)
+
+                                val catGsWt = subCatItem.sumOf { it.fnWt }
+                                val catFnWt = subCatItem.sumOf { it.gsWt }
+
+//                                val catGsWt = if (toAdd){(catEntity.gsWt + insertedItem.gsWt)}else{(catEntity.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
+//                                val catFnWt = if (toAdd){(catEntity.fnWt + insertedItem.fnWt)}else{(catEntity.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
 
                                 val upCat = appDatabase.categoryDao().updateWeights(
                                     catId = insertedItem.catId, gsWt = catGsWt, fnWt = catFnWt
