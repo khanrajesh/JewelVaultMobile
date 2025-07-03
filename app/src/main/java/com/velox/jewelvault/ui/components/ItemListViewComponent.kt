@@ -33,6 +33,10 @@ import com.velox.jewelvault.utils.to2FString
 @OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
+@Deprecated("Use TextListView instead.",
+    replaceWith = ReplaceWith("TextListView",
+        "com.velox.jewelvault.ui.components.TextListView"
+        ))
 fun ItemListViewComponent(
     itemHeaderList: List<String>,
     items: List<ItemEntity>,

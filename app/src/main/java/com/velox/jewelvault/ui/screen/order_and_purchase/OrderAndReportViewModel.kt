@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen.order_and_report
+package com.velox.jewelvault.ui.screen.order_and_purchase
 
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
@@ -21,7 +21,7 @@ class OrderAndReportViewModel @Inject constructor(
 
     /*
     *
-    *     val customerMobile: String, // FK to CustomerEntity
+    val customerMobile: String, // FK to CustomerEntity
     val storeId: Int,
     val userId: Int,
     val orderDate: Timestamp,

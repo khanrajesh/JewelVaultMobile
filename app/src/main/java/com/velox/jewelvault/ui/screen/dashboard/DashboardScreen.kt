@@ -251,7 +251,7 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
                             .height(20.dp)
                     )
                     Text(
-                        "${it.totalPrice.to2FString()?:""} ", fontSize = 10.sp, modifier = Modifier
+                        "₹${it.totalPrice.to2FString()?:""}, ", fontSize = 10.sp, modifier = Modifier
                             .weight(1f)
                             .height(20.dp)
                     )
@@ -261,9 +261,7 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
                             .height(20.dp)
                     )
                 }
-
             }
-
         }
     }
 }
@@ -369,7 +367,7 @@ fun FlowOverView(dashboardViewModel: DashboardViewModel) {
         ) {
             Spacer(Modifier.weight(1f))
             Column {
-                Text("$ ${(dashboardViewModel.salesSummary.value?.totalAmount?:0.0).to2FString()}", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text("₹${(dashboardViewModel.salesSummary.value?.totalAmount?:0.0).to2FString()}", fontSize = 18.sp, fontWeight = FontWeight.Black)
                 Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
             }
             Spacer(Modifier.weight(1f))

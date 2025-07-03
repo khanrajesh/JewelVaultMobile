@@ -106,7 +106,10 @@ class QrBarScannerViewModel @Inject constructor(
                 huid         = item.huid,
                 addDate      = item.addDate,
                 addDesKey    = item.addDesKey,
-                addDesValue  = item.addDesValue
+                addDesValue  = item.addDesValue,
+                sellerFirmId = item.sellerFirmId,
+                purchaseOrderId = item.purchaseOrderId,
+                purchaseItemId = item.purchaseItemId,
             )
         }
     }

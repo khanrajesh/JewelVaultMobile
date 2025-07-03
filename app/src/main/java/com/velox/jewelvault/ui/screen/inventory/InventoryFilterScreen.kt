@@ -3,13 +3,16 @@ package com.velox.jewelvault.ui.screen.inventory
 import android.app.DatePickerDialog
 import android.widget.DatePicker
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
@@ -26,7 +33,9 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.ExportFormat
 import com.velox.jewelvault.utils.Purity
-import com.velox.jewelvault.utils.exportItemListInBackground
+import com.velox.jewelvault.utils.export.ExportWorker
+import com.velox.jewelvault.utils.export.enqueueExportWorker
+import com.velox.jewelvault.utils.export.exportItemListInBackground
 import com.velox.jewelvault.utils.mainScope
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -36,6 +45,7 @@ import java.util.Locale
 @Composable
 fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val entryType = remember { InputFieldState() }
     val purity = remember { InputFieldState() }
@@ -70,7 +80,9 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
         viewModel.filterItems()
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(
+        MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp)
+    )) {
 
         // Top row: Clear + Export buttons
         Row {
@@ -92,23 +104,42 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
 
             Spacer(Modifier.width(8.dp))
 
+
             Button(onClick = {
-                exportItemListInBackground(
-                    context = context,
-                    fileName = "ItemExport_${System.currentTimeMillis()}.xlsx",
-                    itemList = viewModel.itemList,
-                    headers = viewModel.itemHeaderList,
-                    format = ExportFormat.XLSX,
-                    onSuccess = {
-                        Toast.makeText(context, "Export successful", Toast.LENGTH_SHORT).show()
-                    },
-                    onFailure = { error ->
-                        Toast.makeText(context, "Export failed: ${error.message}", Toast.LENGTH_LONG).show()
-                    }
-                )
+
+                val rows = viewModel.itemList.mapIndexed { index, item ->
+                    listOf(
+                        (index + 1).toString(),
+                        item.catName,
+                        item.subCatName,
+                        item.itemId.toString(),
+                        item.itemAddName,
+                        item.entryType,
+                        item.quantity.toString(),
+                        item.gsWt.toString(),
+                        item.ntWt.toString(),
+                        item.unit,
+                        item.purity,
+                        item.fnWt.toString(),
+                        item.crgType,
+                        item.crg.toString(),
+                        item.othCrgDes,
+                        item.othCrg.toString(),
+                        (item.cgst + item.sgst + item.igst).toString(),
+                        item.huid,
+                        item.addDate.toString(),
+                        item.addDesKey,
+                        item.addDesValue,
+                        "Extra"
+                    )
+                }
+                val fileName = "ItemExport_${System.currentTimeMillis()}.xlsx"
+
+                enqueueExportWorker(context,lifecycleOwner, fileName, viewModel.itemHeaderList, rows)
             }) {
                 Text("Export")
             }
+
         }
 
         // Filters: Category, Subcategory, Entry Type
@@ -120,7 +151,6 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 dropdownItems = viewModel.catSubCatDto.map { it.catName },
                 onDropdownItemSelected = { selected ->
                     categoryState.text = selected
-                    // Set subcategories from the selected category
                     val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
                     subCategories.clear()
                     selectedCat?.subCategoryList?.let { subCategories.addAll(it) }

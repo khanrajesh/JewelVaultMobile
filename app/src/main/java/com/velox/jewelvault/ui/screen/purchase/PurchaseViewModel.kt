@@ -374,11 +374,9 @@ class PurchaseViewModel @Inject constructor(
 
                                 val subCatItem = appDatabase.subCategoryDao().getSubCategoriesByCatId(catId = insertedItem.catId)
 
-                                val catGsWt = subCatItem.sumOf { it.fnWt }
-                                val catFnWt = subCatItem.sumOf { it.gsWt }
+                                val catGsWt = subCatItem.sumOf { it.fnWt }.roundTo3Decimal()
+                                val catFnWt = subCatItem.sumOf { it.gsWt }.roundTo3Decimal()
 
-//                                val catGsWt = if (toAdd){(catEntity.gsWt + insertedItem.gsWt)}else{(catEntity.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
-//                                val catFnWt = if (toAdd){(catEntity.fnWt + insertedItem.fnWt)}else{(catEntity.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
 
                                 val upCat = appDatabase.categoryDao().updateWeights(
                                     catId = insertedItem.catId, gsWt = catGsWt, fnWt = catFnWt
@@ -455,7 +453,7 @@ class PurchaseViewModel @Inject constructor(
                             catName = catName,
                             subCatId = subCatId,
                             subCatName = subCatName,
-                            quantity = 1,
+                            quantity = 0,
                             gsWt = fnWt,
                             fnWt = fnWt,
                             ntWt = fnWt,

@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen.order_and_report
+package com.velox.jewelvault.ui.screen.order_and_purchase
 
 import android.annotation.SuppressLint
 import android.widget.Toast
@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.SortOrder
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.CoroutineScope
@@ -46,12 +48,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
 @Composable
-fun OrderDetailScreen(viewModel: OrderAndReportViewModel) {
+fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
     val tabs = listOf("Order", "Purchase")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    Column {
-        TabRow(selectedTabIndex = selectedTabIndex) {
+    Column(  modifier = Modifier.fillMaxSize().background(
+        MaterialTheme.colorScheme.surface,
+        RoundedCornerShape(topStart = 18.dp)
+    ).padding(5.dp)) {
+        TabRow( modifier = Modifier,selectedTabIndex = selectedTabIndex) {
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTabIndex == index,
@@ -80,13 +85,10 @@ private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
         }.await()
     }
 
-    Column(
-        modifier = Modifier.background(
-            MaterialTheme.colorScheme.surface,
-            RoundedCornerShape(topStart = 18.dp)
-        )
-    ) {
+    Column {
         val scrollState = rememberScrollState()
+
+        val subNavController = LocalSubNavController.current
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val columnWidth = 150.dp
@@ -130,7 +132,9 @@ private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .combinedClickable(onClick = {
-
+                                    if (!isHeader && item != null) {
+                                        subNavController.navigate("${SubScreens.PurchaseItemDetail.route}/${item.order.purchaseOrderId}")
+                                    }
                                 }, onLongClick = {
                                     if (!isHeader && item != null) {
                                         Toast.makeText(context, "Not yet implemented", Toast.LENGTH_SHORT).show()
@@ -191,12 +195,7 @@ private fun OrderDetail(viewModel: OrderAndReportViewModel) {
         }.await()
     }
 
-    Column(
-        modifier = Modifier.background(
-            MaterialTheme.colorScheme.surface,
-            RoundedCornerShape(topStart = 18.dp)
-        )
-    ) {
+    Column{
         val scrollState = rememberScrollState()
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -231,7 +230,9 @@ private fun OrderDetail(viewModel: OrderAndReportViewModel) {
                                 .fillMaxWidth()
                                 .height(30.dp)
                                 .combinedClickable(onClick = {
+                                    if (!isHeader && item != null) {
 
+                                    }
                                 }, onLongClick = {
                                     if (!isHeader && item != null) {
 

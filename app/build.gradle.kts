@@ -93,6 +93,8 @@ dependencies {
     implementation (libs.androidx.camera.camera2)
     implementation (libs.androidx.camera.lifecycle)
     implementation (libs.androidx.camera.view)
+    implementation ("androidx.work:work-runtime-ktx:2.10.2")
+
 
 // ML Kit Barcode Scanning
     implementation (libs.barcode.scanning)

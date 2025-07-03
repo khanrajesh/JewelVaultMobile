@@ -31,6 +31,10 @@ data class ItemSelectedModel(
     val price: Double=0.0,
     val chargeAmount: Double=0.0,
     val tax: Double=0.0,
-    val addDate:Timestamp?=null
+    val addDate:Timestamp?=null,
+    //seller info
+    val sellerFirmId: Int,
+    val purchaseOrderId: Int,
+    val purchaseItemId: Int = 0,
 
 )

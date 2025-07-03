@@ -171,6 +171,7 @@ class TabDrawerState(
 fun TabNavigationDrawer(
     modifier: Modifier = Modifier,
     drawerState: TabDrawerState = rememberTabDrawerState(TabDrawerValue.Closed),
+    notifierContent: @Composable () -> Unit = {},
     drawerContent: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -250,11 +251,9 @@ fun TabNavigationDrawer(
                         Spacer(Modifier.width(20.dp))
                         MetalRatesTicker(Modifier.height(50.dp).weight(1f))
                         Spacer(Modifier.width(20.dp))
+                        notifierContent()
+                        Spacer(Modifier.width(10.dp))
 
-                        Icon(Icons.Outlined.Notifications, null, modifier = Modifier.size(25.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Icon(Icons.Default.MoreVert, null, modifier = Modifier.size(25.dp))
-                        Spacer(Modifier.width(10.dp))
                     }
                     Box(Modifier.fillMaxSize()) {
                         content()

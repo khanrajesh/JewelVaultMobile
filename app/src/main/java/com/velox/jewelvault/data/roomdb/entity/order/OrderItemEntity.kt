@@ -49,7 +49,7 @@ data class OrderItemEntity(
     val tax: Double,
 
     //seller info
-    val sellerFirmId: Int = 0,
-    val purchaseOrderId: Int = 0,
+    val sellerFirmId: Int,
+    val purchaseOrderId: Int,
     val purchaseItemId: Int = 0,
 )

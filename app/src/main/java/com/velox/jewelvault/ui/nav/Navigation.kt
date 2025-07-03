@@ -19,9 +19,12 @@ import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.ui.screen.login.LoginScreen
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
 import com.velox.jewelvault.ui.screen.main.MainScreen
-import com.velox.jewelvault.ui.screen.order_and_report.OrderAndReportViewModel
-import com.velox.jewelvault.ui.screen.order_and_report.OrderDetailScreen
-import com.velox.jewelvault.ui.screen.order_and_report.OrderItemDetailScreen
+import com.velox.jewelvault.ui.screen.order_and_purchase.OrderAndPurchaseScreen
+import com.velox.jewelvault.ui.screen.order_and_purchase.OrderAndReportViewModel
+import com.velox.jewelvault.ui.screen.order_and_purchase.order_item.OrderItemDetailScreen
+import com.velox.jewelvault.ui.screen.order_and_purchase.order_item.OrderItemViewModel
+import com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item.PurchaseItemDetailScreen
+import com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item.PurchaseItemViewModel
 import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
 import com.velox.jewelvault.ui.screen.purchase.PurchaseScreen
@@ -127,11 +130,20 @@ fun SubAppNavigation(
                 InventoryFilterScreen(inventoryViewModel)
             }
 
-            composable(SubScreens.Ledger.route) {
-                OrderDetailScreen(hiltViewModel<OrderAndReportViewModel>())
+            composable(SubScreens.OrderAndPurchase.route) {
+                OrderAndPurchaseScreen(hiltViewModel<OrderAndReportViewModel>())
             }
-            composable(SubScreens.OrderItemDetail.route) {
-                OrderItemDetailScreen()
+            composable("${SubScreens.OrderItemDetail.route}/{orderId}",
+                arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+                ) {backStackEntry ->
+                val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+                OrderItemDetailScreen(hiltViewModel<OrderItemViewModel>(), orderId)
+            }
+
+            composable("${SubScreens.PurchaseItemDetail.route}/{purchaseOrderId}",
+                arguments = listOf(navArgument("purchaseOrderId") { type = NavType.StringType })) {backStackEntry ->
+                val purchaseOrderId = backStackEntry.arguments?.getString("purchaseOrderId") ?: return@composable
+                PurchaseItemDetailScreen(hiltViewModel<PurchaseItemViewModel>(),purchaseOrderId)
             }
         }
     }

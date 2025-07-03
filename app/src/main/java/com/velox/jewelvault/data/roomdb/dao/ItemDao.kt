@@ -15,10 +15,13 @@ import java.sql.Timestamp
 interface ItemDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(item: ItemEntity):Long
+    suspend fun insert(item: ItemEntity): Long
 
     @Query("SELECT * FROM ItemEntity ORDER BY addDate DESC")
     fun getAll(): Flow<List<ItemEntity>>
+
+    @Query("SELECT * FROM ItemEntity WHERE purchaseOrderId = :purchaseOrderId ORDER BY addDate DESC")
+    fun getItemByPurchaseOrderId(purchaseOrderId: Int): Flow<List<ItemEntity>>
 
     // ✅ Filter by any combination of parameters (nullable allows for optional filters)
     @Query(
@@ -58,13 +61,14 @@ interface ItemDao {
     )
     suspend fun updateQuantityIfLot(itemId: Int, newQuantity: Int, modifiedDate: Timestamp)
 
-    @Query("""
+    @Query(
+        """
     SELECT * FROM ItemEntity 
     WHERE  catId = :catId AND subCatName = 'Fine' 
     LIMIT 1
-""")
+"""
+    )
     suspend fun getFineItemByCat(catId: Int): ItemEntity?
-
 
 
     @Query("DELETE FROM ItemEntity WHERE itemId = :itemId")
@@ -80,8 +84,8 @@ interface ItemDao {
     // ✅ Get by ID
     @Query("SELECT * FROM ItemEntity WHERE itemId = :itemId")
     suspend fun getItemById(itemId: Int): ItemEntity?
-    
+
     // ✅ Update item (full object update)
     @Update
-    suspend fun updateItem(item: ItemEntity):Int
+    suspend fun updateItem(item: ItemEntity): Int
 }

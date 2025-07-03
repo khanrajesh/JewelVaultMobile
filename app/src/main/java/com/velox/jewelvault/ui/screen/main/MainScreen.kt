@@ -98,7 +98,7 @@ fun MainScreen() {
         InputIconState(
             "Ledger", R.drawable.report_fill
         ) {
-            subNavController.navigate(SubScreens.Ledger.route) {
+            subNavController.navigate(SubScreens.OrderAndPurchase.route) {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }
