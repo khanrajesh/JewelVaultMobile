@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.screen.inventory
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -53,9 +54,22 @@ sealed class CatType(val type: String) {
 
 @Composable
 fun InventoryCategoryScreen(inventoryViewModel: InventoryViewModel) {
-    LaunchedEffect(true) {
-        inventoryViewModel.init()
+
+    val subNavController = LocalSubNavController.current
+
+    BackHandler {
+        subNavController.navigate(SubScreens.Dashboard.route){
+            popUpTo(SubScreens.Dashboard.route) {
+                inclusive = true
+            }
+        }
     }
+
+
+    LaunchedEffect(true) {
+        inventoryViewModel.getCategoryAndSubCategoryDetails()
+    }
+
     LandscapeInventoryScreen(inventoryViewModel)
 }
 

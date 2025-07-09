@@ -41,6 +41,7 @@ import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
@@ -52,9 +53,8 @@ import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 @VaultPreview
@@ -69,14 +69,24 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
 }
 
 @Composable
-fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
+fun LandscapeMainScreen(
+    dashboardViewModel: DashboardViewModel
+) {
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     LaunchedEffect(true) {
         //refreshing the metal rate here
-        CoroutineScope(Dispatchers.IO).async {
+        withContext(Dispatchers.IO) {
+            val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
+            if (storeId == null) {
+                baseViewModel.snackMessage = "Please Set Up Your Store First."
+                mainScope {
+                    subNavController.navigate("${SubScreens.Profile.route}/${true}")
+                }
+            }
+
             if (baseViewModel.metalRates.isEmpty()){
                 baseViewModel.refreshMetalRates(context = context)
             }
@@ -86,16 +96,8 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
             dashboardViewModel.getTopSellingItems()
             dashboardViewModel.getTopSellingSubCategories()
             //checking if the user setup the store or not
-            delay(2000)
-            val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
-            if (storeId == null) {
-                baseViewModel.snackMessage = "Please Set Up Your Store First."
-                delay(2000)
-                mainScope {
-                    subNavController.navigate(SubScreens.Profile.route)
-                }
-            }
-        }.await()
+
+        }
     }
 
 
@@ -149,7 +151,7 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Create Invoice", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text("Create Invoice", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.surface,)
                     }
                     Spacer(Modifier.height(5.dp))
 
@@ -158,7 +160,6 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-
                         Box(
                             modifier = Modifier
                                 .bounceClick {
@@ -178,13 +179,14 @@ fun LandscapeMainScreen(dashboardViewModel: DashboardViewModel) {
                         Box(
                             modifier = Modifier
                                 .bounceClick {
-                                    dashboardViewModel.getSubCategoryCount{
-                                        if (it>2){
+                                    dashboardViewModel.getSubCategoryCount {
+                                        if (it > 2) {
                                             mainScope {
                                                 navHost.navigate(Screens.Purchase.route)
                                             }
-                                        }else{
-                                            baseViewModel.snackMessage = "Please add more sub categories."
+                                        } else {
+                                            baseViewModel.snackMessage =
+                                                "Please add more sub categories."
                                         }
                                     }
 

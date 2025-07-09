@@ -42,7 +42,13 @@ suspend fun <T> withMain(block: suspend () -> T): T {
         block()
     }
 }
-
+/**
+ *   viewModelScope.launch {
+ *         withContext(Dispatchers.IO) {
+ *             block()
+ *         }
+ *     }
+ * **/
 fun ViewModel.ioLaunch(block: suspend () -> Unit) {
     viewModelScope.launch {
         withContext(Dispatchers.IO) {

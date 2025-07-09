@@ -22,6 +22,11 @@ interface SubCategoryDao {
     suspend fun deleteSubCategory(subCategory: SubCategoryEntity): Int
     // Number of rows deleted
 
+
+
+    @Query("SELECT * FROM SubCategoryEntity WHERE catId = :catId AND subCatName = :subCatName LIMIT 1")
+    suspend fun getSubCategoryByName(catId: Int, subCatName: String): SubCategoryEntity?
+
     @Query("SELECT * FROM SubCategoryEntity WHERE userId = :userId")
     suspend fun getSubCategoriesByUserId(userId: Int): List<SubCategoryEntity>
 

@@ -2,6 +2,7 @@ package com.velox.jewelvault.ui.screen.order_and_purchase
 
 import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -49,6 +50,16 @@ import kotlinx.coroutines.async
 
 @Composable
 fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
+    val subNavController = LocalSubNavController.current
+
+    BackHandler {
+        subNavController.navigate(SubScreens.Dashboard.route){
+            popUpTo(SubScreens.Dashboard.route) {
+                inclusive = true
+            }
+        }
+    }
+
     val tabs = listOf("Order", "Purchase")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 

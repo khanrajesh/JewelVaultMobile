@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
-import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
@@ -97,71 +96,10 @@ class InventoryViewModel @Inject constructor(
         "Extra"
     )
 
-    fun init() {
-        checkForCategory()
-    }
 
 
-    private fun checkForCategory() {
-        ioScope {
-            try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
-                val result =
-                    appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
 
-                if (result.isEmpty()) {
-                    this@InventoryViewModel.log("No Category exists")
-                    val g = appDatabase.categoryDao().insertCategory(
-                        CategoryEntity(
-                            catName = "Gold", userId = userId, storeId = storeId
-                        )
-                    )
-                    val s = appDatabase.categoryDao().insertCategory(
-                        CategoryEntity(
-                            catName = "Silver", userId = userId, storeId = storeId
-                        )
-                    )
-
-                    if (g != -1L) {
-                        val goldCat = appDatabase.categoryDao().getCategoryByName("Gold")
-                        if (goldCat != null) {
-                            addSubCategory(
-                                "Fine", catName = goldCat.catName, catId = goldCat.catId
-                            )
-                        } else {
-                            this@InventoryViewModel.log("Unable to found newly added gold category")
-                        }
-                        this@InventoryViewModel.log("Added new category gold")
-                    } else {
-                        this@InventoryViewModel.log("Unable to added new category gold")
-                    }
-
-                    if (s != -1L) {
-                        val silverCat = appDatabase.categoryDao().getCategoryByName("Silver")
-                        if (silverCat != null) {
-                            addSubCategory(
-                                "Fine", catName = silverCat.catName, catId = silverCat.catId
-                            )
-                        } else {
-                            this@InventoryViewModel.log("Unable to found newly added silver category")
-                        }
-                        this@InventoryViewModel.log("Added new category silver")
-                    } else {
-                        this@InventoryViewModel.log("Unable to added new category silver")
-                    }
-                } else {
-                    this@InventoryViewModel.log("Category exists")
-                }
-
-                getCategoryAndSubCategoryDetails()
-            } catch (e: Exception) {
-                this@InventoryViewModel.log("error: ${e.message}")
-            }
-        }
-    }
-
-    private fun getCategoryAndSubCategoryDetails() {
+    fun getCategoryAndSubCategoryDetails() {
         ioScope {
             try {
                 val userId = dataStoreManager.userId.first()
@@ -196,7 +134,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun addCategory(catName: String) {
-        ioScope {
+        ioLaunch {
             try {
                 val userId = dataStoreManager.userId.first()
                 val storeId = dataStoreManager.storeId.first()
@@ -221,7 +159,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun addSubCategory(subCatName: String, catName: String, catId: Int) {
-        ioScope {
+        ioLaunch {
             try {
                 val userId = dataStoreManager.userId.first()
                 val storeId = dataStoreManager.storeId.first()
@@ -268,8 +206,7 @@ class InventoryViewModel @Inject constructor(
         startDate: Timestamp? = null,
         endDate: Timestamp? = null
     ) {
-        viewModelScope.launch {
-            withIo {
+        ioLaunch {
                 try {
 //                    _loadingState.value = true
                     appDatabase.itemDao()
@@ -284,7 +221,7 @@ class InventoryViewModel @Inject constructor(
                     this@InventoryViewModel.log("failed to filler item list")
                 }
 //                _loadingState.value = false
-            }
+
         }
     }
 
@@ -470,13 +407,8 @@ class InventoryViewModel @Inject constructor(
 
                     purchaseItems.addAll(purchaseItemList)
                 }
-
             }
-
-
-
         }
     }
-
 
 }

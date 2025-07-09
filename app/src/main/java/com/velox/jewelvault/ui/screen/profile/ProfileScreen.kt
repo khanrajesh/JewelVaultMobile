@@ -1,7 +1,8 @@
 package com.velox.jewelvault.ui.screen.profile
 
-import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,24 +38,37 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
+import kotlinx.coroutines.delay
 
 @Composable
-fun ProfileScreen(profileViewModel: ProfileViewModel) {
+fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     val baseViewModel = LocalBaseViewModel.current
     val isEditable = remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val subNavController = LocalSubNavController.current
 
-    LaunchedEffect (true){
+    BackHandler {
+        subNavController.navigate(SubScreens.Dashboard.route) {
+            popUpTo(SubScreens.Dashboard.route) {
+                inclusive = true
+            }
+        }
+    }
+    LaunchedEffect(true) {
         profileViewModel.getStoreData()
+        if (firstLaunch){
+            isEditable.value = true
+        }
     }
 
     Box(
-        Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.TopStart
+        Modifier.fillMaxWidth(), contentAlignment = Alignment.TopStart
     ) {
         Column(Modifier.fillMaxSize()) {
             Spacer(
@@ -66,34 +80,43 @@ fun ProfileScreen(profileViewModel: ProfileViewModel) {
                 Modifier
                     .fillMaxWidth()
                     .weight(4f)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(18.dp))
+                    .background(
+                        MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    )
                     .padding(10.dp)
             ) {
                 Row(
-                    Modifier
-                        .height(70.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    Modifier.height(70.dp), verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Spacer(Modifier.weight(0.5f))
+                    Spacer(Modifier.width(310.dp))
                     BasicTextField(
+                        modifier = if (isEditable.value) {
+                            Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(5.dp)
+                                )
+                                .padding(5.dp)
+                        } else {
+                            Modifier
+                        },
                         value = profileViewModel.shopName.text,
                         onValueChange = {
                             profileViewModel.shopName.onTextChanged(it)
                         },
-
                         textStyle = TextStyle(
                             fontSize = 36.sp,
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
-                        )
+                        ),
                     )
                     Spacer(Modifier.weight(1f))
-                    if (!isEditable.value)
-                        Icon(
-                            Icons.Default.Edit,
-                            null,
-                            modifier = Modifier.bounceClick { isEditable.value = true })
+                    if (!isEditable.value) Icon(Icons.Default.Edit,
+                        null,
+                        modifier = Modifier.bounceClick { isEditable.value = true })
                 }
 
                 Spacer(Modifier.height(50.dp))
@@ -175,60 +198,58 @@ fun ProfileScreen(profileViewModel: ProfileViewModel) {
                     }
                 }
 
-                if (isEditable.value)
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                    ) {
-                        Text(
-                            "Cancel", Modifier
-                                .clickable {
-                                    isEditable.value = !isEditable.value
-                                }
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(16.dp),
-                                )
-                                .padding(10.dp),
-                            fontWeight = FontWeight.Bold
+                if (isEditable.value) Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Spacer(Modifier.weight(1f))
+                    Text("Cancel", Modifier
+                        .clickable {
+                            isEditable.value = !isEditable.value
+                        }
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(16.dp),
                         )
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            "Done", Modifier
-                                .clickable {
-
-                                    profileViewModel.saveStoreData(onSuccess = {
-                                        mainScope {
-                                            Toast.makeText(
-                                                context,
-                                                "Store Details updated. Thank you!",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    },
-                                        onFailure = {
+                        .padding(10.dp), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(50.dp))
+                    Text("Done", Modifier
+                        .clickable {
+                            if (profileViewModel.shopName.text.isNotBlank() && profileViewModel.propName.text.isNotBlank() && profileViewModel.userEmail.text.isNotBlank() && profileViewModel.userMobile.text.isNotBlank() && profileViewModel.address.text.isNotBlank() && profileViewModel.registrationNo.text.isNotBlank() && profileViewModel.gstinNo.text.isNotBlank() && profileViewModel.panNumber.text.isNotBlank()) {
+                                profileViewModel.saveStoreData(onSuccess = {
+                                    if (firstLaunch) {
+                                        ioScope {
+                                            profileViewModel.initializeDefaultCategories()
+                                            delay(100)
                                             mainScope {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Unable to update Store Details.",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                subNavController.navigate(SubScreens.Dashboard.route) {
+                                                    popUpTo(SubScreens.Dashboard.route) {
+                                                        inclusive = true
+                                                    }
+                                                }
                                             }
                                         }
+                                    }
 
-                                    )
-
-                                    isEditable.value = !isEditable.value
-                                }
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(16.dp),
-                                )
-                                .padding(10.dp),
-                            fontWeight = FontWeight.Bold
+                                    profileViewModel.snackBarState.value =
+                                        "Store Details updated. Thank you!"
+                                }, onFailure = {
+                                    profileViewModel.snackBarState.value =
+                                        "Unable to update Store Details."
+                                })
+                                isEditable.value = !isEditable.value
+                            } else {
+                                profileViewModel.snackBarState.value = "Please fill all the fields."
+                            }
+                        }
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(16.dp),
                         )
-                    }
+                        .padding(10.dp), fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(50.dp))
+                }
             }
         }
 

@@ -102,8 +102,13 @@ fun SubAppNavigation(
             composable(SubScreens.Dashboard.route) {
                 DashboardScreen(dashboardViewModel)
             }
-            composable(SubScreens.Profile.route) {
-                ProfileScreen(hiltViewModel<ProfileViewModel>())
+            composable("${SubScreens.Profile.route}/{firstLaunch}",
+                arguments = listOf(
+                    navArgument("firstLaunch") { type = NavType.BoolType }
+                )
+                ) {backStackEntry->
+                val firstLaunch = backStackEntry.arguments?.getBoolean("firstLaunch") ?: false
+                ProfileScreen(hiltViewModel<ProfileViewModel>(),firstLaunch)
             }
             composable(SubScreens.Inventory.route) {
                 InventoryCategoryScreen(inventoryViewModel)

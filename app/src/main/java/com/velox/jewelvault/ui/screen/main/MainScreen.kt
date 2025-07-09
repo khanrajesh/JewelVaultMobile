@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -107,7 +108,7 @@ fun MainScreen() {
         InputIconState(
             "Profile", R.drawable.account_fill
         ) {
-            subNavController.navigate(SubScreens.Profile.route) {
+            subNavController.navigate("${SubScreens.Profile.route}/${false}") {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }
@@ -191,21 +192,23 @@ private fun LandscapeDashboardScreen(
             items(inputIconStates) { item ->
                 Row(Modifier
                     .clickable {
-                        item.onClick()
+                        item.onClick.invoke()
                     }
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp),
+                    .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     item.icon?.let {
                         Image(
                             painter = painterResource(it),
                             contentDescription = null,
-                            Modifier.size(30.dp)
+                            Modifier
+                                .padding(start = 5.dp)
+                                .size(30.dp)
                         )
                     }
                     if (drawerState.isOpen) {
                         Spacer(Modifier.width(10.dp))
-                        Text(item.text)
+                        Text(item.text, color = MaterialTheme.colorScheme.surface, fontWeight = FontWeight.Bold)
                     }
                 }
             }
