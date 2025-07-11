@@ -1,5 +1,7 @@
 package com.velox.jewelvault.ui.screen.dashboard
 
+import android.Manifest
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,10 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
+import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
-import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
@@ -50,9 +52,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to2FString
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
@@ -65,7 +65,7 @@ fun DashboardScreenPreview() {
 
 @Composable
 fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
-    if ( isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
+    if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
 }
 
 @Composable
@@ -79,7 +79,8 @@ fun LandscapeMainScreen(
     LaunchedEffect(true) {
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
-            val storeId = baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
+            val storeId =
+                baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
             if (storeId == null) {
                 baseViewModel.snackMessage = "Please Set Up Your Store First."
                 mainScope {
@@ -87,7 +88,7 @@ fun LandscapeMainScreen(
                 }
             }
 
-            if (baseViewModel.metalRates.isEmpty()){
+            if (baseViewModel.metalRates.isEmpty()) {
                 baseViewModel.refreshMetalRates(context = context)
             }
 
@@ -100,7 +101,16 @@ fun LandscapeMainScreen(
         }
     }
 
-
+    PermissionRequester(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        )
+    ) {
+        mainScope {
+            Toast.makeText(context, "All Permission Granted", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Box(
         Modifier
@@ -110,8 +120,7 @@ fun LandscapeMainScreen(
     ) {
 
         Column(
-            Modifier
-                .fillMaxSize()
+            Modifier.fillMaxSize()
         ) {
             //cash flow over view
             Row(
@@ -122,7 +131,7 @@ fun LandscapeMainScreen(
                 //flow over view
                 FlowOverView(dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
-                TopFiveSales(Modifier.weight(1f),dashboardViewModel)
+                TopFiveSales(Modifier.weight(1f), dashboardViewModel)
 //                Spacer(Modifier.weight(1f))
                 Spacer(Modifier.width(5.dp))
                 CategorySales(dashboardViewModel)
@@ -133,25 +142,25 @@ fun LandscapeMainScreen(
                         .fillMaxHeight()
                         .width(190.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(12.dp)
+                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
                         )
                         .padding(5.dp), verticalArrangement = Arrangement.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .bounceClick {
-                                navHost.navigate(Screens.SellInvoice.route)
-                            }
-                            .weight(2f)
-                            .fillMaxWidth()
-                            .background(
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(10.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Create Invoice", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.surface,)
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.SellInvoice.route)
+                        }
+                        .weight(2f)
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Create Invoice",
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.surface,
+                        )
                     }
                     Spacer(Modifier.height(5.dp))
 
@@ -160,45 +169,37 @@ fun LandscapeMainScreen(
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-                                    navHost.navigate(Screens.QrScanScreen.route)
-                                }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier
+                            .bounceClick {
+                                navHost.navigate(Screens.QrScanScreen.route)
+                            }
+                            .weight(1f)
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center) {
                             Text("Cam", textAlign = TextAlign.Center)
                         }
                         Spacer(Modifier.width(5.dp))
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-                                    dashboardViewModel.getSubCategoryCount {
-                                        if (it > 2) {
-                                            mainScope {
-                                                navHost.navigate(Screens.Purchase.route)
-                                            }
-                                        } else {
-                                            baseViewModel.snackMessage =
-                                                "Please add more sub categories."
+                        Box(modifier = Modifier
+                            .bounceClick {
+                                dashboardViewModel.getSubCategoryCount {
+                                    if (it > 2) {
+                                        mainScope {
+                                            navHost.navigate(Screens.Purchase.route)
                                         }
+                                    } else {
+                                        baseViewModel.snackMessage =
+                                            "Please add more sub categories."
                                     }
-
                                 }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+
+                            }
+                            .weight(1f)
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center) {
                             Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -238,7 +239,7 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
         ) {
 
-            items(dashboardViewModel.topSubCategories){
+            items(dashboardViewModel.topSubCategories) {
                 Row(
                     Modifier
                         .padding(3.dp)
@@ -253,12 +254,16 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
                             .height(20.dp)
                     )
                     Text(
-                        "₹${it.totalPrice.to2FString()?:""}, ", fontSize = 10.sp, modifier = Modifier
+                        "₹${it.totalPrice.to2FString()}, ",
+                        fontSize = 10.sp,
+                        modifier = Modifier
                             .weight(1f)
                             .height(20.dp)
                     )
                     Text(
-                        "${it.totalFnWt.to2FString()}g", fontSize = 10.sp, modifier = Modifier
+                        "${it.totalFnWt.to2FString()}g",
+                        fontSize = 10.sp,
+                        modifier = Modifier
                             .weight(1f)
                             .height(20.dp)
                     )
@@ -309,14 +314,12 @@ fun TopFiveSales(modifier: Modifier, dashboardViewModel: DashboardViewModel) {
 
 @Composable
 fun ItemViewItem(
-    category: String,
-    items: List<TopItemByCategory>
+    category: String, items: List<TopItemByCategory>
 ) {
     Column(modifier = Modifier.width(120.dp)) {
         items.take(5).forEach { item ->
             Row(
-                modifier = Modifier.height(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.height(20.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     item.subCatName.take(10),
@@ -327,9 +330,7 @@ fun ItemViewItem(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    item.totalFnWt.toString(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                    item.totalFnWt.toString(), fontSize = 10.sp, fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -369,12 +370,20 @@ fun FlowOverView(dashboardViewModel: DashboardViewModel) {
         ) {
             Spacer(Modifier.weight(1f))
             Column {
-                Text("₹${(dashboardViewModel.salesSummary.value?.totalAmount?:0.0).to2FString()}", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(
+                    "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to2FString()}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
                 Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
             }
             Spacer(Modifier.weight(1f))
             Column {
-                Text("${dashboardViewModel.salesSummary.value?.invoiceCount?:0} ", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                Text(
+                    "${dashboardViewModel.salesSummary.value?.invoiceCount ?: 0} ",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
                 Text("Total Invoice", fontSize = 10.sp, color = Color.Gray)
             }
         }
@@ -421,9 +430,7 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                     Text("Item", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
                     Text("Weight", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
                     Text(
-                        "Total Price",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f)
+                        "Total Price", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f)
                     )
                     Text("Tax", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
                     Text("Category", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
@@ -442,11 +449,10 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                 )
             }
             LazyColumn(
-                Modifier
-                    .weight(1f)
+                Modifier.weight(1f)
             ) {
 
-                items(recentSellsItem){
+                items(recentSellsItem) {
                     Column(
                         Modifier
                             .padding(2.dp)
@@ -490,7 +496,7 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "${(it.price+it.charge+it.tax).to2FString()} ",
+                                "${(it.price + it.charge + it.tax).to2FString()} ",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.DarkGray,

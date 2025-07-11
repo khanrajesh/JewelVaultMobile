@@ -23,6 +23,8 @@ class BaseViewModel @Inject constructor(
     val phone = mutableStateOf("8260636334")
     val metalRates = mutableStateListOf<MetalRate>()
     val metalRatesLoading = mutableStateOf(false)
+    val isConnectedState = mutableStateOf(false)
+
 
 
     suspend fun refreshMetalRates(state: String = "visakhapatnam", context: Context) {

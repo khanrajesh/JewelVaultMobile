@@ -17,11 +17,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -34,15 +37,22 @@ import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
-import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.monitorInternetConnection
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import java.sql.Timestamp
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val speedMonitorJob: MutableState<Job?> = mutableStateOf(null)
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,23 +60,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
 
-
             val navController = rememberNavController()
             val baseViewModel: BaseViewModel = hiltViewModel()
 
+            monitorInternetConnection(baseViewModel,speedMonitorJob,coroutineScope,this@MainActivity)
 
             JewelVaultTheme {
                 LaunchedEffect(baseViewModel.snackMessage) {
                     log("snackMessage: ${baseViewModel.snackMessage}")
-                    if (baseViewModel.snackMessage.isNotBlank())
-                        delay(5000)
+                    if (baseViewModel.snackMessage.isNotBlank()) delay(5000)
                     baseViewModel.snackMessage = ""
                 }
 
-                LaunchedEffect (baseViewModel.loading){
+                LaunchedEffect(baseViewModel.loading) {
                     log("loading: ${baseViewModel.loading}. time: ${Timestamp(System.currentTimeMillis())}")
                 }
-
 
                 Surface(
                     modifier = Modifier
@@ -78,26 +86,19 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize()) {
 
                         AppNavigation(
-                            navController,
-                            baseViewModel,
-                            startDestination = Screens.Splash.route
+                            navController, baseViewModel, startDestination = Screens.Splash.route
                         )
 
                         if (baseViewModel.loading) {
-                            Dialog(
-                                properties = DialogProperties(
-                                    dismissOnBackPress = false,
-                                    dismissOnClickOutside = false
-                                ),
-                                onDismissRequest = { /* Handle dismiss */ }) {
+                            Dialog(properties = DialogProperties(
+                                dismissOnBackPress = false, dismissOnClickOutside = false
+                            ), onDismissRequest = { /* Handle dismiss */ }) {
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
-                                    modifier = Modifier
-                                        .wrapContentSize(),
+                                    modifier = Modifier.wrapContentSize(),
                                 ) {
                                     Box(
-                                        modifier = Modifier
-                                            .padding(32.dp),
+                                        modifier = Modifier.padding(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator()
@@ -124,6 +125,13 @@ class MainActivity : ComponentActivity() {
                                 fontSize = 16.sp
 
                             )
+                        }
+
+                        if (!baseViewModel.isConnectedState.value) {
+                            AlertDialog(onDismissRequest = {},
+                                confirmButton = {},
+                                title = { Text("No Internet Connection") },
+                                text = { Text("Please check your connection and try again.") })
                         }
                     }
                 }

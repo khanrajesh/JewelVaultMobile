@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44960140033",
+    "project_id": "jewel-vault",
+    "storage_bucket": "jewel-vault.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44960140033:android:421ac50f3a745345ebe900",
+        "android_client_info": {
+          "package_name": "com.velox.jewelvault"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDggTjl5li5BlGLxtscJkYExGcPKsQoyl0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

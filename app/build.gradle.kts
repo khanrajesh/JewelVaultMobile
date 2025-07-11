@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
 }
@@ -108,8 +109,8 @@ dependencies {
     implementation("androidx.room:room-ktx:2.7.1")
 
     // Testing
-    androidTestImplementation( "androidx.room:room-testing:2.7.1")
-    androidTestImplementation( "androidx.test:core:1.5.0")
+    androidTestImplementation("androidx.room:room-testing:2.7.1")
+    androidTestImplementation("androidx.test:core:1.5.0")
 
     implementation("org.apache.poi:poi:5.2.3")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
@@ -119,8 +120,15 @@ dependencies {
 
     implementation("com.itextpdf:itext7-core:7.2.3") // For PDF generation
 
-    implementation ("org.apache.poi:poi:5.2.3")          // For .xls
+    implementation ("org.apache.poi:poi:5.2.3") // For .xls
     implementation ("org.apache.poi:poi-ooxml:5.2.3")    // For .xlsx
+
+    implementation( "com.google.accompanist:accompanist-permissions:0.33.0-alpha") // For permission
+
+    //firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
 
 
 }
