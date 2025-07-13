@@ -20,12 +20,9 @@ class BaseViewModel @Inject constructor(
     var loading by _loadingState
     var snackMessage by _snackBarState
     val dataStoreManager = _dataStoreManager
-    val phone = mutableStateOf("8260636334")
     val metalRates = mutableStateListOf<MetalRate>()
     val metalRatesLoading = mutableStateOf(false)
     val isConnectedState = mutableStateOf(false)
-
-
 
     suspend fun refreshMetalRates(state: String = "visakhapatnam", context: Context) {
         metalRates.clear()

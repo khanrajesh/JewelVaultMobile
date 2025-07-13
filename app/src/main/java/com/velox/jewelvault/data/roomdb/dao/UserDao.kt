@@ -6,7 +6,7 @@ import com.velox.jewelvault.data.roomdb.entity.UsersEntity
 @Dao
 interface UsersDao {
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UsersEntity): Long
     // Returns new row ID
 
@@ -17,6 +17,9 @@ interface UsersDao {
     @Delete
     suspend fun deleteUser(user: UsersEntity): Int
     // Returns number of rows deleted
+
+    @Query("SELECT COUNT(*) FROM UsersEntity")
+    suspend fun getUserCount(): Int
 
     @Query("SELECT * FROM UsersEntity WHERE id = :userId")
     suspend fun getUserById(userId: Int): UsersEntity?

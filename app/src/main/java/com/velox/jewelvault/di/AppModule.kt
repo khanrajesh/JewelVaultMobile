@@ -9,6 +9,10 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.utils.DataStoreManager
 import dagger.Module
@@ -73,5 +77,21 @@ object AppModule {
 //            .addMigrations(RoomMigration.MIGRATION_1_2) // or .fallbackToDestructiveMigration() if needed
             .build()
     }
+
+    // region firebase
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuthInstance(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFireStore(): FirebaseFirestore {
+        return  Firebase.firestore
+    }
+
+    //endregion
 
 }
