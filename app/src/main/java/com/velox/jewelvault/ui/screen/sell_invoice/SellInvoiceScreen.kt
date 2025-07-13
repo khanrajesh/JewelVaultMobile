@@ -2,7 +2,7 @@ package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.annotation.SuppressLint
 import android.util.Log
-import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -366,10 +366,7 @@ fun ViewAddItemDialog(
         val gold100: Double = (100 / 99.9) * (price24kOneGram?.toDoubleOrNull() ?: 0.0)
 
         if (price24kOneGram == null || gold100 == 0.0) {
-            mainScope {
-                Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
-                    .show()
-            }
+            baseViewModel.snackMessage = "Please load the metal prices"
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
         }
@@ -382,10 +379,7 @@ fun ViewAddItemDialog(
                     ?.toDoubleOrNull() ?: 0.0
 
             if (silverOneGm == 0.0) {
-                mainScope {
-                    Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
-                        .show()
-                }
+                baseViewModel.snackMessage = "Please load the metal prices"
                 viewModel.showAddItemDialog.value = false
                 viewModel.selectedItem.value = null
                 return
@@ -394,9 +388,7 @@ fun ViewAddItemDialog(
         } else {
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
-            mainScope {
-                Toast.makeText(context, "Only Gold and Silver", Toast.LENGTH_SHORT).show()
-            }
+            baseViewModel.snackMessage = "Only Gold and Silver"
             return
         }
 

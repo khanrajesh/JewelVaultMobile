@@ -1,7 +1,7 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase
 
 import android.annotation.SuppressLint
-import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -44,6 +44,7 @@ import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.SortOrder
 import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.LocalBaseViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -90,6 +91,7 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
 @OptIn(ExperimentalFoundationApi::class)
 private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
     val context = LocalContext.current
+    val baseViewModel = LocalBaseViewModel.current
     LaunchedEffect(true) {
         CoroutineScope(Dispatchers.IO).async {
             viewModel.getAllPurchaseSorted(SortOrder.DESCENDING)
@@ -148,7 +150,7 @@ private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
                                     }
                                 }, onLongClick = {
                                     if (!isHeader && item != null) {
-                                        Toast.makeText(context, "Not yet implemented", Toast.LENGTH_SHORT).show()
+                                        baseViewModel.snackMessage = "Not yet implemented"
                                     }
                                 })
                         ) {

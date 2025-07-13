@@ -5,15 +5,13 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="vault_room_database"/>
+        <exclude domain="sharedpref" path="vault_datastore"/>
+        <exclude domain="file" path="JewelVault"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="database" path="vault_room_database"/>
+        <exclude domain="sharedpref" path="vault_datastore"/>
+        <exclude domain="file" path="JewelVault"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

@@ -29,6 +29,17 @@ import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
 
+// Data class for inventory summary statistics
+data class InventorySummary(
+    val totalItems: Int = 0,
+    val totalGrossWeight: Double = 0.0,
+    val totalNetWeight: Double = 0.0,
+    val totalFineWeight: Double = 0.0,
+    val totalCategories: Int = 0,
+    val totalSubCategories: Int = 0,
+    val recentItemsAdded: Int = 0
+)
+
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase, private val _dataStoreManager: DataStoreManager,
@@ -46,7 +57,10 @@ class InventoryViewModel @Inject constructor(
 
     val purchaseItems: SnapshotStateList<PurchaseOrderItemEntity> = SnapshotStateList()
 
+    // Inventory summary statistics
+    val inventorySummary = mutableStateOf(InventorySummary())
 
+    // Filter states
     val addToName = InputFieldState()
     val entryType = InputFieldState()
     val qty = InputFieldState()
@@ -68,6 +82,39 @@ class InventoryViewModel @Inject constructor(
     val billNo = InputFieldState()
     val billItemDetails = mutableStateOf("")
 
+    // Enhanced filter states
+    val categoryFilter = InputFieldState()
+    val subCategoryFilter = InputFieldState()
+    val entryTypeFilter = InputFieldState()
+    val purityFilter = InputFieldState()
+    val chargeTypeFilter = InputFieldState()
+    val startDateFilter = InputFieldState()
+    val endDateFilter = InputFieldState()
+    val minGsWtFilter = InputFieldState()
+    val maxGsWtFilter = InputFieldState()
+    val minNtWtFilter = InputFieldState()
+    val maxNtWtFilter = InputFieldState()
+    val minFnWtFilter = InputFieldState()
+    val maxFnWtFilter = InputFieldState()
+    val minQuantityFilter = InputFieldState()
+    val maxQuantityFilter = InputFieldState()
+    val huidSearchFilter = InputFieldState()
+    val itemNameSearchFilter = InputFieldState()
+    val addDesKeySearchFilter = InputFieldState()
+    val addDesValueSearchFilter = InputFieldState()
+    val firmIdFilter = InputFieldState()
+    val purchaseOrderIdFilter = InputFieldState()
+
+    // Firm and seller lists for dropdowns
+    val firmList = mutableStateListOf<Pair<Int, String>>() // Pair<firmId, firmName>
+    val purchaseOrderList = mutableStateListOf<Pair<Int, String>>() // Pair<orderId, billNo>
+
+    // Sorting states
+    val sortBy = mutableStateOf("addDate")
+    val sortOrder = mutableStateOf("DESC")
+
+    // Filter visibility state
+    val isFilterExpanded = mutableStateOf(false)
 
     val isSelf = mutableStateOf(true)
 
@@ -96,8 +143,49 @@ class InventoryViewModel @Inject constructor(
         "Extra"
     )
 
+    // Sorting options
+    val sortOptions = listOf(
+        "addDate" to "Date Added",
+        "itemId" to "Item ID",
+        "gsWt" to "Gross Weight",
+        "ntWt" to "Net Weight", 
+        "fnWt" to "Fine Weight",
+        "quantity" to "Quantity",
+        "catName" to "Category",
+        "subCatName" to "Sub Category",
+        "purity" to "Purity",
+        "entryType" to "Entry Type"
+    )
 
+    init {
+        loadInitialData()
+    }
 
+    private fun loadInitialData() {
+        getCategoryAndSubCategoryDetails()
+        loadRecentItems()
+        loadFirmAndOrderLists()
+        loadInventorySummary()
+    }
+
+    fun loadFirmAndOrderLists() {
+        ioLaunch {
+            try {
+                val firms = appDatabase.purchaseDao().getAllFirmsWithSellers()
+                mainScope {
+                    firmList.clear()
+                    firmList.addAll(firms.map { it.firm.firmId to it.firm.firmName })
+                }
+                val orders = appDatabase.purchaseDao().getAllPurchaseOrders()
+                mainScope {
+                    purchaseOrderList.clear()
+                    purchaseOrderList.addAll(orders.map { it.purchaseOrderId to (it.billNo ?: it.purchaseOrderId.toString()) })
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
 
     fun getCategoryAndSubCategoryDetails() {
         ioScope {
@@ -133,6 +221,66 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    fun loadRecentItems() {
+        ioLaunch {
+            try {
+                appDatabase.itemDao().getRecentItems().collectLatest { items ->
+                    itemList.clear()
+                    itemList.addAll(items)
+                }
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to load recent items: ${e.message}")
+            }
+        }
+    }
+
+    fun loadInventorySummary() {
+        ioLaunch {
+            try {
+                val userId = dataStoreManager.userId.first()
+                val storeId = dataStoreManager.storeId.first()
+                
+                // Get all items for the user and store
+                val allItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
+                
+                // Calculate summary statistics
+                val totalItems = allItems.size
+                val totalGrossWeight = allItems.sumOf { it.gsWt }
+                val totalNetWeight = allItems.sumOf { it.ntWt }
+                val totalFineWeight = allItems.sumOf { it.fnWt }
+                
+                // Get category and subcategory counts
+                val categories = appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
+                val totalCategories = categories.size
+                val totalSubCategories = categories.sumOf { cat ->
+                    appDatabase.subCategoryDao().getSubCategoriesByCatId(cat.catId).size
+                }
+                
+                // Get recent items (last 7 days)
+                val calendar = java.util.Calendar.getInstance()
+                calendar.add(java.util.Calendar.DAY_OF_MONTH, -7)
+                val weekAgo = Timestamp(calendar.timeInMillis)
+                val recentItems = allItems.count { it.addDate.after(weekAgo) }
+                
+                val summary = InventorySummary(
+                    totalItems = totalItems,
+                    totalGrossWeight = totalGrossWeight,
+                    totalNetWeight = totalNetWeight,
+                    totalFineWeight = totalFineWeight,
+                    totalCategories = totalCategories,
+                    totalSubCategories = totalSubCategories,
+                    recentItemsAdded = recentItems
+                )
+                
+                mainScope {
+                    inventorySummary.value = summary
+                }
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to load inventory summary: ${e.message}")
+            }
+        }
+    }
+
     fun addCategory(catName: String) {
         ioLaunch {
             try {
@@ -147,6 +295,7 @@ class InventoryViewModel @Inject constructor(
                     _snackBarState.value = "Added new category id: $s"
                     this@InventoryViewModel.log("Added new category id: $s")
                     getCategoryAndSubCategoryDetails()
+                    loadInventorySummary()
                 } else {
                     _snackBarState.value = "failed to add category"
                     this@InventoryViewModel.log("failed to add category")
@@ -176,6 +325,7 @@ class InventoryViewModel @Inject constructor(
                     _snackBarState.value = "Added new sub category id: $s"
                     this@InventoryViewModel.log("Added new sub category id: $s")
                     getCategoryAndSubCategoryDetails()
+                    loadInventorySummary()
                 } else {
                     _snackBarState.value = "failed to add sub category"
                     this@InventoryViewModel.log("failed to add sub category")
@@ -187,41 +337,147 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-//    fun getAllItems() {
-//        viewModelScope.launch {
-//            appDatabase.itemDao().getAll().collect { items ->
-//                // Update the SnapshotStateList with the fetched items
-//                itemList.clear() // Clear the list before adding new data
-//                itemList.addAll(items) // Add all items to the SnapshotStateList
-//            }
-//        }
-//    }
-
-    fun filterItems(
-        catId: Int? = null,
-        subCatId: Int? = null,
-        type: String? = null,
-        purity: String? = null,
-        crgType: String? = null,
-        startDate: Timestamp? = null,
-        endDate: Timestamp? = null
-    ) {
+    // Enhanced filter function with all parameters
+    fun filterItems() {
         ioLaunch {
-                try {
-//                    _loadingState.value = true
-                    appDatabase.itemDao()
-                        .filterItems(catId, subCatId, type, purity, crgType, startDate, endDate)
-                        .collectLatest { items ->
-                            itemList.clear()
-                            itemList.addAll(items)
-                        }
-//                    _snackBarState.value = "Item Filtered"
-                } catch (e: Exception) {
-//                    _snackBarState.value="failed to filler item list error: ${e.localizedMessage}"
-                    this@InventoryViewModel.log("failed to filler item list")
-                }
-//                _loadingState.value = false
+            try {
+                val catId = catSubCatDto.find { it.catName == categoryFilter.text }?.catId
+                val subCatId = catSubCatDto
+                    .flatMap { it.subCategoryList }
+                    .find { it.subCatName == subCategoryFilter.text }?.subCatId
 
+                val startDate = if (startDateFilter.text.isNotEmpty()) {
+                    try {
+                        val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                        val date = dateFormat.parse(startDateFilter.text)
+                        date?.let { java.sql.Timestamp(it.time) }
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
+
+                val endDate = if (endDateFilter.text.isNotEmpty()) {
+                    try {
+                        val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                        val date = dateFormat.parse(endDateFilter.text)
+                        date?.let {
+                            val calendar = java.util.Calendar.getInstance()
+                            calendar.time = it
+                            calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                            calendar.set(java.util.Calendar.MINUTE, 59)
+                            calendar.set(java.util.Calendar.SECOND, 59)
+                            java.sql.Timestamp(calendar.timeInMillis)
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
+
+                val firmId = firmIdFilter.text.toIntOrNull()
+                val purchaseOrderId = purchaseOrderIdFilter.text.toIntOrNull()
+
+                appDatabase.itemDao()
+                    .filterItems(
+                        catId = catId,
+                        subCatId = subCatId,
+                        type = if (entryTypeFilter.text.isNotEmpty()) entryTypeFilter.text else null,
+                        purity = if (purityFilter.text.isNotEmpty()) purityFilter.text else null,
+                        crgType = if (chargeTypeFilter.text.isNotEmpty()) chargeTypeFilter.text else null,
+                        startDate = startDate,
+                        endDate = endDate,
+                        minGsWt = if (minGsWtFilter.text.isNotEmpty()) minGsWtFilter.text.toDoubleOrNull() else null,
+                        maxGsWt = if (maxGsWtFilter.text.isNotEmpty()) maxGsWtFilter.text.toDoubleOrNull() else null,
+                        minNtWt = if (minNtWtFilter.text.isNotEmpty()) minNtWtFilter.text.toDoubleOrNull() else null,
+                        maxNtWt = if (maxNtWtFilter.text.isNotEmpty()) maxNtWtFilter.text.toDoubleOrNull() else null,
+                        minFnWt = if (minFnWtFilter.text.isNotEmpty()) minFnWtFilter.text.toDoubleOrNull() else null,
+                        maxFnWt = if (maxFnWtFilter.text.isNotEmpty()) maxFnWtFilter.text.toDoubleOrNull() else null,
+                        minQuantity = if (minQuantityFilter.text.isNotEmpty()) minQuantityFilter.text.toIntOrNull() else null,
+                        maxQuantity = if (maxQuantityFilter.text.isNotEmpty()) maxQuantityFilter.text.toIntOrNull() else null,
+                        firmId = firmId,
+                        purchaseOrderId = purchaseOrderId
+                    )
+                    .collectLatest { items ->
+                        val sortedItems = when (sortBy.value) {
+                            "itemId" -> if (sortOrder.value == "ASC") items.sortedBy { it.itemId } else items.sortedByDescending { it.itemId }
+                            "gsWt" -> if (sortOrder.value == "ASC") items.sortedBy { it.gsWt } else items.sortedByDescending { it.gsWt }
+                            "ntWt" -> if (sortOrder.value == "ASC") items.sortedBy { it.ntWt } else items.sortedByDescending { it.ntWt }
+                            "fnWt" -> if (sortOrder.value == "ASC") items.sortedBy { it.fnWt } else items.sortedByDescending { it.fnWt }
+                            "quantity" -> if (sortOrder.value == "ASC") items.sortedBy { it.quantity } else items.sortedByDescending { it.quantity }
+                            "catName" -> if (sortOrder.value == "ASC") items.sortedBy { it.catName } else items.sortedByDescending { it.catName }
+                            "subCatName" -> if (sortOrder.value == "ASC") items.sortedBy { it.subCatName } else items.sortedByDescending { it.subCatName }
+                            "purity" -> if (sortOrder.value == "ASC") items.sortedBy { it.purity } else items.sortedByDescending { it.purity }
+                            "entryType" -> if (sortOrder.value == "ASC") items.sortedBy { it.entryType } else items.sortedByDescending { it.entryType }
+                            else -> if (sortOrder.value == "ASC") items.sortedBy { it.addDate } else items.sortedByDescending { it.addDate }
+                        }
+                        itemList.clear()
+                        itemList.addAll(sortedItems)
+                    }
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to filter item list: ${e.message}")
+                _snackBarState.value = "Failed to filter items: ${e.message}"
+            }
+        }
+    }
+
+    fun clearAllFilters() {
+        categoryFilter.text = ""
+        subCategoryFilter.text = ""
+        entryTypeFilter.text = ""
+        purityFilter.text = ""
+        chargeTypeFilter.text = ""
+        startDateFilter.text = ""
+        endDateFilter.text = ""
+        minGsWtFilter.text = ""
+        maxGsWtFilter.text = ""
+        minNtWtFilter.text = ""
+        maxNtWtFilter.text = ""
+        minFnWtFilter.text = ""
+        maxFnWtFilter.text = ""
+        minQuantityFilter.text = ""
+        maxQuantityFilter.text = ""
+        huidSearchFilter.text = ""
+        itemNameSearchFilter.text = ""
+        addDesKeySearchFilter.text = ""
+        addDesValueSearchFilter.text = ""
+        firmIdFilter.text = ""
+        purchaseOrderIdFilter.text = ""
+        sortBy.value = "addDate"
+        sortOrder.value = "DESC"
+        
+        loadRecentItems()
+    }
+
+    fun searchItemsByHUID(huid: String) {
+        if (huid.isNotEmpty()) {
+            ioLaunch {
+                try {
+                    appDatabase.itemDao().searchItemsByHUID(huid).collectLatest { items ->
+                        itemList.clear()
+                        itemList.addAll(items)
+                    }
+                } catch (e: Exception) {
+                    this@InventoryViewModel.log("failed to search by HUID: ${e.message}")
+                }
+            }
+        } else {
+            loadRecentItems()
+        }
+    }
+
+    fun searchItemsByName(name: String) {
+        if (name.isNotEmpty()) {
+            ioLaunch {
+                try {
+                    appDatabase.itemDao().searchItemsByName(name).collectLatest { items ->
+                        itemList.clear()
+                        itemList.addAll(items)
+                    }
+                } catch (e: Exception) {
+                    this@InventoryViewModel.log("failed to search by name: ${e.message}")
+                }
+            }
+        } else {
+            loadRecentItems()
         }
     }
 
@@ -278,6 +534,8 @@ class InventoryViewModel @Inject constructor(
                                                 "Item Added and categories updated."
 //                                            _loadingState.value = false
                                             onSuccess(insertedItem, newItemId)
+                                            // Refresh the item list after adding
+                                            loadRecentItems()
                                         }
                                     }
                                 } else {
@@ -352,6 +610,8 @@ class InventoryViewModel @Inject constructor(
                                 }
 
                                 onSuccess(rowsDeleted)
+                                // Refresh the item list after deleting
+                                filterItems()
                             } catch (e: Exception) {
                                 onFailure(e)
                             }
@@ -367,7 +627,6 @@ class InventoryViewModel @Inject constructor(
             }
         }
     }
-
 
     fun getBillsFromDate() {
         ioLaunch {

@@ -23,7 +23,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -59,6 +60,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material-icons-extended:1.6.3")
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.junit.ktx)
     implementation(libs.androidx.room.testing.android)
@@ -108,6 +110,7 @@ dependencies {
     kapt("androidx.room:room-compiler:2.7.1")
     implementation("androidx.room:room-ktx:2.7.1")
 
+
     // Testing
     androidTestImplementation("androidx.room:room-testing:2.7.1")
     androidTestImplementation("androidx.test:core:1.5.0")
@@ -129,8 +132,15 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-storage-ktx")
     implementation(libs.firebase.config)
     implementation(libs.firebase.firestore.ktx)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
+    // Coil for image loading
+    implementation(libs.coil.compose)
+
+    // Biometric authentication
+    implementation("androidx.biometric:biometric:1.1.0")
 
 }

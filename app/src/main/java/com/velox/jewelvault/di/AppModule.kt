@@ -13,8 +13,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.ktx.storage
 import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.RoomMigration
 import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.utils.SessionManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -65,6 +69,12 @@ object AppModule {
         return DataStoreManager(dataStore)
     }
 
+    @Provides
+    @Singleton
+    fun provideSessionManager(dataStoreManager: DataStoreManager): SessionManager {
+        return SessionManager(dataStoreManager)
+    }
+
     // ✅ Room Database
     @Provides
     @Singleton
@@ -74,7 +84,7 @@ object AppModule {
             AppDatabase::class.java,
             "vault_room_database"
         )
-//            .addMigrations(RoomMigration.MIGRATION_1_2) // or .fallbackToDestructiveMigration() if needed
+            .fallbackToDestructiveMigration() // Temporarily use this to fix migration issues
             .build()
     }
 
@@ -90,6 +100,12 @@ object AppModule {
     @Singleton
     fun provideFirebaseFireStore(): FirebaseFirestore {
         return  Firebase.firestore
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return Firebase.storage
     }
 
     //endregion

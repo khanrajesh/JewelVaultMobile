@@ -2,7 +2,7 @@ package com.velox.jewelvault.ui.screen.purchase
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.widget.Toast
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -362,7 +362,7 @@ private fun FirmDetailsExtra(
                 modifier = Modifier.weight(1f),
                 isDatePicker = true,
                 onDateSelected = {
-                    Toast.makeText(context, "$it", Toast.LENGTH_SHORT).show()
+                    viewModel.snackBarState.value = "$it"
                 })
         }
         Spacer(Modifier.height(5.dp))

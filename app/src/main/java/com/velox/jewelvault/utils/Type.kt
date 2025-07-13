@@ -11,8 +11,8 @@ sealed class ChargeType(val type: String) {
 }
 
 sealed class EntryType(val type: String) {
-    data object Piece : ChargeType("piece")
-    data object Lot : ChargeType("Lot")
+    data object Piece : EntryType("piece")
+    data object Lot : EntryType("Lot")
 
     companion object {
         fun list(): List<String> = listOf(Piece.type, Lot.type)

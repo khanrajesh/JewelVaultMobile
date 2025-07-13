@@ -17,7 +17,15 @@ import com.velox.jewelvault.data.roomdb.entity.UsersEntity
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.SecurityUtils
+import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.BiometricAuthManager
+import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -25,6 +33,7 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val _appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
+    private val _sessionManager: SessionManager,
     private val _loadingState: MutableState<Boolean>,
     private val _snackBarState: MutableState<String>,
     private val _auth: FirebaseAuth,
@@ -38,10 +47,237 @@ class LoginViewModel @Inject constructor(
     val firebaseUser = mutableStateOf<FirebaseUser?>(null)
 
     val otpVerificationId = mutableStateOf<String?>(null)
+    
+    // Biometric authentication state
+    val isBiometricAvailable = mutableStateOf(false)
+    val biometricAuthEnabled = mutableStateOf(false)
 
 
     suspend fun userExits():Boolean{
         return _appDatabase.userDao().getUserCount() == 1
+    }
+    
+    // Check biometric availability
+    fun checkBiometricAvailability(context: android.content.Context) {
+        val biometricAuthManager = BiometricAuthManager(context)
+        val isAvailable = biometricAuthManager.isBiometricAvailable()
+        log("Biometric availability check: $isAvailable")
+        isBiometricAvailable.value = isAvailable
+    }
+    
+    // Save phone number to DataStore
+    suspend fun savePhoneNumber(phoneNumber: String) {
+        try {
+            _dataStoreManager.setValue(DataStoreManager.SAVED_PHONE_NUMBER, phoneNumber)
+            log("Phone number saved: $phoneNumber")
+        } catch (e: Exception) {
+            log("Failed to save phone number: ${e.message}")
+            _snackBarState.value = "Failed to save phone number: ${e.message}"
+        }
+    }
+    
+    // Get saved phone number from DataStore
+    suspend fun getSavedPhoneNumber(): String? {
+        return try {
+            val phone = _dataStoreManager.getValue(DataStoreManager.SAVED_PHONE_NUMBER, "").first()
+            log("Retrieved saved phone number: $phone")
+            phone
+        } catch (e: Exception) {
+            log("Failed to get saved phone number: ${e.message}")
+            null
+        }
+    }
+    
+    // Get biometric setting from DataStore
+    suspend fun getBiometricSetting(): Boolean {
+        return try {
+            val enabled = _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_AUTH, false).first() ?: false
+            log("Biometric setting retrieved: $enabled")
+            enabled
+        } catch (e: Exception) {
+            log("Failed to get biometric setting: ${e.message}")
+            false
+        }
+    }
+    
+    // Authenticate with biometric using callback approach
+    fun authenticateWithBiometric(
+        context: android.content.Context,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+        onCancel: () -> Unit
+    ) {
+        log("authenticateWithBiometric called")
+        val biometricAuthManager = BiometricAuthManager(context)
+        
+        // Check if biometric is enabled in settings and start authentication on main thread
+        ioScope {
+            val biometricEnabled = _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_AUTH, false).first() ?: false
+            log("Biometric enabled in settings: $biometricEnabled")
+            if (!biometricEnabled) {
+                log("Biometric disabled in settings, calling onError")
+                onError("Biometric authentication is disabled in settings")
+                return@ioScope
+            }
+            
+            // Switch to main thread for biometric authentication
+            kotlinx.coroutines.MainScope().launch {
+                try {
+                    // Check if context is FragmentActivity
+                    if (context is androidx.fragment.app.FragmentActivity) {
+                        log("Context is FragmentActivity, using authenticateWithBiometric")
+                        biometricAuthManager.authenticateWithBiometric(
+                            activity = context,
+                            onSuccess = onSuccess,
+                            onError = onError,
+                            onCancel = onCancel
+                        )
+                    } else {
+                        log("Context is ComponentActivity, using authenticateWithBiometricCallback")
+                        // Fallback for ComponentActivity
+                        biometricAuthManager.authenticateWithBiometricCallback(
+                            activity = context as androidx.activity.ComponentActivity,
+                            onSuccess = onSuccess,
+                            onError = onError,
+                            onCancel = onCancel
+                        )
+                    }
+                } catch (e: Exception) {
+                    log("Exception in biometric authentication: ${e.message}")
+                    onError("Failed to start biometric authentication: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    // Integrated login with PIN validation first, then biometric, then Firebase verification
+    fun loginWithBiometricAndPin(
+        phone: String, 
+        pin: String, 
+        savePhone: Boolean = false,
+        context: android.content.Context,
+        onSuccess: () -> Unit, 
+        onFailure: (String) -> Unit,
+        onCancel: () -> Unit
+    ) {
+        log("loginWithBiometricAndPin called with phone: $phone, pin length: ${pin.length}, savePhone: $savePhone")
+        
+        // Step 1: Validate PIN length first
+        if (!InputValidator.isValidPin(pin)) {
+            log("PIN validation failed: $pin (length: ${pin.length})")
+            onFailure("PIN must be 4-6 digits")
+            return
+        }
+        
+        // Step 2: Validate phone number
+        if (!InputValidator.isValidPhoneNumber(phone)) {
+            log("Invalid phone number format: $phone")
+            onFailure("Invalid phone number format")
+            return
+        }
+        
+        log("Input validation passed, proceeding with biometric authentication")
+        
+        // Step 3: Authenticate with biometric
+        authenticateWithBiometric(
+            context = context,
+            onSuccess = {
+                log("Biometric authentication successful, proceeding with Firebase PIN verification")
+                // Biometric successful, now verify PIN with Firebase
+                ioScope {
+                    loginWithPinInternal(phone, pin, savePhone, onSuccess, onFailure)
+                }
+            },
+            onError = { error ->
+                log("Biometric authentication failed: $error")
+                onFailure(error)
+            },
+            onCancel = {
+                log("Biometric authentication cancelled")
+                onCancel()
+            }
+        )
+    }
+    
+    // Internal method for Firebase PIN verification (validation already done)
+    private suspend fun loginWithPinInternal(
+        phone: String, 
+        pin: String, 
+        savePhone: Boolean = false,
+        onSuccess: () -> Unit, 
+        onFailure: (String) -> Unit
+    ) {
+        log("loginWithPinInternal called with phone: $phone, pin length: ${pin.length}")
+        
+        // Note: Input validation already done in calling function
+        log("Proceeding with Firebase PIN verification")
+
+        val userCount = _appDatabase.userDao().getUserCount()
+        log("User count in database: $userCount")
+
+        if (userCount > 0) {
+            val usr = _appDatabase.userDao().getUserByMobile(phone)
+            if (usr == null) {
+                log("User exists but with different phone number")
+                onFailure("This device is already registered with a different phone number. Cannot proceed.")
+                return
+            }
+            log("User found in database with matching phone number")
+        }
+
+        _loadingState.value = true
+        log("Starting Firebase authentication")
+        _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
+            if (document.exists()) {
+                val storedPin = document.getString("pin")
+                log("User document exists, stored PIN available: ${storedPin != null}")
+                if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
+                    log("PIN verification successful")
+                    ioScope {
+                        val result = _appDatabase.userDao().getUserByMobile(phone)
+                        if (result != null) {
+                            try {
+                                _dataStoreManager.setValue(
+                                    DataStoreManager.USER_ID_KEY, result.id
+                                )
+                                _sessionManager.startSession(result.id)
+                                
+                                // Save phone number if requested
+                                if (savePhone) {
+                                    ioLaunch {
+                                        savePhoneNumber(phone)
+                                    }
+                                }
+                                
+                                log("Login successful, user ID: ${result.id}")
+                                onSuccess()
+                                _loadingState.value = false
+                            } catch (e: Exception) {
+                                log("Exception during login: ${e.message}")
+                                _loadingState.value = false
+                                onFailure("Unable to store the user data")
+                            }
+                        } else {
+                            log("User not found in local database")
+                            _loadingState.value = false
+                            onFailure("User not found, please sign up first")
+                        }
+                    }
+                } else {
+                    log("PIN verification failed")
+                    _loadingState.value = false
+                    onFailure("Invalid PIN")
+                }
+            } else {
+                log("User document does not exist in Firebase")
+                _loadingState.value = false
+                onFailure("User not found")
+            }
+        }.addOnFailureListener {
+            log("Firebase authentication failed: ${it.message}")
+            _loadingState.value = false
+            onFailure(it.message ?: "Login failed")
+        }
     }
 
     fun startPhoneVerification(
@@ -51,6 +287,25 @@ class LoginViewModel @Inject constructor(
         onVerificationCompleted: (PhoneAuthCredential) -> Unit = {},
         onVerificationFailed: (FirebaseException) -> Unit = {}
     ) {
+        // Validate phone number
+        if (!InputValidator.isValidPhoneNumber(phoneNumber)) {
+            _snackBarState.value = "Invalid phone number format"
+            return
+        }
+        
+        // Check if user already exists with different phone number
+        ioLaunch {
+            val userCount = _appDatabase.userDao().getUserCount()
+            if (userCount > 0) {
+                val existingUser = _appDatabase.userDao().getUserByMobile(phoneNumber)
+                if (existingUser == null) {
+                    // User exists but with different phone number - prevent OTP generation
+                    _snackBarState.value = "This device is already registered with a different phone number. Cannot proceed with this phone number."
+                    return@ioLaunch
+                }
+            }
+            
+            // Proceed with OTP generation
         _loadingState.value = true
         val options = PhoneAuthOptions.newBuilder(_auth).setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS).setActivity(activity)
@@ -66,15 +321,16 @@ class LoginViewModel @Inject constructor(
 
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                     isOtpVerified.value = true
-
                     onVerificationCompleted(credential)
                 }
 
                 override fun onVerificationFailed(e: FirebaseException) {
+                        _loadingState.value = false
                     onVerificationFailed(e)
                 }
             }).build()
         PhoneAuthProvider.verifyPhoneNumber(options)
+        }
     }
 
 
@@ -102,29 +358,66 @@ class LoginViewModel @Inject constructor(
     }
 
     fun uploadUser(
-        pin: String, email: String? = null, onSuccess: () -> Unit, onFailure: () -> Unit
+        pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
+        // Validate PIN
+        if (!InputValidator.isValidPin(pin)) {
+            _snackBarState.value = "PIN must be 4-6 digits"
+            onFailure()
+            return
+        }
+        
+
 
         val uid = firebaseUser.value?.uid
         val phone = firebaseUser.value?.phoneNumber
 
         if (uid != null && phone != null) {
+            // Hash the PIN before storing
+            val hashedPin = SecurityUtils.hashPin(pin)
             val userMap = hashMapOf(
                 "phone" to phone,
                 "uid" to uid,
-                "pin" to pin,
-                "email" to email,
+                "pin" to hashedPin,
                 "otpVerifiedAt" to System.currentTimeMillis()
             )
             _loadingState.value = true
             _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
                 ioScope {
-                    val user = UsersEntity(
-                        name = phone, email = email, mobileNo = phone
-                    )
                     try {
-                        val result = _appDatabase.userDao().insertUser(user)
-                        if (result != -1L) onSuccess() else onFailure()
+                        // Check if user already exists in database
+                        val existingUser = _appDatabase.userDao().getUserByMobile(phone)
+                        val userCount = _appDatabase.userDao().getUserCount()
+                        
+                        if (existingUser != null) {
+                            // User exists with same phone, update the existing user
+                            val updatedUser = existingUser.copy(
+                                pin = hashedPin
+                            )
+                            val updateResult = _appDatabase.userDao().updateUser(updatedUser)
+                            if (updateResult > 0) {
+                                onSuccess()
+                            } else {
+                                onFailure()
+                            }
+                        } else if (userCount == 0) {
+                            // No user exists, create new user
+                            val newUser = UsersEntity(
+                                name = phone,
+                                mobileNo = phone,
+                                pin = hashedPin
+                            )
+                            val insertResult = _appDatabase.userDao().insertUser(newUser)
+                            if (insertResult != -1L) {
+                                onSuccess()
+                            } else {
+                                onFailure()
+                            }
+                        } else {
+                            // User exists but with different phone number - this should not happen due to OTP check
+                            _snackBarState.value = "This device is already registered with a different phone number. Cannot proceed."
+                            onFailure()
+                        }
                         _loadingState.value = false
                     } catch (e: Exception) {
                         _loadingState.value = false
@@ -140,8 +433,18 @@ class LoginViewModel @Inject constructor(
     }
 
     fun loginWithPin(
-        phone: String, pin: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        phone: String, pin: String, savePhone: Boolean = false, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
+        // Validate inputs
+        if (!InputValidator.isValidPhoneNumber(phone)) {
+            onFailure("Invalid phone number format")
+            return
+        }
+        
+        if (!InputValidator.isValidPin(pin)) {
+            onFailure("PIN must be 4-6 digits")
+            return
+        }
         ioLaunch {
 
             val userCount = _appDatabase.userDao().getUserCount()
@@ -149,7 +452,7 @@ class LoginViewModel @Inject constructor(
             if (userCount > 0) {
                 val usr = _appDatabase.userDao().getUserByMobile(phone)
                 if (usr == null) {
-                    onFailure("You are not registered, Please try again with valid user")
+                    onFailure("This device is already registered with a different phone number. Cannot proceed.")
                     return@ioLaunch
                 }
             }
@@ -158,7 +461,7 @@ class LoginViewModel @Inject constructor(
             _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
                 if (document.exists()) {
                     val storedPin = document.getString("pin")
-                    if (storedPin == pin) {
+                    if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
                         ioScope {
                             val result = _appDatabase.userDao().getUserByMobile(phone)
                             if (result != null) {
@@ -166,6 +469,15 @@ class LoginViewModel @Inject constructor(
                                     _dataStoreManager.setValue(
                                         DataStoreManager.USER_ID_KEY, result.id
                                     )
+                                    _sessionManager.startSession(result.id)
+                                    
+                                    // Save phone number if requested
+                                    if (savePhone) {
+                                        ioLaunch {
+                                            savePhoneNumber(phone)
+                                        }
+                                    }
+                                    
                                     onSuccess()
                                     _loadingState.value = false
                                 } catch (e: Exception) {
@@ -174,7 +486,7 @@ class LoginViewModel @Inject constructor(
                                 }
                             } else {
                                 _loadingState.value = false
-                                onFailure("Welcome back, Please verify")
+                                onFailure("User not found, please sign up first")
                             }
                         }
                     } else {
@@ -192,6 +504,145 @@ class LoginViewModel @Inject constructor(
 
         }
     }
+
+    fun logout() {
+        ioLaunch {
+            try {
+                _sessionManager.endSession()
+                _auth.signOut()
+                firebaseUser.value = null
+                isOtpGenerated.value = false
+                isOtpVerified.value = false
+                otpVerificationId.value = null
+            } catch (e: Exception) {
+                _snackBarState.value = "Logout failed: ${e.message}"
+            }
+        }
+    }
+    
+    fun extendSession() {
+        ioLaunch {
+            try {
+                _sessionManager.updateLastActivity()
+                _snackBarState.value = "Session extended successfully"
+            } catch (e: Exception) {
+                _snackBarState.value = "Failed to extend session: ${e.message}"
+            }
+        }
+    }
+    
+    fun resetPin(
+        pin: String,  onSuccess: () -> Unit, onFailure: () -> Unit
+    ) {
+        // Validate PIN
+        if (!InputValidator.isValidPin(pin)) {
+            _snackBarState.value = "PIN must be 4-6 digits"
+            onFailure()
+            return
+        }
+
+        val uid = firebaseUser.value?.uid
+        val phone = firebaseUser.value?.phoneNumber
+
+        if (uid != null && phone != null) {
+            // Hash the PIN before storing
+            val hashedPin = SecurityUtils.hashPin(pin)
+            val userMap = hashMapOf(
+                "phone" to phone,
+                "uid" to uid,
+                "pin" to hashedPin,
+                "pinResetAt" to System.currentTimeMillis()
+            )
+            _loadingState.value = true
+            _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
+                ioScope {
+                    try {
+                        // Update existing user in local database
+                        val existingUser = _appDatabase.userDao().getUserByMobile(phone)
+                        val userCount = _appDatabase.userDao().getUserCount()
+                        
+                        if (existingUser != null) {
+                            // User exists with same phone, update the PIN
+                            val updatedUser = existingUser.copy(
+                                pin = hashedPin
+                            )
+                            val updateResult = _appDatabase.userDao().updateUser(updatedUser)
+                            if (updateResult > 0) {
+                                onSuccess()
+                            } else {
+                                onFailure()
+                            }
+                        } else if (userCount == 0) {
+                            // No user exists, create new user
+                            val newUser = UsersEntity(
+                                name = phone, 
+                                mobileNo = phone,
+                                pin = hashedPin
+                            )
+                            val insertResult = _appDatabase.userDao().insertUser(newUser)
+                            if (insertResult != -1L) {
+                                onSuccess()
+                            } else {
+                                onFailure()
+                            }
+                        } else {
+                            // User exists but with different phone number - this should not happen due to OTP check
+                            _snackBarState.value = "Another user is already registered. Only one user can be registered per device."
+                            onFailure()
+                        }
+                        _loadingState.value = false
+                    } catch (e: Exception) {
+                        _loadingState.value = false
+                        onFailure()
+                    }
+                }
+            }.addOnFailureListener { it ->
+                _loadingState.value = false
+                _snackBarState.value = "Failed to reset PIN"
+                onFailure()
+            }
+        }
+    }
+    
+    fun resetOtpStates() {
+        isOtpGenerated.value = false
+        isOtpVerified.value = false
+        otpVerificationId.value = null
+        firebaseUser.value = null
+    }
+    
+    // Function to get current user's phone number
+    suspend fun getCurrentUserPhone(): String? {
+        return try {
+            val userCount = _appDatabase.userDao().getUserCount()
+            if (userCount > 0) {
+                val user = _appDatabase.userDao().getUserById(1) // Assuming single user with ID 1
+                user?.mobileNo
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+
+    
+    // Function to check if current phone matches registered user
+    suspend fun isCurrentPhoneRegistered(phoneNumber: String): Boolean {
+        return try {
+            val userCount = _appDatabase.userDao().getUserCount()
+            if (userCount > 0) {
+                val existingUser = _appDatabase.userDao().getUserByMobile(phoneNumber)
+                existingUser != null
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
 
 
 }

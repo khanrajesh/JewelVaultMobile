@@ -20,10 +20,13 @@ interface ItemDao {
     @Query("SELECT * FROM ItemEntity ORDER BY addDate DESC")
     fun getAll(): Flow<List<ItemEntity>>
 
+    @Query("SELECT * FROM ItemEntity WHERE userId = :userId AND storeId = :storeId ORDER BY addDate DESC")
+    fun getAllItemsByUserIdAndStoreId(userId: Int, storeId: Int): List<ItemEntity>
+
     @Query("SELECT * FROM ItemEntity WHERE purchaseOrderId = :purchaseOrderId ORDER BY addDate DESC")
     fun getItemByPurchaseOrderId(purchaseOrderId: Int): Flow<List<ItemEntity>>
 
-    // ✅ Filter by any combination of parameters (nullable allows for optional filters)
+    // ✅ Enhanced Filter by any combination of parameters with ranges and search
     @Query(
         """
         SELECT * FROM ItemEntity
@@ -34,6 +37,17 @@ interface ItemDao {
           AND (:crgType IS NULL OR crgType = :crgType)
           AND (:startDate IS NULL OR addDate >= :startDate)
           AND (:endDate IS NULL OR addDate <= :endDate)
+          AND (:minGsWt IS NULL OR gsWt >= :minGsWt)
+          AND (:maxGsWt IS NULL OR gsWt <= :maxGsWt)
+          AND (:minNtWt IS NULL OR ntWt >= :minNtWt)
+          AND (:maxNtWt IS NULL OR ntWt <= :maxNtWt)
+          AND (:minFnWt IS NULL OR fnWt >= :minFnWt)
+          AND (:maxFnWt IS NULL OR fnWt <= :maxFnWt)
+          AND (:minQuantity IS NULL OR quantity >= :minQuantity)
+          AND (:maxQuantity IS NULL OR quantity <= :maxQuantity)
+          AND (:firmId IS NULL OR sellerFirmId = :firmId)
+          AND (:purchaseOrderId IS NULL OR purchaseOrderId = :purchaseOrderId)
+        ORDER BY addDate DESC
     """
     )
     fun filterItems(
@@ -43,12 +57,37 @@ interface ItemDao {
         purity: String? = null,
         crgType: String? = null,
         startDate: Timestamp? = null,
-        endDate: Timestamp? = null
+        endDate: Timestamp? = null,
+        minGsWt: Double? = null,
+        maxGsWt: Double? = null,
+        minNtWt: Double? = null,
+        maxNtWt: Double? = null,
+        minFnWt: Double? = null,
+        maxFnWt: Double? = null,
+        minQuantity: Int? = null,
+        maxQuantity: Int? = null,
+        firmId: Int? = null,
+        purchaseOrderId: Int? = null
     ): Flow<List<ItemEntity>>
+
+    // ✅ Get recent items (last 7 days)
+    @Query("SELECT * FROM ItemEntity WHERE addDate >= datetime('now', '-7 days') ORDER BY addDate DESC")
+    fun getRecentItems(): Flow<List<ItemEntity>>
+
+    // ✅ Get items by date range
+    @Query("SELECT * FROM ItemEntity WHERE addDate BETWEEN :startDate AND :endDate ORDER BY addDate DESC")
+    fun getItemsByDateRange(startDate: Timestamp, endDate: Timestamp): Flow<List<ItemEntity>>
+
+    // ✅ Search items by HUID
+    @Query("SELECT * FROM ItemEntity WHERE huid LIKE '%' || :huid || '%' ORDER BY addDate DESC")
+    fun searchItemsByHUID(huid: String): Flow<List<ItemEntity>>
+
+    // ✅ Search items by name
+    @Query("SELECT * FROM ItemEntity WHERE itemAddName LIKE '%' || :name || '%' ORDER BY addDate DESC")
+    fun searchItemsByName(name: String): Flow<List<ItemEntity>>
 
     @RawQuery(observedEntities = [ItemEntity::class])
     fun filterItems(query: SupportSQLiteQuery): Flow<List<ItemEntity>>
-
 
     // ✅ Update quantity (especially when type is "lot")
     @Query(
@@ -69,7 +108,6 @@ interface ItemDao {
 """
     )
     suspend fun getFineItemByCat(catId: Int): ItemEntity?
-
 
     @Query("DELETE FROM ItemEntity WHERE itemId = :itemId")
     suspend fun deleteById(itemId: Int)

@@ -15,6 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -70,7 +76,7 @@ fun MainScreen() {
     }
     val inputIconStates = listOf(
         InputIconState(
-            "Dashboard", R.drawable.dashboard_fill
+            "Dashboard", Icons.Default.Dashboard
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -79,7 +85,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Inventory", R.drawable.shapes_fil
+            "Inventory", Icons.Default.Inventory
         ) {
             subNavController.navigate(SubScreens.Inventory.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -87,17 +93,17 @@ fun MainScreen() {
                 }
             }
         },
-//        InputIconState(
-//            "Report", R.drawable.trading_ts
-//        ) {
-//            subNavController.navigate(SubScreens.Report.route) {
-//                popUpTo(SubScreens.Dashboard.route) {
-//                    inclusive = true
-//                }
-//            }
-//        },
         InputIconState(
-            "Ledger", R.drawable.report_fill
+            "Customers", Icons.Default.People
+        ) {
+            subNavController.navigate(SubScreens.Customers.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "Ledger", Icons.Default.AccountBalance
         ) {
             subNavController.navigate(SubScreens.OrderAndPurchase.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -106,7 +112,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Profile", R.drawable.account_fill
+            "Profile", Icons.Default.Person
         ) {
             subNavController.navigate("${SubScreens.Profile.route}/${false}") {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -115,7 +121,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Setting", R.drawable.settings_fill
+            "Setting", Icons.Default.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -130,9 +136,7 @@ fun MainScreen() {
     } else {
         PortraitDashboardScreen(inputIconStates)
     }
-
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -197,18 +201,29 @@ private fun LandscapeDashboardScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    item.icon?.let {
-                        Image(
-                            painter = painterResource(it),
-                            contentDescription = null,
-                            Modifier
-                                .padding(start = 5.dp)
-                                .size(30.dp)
-                        )
+                    item.icon?.let { icon ->
+                        if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = item.text,
+                                Modifier
+                                    .padding(start = 5.dp)
+                                    .size(30.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(icon as Int),
+                                contentDescription = item.text,
+                                Modifier
+                                    .padding(start = 5.dp)
+                                    .size(30.dp)
+                            )
+                        }
                     }
                     if (drawerState.isOpen) {
                         Spacer(Modifier.width(10.dp))
-                        Text(item.text, color = MaterialTheme.colorScheme.surface, fontWeight = FontWeight.Bold)
+                        Text(item.text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             }

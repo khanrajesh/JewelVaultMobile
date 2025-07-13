@@ -9,6 +9,7 @@ data class StoreEntity (
     val userId: Int,
     val proprietor: String,
     val name: String,
+    val eamil: String,
     val phone: String,
     val address: String,
     val registrationNo:String,

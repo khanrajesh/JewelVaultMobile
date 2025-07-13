@@ -1,7 +1,7 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-import android.widget.Toast
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.ItemListViewComponent
+import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
@@ -51,7 +51,35 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.InputValidator
 import java.sql.Timestamp
+
+// Helper function to convert ItemEntity to List<String>
+private fun ItemEntity.toListString(index: Int): List<String> = listOf(
+    "$index",
+    "${catName} (${catId})",
+    "${subCatName} (${subCatId})",
+    itemId.toString(),
+    itemAddName,
+    entryType,
+    quantity.toString(),
+    gsWt.to2FString(),
+    ntWt.to2FString(),
+    unit,
+    purity,
+    fnWt.to2FString(),
+    crgType,
+    crg.to2FString(),
+    othCrgDes,
+    othCrg.to2FString(),
+    (cgst + sgst + igst).to2FString(),
+    huid,
+    addDate.toString(),
+    addDesKey,
+    addDesValue,
+    "Extra value"
+)
 
 @Composable
 fun InventoryItemScreen(
@@ -75,7 +103,9 @@ fun LandscapeInventoryItemScreen(
 
 
     LaunchedEffect(true) {
-        inventoryViewModel.filterItems(catId = catId, subCatId = subCatId)
+        inventoryViewModel.categoryFilter.text = catName
+        inventoryViewModel.subCategoryFilter.text = subCatName
+        inventoryViewModel.filterItems()
     }
 
     val showOption = remember { mutableStateOf(false) }
@@ -124,13 +154,20 @@ fun LandscapeInventoryItemScreen(
                 inventoryViewModel,
             )
 
-            ItemListViewComponent(inventoryViewModel.itemHeaderList,
-                inventoryViewModel.itemList,
-                onItemLongClick = { item ->
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    selectedItem.value = item
-                    showDialog.value = true
-                })
+            TextListView(
+                headerList = inventoryViewModel.itemHeaderList,
+                items = inventoryViewModel.itemList.mapIndexed { index, item -> item.toListString(index + 1) },
+                onItemClick = { _ -> },
+                onItemLongClick = { itemData ->
+                    val itemId = itemData[3].toIntOrNull() // itemId is at index 3
+                    val item = inventoryViewModel.itemList.find { it.itemId == itemId }
+                    item?.let {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedItem.value = it
+                        showDialog.value = true
+                    }
+                }
+            )
         }
 
         if (showOption.value) Box(
@@ -517,30 +554,65 @@ private fun AddItemSection(
                                     return@bounceClick
                                 }
 
+                                // Validate inputs
+                                if (viewModel.addToName.text.isBlank()) {
+                                    viewModel.snackBarState.value = "Item name is required"
+                                    return@bounceClick
+                                }
+                                
+                                if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
+                                    viewModel.snackBarState.value = "Invalid quantity"
+                                    return@bounceClick
+                                }
+                                
+                                if (!InputValidator.isValidWeight(viewModel.grWt.text)) {
+                                    viewModel.snackBarState.value = "Invalid gross weight"
+                                    return@bounceClick
+                                }
+                                
+                                if (!InputValidator.isValidWeight(viewModel.ntWt.text)) {
+                                    viewModel.snackBarState.value = "Invalid net weight"
+                                    return@bounceClick
+                                }
+                                
+                                if (!InputValidator.isValidWeight(viewModel.fnWt.text)) {
+                                    viewModel.snackBarState.value = "Invalid fine weight"
+                                    return@bounceClick
+                                }
+                                
+                                if (viewModel.purity.text.isBlank()) {
+                                    viewModel.snackBarState.value = "Purity is required"
+                                    return@bounceClick
+                                }
+                                
+                                if (!InputValidator.isValidHUID(viewModel.huid.text)) {
+                                    viewModel.snackBarState.value = "Invalid HUID format"
+                                }
+                                
                                 val newItem = ItemEntity(
-                                    itemAddName = viewModel.addToName.text,
+                                    itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
                                     userId = 1,
                                     storeId = 1,
                                     catId = catId,
                                     subCatId = subCatId,
                                     catName = catName,
                                     subCatName = subCatName,
-                                    entryType = viewModel.entryType.text,
+                                    entryType = InputValidator.sanitizeText(viewModel.entryType.text),
                                     quantity = viewModel.qty.text.toIntOrNull() ?: 1,
                                     gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
                                     ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
                                     fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
-                                    purity = viewModel.purity.text,
-                                    crgType = viewModel.chargeType.text,
+                                    purity = InputValidator.sanitizeText(viewModel.purity.text),
+                                    crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
                                     crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
-                                    othCrgDes = viewModel.otherChargeDes.text,
+                                    othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
                                     othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
                                     cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
                                     sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
                                     igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
-                                    addDesKey = viewModel.desKey.text,
-                                    addDesValue = viewModel.desValue.text,
-                                    huid = viewModel.huid.text,
+                                    addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
+                                    addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
+                                    huid = viewModel.huid.text.trim().uppercase(),
                                     addDate = Timestamp(System.currentTimeMillis()),
                                     modifiedDate = Timestamp(System.currentTimeMillis()),
 
@@ -555,9 +627,7 @@ private fun AddItemSection(
                                     viewModel.snackBarState.value = "Add Item Failed"
                                 }, onSuccess = { itemEntity, l ->
 
-                                    viewModel.filterItems(
-                                        catId = catId, subCatId = subCatId
-                                    )
+                                                                    viewModel.filterItems()
 
                                     viewModel.addToName.text = ""
                                     viewModel.entryType.text = ""

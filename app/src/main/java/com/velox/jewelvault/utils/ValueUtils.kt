@@ -127,3 +127,62 @@ fun numberToWords(number: Int): String {
 fun String.canBeInt(): Boolean {
     return this.toIntOrNull() != null
 }
+
+/**
+ * Format a Double value as currency string with Indian Rupee symbol
+ * Uses the same pattern as existing codebase (₹ + to2FString)
+ * @param amount The amount to format
+ * @return Formatted currency string (e.g., "₹1,234.56")
+ */
+fun formatCurrency(amount: Double): String {
+    return "₹${amount.to2FString()}"
+}
+
+/**
+ * Format an Int value as currency string with Indian Rupee symbol
+ * @param amount The amount to format
+ * @return Formatted currency string (e.g., "₹1,234.00")
+ */
+fun formatCurrency(amount: Int): String {
+    return formatCurrency(amount.toDouble())
+}
+
+/**
+ * Format a Long value as currency string with Indian Rupee symbol
+ * @param amount The amount to format
+ * @return Formatted currency string (e.g., "₹1,234.00")
+ */
+fun formatCurrency(amount: Long): String {
+    return formatCurrency(amount.toDouble())
+}
+
+/**
+ * Format a Timestamp as a readable date string
+ * Uses the same pattern as existing codebase (dd-MMM-yyyy)
+ * @param timestamp The timestamp to format
+ * @return Formatted date string (e.g., "25-Dec-2024")
+ */
+fun formatDate(timestamp: java.sql.Timestamp): String {
+    val formatter = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
+    return formatter.format(timestamp)
+}
+
+/**
+ * Format a Date as a readable date string
+ * Uses the same pattern as existing codebase (dd-MMM-yyyy)
+ * @param date The date to format
+ * @return Formatted date string (e.g., "25-Dec-2024")
+ */
+fun formatDate(date: java.util.Date): String {
+    val formatter = SimpleDateFormat("dd-MMM-yyyy", Locale.getDefault())
+    return formatter.format(date)
+}
+
+/**
+ * Format a Long timestamp as a readable date string
+ * @param timestamp The timestamp in milliseconds
+ * @return Formatted date string (e.g., "25-Dec-2024")
+ */
+fun formatDate(timestamp: Long): String {
+    return formatDate(java.util.Date(timestamp))
+}

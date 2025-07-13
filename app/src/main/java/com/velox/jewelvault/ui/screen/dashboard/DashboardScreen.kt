@@ -2,6 +2,7 @@ package com.velox.jewelvault.ui.screen.dashboard
 
 import android.Manifest
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +27,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +59,7 @@ import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
@@ -76,6 +83,31 @@ fun LandscapeMainScreen(
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
+    
+    // Double back press to exit state
+    var backPressCount by remember { mutableStateOf(0) }
+    
+    // Handle back press
+    BackHandler {
+        when (backPressCount) {
+            0 -> {
+                backPressCount = 1
+                baseViewModel.snackMessage = "Press back again to exit"
+            }
+            1 -> {
+                // Exit the application
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
+        }
+    }
+    
+    // Reset back press count when navigating away
+    DisposableEffect(navHost) {
+        onDispose {
+            backPressCount = 0
+        }
+    }
+    
     LaunchedEffect(true) {
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
@@ -106,11 +138,7 @@ fun LandscapeMainScreen(
             Manifest.permission.CAMERA,
             Manifest.permission.ACCESS_FINE_LOCATION,
         )
-    ) {
-        mainScope {
-            Toast.makeText(context, "All Permission Granted", Toast.LENGTH_SHORT).show()
-        }
-    }
+    ) {}
 
     Box(
         Modifier

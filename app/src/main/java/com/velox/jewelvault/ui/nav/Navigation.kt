@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.nav
 
+import androidx.compose.material.icons.filled.History
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +36,10 @@ import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.setting.SettingScreen
+import com.velox.jewelvault.ui.screen.customers.CustomerScreen
+import com.velox.jewelvault.ui.screen.customers.CustomerViewModel
+import com.velox.jewelvault.ui.screen.customers.CustomerDetailScreen
+import com.velox.jewelvault.ui.screen.customers.KhataBookPlansScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -135,6 +140,24 @@ fun SubAppNavigation(
                 InventoryFilterScreen(inventoryViewModel)
             }
 
+            composable(SubScreens.Customers.route) {
+                CustomerScreen(subNavController, hiltViewModel())
+            }
+            
+            composable(
+                route = "customer_detail/{customerMobile}",
+                arguments = listOf(
+                    navArgument("customerMobile") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val customerMobile = backStackEntry.arguments?.getString("customerMobile") ?: ""
+                CustomerDetailScreen(customerMobile)
+            }
+            
+            composable("khata_book_plans") {
+                KhataBookPlansScreen(subNavController)
+            }
+
             composable(SubScreens.OrderAndPurchase.route) {
                 OrderAndPurchaseScreen(hiltViewModel<OrderAndReportViewModel>())
             }
@@ -153,3 +176,6 @@ fun SubAppNavigation(
         }
     }
 }
+
+
+
