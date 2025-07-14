@@ -65,8 +65,32 @@ object RoomMigration {
             
             // Create index for customer_khata_book foreign key
             db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_khata_book_customerMobile ON customer_khata_book (customerMobile)")
+        }
+    }
+
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add customer_payment table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS customer_payment (
+                    paymentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    customerMobile TEXT NOT NULL,
+                    paymentDate INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    paymentType TEXT NOT NULL,
+                    paymentMethod TEXT,
+                    referenceNumber TEXT,
+                    notes TEXT,
+                    userId INTEGER NOT NULL,
+                    storeId INTEGER NOT NULL,
+                    FOREIGN KEY (customerMobile) REFERENCES CustomerEntity (mobileNo) ON DELETE CASCADE
+                )
+            """)
             
-            // Create customer_khata_payment table
+            // Create index for customer_payment foreign key
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_payment_customerMobile ON customer_payment (customerMobile)")
+            
+            // Create customer_khata_payment table (legacy - will be migrated in next version)
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS customer_khata_payment (
                     paymentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -87,112 +111,105 @@ object RoomMigration {
             // Create indexes for customer_khata_payment foreign keys
             db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_khata_payment_khataBookId ON customer_khata_payment (khataBookId)")
             db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_khata_payment_customerMobile ON customer_khata_payment (customerMobile)")
-            
-            // Create customer_payment table
-            db.execSQL("""
-                CREATE TABLE IF NOT EXISTS customer_payment (
-                    paymentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    customerMobile TEXT NOT NULL,
-                    paymentDate INTEGER NOT NULL,
-                    amount REAL NOT NULL,
-                    paymentType TEXT NOT NULL,
-                    paymentMethod TEXT,
-                    referenceNumber TEXT,
-                    notes TEXT,
-                    userId INTEGER NOT NULL,
-                    storeId INTEGER NOT NULL,
-                    FOREIGN KEY (customerMobile) REFERENCES CustomerEntity (mobileNo) ON DELETE CASCADE
-                )
-            """)
-            
-            // Create index for customer_payment foreign key
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_payment_customerMobile ON customer_payment (customerMobile)")
         }
     }
 
-    val MIGRATION_2_3 = object : Migration(2, 3) {
+    val MIGRATION_3_4 = object : Migration(3, 4) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            // Add missing columns to CustomerEntity table
+            // Add planName column to customer_khata_book table
             try {
-                db.execSQL("ALTER TABLE CustomerEntity ADD COLUMN isActive INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE customer_khata_book ADD COLUMN planName TEXT NOT NULL DEFAULT 'Standard Plan'")
             } catch (e: Exception) {
                 // Column might already exist, ignore error
             }
             
-            try {
-                db.execSQL("ALTER TABLE CustomerEntity ADD COLUMN notes TEXT")
-            } catch (e: Exception) {
-                // Column might already exist, ignore error
-            }
+            // Create customer_transaction table (unified transaction entity)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS customer_transaction (
+                    transactionId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    customerMobile TEXT NOT NULL,
+                    transactionDate INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    transactionType TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    description TEXT,
+                    referenceNumber TEXT,
+                    paymentMethod TEXT,
+                    khataBookId INTEGER,
+                    monthNumber INTEGER,
+                    notes TEXT,
+                    userId INTEGER NOT NULL,
+                    storeId INTEGER NOT NULL,
+                    FOREIGN KEY (customerMobile) REFERENCES CustomerEntity (mobileNo) ON DELETE CASCADE,
+                    FOREIGN KEY (khataBookId) REFERENCES customer_khata_book (khataBookId) ON DELETE CASCADE
+                )
+            """)
+            
+            // Create indexes for customer_transaction
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_customerMobile ON customer_transaction (customerMobile)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_khataBookId ON customer_transaction (khataBookId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_category ON customer_transaction (category)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_type ON customer_transaction (transactionType)")
+            
+            // Migrate existing outstanding transactions to the new unified table
+            db.execSQL("""
+                INSERT INTO customer_transaction (
+                    customerMobile, transactionDate, amount, transactionType, category, 
+                    description, notes, userId, storeId
+                )
+                SELECT 
+                    customerMobile, transactionDate, 
+                    CASE 
+                        WHEN transactionType = 'payment' THEN amount
+                        ELSE amount
+                    END as amount,
+                    CASE 
+                        WHEN transactionType = 'payment' THEN 'credit'
+                        WHEN transactionType = 'debt' THEN 'debit'
+                        ELSE 'debit'
+                    END as transactionType,
+                    'outstanding' as category,
+                    description, notes, userId, storeId
+                FROM customer_outstanding
+            """)
+            
+            // Migrate existing khata payments to the new unified table
+            db.execSQL("""
+                INSERT INTO customer_transaction (
+                    customerMobile, transactionDate, amount, transactionType, category,
+                    khataBookId, monthNumber, notes, userId, storeId
+                )
+                SELECT 
+                    ckp.customerMobile, ckp.paymentDate, ckp.amount, 'khata_payment' as transactionType,
+                    'khata_book' as category, ckp.khataBookId, ckp.monthNumber, ckp.notes, 
+                    ckp.userId, ckp.storeId
+                FROM customer_khata_payment ckp
+            """)
+            
+            // Migrate existing regular payments to the new unified table
+            db.execSQL("""
+                INSERT INTO customer_transaction (
+                    customerMobile, transactionDate, amount, transactionType, category,
+                    paymentMethod, referenceNumber, notes, userId, storeId
+                )
+                SELECT 
+                    customerMobile, paymentDate, amount, 'credit' as transactionType,
+                    'regular_payment' as category, paymentMethod, referenceNumber, notes, 
+                    userId, storeId
+                FROM customer_payment
+            """)
+        }
+    }
 
-            // Fix customer_payment table foreign key issue using temporary table approach
-            // Check if customer_payment table exists
-            val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_payment'")
-            val tableExists = cursor.count > 0
-            cursor.close()
-            
-            if (tableExists) {
-                // Create temporary table with proper structure
-                db.execSQL("""
-                    CREATE TABLE customer_payment_temp (
-                        paymentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        customerMobile TEXT NOT NULL,
-                        paymentDate INTEGER NOT NULL,
-                        amount REAL NOT NULL,
-                        paymentType TEXT NOT NULL,
-                        paymentMethod TEXT,
-                        referenceNumber TEXT,
-                        notes TEXT,
-                        userId INTEGER NOT NULL,
-                        storeId INTEGER NOT NULL
-                    )
-                """)
-                
-                // Copy data from old table to temporary table
-                db.execSQL("""
-                    INSERT INTO customer_payment_temp 
-                    SELECT paymentId, customerMobile, paymentDate, amount, paymentType, 
-                           paymentMethod, referenceNumber, notes, userId, storeId 
-                    FROM customer_payment
-                """)
-                
-                // Drop old table
-                db.execSQL("DROP TABLE customer_payment")
-                
-                // Rename temporary table to final table
-                db.execSQL("ALTER TABLE customer_payment_temp RENAME TO customer_payment")
-                
-                // Add foreign key constraint
-                db.execSQL("""
-                    CREATE TABLE customer_payment_new (
-                        paymentId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        customerMobile TEXT NOT NULL,
-                        paymentDate INTEGER NOT NULL,
-                        amount REAL NOT NULL,
-                        paymentType TEXT NOT NULL,
-                        paymentMethod TEXT,
-                        referenceNumber TEXT,
-                        notes TEXT,
-                        userId INTEGER NOT NULL,
-                        storeId INTEGER NOT NULL,
-                        FOREIGN KEY (customerMobile) REFERENCES CustomerEntity (mobileNo) ON DELETE CASCADE
-                    )
-                """)
-                
-                // Copy data to new table with foreign key
-                db.execSQL("""
-                    INSERT INTO customer_payment_new 
-                    SELECT paymentId, customerMobile, paymentDate, amount, paymentType, 
-                           paymentMethod, referenceNumber, notes, userId, storeId 
-                    FROM customer_payment
-                """)
-                
-                // Drop old table and rename new one
-                db.execSQL("DROP TABLE customer_payment")
-                db.execSQL("ALTER TABLE customer_payment_new RENAME TO customer_payment")
-                
-                // Create index for customer_payment foreign key
-                db.execSQL("CREATE INDEX index_customer_payment_customerMobile ON customer_payment (customerMobile)")
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Drop old tables after successful migration to unified transaction system
+            try {
+                db.execSQL("DROP TABLE IF EXISTS customer_outstanding")
+                db.execSQL("DROP TABLE IF EXISTS customer_payment")
+                db.execSQL("DROP TABLE IF EXISTS customer_khata_payment")
+            } catch (e: Exception) {
+                // Tables might not exist, ignore error
             }
         }
     }

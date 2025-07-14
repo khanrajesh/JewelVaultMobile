@@ -84,7 +84,12 @@ object AppModule {
             AppDatabase::class.java,
             "vault_room_database"
         )
-            .fallbackToDestructiveMigration() // Temporarily use this to fix migration issues
+            .addMigrations(
+                RoomMigration.MIGRATION_1_2,
+                RoomMigration.MIGRATION_2_3,
+                RoomMigration.MIGRATION_3_4,
+                RoomMigration.MIGRATION_4_5
+            )
             .build()
     }
 
