@@ -55,7 +55,6 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.formatCurrency
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomerScreen(
     navController: NavController, viewModel: CustomerViewModel = hiltViewModel()
@@ -92,7 +91,8 @@ fun CustomerScreen(
                 trailingIcon = Icons.Default.Search,
                 onTrailingIconClick = {
                     viewModel.searchCustomers(searchQuery.text)
-                }
+                },
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
             )
 
             IconButton(onClick = { showKhataBookPlans = true }) {
@@ -131,8 +131,19 @@ fun CustomerScreen(
 
     // Add Customer Dialog
     if (showAddCustomerDialog) {
-        AddCustomerDialog(onDismiss = { showAddCustomerDialog = false },
+        AddCustomerDialog(
+            onDismiss = { showAddCustomerDialog = false },
             onConfirm = { name, mobile, address, gstin, notes ->
+                // Validation
+                val phoneRegex = Regex("^[6-9][0-9]{9}")
+                if (!phoneRegex.matches(mobile.trim())) {
+                    viewModel.snackBarState.value = "Invalid mobile number format."
+                    return@AddCustomerDialog
+                }
+                if (viewModel.customerList.any { it.mobileNo == mobile.trim() }) {
+                    viewModel.snackBarState.value = "Customer with this mobile already exists."
+                    return@AddCustomerDialog
+                }
                 viewModel.customerName.text = name
                 viewModel.customerMobile.text = mobile
                 viewModel.customerAddress.text = address
@@ -140,7 +151,8 @@ fun CustomerScreen(
                 viewModel.customerNotes.text = notes
                 viewModel.addCustomer()
                 showAddCustomerDialog = false
-            })
+            }
+        )
     }
 
     // Khata Book Plans Navigation
@@ -386,7 +398,8 @@ fun AddCustomerDialog(
                 state = InputFieldState(mobile),
                 onTextChange = { mobile = it },
                 placeholderText = "Mobile Number *",
-                keyboardType = KeyboardType.Phone
+                keyboardType = KeyboardType.Phone,
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
             )
 
             CusOutlinedTextField(

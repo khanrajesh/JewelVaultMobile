@@ -6,7 +6,7 @@ data class KhataBookPlan(
     val payMonths: Int,
     val benefitMonths: Int,
     val description: String,
-    val benefitPercentage: Double
+    val benefitPercentage: Double = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
 ) {
     val effectiveMonths: Int = payMonths + benefitMonths
 }

@@ -60,6 +60,30 @@ class CustomerViewModel @Inject constructor(
     // Customer lists
     val customerList: SnapshotStateList<CustomerSummaryDto> = SnapshotStateList()
 
+    // Add a backing list to store all loaded customers
+    private val allCustomers: SnapshotStateList<CustomerSummaryDto> = SnapshotStateList()
+    private var lastSearchQuery: String = ""
+
+    private fun applyFilterAndSearch() {
+        val filter = filterType.value
+        val query = lastSearchQuery.trim().lowercase()
+        val filtered = when (filter) {
+            "all" -> allCustomers
+            "outstanding" -> allCustomers.filter { it.outstandingBalance > 0 }
+            "khata" -> allCustomers.filter { it.hasKhataBook }
+            else -> allCustomers
+        }
+        val searched = if (query.isNotEmpty()) {
+            filtered.filter {
+                it.name.lowercase().contains(query) ||
+                it.mobileNo.contains(query) ||
+                (it.address?.lowercase()?.contains(query) == true)
+            }
+        } else filtered
+        customerList.clear()
+        customerList.addAll(searched)
+    }
+
     // Form states for adding/editing customers
     val customerName = InputFieldState()
     val customerMobile = InputFieldState()
@@ -121,6 +145,21 @@ class CustomerViewModel @Inject constructor(
     val isLoadingKhataBook = mutableStateOf(false)
     val isLoadingPayment = mutableStateOf(false)
 
+    val planList = mutableStateListOf<KhataBookPlan>()
+
+    fun addPlan(name: String, payMonths: Int, benefitMonths: Int, description: String) {
+        val benefitPercentage = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
+        planList.add(KhataBookPlan(name, payMonths, benefitMonths, description, benefitPercentage))
+    }
+    fun editPlan(plan: KhataBookPlan, name: String, payMonths: Int, benefitMonths: Int, description: String) {
+        val idx = planList.indexOf(plan)
+        val benefitPercentage = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
+        if (idx >= 0) planList[idx] = plan.copy(name = name, payMonths = payMonths, benefitMonths = benefitMonths, description = description, benefitPercentage = benefitPercentage)
+    }
+    fun deletePlan(plan: KhataBookPlan) {
+        planList.remove(plan)
+    }
+
 //    init {
 //        loadCustomerData()
 //    }
@@ -139,8 +178,10 @@ class CustomerViewModel @Inject constructor(
                             val customerSummaries = customers.map { customer ->
                                 createCustomerSummary(customer)
                             }
-                            customerList.clear()
-                            customerList.addAll(customerSummaries)
+                            allCustomers.clear()
+                            allCustomers.addAll(customerSummaries)
+                            // Default: show all
+                            applyFilterAndSearch()
                             totalCustomers.value = customers.size
                         }
                     }
@@ -630,40 +671,6 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
-    fun searchCustomers(query: String) {
-        if (query.isEmpty()) {
-            loadCustomerData()
-            return
-        }
-
-        ioLaunch {
-            try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
-
-                appDatabase.customerDao().searchCustomers(query, userId, storeId)
-                    .collectLatest { customers ->
-                        val customerSummaries = customers.map { customer ->
-                            createCustomerSummary(customer)
-                        }
-                        mainScope {
-                            customerList.clear()
-                            customerList.addAll(customerSummaries)
-                        }
-                    }
-            } catch (e: Exception) {
-                log("Failed to search customers: ${e.message}")
-                _snackBarState.value = "Failed to search customers: ${e.message}"
-            }
-        }
-    }
-
-    fun filterCustomers(filterType: String) {
-        this.filterType.value = filterType
-        // Filter logic would be implemented here based on the filter type
-        loadCustomerData()
-    }
-
     private fun clearCustomerForm() {
         customerName.text = ""
         customerMobile.text = ""
@@ -870,5 +877,14 @@ class CustomerViewModel @Inject constructor(
         }
         
         return totalLateFees
+    }
+
+    fun searchCustomers(query: String) {
+        lastSearchQuery = query
+        applyFilterAndSearch()
+    }
+    fun filterCustomers(filterType: String) {
+        this.filterType.value = filterType
+        applyFilterAndSearch()
     }
 } 

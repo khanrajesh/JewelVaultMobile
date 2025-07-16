@@ -70,8 +70,8 @@ fun CusOutlinedTextField(
     enabled: Boolean = true,
     readOnly: Boolean = false ,
     textStyle: TextStyle = LocalTextStyle.current,
-    prefix: @Composable (() -> Unit)? = null,
-    suffix: @Composable (() -> Unit)? = null,
+    prefix:String = "",
+    suffix:String = "",
     supportingText: @Composable (() -> Unit)? = null,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardType: KeyboardType = KeyboardType.Text,
@@ -131,6 +131,7 @@ fun CusOutlinedTextField(
                 value = state.text,
                 onValueChange = {
                     if (keyboardType == KeyboardType.Number) {
+
                         if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*\$"))) {
                             state.onTextChanged(it)
                             validation?.let { validate ->
@@ -145,6 +146,7 @@ fun CusOutlinedTextField(
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     } else {
+
                         state.onTextChanged(it)
                         validation?.let { validate ->
                             val errorMsg = validate(it)
@@ -154,6 +156,7 @@ fun CusOutlinedTextField(
                             }
                         }
                     }
+
                     onTextChange(it)
                 },
                 maxLines = maxLines,
@@ -162,8 +165,6 @@ fun CusOutlinedTextField(
                 isError = state.error.isNotEmpty(),
                 enabled = enabled,
                 readOnly = readOnly || dropdownItems.isNotEmpty() || isDatePicker,
-                prefix = prefix,
-                suffix = suffix,
                 keyboardActions = keyboardActions,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = keyboardType,

@@ -61,7 +61,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
 
     val isLogin = remember { mutableStateOf(true) }
 
-    val mobileNo = remember { InputFieldState(initValue = "+91") }
+    val mobileNo = remember { InputFieldState() }
     val password = remember { InputFieldState() }
     val confirmPassword = remember { InputFieldState() }
 

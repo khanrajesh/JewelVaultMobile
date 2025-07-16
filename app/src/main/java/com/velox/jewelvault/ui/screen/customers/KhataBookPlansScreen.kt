@@ -17,8 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,8 @@ fun KhataBookPlansScreen(
     var showAddPlanDialog by remember { mutableStateOf(false) }
     var showCalculatorDialog by remember { mutableStateOf(false) }
     var selectedPlan by remember { mutableStateOf<KhataBookPlan?>(null) }
+    var showEditPlanDialog by remember { mutableStateOf<KhataBookPlan?>(null) }
+    var showDeletePlanDialog by remember { mutableStateOf<KhataBookPlan?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadKhataBookPlans()
@@ -102,10 +105,12 @@ fun KhataBookPlansScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 300.dp)
                 ) {
-                    items(getPredefinedPlans()) { plan ->
+                    items(viewModel.planList) { plan ->
                         KhataBookPlanCard(
                             plan = plan,
-                            onClick = { selectedPlan = plan }
+                            onClick = { selectedPlan = plan },
+                            onEdit = { showEditPlanDialog = plan },
+                            onDelete = { showDeletePlanDialog = plan }
                         )
                     }
                 }
@@ -133,7 +138,7 @@ fun KhataBookPlansScreen(
             AddKhataBookPlanDialog(
                 onDismiss = { showAddPlanDialog = false },
                 onConfirm = { name, payMonths, benefitMonths, description ->
-                    viewModel.addKhataBookPlan(name, payMonths, benefitMonths, description)
+                    viewModel.addPlan(name, payMonths, benefitMonths, description)
                     showAddPlanDialog = false
                 }
             )
@@ -141,7 +146,8 @@ fun KhataBookPlansScreen(
 
         if (showCalculatorDialog) {
             KhataBookCalculatorDialog(
-                onDismiss = { showCalculatorDialog = false }
+                onDismiss = { showCalculatorDialog = false },
+                viewModel
             )
         }
 
@@ -152,6 +158,29 @@ fun KhataBookPlansScreen(
                 onApply = { customerMobile ->
                     viewModel.applyKhataBookPlan(customerMobile, plan)
                     selectedPlan = null
+                }
+            )
+        }
+
+        // Edit Plan Dialog
+        showEditPlanDialog?.let { plan ->
+            AddKhataBookPlanDialog(
+                initialPlan = plan,
+                onDismiss = { showEditPlanDialog = null },
+                onConfirm = { name, payMonths, benefitMonths, description ->
+                    viewModel.editPlan(plan, name, payMonths, benefitMonths, description)
+                    showEditPlanDialog = null
+                }
+            )
+        }
+        // Delete Plan Dialog
+        showDeletePlanDialog?.let { plan ->
+            ConfirmDeleteDialog(
+                plan = plan,
+                onDismiss = { showDeletePlanDialog = null },
+                onConfirm = {
+                    viewModel.deletePlan(plan)
+                    showDeletePlanDialog = null
                 }
             )
         }
@@ -233,7 +262,9 @@ fun KhataBookStatisticItem(
 @Composable
 fun KhataBookPlanCard(
     plan: KhataBookPlan,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -246,7 +277,6 @@ fun KhataBookPlanCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Header with name and benefit percentage
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -258,12 +288,14 @@ fun KhataBookPlanCard(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = "${plan.benefitPercentage}%",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = LightGreen
-                )
+                Row {
+                    IconButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = "Edit Plan" }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Plan")
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.semantics { contentDescription = "Delete Plan" }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete Plan")
+                    }
+                }
             }
             
             // Description
@@ -389,18 +421,34 @@ fun ActiveKhataBookCustomerCard(
 }
 
 @Composable
+fun ConfirmDeleteDialog(plan: KhataBookPlan, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Plan") },
+        text = { Text("Are you sure you want to delete the plan '${plan.name}'?") },
+        confirmButton = {
+            Button(onClick = onConfirm) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
 fun AddKhataBookPlanDialog(
+    initialPlan: KhataBookPlan? = null,
     onDismiss: () -> Unit,
     onConfirm: (String, Int, Int, String) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var payMonths by remember { mutableStateOf("") }
-    var benefitMonths by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialPlan?.name ?: "") }
+    var payMonths by remember { mutableStateOf(initialPlan?.payMonths?.toString() ?: "") }
+    var benefitMonths by remember { mutableStateOf(initialPlan?.benefitMonths?.toString() ?: "") }
+    var description by remember { mutableStateOf(initialPlan?.description ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Khata Book Plan") },
+        title = { Text(if (initialPlan == null) "Add Khata Book Plan" else "Edit Khata Book Plan") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 CusOutlinedTextField(
@@ -408,21 +456,18 @@ fun AddKhataBookPlanDialog(
                     onTextChange = { name = it },
                     placeholderText = "Plan Name"
                 )
-                
                 CusOutlinedTextField(
                     state = InputFieldState(payMonths),
                     onTextChange = { payMonths = it },
                     placeholderText = "Pay Months",
                     keyboardType = KeyboardType.Number
                 )
-                
                 CusOutlinedTextField(
                     state = InputFieldState(benefitMonths),
                     onTextChange = { benefitMonths = it },
                     placeholderText = "Benefit Months",
                     keyboardType = KeyboardType.Number
                 )
-                
                 CusOutlinedTextField(
                     state = InputFieldState(description),
                     onTextChange = { description = it },
@@ -439,20 +484,19 @@ fun AddKhataBookPlanDialog(
                 },
                 enabled = name.isNotEmpty() && payMonths.isNotEmpty() && benefitMonths.isNotEmpty()
             ) {
-                Text("Add")
+                Text(if (initialPlan == null) "Add" else "Save")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
 }
 
 @Composable
 fun KhataBookCalculatorDialog(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    viewModel: CustomerViewModel
 ) {
     var monthlyAmount by remember { mutableStateOf("") }
     var selectedPlan by remember { mutableStateOf<KhataBookPlan?>(null) }
@@ -488,7 +532,7 @@ fun KhataBookCalculatorDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 200.dp)
                 ) {
-                    items(getPredefinedPlans()) { plan ->
+                    items(viewModel.planList) { plan ->
                         PlanSelectionCard(
                             plan = plan,
                             isSelected = selectedPlan == plan,
@@ -564,7 +608,9 @@ fun PlanDetailsDialog(
                 CusOutlinedTextField(
                     state = InputFieldState(customerMobile),
                     onTextChange = { customerMobile = it },
-                    placeholderText = "Customer Mobile Number"
+                    placeholderText = "Customer Mobile Number",
+                    keyboardType = KeyboardType.Phone,
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
                 )
             }
         },

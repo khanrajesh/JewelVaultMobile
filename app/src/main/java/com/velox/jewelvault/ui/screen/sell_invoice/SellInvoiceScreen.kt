@@ -793,6 +793,7 @@ fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
 }
 
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
     val haptic = LocalHapticFeedback.current
@@ -1133,12 +1134,7 @@ fun CustomerDetails(viewModel: SellInvoiceViewModel) {
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
-                    validation = { input ->
-                        when {
-                            input.length != 10 -> "Please Enter Valid Number"
-                            else -> null
-                        }
-                    }
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
                 )
             }
             Spacer(Modifier.height(5.dp))

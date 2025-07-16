@@ -262,12 +262,7 @@ fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableSt
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
-                    validation = { input ->
-                        when {
-                            input.length != 10 -> "Please Enter Valid Number"
-                            else -> null
-                        }
-                    },
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions {
                         viewModel.getFirmByFirmMobile()
@@ -325,12 +320,7 @@ private fun FirmDetailsExtra(
                 },
                 maxLines = 1,
                 keyboardType = KeyboardType.Phone,
-                validation = { input ->
-                    when {
-                        input.length != 10 -> "Please Enter Valid Number"
-                        else -> null
-                    }
-                },
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
                 imeAction = ImeAction.Done,
                 keyboardActions = KeyboardActions {
                     viewModel.getFirmBySellerMobile()

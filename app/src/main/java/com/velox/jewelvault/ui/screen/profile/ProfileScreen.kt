@@ -197,7 +197,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             state = profileViewModel.userMobile,
                             placeholderText = "Mobile No",
                             keyboardType = KeyboardType.Phone,
-                            readOnly = !isEditable.value
+                            readOnly = !isEditable.value,
+                            validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
                         )
 
                         CusOutlinedTextField(

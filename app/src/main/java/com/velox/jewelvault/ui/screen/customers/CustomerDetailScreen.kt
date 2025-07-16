@@ -51,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -147,10 +149,8 @@ fun CustomerDetailScreen(
                         }
                     },
                     onMonthClick = { month ->
-                        println("DEBUG: onMonthClick called with month $month")
                         selectedMonth = month
                         showMonthPaymentDialog = true
-                        println("DEBUG: showMonthPaymentDialog set to true")
                     })
             }
 
@@ -240,16 +240,13 @@ fun CustomerDetailScreen(
     }
 
     if (showMonthPaymentDialog) {
-        println("DEBUG: Showing MonthPaymentDialog for month $selectedMonth")
         MonthPaymentDialog(
             month = selectedMonth, 
             khataBooks = viewModel.selectedCustomerKhataBooks, 
             onDismiss = {
-                println("DEBUG: MonthPaymentDialog dismissed")
                 showMonthPaymentDialog = false
             }, 
             onConfirm = { amount, notes ->
-                println("DEBUG: MonthPaymentDialog confirmed with amount $amount")
                 viewModel.khataPaymentMonth.text = selectedMonth.toString()
                 viewModel.khataPaymentAmount.text = amount
                 viewModel.khataPaymentType.text = "full"
@@ -1439,7 +1436,6 @@ fun KhataBookMonthGrid(
         items(totalMonths) { index ->
             val monthNumber = index + 1
             val isEnabled = enabled && !paidMonths.contains(monthNumber)
-            println("DEBUG: Month $monthNumber - isPaid: ${paidMonths.contains(monthNumber)}, enabled: $enabled, isEnabled: $isEnabled")
             MonthBox(
                 monthNumber = monthNumber,
                 isPaid = paidMonths.contains(monthNumber),
@@ -1466,7 +1462,6 @@ fun MonthBox(
                         delay(2000)
                         showTooltip = false
                     } else if (enabled) {
-                        println("DEBUG: Month $monthNumber clicked - calling onClick")
                         onClick()
                     }
                 })
@@ -1486,7 +1481,11 @@ fun MonthBox(
                 text = monthNumber.toString(),
                 style = MaterialTheme.typography.labelSmall, // Smaller text
                 fontWeight = FontWeight.Bold,
-                color = if (isPaid) Color.White else Color.Black
+                color = if (isPaid) Color.White else Color.Black,
+                // Accessibility
+                modifier = Modifier
+                    .then(if (isPaid) Modifier else Modifier)
+                    .semantics { contentDescription = "Month $monthNumber" }
             )
 
             // Payment indicator for paid months
