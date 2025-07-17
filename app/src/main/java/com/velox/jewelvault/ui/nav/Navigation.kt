@@ -40,6 +40,9 @@ import com.velox.jewelvault.ui.screen.customers.CustomerScreen
 import com.velox.jewelvault.ui.screen.customers.CustomerViewModel
 import com.velox.jewelvault.ui.screen.customers.CustomerDetailScreen
 import com.velox.jewelvault.ui.screen.customers.KhataBookPlansScreen
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceScreen
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceViewModel
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftPreviewScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -79,6 +82,12 @@ fun AppNavigation(
             }
             composable(Screens.Purchase.route) {
                 PurchaseScreen(hiltViewModel<PurchaseViewModel>())
+            }
+            composable(Screens.DraftInvoice.route) {
+                DraftInvoiceScreen(hiltViewModel<DraftInvoiceViewModel>())
+            }
+            composable(Screens.DraftPreview.route) {
+                DraftPreviewScreen(hiltViewModel<DraftInvoiceViewModel>())
             }
         }
     }

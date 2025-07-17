@@ -208,3 +208,325 @@ fun sharePdf(context: Context, pdfUri: Uri) {
     }
     context.startActivity(Intent.createChooser(intent, "Share Invoice PDF"))
 }
+
+fun generateDraftInvoicePdf(
+    context: Context,
+    store: StoreEntity,
+    customer: CustomerEntity,
+    items: List<ItemSelectedModel>,
+    customerSign: ImageBitmap,
+    ownerSign: ImageBitmap,
+    onFileReady: (Uri) -> Unit
+) {
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size in points
+    val page = pdfDocument.startPage(pageInfo)
+    val canvas = page.canvas
+    val paint = Paint().apply {
+        color = Color.BLACK
+        textSize = 10f
+    }
+    val boldPaint = Paint(paint).apply {
+        isFakeBoldText = true
+    }
+    val titlePaint = Paint(paint).apply {
+        textSize = 16f
+        isFakeBoldText = true
+        color = Color.rgb(139, 0, 0) // Dark red/maroon
+    }
+    val headerPaint = Paint(paint).apply {
+        textSize = 14f
+        isFakeBoldText = true
+        color = Color.rgb(139, 0, 0)
+    }
+
+    // White background
+    canvas.drawColor(Color.WHITE)
+
+    var y = 30f
+    val startX = 30f
+    val gapY = 15f
+    // Left side - Logo placeholder
+    canvas.drawRect(startX, y, startX + 60f, y + 60f, Paint().apply { color = Color.rgb(139, 0, 0) })
+    boldPaint.textSize = 12f
+    canvas.drawText("R.K.J", startX + 10f, y + 35f, boldPaint)
+
+    // Center - Certifications
+    val certText = "Govt. Registered ✓ DIC: Registered ✓ ISO: Certified ✓ BIS: Certified"
+    paint.textSize = 8f
+    val certBoxLeft = startX + 80f
+    val certBoxTop = y
+    val certBoxRight = certBoxLeft + 270f
+    val certBoxBottom = certBoxTop + 20f
+    canvas.drawRect(certBoxLeft, certBoxTop, certBoxRight, certBoxBottom, Paint().apply { color = Color.rgb(255, 255, 224) })
+    canvas.drawText(certText, certBoxLeft + 5f, certBoxTop + 12f, paint)
+
+    // Company name (centered above cert box)
+    titlePaint.textSize = 18f
+    val companyName = "R. K. JEWELLERS"
+    val companyNameX = certBoxLeft + (certBoxRight - certBoxLeft) / 2 - titlePaint.measureText(companyName) / 2
+    canvas.drawText(companyName, companyNameX, y + 40f, titlePaint)
+
+    // Address (below cert box)
+    paint.textSize = 10f
+    canvas.drawText("D.N.K. Chowk, Main Road, Malkangiri, Odisha - 764048", certBoxLeft, y + 65f, paint)
+    canvas.drawText("Phone : 6861-796018, 8895311750, 9411111425", certBoxLeft, y + 80f, paint)
+
+    // Right side - Logos (aligned to right margin)
+    val rightLogoX = startX + 420f
+    val logoY = y + 10f
+    canvas.drawCircle(rightLogoX + 20f, logoY + 10f, 10f, Paint().apply { color = Color.GREEN })
+    paint.textSize = 6f
+    canvas.drawText("HALLMARKED", rightLogoX + 35f, logoY + 15f, paint)
+    canvas.drawText("GOLD", rightLogoX + 35f, logoY + 25f, paint)
+    canvas.drawCircle(rightLogoX + 20f, logoY + 40f, 10f, Paint().apply { color = Color.GREEN })
+    canvas.drawText("ISO 9001", rightLogoX + 35f, logoY + 45f, paint)
+    canvas.drawText("CERTIFIED", rightLogoX + 35f, logoY + 55f, paint)
+
+    y += 100f
+
+    // Customer and Invoice Details
+    // Left Column - Customer Details
+    boldPaint.textSize = 11f
+    canvas.drawText("Name : ${customer.name ?: "PADMA DURA"}", startX, y, boldPaint)
+    y += gapY
+    canvas.drawText("PODAVETA", startX, y, paint)
+    y += gapY
+    canvas.drawText("Mobile : ${customer.mobileNo ?: "7854900171"}", startX, y, paint)
+
+    // Right Column - Invoice Details
+    val rightDetailX = startX + 350f
+    y -= 30f
+    canvas.drawText("Invoice No. : ${store.invoiceNo ?: "A003439"}", rightDetailX, y, boldPaint)
+    y += gapY
+    canvas.drawText("Date : ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())}", rightDetailX, y, paint)
+    y += gapY
+    canvas.drawText("Issue Time : ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}", rightDetailX, y, paint)
+    y += gapY
+    canvas.drawText("Sales Man :", rightDetailX, y, paint)
+
+    // ESTIMATE text (centered below details)
+    titlePaint.textSize = 20f
+    val estimateText = "ESTIMATE"
+    val estimateX = startX + 250f - titlePaint.measureText(estimateText) / 2
+    canvas.drawText(estimateText, estimateX, y + 40f, titlePaint)
+
+    y += 50f
+
+    // Item Details Table Header
+    val tableStartX = startX
+    val colWidths = listOf(40f, 120f, 50f, 70f, 70f, 60f, 70f, 50f, 50f, 70f) // 10 columns
+    val headers = listOf("Sr Ref No.", "Product Description", "Qty./Set", "Gross.Wt in GMS", "Net Weight in GMS", "Rate/Gm", "Making Amount", "Purity %", "E.G.", "Total Amount")
+
+    // Draw table border
+    val tablePaint = Paint().apply {
+        color = Color.BLACK
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
+
+    var currentX = tableStartX
+    val tableWidth = colWidths.sum()
+    val tableHeight = 20f + (items.size * 25f)
+
+    // Draw outer table border
+    canvas.drawRect(tableStartX, y, tableStartX + tableWidth, y + tableHeight, tablePaint)
+
+    // Draw header row background and text
+    headers.forEachIndexed { index, header ->
+        canvas.drawRect(currentX, y, currentX + colWidths[index], y + 20f, Paint().apply { color = Color.LTGRAY })
+        // Use a consistent left padding for header text
+        canvas.drawText(header, currentX + 6f, y + 14f, paint.apply { textSize = 7f })
+        currentX += colWidths[index]
+    }
+
+    y += 25f
+
+    // Item Data Row
+    items.forEachIndexed { index, item ->
+        currentX = tableStartX
+        val rowData = listOf(
+            "${index + 1}",
+            "${item.huid ?: "R1047371"}",
+            "${item.itemAddName ?: "NECKLACE 750/HUID"}",
+            "${item.quantity}",
+            "${item.gsWt}",
+            "${item.ntWt}",
+            "₹${item.fnMetalPrice}",
+            "₹${item.chargeAmount}",
+            "${item.purity}",
+            "₹${item.price}"
+        )
+
+        rowData.forEachIndexed { colIndex, data ->
+            // Draw cell background
+            canvas.drawRect(currentX, y, currentX + colWidths[colIndex], y + 20f, Paint().apply { color = Color.WHITE })
+            // Draw cell border
+            canvas.drawRect(currentX, y, currentX + colWidths[colIndex], y + 20f, Paint().apply {
+                color = Color.BLACK
+                style = Paint.Style.STROKE
+                strokeWidth = 0.5f
+            })
+            // Use a consistent left padding for data text
+            canvas.drawText(data, currentX + 6f, y + 14f, paint.apply { textSize = 7f })
+            currentX += colWidths[colIndex]
+        }
+        y += 25f
+    }
+
+    // Draw vertical lines for table columns
+    currentX = tableStartX
+    colWidths.forEachIndexed { index, width ->
+        if (index < colWidths.size - 1) {
+            canvas.drawLine(
+                currentX + width, y - (items.size * 25f),
+                currentX + width, y,
+                tablePaint
+            )
+        }
+        currentX += width
+    }
+
+    y += 20f // Summary Section - Three Columns
+    val col1X = startX
+    val col2X = startX + 200f
+    val col3X = startX + 400f
+    // Left Column - Gold/Silver Details
+    boldPaint.textSize = 11f
+    canvas.drawText("GOLD DETAIL", col1X, y, boldPaint)
+    y += gapY
+    canvas.drawText("Weight: ${items.sumOf { it.gsWt }}", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Total Val: ${items.sumOf { it.price }}", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Tot-MC: ${items.sumOf { it.chargeAmount }}", col1X, y, paint)
+    y += gapY
+    canvas.drawText("E.G.: ${items.sumOf { it.othCrg }}", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Tot-Amt: ${items.sumOf { it.price + it.chargeAmount + it.othCrg }}", col1X, y, paint)
+    y += gapY
+
+    canvas.drawText("SILVER DETAIL", col1X, y, boldPaint)
+    y += gapY
+    canvas.drawText("Weight: 0", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Total Val: 0", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Tot-MC: 0", col1X, y, paint)
+    y += gapY
+    canvas.drawText("E.G.: 0", col1X, y, paint)
+    y += gapY
+    canvas.drawText("Tot-Amt: 0", col1X, y, paint)
+    y += gapY
+
+    // Amount in words
+    val totalAmount = items.sumOf { it.price + it.chargeAmount + it.othCrg }
+    val amountInWords = "Rs. ${numberToWords(totalAmount.toInt())} only"
+    canvas.drawText("Amount in words:", col1X, y, boldPaint)
+    y += gapY
+    canvas.drawText(amountInWords, col1X, y, paint)
+    y += gapY
+
+    // Declaration
+    canvas.drawText("Declaration:", col1X, y, boldPaint)
+    y += gapY
+    val declaration = "Goods once sold will not be taken back. Goods once sold will not be taken back or exchanged. All disputes subject to Malkangiri Jurisdiction only. Please refer backside for all Terms & Conditions."
+    paint.textSize = 8f
+    canvas.drawText(declaration, col1X, y, paint)
+    y += gapY
+    canvas.drawText("E.& O.E.", col1X, y, paint)
+
+    // Middle Column - Current Rates & Payment
+    y = 400f
+    canvas.drawText("Current Rates:", col2X, y, boldPaint)
+    y += gapY
+    canvas.drawText("Gold @ Rs. 92150", col2X, y, paint)
+    y += gapY
+    canvas.drawText("Silver @ Rs. 1000", col2X, y, paint)
+    y += gapY
+
+    canvas.drawText("Payment Detail:", col2X, y, boldPaint)
+    y += gapY
+    canvas.drawText("CASH ${totalAmount}", col2X, y, paint)
+
+    // Right Column - Final Calculation
+    y = 400f
+    canvas.drawText("SUB TOTAL: ${totalAmount}", col3X, y, paint)
+    y += gapY
+    canvas.drawText("GST @3%: 0.00", col3X, y, paint)
+    y += gapY
+    canvas.drawText("Discount: 39", col3X, y, paint)
+    y += gapY
+    canvas.drawText("Card Charges: 0.00", col3X, y, paint)
+    y += gapY
+    canvas.drawText("Total Amt: ${totalAmount - 39}", col3X, y, paint)
+    y += gapY
+    canvas.drawText("Old Exchange: 0.00", col3X, y, paint)
+    y += gapY
+    canvas.drawText("R. off: 0.26", col3X, y, paint)
+    y += gapY
+    canvas.drawText("Net Amount: ${totalAmount}", col3X, y, paint)
+
+    // PAID Stamp (place in summary area, right column)
+    val paidCircleX = col3X + 80f
+    val paidCircleY = 400f + 4 * gapY + 10f
+    canvas.drawCircle(paidCircleX, paidCircleY, 18f, Paint().apply {
+        color = Color.RED
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+    })
+    boldPaint.textSize = 12f
+    canvas.drawText("PAID", paidCircleX - 16f, paidCircleY + 5f, boldPaint)
+
+    // Footer
+    y = 800f
+    paint.textSize = 12f
+    canvas.drawText("Thank You.. Please Visit Again.", startX + 120f, y, paint)
+    canvas.drawText("For R.K. JEWELLERS", startX + 370f, y, paint)
+
+    // Signatures
+    y = 780f
+    canvas.drawBitmap(customerSign.asAndroidBitmap(), startX, y, paint)
+    canvas.drawText("Customer Signature", startX, y + 60f, paint)
+
+    canvas.drawBitmap(ownerSign.asAndroidBitmap(), startX + 30f, y, paint)
+    canvas.drawText("Authorised Signatory", startX + 300f, y + 60f, paint)
+
+    pdfDocument.finishPage(page)
+
+    val fileName = "draft_invoice_${System.currentTimeMillis()}.pdf"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice")
+    }
+
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+    if (uri != null) {
+        var success = false
+        try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                pdfDocument.writeTo(outputStream)
+                outputStream.flush()
+                success = true
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Log.e("PDF_GENERATION", "Error writing PDF: ${e.message}")
+        } finally {
+            pdfDocument.close()
+        }
+
+        if (success) {
+            onFileReady(uri)
+        } else {
+            resolver.delete(uri, null, null)
+            Log.e("PDF_GENERATION", "Failed to write PDF file")
+        }
+    } else {
+        Log.e("PDF_GENERATION", "Failed to create file in MediaStore")
+        pdfDocument.close()
+    }
+}

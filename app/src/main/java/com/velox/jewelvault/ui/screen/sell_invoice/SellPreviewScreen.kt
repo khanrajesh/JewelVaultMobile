@@ -32,6 +32,7 @@ import com.velox.jewelvault.ui.components.SignatureBox
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.sharePdf
+import androidx.core.graphics.createBitmap
 
 
 @Composable
@@ -151,7 +152,7 @@ fun PdfRendererPreview(uri: Uri) {
             val renderer = PdfRenderer(parcelFileDescriptor)
             if (renderer.pageCount > 0) {
                 val page = renderer.openPage(0)
-                val bitmap = Bitmap.createBitmap(a4Width, a4Height, Bitmap.Config.ARGB_8888)
+                val bitmap = createBitmap(a4Width, a4Height)
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
                 bitmapState.value = bitmap

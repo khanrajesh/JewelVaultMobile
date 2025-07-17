@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Pentagon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -83,10 +85,10 @@ fun LandscapeMainScreen(
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
-    
+
     // Double back press to exit state
     var backPressCount by remember { mutableStateOf(0) }
-    
+
     // Handle back press
     BackHandler {
         when (backPressCount) {
@@ -94,20 +96,21 @@ fun LandscapeMainScreen(
                 backPressCount = 1
                 baseViewModel.snackMessage = "Press back again to exit"
             }
+
             1 -> {
                 // Exit the application
                 android.os.Process.killProcess(android.os.Process.myPid())
             }
         }
     }
-    
+
     // Reset back press count when navigating away
     DisposableEffect(navHost) {
         onDispose {
             backPressCount = 0
         }
     }
-    
+
     LaunchedEffect(true) {
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
@@ -174,21 +177,45 @@ fun LandscapeMainScreen(
                         )
                         .padding(5.dp), verticalArrangement = Arrangement.Center
                 ) {
-                    Box(modifier = Modifier
-                        .bounceClick {
+                    Box(
+                        modifier = Modifier
+
+                            .weight(2f)
+                            .fillMaxWidth()
+                           ,
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Box ( modifier = Modifier.bounceClick {
                             navHost.navigate(Screens.SellInvoice.route)
+                        }.fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center){
+                            Text(
+                                "Create Invoice",
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.surface,
+
+                            )
                         }
-                        .weight(2f)
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                        ), contentAlignment = Alignment.Center) {
-                        Text(
-                            "Create Invoice",
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.surface,
+
+                        Icon(
+                            imageVector = Icons.Default.Pentagon,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .bounceClick {
+                                    navHost.navigate(Screens.DraftInvoice.route)
+                                }
+                                .align(Alignment.TopStart)
+                                .padding(2.dp)
+                                .size(30.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(7.dp)
                         )
+
+
                     }
                     Spacer(Modifier.height(5.dp))
 
@@ -197,37 +224,39 @@ fun LandscapeMainScreen(
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-                        Box(modifier = Modifier
-                            .bounceClick {
-                                navHost.navigate(Screens.QrScanScreen.route)
-                            }
-                            .weight(1f)
-                            .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+                                    navHost.navigate(Screens.QrScanScreen.route)
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                                ), contentAlignment = Alignment.Center) {
                             Text("Cam", textAlign = TextAlign.Center)
                         }
                         Spacer(Modifier.width(5.dp))
-                        Box(modifier = Modifier
-                            .bounceClick {
-                                dashboardViewModel.getSubCategoryCount {
-                                    if (it > 2) {
-                                        mainScope {
-                                            navHost.navigate(Screens.Purchase.route)
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+                                    dashboardViewModel.getSubCategoryCount {
+                                        if (it > 2) {
+                                            mainScope {
+                                                navHost.navigate(Screens.Purchase.route)
+                                            }
+                                        } else {
+                                            baseViewModel.snackMessage =
+                                                "Please add more sub categories."
                                         }
-                                    } else {
-                                        baseViewModel.snackMessage =
-                                            "Please add more sub categories."
                                     }
-                                }
 
-                            }
-                            .weight(1f)
-                            .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                                ), contentAlignment = Alignment.Center) {
                             Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }

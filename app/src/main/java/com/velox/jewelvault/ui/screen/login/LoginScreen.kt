@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
@@ -32,10 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.velox.jewelvault.MainActivity
 import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -78,14 +82,14 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
             } else {
                 // Check biometric availability
                 loginViewModel.checkBiometricAvailability(context)
-                
+
                 // Load saved phone number if available
                 val savedPhone = loginViewModel.getSavedPhoneNumber()
                 if (!savedPhone.isNullOrBlank()) {
                     mobileNo.text = savedPhone
                     savePhoneChecked.value = true
                 }
-                
+
                 // Check if biometric is enabled in settings
                 val biometricEnabled = loginViewModel.getBiometricSetting()
                 loginViewModel.biometricAuthEnabled.value = biometricEnabled
@@ -236,7 +240,7 @@ private fun AuthScreen(
     val forgotPassClick = remember { mutableStateOf(false) }
     val otp = remember { InputFieldState() }
     val activity = LocalContext.current as androidx.fragment.app.FragmentActivity
-    
+
     // Reset OTP states when switching between login/signup/forgot PIN
     LaunchedEffect(isLogin.value, forgotPassClick.value) {
         if (isLogin.value || forgotPassClick.value) {
@@ -270,8 +274,20 @@ private fun AuthScreen(
                         .fillMaxWidth(),
                     state = password,
                     placeholderText = "PIN",
-                    keyboardType = KeyboardType.Password
-                )
+                    keyboardType = KeyboardType.Password,
+                    imeAction = if (isLogin.value) ImeAction.Done else ImeAction.Next,
+                    keyboardActions = if (isLogin.value) KeyboardActions(onDone = {
+                        loginAction(
+                            loginViewModel,
+                            mobileNo,
+                            password,
+                            savePhoneChecked,
+                            activity,
+                            navHost,
+                            isLogin
+                        )
+                    }) else KeyboardActions.Default
+                    )
             } else if (forgotPassClick.value) {
                 // Forgot PIN Flow - Same as signup
                 CusOutlinedTextField(
@@ -363,7 +379,8 @@ private fun AuthScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Checkbox(checked = savePhoneChecked.value,
+                        Checkbox(
+                            checked = savePhoneChecked.value,
                             onCheckedChange = { savePhoneChecked.value = it })
                         Text("Save phone number")
                     }
@@ -376,127 +393,91 @@ private fun AuthScreen(
                 }
             }
 
-            Button(modifier = Modifier
-                .padding(top = 16.dp)
-                .fillMaxWidth(), onClick = {
-                if (isLogin.value) {
-                    // "Log In" - Check if biometric is available and enabled
-                    if (loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
-                        // Use biometric authentication directly
-                        loginViewModel.loginWithBiometricAndPin(
-                            phone = mobileNo.text,
-                            pin = password.text,
-                            savePhone = savePhoneChecked.value,
-                            context = activity,
-                            onSuccess = {
-                                mainScope {
-                                    navHost.navigate(Screens.Main.route) {
-                                        popUpTo(Screens.Login.route) {
-                                            inclusive = true
-                                        }
-                                    }
-                                }
-                            },
-                            onFailure = { error ->
-                                loginViewModel.snackBarState.value = error
-                                if (error == "User not found, please sign up first") {
-                                    isLogin.value = false
-                                }
-                            },
-                            onCancel = {
-                                // User cancelled biometric authentication
-                            }
+            Button(
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(), onClick = {
+                    if (isLogin.value) {
+                        // "Log In" - Check if biometric is available and enabled
+                        loginAction(
+                            loginViewModel,
+                            mobileNo,
+                            password,
+                            savePhoneChecked,
+                            activity,
+                            navHost,
+                            isLogin
                         )
-                    } else {
-                        // Use regular PIN authentication
-                    loginViewModel.loginWithPin(phone = mobileNo.text,
-                        pin = password.text,
-                            savePhone = savePhoneChecked.value,
-                        onSuccess = {
-                            mainScope {
-                                navHost.navigate(Screens.Main.route) {
-                                    popUpTo(Screens.Login.route) {
-                                        inclusive = true
-                                    }
-                                }
+                    } else if (forgotPassClick.value) {
+                        // "Forgot PIN Flow"
+                        if (loginViewModel.isOtpGenerated.value && loginViewModel.isOtpVerified.value) {
+                            // Validate PIN confirmation
+                            if (password.text != confirmPassword.text) {
+                                loginViewModel.snackBarState.value = "PINs do not match"
+                                return@Button
                             }
-                        },
-                        onFailure = {
-                            loginViewModel.snackBarState.value = it
-                                if (it == "User not found, please sign up first") {
-                                isLogin.value = false
-                            }
-                        })
-                    }
-                } else if (forgotPassClick.value) {
-                    // "Forgot PIN Flow"
-                    if (loginViewModel.isOtpGenerated.value && loginViewModel.isOtpVerified.value) {
-                        // Validate PIN confirmation
-                        if (password.text != confirmPassword.text) {
-                            loginViewModel.snackBarState.value = "PINs do not match"
-                            return@Button
+
+                            //"Reset PIN"
+                            loginViewModel.resetPin(
+                                pin = password.text,
+                                onSuccess = {
+                                    loginViewModel.snackBarState.value = "PIN reset successfully"
+                                    forgotPassClick.value = false
+                                    isLogin.value = true
+                                    // Clear all fields
+                                    mobileNo.clear()
+                                    password.clear()
+                                    confirmPassword.clear()
+                                    otp.clear()
+                                },
+                                onFailure = {
+                                    loginViewModel.snackBarState.value = "Failed to reset PIN"
+                                })
+
+                        } else if (loginViewModel.isOtpGenerated.value && !loginViewModel.isOtpVerified.value) {
+                            //"Verify OTP"
+                            loginViewModel.verifyOtpAndSignIn(otp.text)
+                        } else {
+                            // "Get OTP"
+                            loginViewModel.startPhoneVerification(
+                                activity = activity, phoneNumber = mobileNo.text
+                            )
                         }
-
-                        //"Reset PIN"
-                        loginViewModel.resetPin(pin = password.text,
-                            onSuccess = {
-                                loginViewModel.snackBarState.value = "PIN reset successfully"
-                                forgotPassClick.value = false
-                                isLogin.value = true
-                                // Clear all fields
-                                mobileNo.clear()
-                                password.clear()
-                                confirmPassword.clear()
-                                otp.clear()
-                            },
-                            onFailure = {
-                                loginViewModel.snackBarState.value = "Failed to reset PIN"
-                            })
-
-                    } else if (loginViewModel.isOtpGenerated.value && !loginViewModel.isOtpVerified.value) {
-                        //"Verify OTP"
-                        loginViewModel.verifyOtpAndSignIn(otp.text)
                     } else {
-                        // "Get OTP"
-                        loginViewModel.startPhoneVerification(
-                            activity = activity, phoneNumber = mobileNo.text
-                        )
-                    }
-                } else {
-                    // "Sign Up Flow"
-                    if (loginViewModel.isOtpGenerated.value && loginViewModel.isOtpVerified.value) {
-                        // Validate PIN confirmation
-                        if (password.text != confirmPassword.text) {
-                            loginViewModel.snackBarState.value = "PINs do not match"
-                            return@Button
+                        // "Sign Up Flow"
+                        if (loginViewModel.isOtpGenerated.value && loginViewModel.isOtpVerified.value) {
+                            // Validate PIN confirmation
+                            if (password.text != confirmPassword.text) {
+                                loginViewModel.snackBarState.value = "PINs do not match"
+                                return@Button
+                            }
+                            //"Sign Up"
+                            loginViewModel.uploadUser(
+                                pin = password.text,
+                                onSuccess = {
+                                    loginViewModel.snackBarState.value = "Signed up successfully"
+                                    isLogin.value = true
+                                    // Clear all fields
+                                    mobileNo.clear()
+                                    password.clear()
+                                    confirmPassword.clear()
+                                    otp.clear()
+                                },
+                                onFailure = {
+                                    loginViewModel.snackBarState.value = "Failed to sign up"
+                                })
+
+                        } else if (loginViewModel.isOtpGenerated.value && !loginViewModel.isOtpVerified.value) {
+                            //"Verify OTP"
+                            loginViewModel.verifyOtpAndSignIn(otp.text)
+                        } else {
+                            // "Get OTP"
+                            loginViewModel.startPhoneVerification(
+                                activity = activity, phoneNumber = mobileNo.text
+                            )
                         }
-
-                        //"Sign Up"
-                        loginViewModel.uploadUser(pin = password.text,
-                            onSuccess = {
-                                loginViewModel.snackBarState.value = "Signed up successfully"
-                                isLogin.value = true
-                                // Clear all fields
-                                mobileNo.clear()
-                                password.clear()
-                                confirmPassword.clear()
-                                otp.clear()
-                            },
-                            onFailure = {
-                                loginViewModel.snackBarState.value = "Failed to sign up"
-                            })
-
-                    } else if (loginViewModel.isOtpGenerated.value && !loginViewModel.isOtpVerified.value) {
-                        //"Verify OTP"
-                        loginViewModel.verifyOtpAndSignIn(otp.text)
-                    } else {
-                        // "Get OTP"
-                        loginViewModel.startPhoneVerification(
-                            activity = activity, phoneNumber = mobileNo.text
-                        )
                     }
-                }
-            }) {
+                }) {
                 if (isLogin.value && loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
                     androidx.compose.material3.Icon(
                         imageVector = Icons.Default.Fingerprint,
@@ -509,7 +490,7 @@ private fun AuthScreen(
                         if (loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
                             "Login with Biometric & PIN"
                         } else {
-                        "Log In"
+                            "Log In"
                         }
                     } else if (forgotPassClick.value) {
                         if (loginViewModel.isOtpGenerated.value && loginViewModel.isOtpVerified.value) {
@@ -534,13 +515,13 @@ private fun AuthScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (!forgotPassClick.value) {
-            TextButton(onClick = {
-                isLogin.value = !isLogin.value
-            }) {
-                Text(
-                    text = if (isLogin.value) "Don't have an account? Sign Up" else "Already have an account? Login"
-                )
-            }
+                TextButton(onClick = {
+                    isLogin.value = !isLogin.value
+                }) {
+                    Text(
+                        text = if (isLogin.value) "Don't have an account? Sign Up" else "Already have an account? Login"
+                    )
+                }
             } else {
                 TextButton(onClick = {
                     forgotPassClick.value = false
@@ -550,5 +531,65 @@ private fun AuthScreen(
                 }
             }
         }
+    }
+}
+
+
+private fun loginAction(
+    loginViewModel: LoginViewModel,
+    mobileNo: InputFieldState,
+    password: InputFieldState,
+    savePhoneChecked: MutableState<Boolean>,
+    activity: FragmentActivity,
+    navHost: NavHostController,
+    isLogin: MutableState<Boolean>
+) {
+    if (loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
+        // Use biometric authentication directly
+        loginViewModel.loginWithBiometricAndPin(
+            phone = mobileNo.text,
+            pin = password.text,
+            savePhone = savePhoneChecked.value,
+            context = activity,
+            onSuccess = {
+                mainScope {
+                    navHost.navigate(Screens.Main.route) {
+                        popUpTo(Screens.Login.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            },
+            onFailure = { error ->
+                loginViewModel.snackBarState.value = error
+                if (error == "User not found, please sign up first") {
+                    isLogin.value = false
+                }
+            },
+            onCancel = {
+                // User cancelled biometric authentication
+            }
+        )
+    } else {
+        // Use regular PIN authentication
+        loginViewModel.loginWithPin(
+            phone = mobileNo.text,
+            pin = password.text,
+            savePhone = savePhoneChecked.value,
+            onSuccess = {
+                mainScope {
+                    navHost.navigate(Screens.Main.route) {
+                        popUpTo(Screens.Login.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            },
+            onFailure = {
+                loginViewModel.snackBarState.value = it
+                if (it == "User not found, please sign up first") {
+                    isLogin.value = false
+                }
+            })
     }
 }
