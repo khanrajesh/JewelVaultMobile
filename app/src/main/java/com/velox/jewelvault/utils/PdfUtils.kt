@@ -12,18 +12,23 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.core.content.FileProvider
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 // PdfUtils.kt
+
+object PdfUtils {
+
+    val A4_PORTRAIT = Pair(545, 842)
+    val A4_HALF_PORTRAIT = Pair(545, 421)
+
+}
+
 fun generateInvoicePdf(
     context: Context,
     store: StoreEntity,
@@ -67,14 +72,30 @@ fun generateInvoicePdf(
 
     // Seller info
     boldPaint.textSize = 12f
-    canvas.drawText("${store.name ?: "Store Name"}, ${store.address ?: "Address"}", startX, y, boldPaint)
+    canvas.drawText(
+        "${store.name ?: "Store Name"}, ${store.address ?: "Address"}",
+        startX,
+        y,
+        boldPaint
+    )
     y += gapY
     canvas.drawText("GSTIN/UIN: ${store.gstinNo ?: "N/A"}", startX, y, paint)
     y += gapY
 
     // Invoice No and Date (Fallback to system time)
-    canvas.drawText("Invoice No.: ${/*store.invoiceNo ?:*/ "INV-${System.currentTimeMillis()}"}", startX + 300f, y - 18f, boldPaint)
-    canvas.drawText("Date: ${/*store.invoiceDate ?:*/ SimpleDateFormat("dd-MMM-yy", Locale.getDefault()).format(Date())}", startX + 300f, y, boldPaint)
+    canvas.drawText(
+        "Invoice No.: ${/*store.invoiceNo ?:*/ "INV-${System.currentTimeMillis()}"}",
+        startX + 300f,
+        y - 18f,
+        boldPaint
+    )
+    canvas.drawText(
+        "Date: ${/*store.invoiceDate ?:*/ SimpleDateFormat(
+            "dd-MMM-yy",
+            Locale.getDefault()
+        ).format(Date())
+        }", startX + 300f, y, boldPaint
+    )
     y += gapY + 10f
 
     // Buyer Info
@@ -144,7 +165,12 @@ fun generateInvoicePdf(
     y += gapY
     canvas.drawText("We declare that this invoice shows the actual price of the", startX, y, paint)
     y += gapY
-    canvas.drawText("goods described and that all particulars are true and correct.", startX, y, paint)
+    canvas.drawText(
+        "goods described and that all particulars are true and correct.",
+        startX,
+        y,
+        paint
+    )
     y += gapY + 10f
 
     // Signatures
@@ -162,7 +188,10 @@ fun generateInvoicePdf(
     val contentValues = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, fileName)
         put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Invoice")
+        put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Invoice"
+        )
     }
 
     val resolver = context.contentResolver
@@ -196,7 +225,6 @@ fun generateInvoicePdf(
     }
 
 
-
 }
 
 
@@ -210,6 +238,194 @@ fun sharePdf(context: Context, pdfUri: Uri) {
 }
 
 fun generateDraftInvoicePdf(
+    context: Context,
+    store: StoreEntity,
+    customer: CustomerEntity,
+    items: List<ItemSelectedModel>,
+    scale: Float = 2f,
+//    customerSign: ImageBitmap,
+//    ownerSign: ImageBitmap,
+    onFileReady: (Uri) -> Unit
+) {
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(
+        (PdfUtils.A4_HALF_PORTRAIT.first * scale).toInt(),
+        (PdfUtils.A4_HALF_PORTRAIT.second * scale).toInt(),
+        1
+    ).create()
+
+    val s02f = 0.2f * scale
+    val s05f = 0.5f * scale
+    val s1f = 1f * scale
+    val s2f = 2f * scale
+    val s3f = 3f * scale
+    val s5f = 5f * scale
+    val s7f = 7f * scale
+    val s9f = 9f * scale
+    val s10f = 10f * scale
+    val s15f = 15f * scale
+    val s20f = 20f * scale
+    val s25f = 25f * scale
+    val s30f = 30f * scale
+    val s40f = 40f * scale
+    val s50f = 50f * scale
+    val s60f = 60f * scale
+    val s80f = 80f * scale
+    val s100f = 100f * scale
+    val s120f = 120f * scale
+    val s150f = 150f * scale
+    val s200f = 200f * scale
+    val s250f = 250f * scale
+    val s300f = 300f * scale
+    val s350f = 350f * scale
+    val s400f = 400f * scale
+    val s450f = 450f * scale
+    val s500f = 500f * scale
+    val s545f = 545f * scale
+
+    val startX = s15f
+    val startY = s15f
+    val endX = pageInfo.pageWidth - s15f
+    val endY = pageInfo.pageHeight - s15f
+
+    val page = pdfDocument.startPage(pageInfo)
+
+    val canvas = page.canvas
+
+    val paint = Paint().apply {
+        color = Color.BLACK
+        textSize = 10f
+    }
+
+    val tp14Bold = Paint(paint).apply {
+        textSize = 14f
+        isFakeBoldText = true
+        color = Color.BLACK
+    }
+    val tp14 = Paint(paint).apply {
+        textSize = 14f
+        color = Color.BLACK
+    }
+    val tp16Bold = Paint(paint).apply {
+        textSize = 16f
+        isFakeBoldText = true
+        color = Color.BLACK
+    }
+    val tp16 = Paint(paint).apply {
+        textSize = 16f
+        color = Color.BLACK
+    }
+    val headerPaint = Paint(paint).apply {
+        textSize = 14f
+        isFakeBoldText = true
+        color = Color.rgb(139, 0, 0)
+    }
+
+    // White background
+    canvas.drawColor(Color.WHITE)
+    
+    /*// Draw a point at (30f, 515f) with thickness 5
+    val thickPointPaint = Paint(titlePaint).apply { strokeWidth = 5f }
+    // Top-left corner
+    canvas.drawPoint(startX, startY, thickPointPaint)
+    // Top-right corner
+    canvas.drawPoint(endX, startY, thickPointPaint)
+    // Bottom-left corner
+    canvas.drawPoint(startX, endY, thickPointPaint)
+    // Bottom-right corner
+    canvas.drawPoint(endX, endY, thickPointPaint)*/
+
+    //--------------------------------------------------------- PDF DESIGN Start -------------------------------------------------------//
+
+    //outer box
+    // Draw the outer box with stroke width s3f
+    val outerBoxPaint = Paint().apply {
+        color = Color.BLACK
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+    }
+    canvas.drawRect(startX, startY+s100f-s15f, endX, endY, outerBoxPaint)
+
+    val innerBoxPaint = Paint().apply {
+        color = Color.BLACK
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
+
+    val nameTextStartX = startX + s5f
+
+    val nameText1Y = startY+s100f-s5f
+    canvas.drawText("Name: Rajesh Khan ", nameTextStartX, nameText1Y, tp16Bold )
+
+    val textEndX = endX - s5f
+    val dateTextStartX = textEndX-s80f
+    canvas.drawText("Date: 12/12/2023", dateTextStartX, nameText1Y, tp16Bold )
+
+    val invoiceValueStartX = dateTextStartX-s50f+s5f
+    canvas.drawText("A003568", invoiceValueStartX, nameText1Y, tp16Bold )
+
+    val invoiceKeyStartX = invoiceValueStartX-s30f-s10f
+    canvas.drawText("Invoice No:", invoiceKeyStartX, nameText1Y, tp16 )
+
+    val issueTimeKeyStartY = nameText1Y+s7f+s05f
+    canvas.drawText("Issue Time:", invoiceKeyStartX, issueTimeKeyStartY, tp16 )
+    canvas.drawText("20:30", invoiceValueStartX, issueTimeKeyStartY, tp16Bold )
+
+    val saleManeKeyStartY = issueTimeKeyStartY+s7f+s05f
+    canvas.drawText("Sales Man:", invoiceKeyStartX, saleManeKeyStartY, tp16 )
+    canvas.drawText("Estimate", invoiceValueStartX, saleManeKeyStartY, tp16Bold )
+
+    canvas.drawRect(startX, startY+s150f-s15f-s20f, endX, endY-s50f-s30f, innerBoxPaint)
+    canvas.drawRect(startX, startY+s150f-s10f, endX, endY-s50f-s30f, innerBoxPaint)
+
+
+
+    //--------------------------------------------------------- PDF DESIGN END ---------------------------------------------------------//
+    pdfDocument.finishPage(page)
+
+    val fileName = "draft_invoice_${System.currentTimeMillis()}.pdf"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice"
+        )
+    }
+
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+    if (uri != null) {
+        var success = false
+        try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                pdfDocument.writeTo(outputStream)
+                outputStream.flush()
+                success = true
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Log.e("PDF_GENERATION", "Error writing PDF: ${e.message}")
+        } finally {
+            pdfDocument.close()
+        }
+
+        if (success) {
+            onFileReady(uri)
+        } else {
+            resolver.delete(uri, null, null)
+            Log.e("PDF_GENERATION", "Failed to write PDF file")
+        }
+    } else {
+        Log.e("PDF_GENERATION", "Failed to create file in MediaStore")
+        pdfDocument.close()
+    }
+}
+
+
+fun generateDraftInvoicePdf2(
+
     context: Context,
     store: StoreEntity,
     customer: CustomerEntity,
@@ -247,7 +463,12 @@ fun generateDraftInvoicePdf(
     val startX = 30f
     val gapY = 15f
     // Left side - Logo placeholder
-    canvas.drawRect(startX, y, startX + 60f, y + 60f, Paint().apply { color = Color.rgb(139, 0, 0) })
+    canvas.drawRect(
+        startX,
+        y,
+        startX + 60f,
+        y + 60f,
+        Paint().apply { color = Color.rgb(139, 0, 0) })
     boldPaint.textSize = 12f
     canvas.drawText("R.K.J", startX + 10f, y + 35f, boldPaint)
 
@@ -258,18 +479,29 @@ fun generateDraftInvoicePdf(
     val certBoxTop = y
     val certBoxRight = certBoxLeft + 270f
     val certBoxBottom = certBoxTop + 20f
-    canvas.drawRect(certBoxLeft, certBoxTop, certBoxRight, certBoxBottom, Paint().apply { color = Color.rgb(255, 255, 224) })
+    canvas.drawRect(
+        certBoxLeft,
+        certBoxTop,
+        certBoxRight,
+        certBoxBottom,
+        Paint().apply { color = Color.rgb(255, 255, 224) })
     canvas.drawText(certText, certBoxLeft + 5f, certBoxTop + 12f, paint)
 
     // Company name (centered above cert box)
     titlePaint.textSize = 18f
     val companyName = "R. K. JEWELLERS"
-    val companyNameX = certBoxLeft + (certBoxRight - certBoxLeft) / 2 - titlePaint.measureText(companyName) / 2
+    val companyNameX =
+        certBoxLeft + (certBoxRight - certBoxLeft) / 2 - titlePaint.measureText(companyName) / 2
     canvas.drawText(companyName, companyNameX, y + 40f, titlePaint)
 
     // Address (below cert box)
     paint.textSize = 10f
-    canvas.drawText("D.N.K. Chowk, Main Road, Malkangiri, Odisha - 764048", certBoxLeft, y + 65f, paint)
+    canvas.drawText(
+        "D.N.K. Chowk, Main Road, Malkangiri, Odisha - 764048",
+        certBoxLeft,
+        y + 65f,
+        paint
+    )
     canvas.drawText("Phone : 6861-796018, 8895311750, 9411111425", certBoxLeft, y + 80f, paint)
 
     // Right side - Logos (aligned to right margin)
@@ -299,9 +531,19 @@ fun generateDraftInvoicePdf(
     y -= 30f
     canvas.drawText("Invoice No. : ${store.invoiceNo ?: "A003439"}", rightDetailX, y, boldPaint)
     y += gapY
-    canvas.drawText("Date : ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())}", rightDetailX, y, paint)
+    canvas.drawText(
+        "Date : ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())}",
+        rightDetailX,
+        y,
+        paint
+    )
     y += gapY
-    canvas.drawText("Issue Time : ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}", rightDetailX, y, paint)
+    canvas.drawText(
+        "Issue Time : ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}",
+        rightDetailX,
+        y,
+        paint
+    )
     y += gapY
     canvas.drawText("Sales Man :", rightDetailX, y, paint)
 
@@ -316,7 +558,18 @@ fun generateDraftInvoicePdf(
     // Item Details Table Header
     val tableStartX = startX
     val colWidths = listOf(40f, 120f, 50f, 70f, 70f, 60f, 70f, 50f, 50f, 70f) // 10 columns
-    val headers = listOf("Sr Ref No.", "Product Description", "Qty./Set", "Gross.Wt in GMS", "Net Weight in GMS", "Rate/Gm", "Making Amount", "Purity %", "E.G.", "Total Amount")
+    val headers = listOf(
+        "Sr Ref No.",
+        "Product Description",
+        "Qty./Set",
+        "Gross.Wt in GMS",
+        "Net Weight in GMS",
+        "Rate/Gm",
+        "Making Amount",
+        "Purity %",
+        "E.G.",
+        "Total Amount"
+    )
 
     // Draw table border
     val tablePaint = Paint().apply {
@@ -334,7 +587,12 @@ fun generateDraftInvoicePdf(
 
     // Draw header row background and text
     headers.forEachIndexed { index, header ->
-        canvas.drawRect(currentX, y, currentX + colWidths[index], y + 20f, Paint().apply { color = Color.LTGRAY })
+        canvas.drawRect(
+            currentX,
+            y,
+            currentX + colWidths[index],
+            y + 20f,
+            Paint().apply { color = Color.LTGRAY })
         // Use a consistent left padding for header text
         canvas.drawText(header, currentX + 6f, y + 14f, paint.apply { textSize = 7f })
         currentX += colWidths[index]
@@ -360,7 +618,12 @@ fun generateDraftInvoicePdf(
 
         rowData.forEachIndexed { colIndex, data ->
             // Draw cell background
-            canvas.drawRect(currentX, y, currentX + colWidths[colIndex], y + 20f, Paint().apply { color = Color.WHITE })
+            canvas.drawRect(
+                currentX,
+                y,
+                currentX + colWidths[colIndex],
+                y + 20f,
+                Paint().apply { color = Color.WHITE })
             // Draw cell border
             canvas.drawRect(currentX, y, currentX + colWidths[colIndex], y + 20f, Paint().apply {
                 color = Color.BLACK
@@ -403,7 +666,12 @@ fun generateDraftInvoicePdf(
     y += gapY
     canvas.drawText("E.G.: ${items.sumOf { it.othCrg }}", col1X, y, paint)
     y += gapY
-    canvas.drawText("Tot-Amt: ${items.sumOf { it.price + it.chargeAmount + it.othCrg }}", col1X, y, paint)
+    canvas.drawText(
+        "Tot-Amt: ${items.sumOf { it.price + it.chargeAmount + it.othCrg }}",
+        col1X,
+        y,
+        paint
+    )
     y += gapY
 
     canvas.drawText("SILVER DETAIL", col1X, y, boldPaint)
@@ -430,7 +698,8 @@ fun generateDraftInvoicePdf(
     // Declaration
     canvas.drawText("Declaration:", col1X, y, boldPaint)
     y += gapY
-    val declaration = "Goods once sold will not be taken back. Goods once sold will not be taken back or exchanged. All disputes subject to Malkangiri Jurisdiction only. Please refer backside for all Terms & Conditions."
+    val declaration =
+        "Goods once sold will not be taken back. Goods once sold will not be taken back or exchanged. All disputes subject to Malkangiri Jurisdiction only. Please refer backside for all Terms & Conditions."
     paint.textSize = 8f
     canvas.drawText(declaration, col1X, y, paint)
     y += gapY
@@ -498,7 +767,10 @@ fun generateDraftInvoicePdf(
     val contentValues = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, fileName)
         put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice")
+        put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice"
+        )
     }
 
     val resolver = context.contentResolver

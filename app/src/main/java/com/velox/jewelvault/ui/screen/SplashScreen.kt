@@ -72,9 +72,9 @@ fun SplashScreen(navHost: NavHostController) {
         }
 
         delay(1000)
-        navHost.navigate(Screens.Login.route) {
+       /* navHost.navigate(Screens.Login.route) { todo
             popUpTo(Screens.Splash.route) { inclusive = true }
-        }
+        }*/
     }
 
     Box(

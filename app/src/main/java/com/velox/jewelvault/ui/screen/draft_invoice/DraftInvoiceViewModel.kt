@@ -75,7 +75,7 @@ class DraftInvoiceViewModel @Inject constructor(
     fun completeOrder(context: Context,onSuccess: () -> Unit, onFailure: (String) -> Unit) {
         ioLaunch {
             try {
-                if (customerSign.value != null && ownerSign.value != null /*&& selectedItemList.isNotEmpty()*/) {
+                if (true/*customerSign.value != null && ownerSign.value != null*/ /*&& selectedItemList.isNotEmpty()*/) {
                     // Create mock customer and store for draft invoice
                     val customer = CustomerEntity(
                         mobileNo = customerMobile.text,
@@ -105,8 +105,8 @@ class DraftInvoiceViewModel @Inject constructor(
                         store = store,
                         customer = customer,
                         items = selectedItemList,
-                        customerSign = customerSign.value!!,
-                        ownerSign = ownerSign.value!!
+//                        customerSign = customerSign.value!!,
+//                        ownerSign = ownerSign.value!!
                     ) { file ->
                         generatedPdfFile.value = file
                         onSuccess()

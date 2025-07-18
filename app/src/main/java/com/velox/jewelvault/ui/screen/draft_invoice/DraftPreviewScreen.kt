@@ -46,12 +46,9 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
     val context = LocalContext.current
     val navController = LocalNavController.current
     val pdfFile = viewModel.generatedPdfFile.value
-    val showDialog = remember { mutableStateOf(false) }
 
     BackHandler {
-        if (showDialog.value) {
-            showDialog.value = false
-        } else {
+        if (pdfFile != null) {
             viewModel.clearData()
             navController.navigate(Screens.Main.route) {
                 popUpTo(Screens.Main.route) {
@@ -61,22 +58,80 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
         }
     }
 
+    LaunchedEffect(true) {
+        viewModel.completeOrder(context, onSuccess = {
+            viewModel.snackBarState.value = "Draft Order Completed"
+        }, onFailure = {
+            viewModel.snackBarState.value = it
+        })
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
-        Box(modifier = Modifier
-            .weight(1f)
-            .background(MaterialTheme.colorScheme.surface)) {
+        // Main PDF preview area with zoom/pan/high quality
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(160.dp)
+        ) {
             pdfFile?.let {
-                Box(Modifier.clickable { showDialog.value = true }.fillMaxSize()) {
-                    PdfRendererPreview(it)
+                // --- Move dialog features here ---
+                var scale by remember { mutableStateOf(1f) }
+                var offsetX by remember { mutableStateOf(0f) }
+                var offsetY by remember { mutableStateOf(0f) }
+                val minScale = 1f
+                val maxScale = 5f
+
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                scale = (scale * zoom).coerceIn(minScale, maxScale)
+                                val maxPanX = 1000f * (scale - 1)
+                                val maxPanY = 1000f * (scale - 1)
+                                offsetX = (offsetX + pan.x).coerceIn(-maxPanX, maxPanX)
+                                offsetY = (offsetY + pan.y).coerceIn(-maxPanY, maxPanY)
+                            }
+                        }
+                ) {
+                    PdfRendererPreview(
+                        uri = it,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            )
+                            .background(MaterialTheme.colorScheme.surface),
+                        highQuality = true // Always high quality
+                    )
+                    // Reset button
+                    IconButton(
+                        onClick = {
+                            scale = 1f
+                            offsetX = 0f
+                            offsetY = 0f
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp)
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp))
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom/Pan")
+                    }
                 }
             } ?: Text("Generate the draft invoice to preview PDF")
         }
-        Spacer(modifier = Modifier.width(4.dp))
+  /*      Spacer(modifier = Modifier.width(4.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Customer Signature")
             SignatureBox(
@@ -138,86 +193,12 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
                     }
                 }
             }
-        }
+        }*/
     }
 
-    if (showDialog.value && pdfFile != null) {
-        PdfEnlargeDialog(pdfFile, onDismiss = { showDialog.value = false })
-    }
+ 
 }
 
-@Composable
-fun PdfEnlargeDialog(uri: Uri, onDismiss: () -> Unit) {
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
-    val screenHeight = configuration.screenHeightDp.dp
-    
-    Dialog(onDismissRequest = onDismiss) {
-        Box(
-            Modifier
-                .size(screenWidth - 16.dp, screenHeight - 16.dp) // Use more screen space
-                .background(Color.Transparent)
-        ) {
-            var scale by remember { mutableStateOf(1f) }
-            var offsetX by remember { mutableStateOf(0f) }
-            var offsetY by remember { mutableStateOf(0f) }
-            val minScale = 1f
-            val maxScale = 5f
-
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(minScale, maxScale)
-                            val maxPanX = 1000f * (scale - 1)
-                            val maxPanY = 1000f * (scale - 1)
-                            offsetX = (offsetX + pan.x).coerceIn(-maxPanX, maxPanX)
-                            offsetY = (offsetY + pan.y).coerceIn(-maxPanY, maxPanY)
-                        }
-                    }
-            ) {
-                PdfRendererPreview(
-                    uri = uri,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .graphicsLayer(
-                            scaleX = scale,
-                            scaleY = scale,
-                            translationX = offsetX,
-                            translationY = offsetY
-                        )
-                        .background(MaterialTheme.colorScheme.surface),
-                    highQuality = true // Enable high quality for dialog
-                )
-                // Reset button
-                IconButton(
-                    onClick = {
-                        scale = 1f
-                        offsetX = 0f
-                        offsetY = 0f
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                        .size(36.dp)
-                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp))
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom/Pan")
-                }
-            }
-            // Done button
-            Button(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(24.dp)
-            ) {
-                Text("Done")
-            }
-        }
-    }
-}
 
 @Composable
 fun PdfRendererPreview(uri: Uri, modifier: Modifier = Modifier, highQuality: Boolean = false) {
