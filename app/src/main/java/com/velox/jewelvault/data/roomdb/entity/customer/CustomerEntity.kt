@@ -1,10 +1,10 @@
-package com.velox.jewelvault.data.roomdb.entity
+package com.velox.jewelvault.data.roomdb.entity.customer
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.sql.Timestamp
 
-@Entity(tableName = "CustomerEntity")
+@Entity(tableName = "customer_entity")
 data class CustomerEntity(
     @PrimaryKey val mobileNo: String,
     val name: String,

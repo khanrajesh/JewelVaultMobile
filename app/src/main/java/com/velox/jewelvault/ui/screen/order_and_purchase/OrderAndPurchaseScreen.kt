@@ -209,6 +209,7 @@ private fun OrderDetail(viewModel: OrderAndReportViewModel) {
     }
 
     Column{
+        val subNavController = LocalSubNavController.current
         val scrollState = rememberScrollState()
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -244,7 +245,7 @@ private fun OrderDetail(viewModel: OrderAndReportViewModel) {
                                 .height(30.dp)
                                 .combinedClickable(onClick = {
                                     if (!isHeader && item != null) {
-
+                                        subNavController.navigate(("${SubScreens.OrderItemDetail.route}/${item.orderId}"))
                                     }
                                 }, onLongClick = {
                                     if (!isHeader && item != null) {

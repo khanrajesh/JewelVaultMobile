@@ -1,6 +1,6 @@
 package com.velox.jewelvault.utils
 
-import com.velox.jewelvault.data.roomdb.entity.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import java.sql.Timestamp
 
 object TransactionUtils {

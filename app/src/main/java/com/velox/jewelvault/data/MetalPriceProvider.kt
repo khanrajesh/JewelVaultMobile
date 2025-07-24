@@ -97,7 +97,8 @@ fun MetalRatesTicker(
         .map { (source, rates) ->
             val dateTime =
                 rates.first().updatedDate // assuming all rates for a source have the same date
-            val sourceText = "$source (Fetched on $dateTime) :"
+//            val sourceText = "$source (Fetched on $dateTime) :"
+            val sourceText = "(Fetched on $dateTime) :"
             val ratesText = rates.joinToString(separator = "  -•-  ") { rate ->
                 "${rate.metal} ${rate.caratOrPurity}: ₹${rate.price}"
             }

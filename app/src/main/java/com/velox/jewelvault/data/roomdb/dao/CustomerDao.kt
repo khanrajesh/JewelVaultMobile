@@ -1,10 +1,8 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
-import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import kotlinx.coroutines.flow.Flow
-import java.sql.Timestamp
 
 @Dao
 interface CustomerDao {
@@ -26,20 +24,20 @@ interface CustomerDao {
     suspend fun deleteCustomer(customer: CustomerEntity)
 
     // Get all customers
-    @Query("SELECT * FROM CustomerEntity ORDER BY addDate DESC")
+    @Query("SELECT * FROM customer_entity ORDER BY addDate DESC")
     fun getAllCustomers(): Flow<List<CustomerEntity>>
 
     // Get a customer by mobile number
-    @Query("SELECT * FROM CustomerEntity WHERE mobileNo = :mobileNo LIMIT 1")
+    @Query("SELECT * FROM customer_entity WHERE mobileNo = :mobileNo LIMIT 1")
     suspend fun getCustomerByMobile(mobileNo: String): CustomerEntity?
 
     // Delete all customers
-    @Query("DELETE FROM CustomerEntity")
+    @Query("DELETE FROM customer_entity")
     suspend fun deleteAllCustomers()
 
     // Search customers by name or mobile
     @Query("""
-        SELECT * FROM CustomerEntity 
+        SELECT * FROM customer_entity 
         WHERE (name LIKE '%' || :query || '%' OR mobileNo LIKE '%' || :query || '%')
         AND userId = :userId AND storeId = :storeId
         ORDER BY name ASC
@@ -48,7 +46,7 @@ interface CustomerDao {
 
     // Get customers by user and store
     @Query("""
-        SELECT * FROM CustomerEntity 
+        SELECT * FROM customer_entity 
         WHERE userId = :userId AND storeId = :storeId
         ORDER BY addDate DESC
     """)

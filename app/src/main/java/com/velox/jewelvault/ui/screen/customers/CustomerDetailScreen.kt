@@ -1,6 +1,5 @@
 package com.velox.jewelvault.ui.screen.customers
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -58,9 +55,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerKhataBookEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.formatCurrency

@@ -1,7 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
-import com.velox.jewelvault.data.roomdb.entity.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

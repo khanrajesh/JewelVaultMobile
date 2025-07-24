@@ -359,8 +359,8 @@ fun CategoryItem(
                     .offset(y = 40.dp)
                     .wrapContentHeight()
                     .wrapContentWidth()
-                    .background(Color.White, RoundedCornerShape(16.dp))
-                    .padding(5.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                    .padding(8.dp)
             ) {
                 Text("Add Sub Category",
                     fontSize = 10.sp,

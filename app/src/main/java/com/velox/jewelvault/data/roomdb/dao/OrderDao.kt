@@ -39,7 +39,7 @@ interface OrderDao {
     SELECT o.orderId, o.orderDate, c.name AS customerName, c.mobileNo, 
            o.totalAmount, o.totalTax, o.totalCharge
     FROM OrderEntity o
-    INNER JOIN CustomerEntity c ON o.customerMobile = c.mobileNo
+    INNER JOIN customer_entity c ON o.customerMobile = c.mobileNo
     WHERE (:start IS NULL OR o.orderDate >= :start)
       AND (:end IS NULL OR o.orderDate <= :end)
     ORDER BY o.orderDate DESC
@@ -79,7 +79,7 @@ interface OrderDao {
            COUNT(o.orderId) AS totalOrders,
            SUM(o.totalAmount) AS totalSpent
     FROM OrderEntity o
-    INNER JOIN CustomerEntity c ON o.customerMobile = c.mobileNo
+    INNER JOIN customer_entity c ON o.customerMobile = c.mobileNo
     WHERE (:start IS NULL OR o.orderDate >= :start)
       AND (:end IS NULL OR o.orderDate <= :end)
     GROUP BY c.mobileNo, c.name
@@ -131,7 +131,7 @@ interface OrderDao {
         oi.tax
 
     FROM OrderItemEntity AS oi
-    INNER JOIN CustomerEntity AS c ON oi.customerMobile = c.mobileNo
+    INNER JOIN customer_entity AS c ON oi.customerMobile = c.mobileNo
 
     WHERE (:start IS NULL OR oi.orderDate >= :start)
       AND (:end IS NULL OR oi.orderDate <= :end)

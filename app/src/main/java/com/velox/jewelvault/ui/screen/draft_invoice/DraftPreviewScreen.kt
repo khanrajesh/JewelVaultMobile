@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.zIndex
 
 @Composable
 fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
@@ -77,7 +78,7 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
             modifier = Modifier
                 .weight(1f)
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(160.dp)
+                .zIndex(1f)
         ) {
             pdfFile?.let {
                 // --- Move dialog features here ---
@@ -131,7 +132,7 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
                 }
             } ?: Text("Generate the draft invoice to preview PDF")
         }
-  /*      Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(4.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text("Customer Signature")
             SignatureBox(
@@ -162,15 +163,12 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
 
             if (pdfFile == null) {
                 Button(onClick = {
-                    if (viewModel.customerSign.value != null && viewModel.ownerSign.value != null) {
-                        viewModel.completeOrder(context, onSuccess = {
-                            viewModel.snackBarState.value = "Draft Order Completed"
-                        }, onFailure = {
-                            viewModel.snackBarState.value = it
-                        })
-                    } else {
-                        viewModel.snackBarState.value = "Please Sign"
-                    }
+                    // Allow PDF generation even without signatures
+                    viewModel.completeOrder(context, onSuccess = {
+                        viewModel.snackBarState.value = "Draft Order Completed"
+                    }, onFailure = {
+                        viewModel.snackBarState.value = it
+                    })
                 }) {
                     Text("Complete Draft Order")
                 }
@@ -193,7 +191,7 @@ fun DraftPreviewScreen(viewModel: DraftInvoiceViewModel) {
                     }
                 }
             }
-        }*/
+        }
     }
 
  
@@ -246,7 +244,7 @@ fun PdfRendererPreview(uri: Uri, modifier: Modifier = Modifier, highQuality: Boo
                 contentDescription = "PDF Page",
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(androidx.compose.ui.graphics.Color.White)
+                    .background(Color.White)
             )
         }
     } ?: Text("Rendering PDF...")

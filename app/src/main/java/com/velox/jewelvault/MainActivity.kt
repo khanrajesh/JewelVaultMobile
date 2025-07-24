@@ -94,40 +94,40 @@ class MainActivity : FragmentActivity() {
                 coroutineScope.launch {
                     if (!sessionManager.isSessionValid()) {
                         // Session expired, navigate to login
-                        /*mainScope { todo
+                        mainScope {
                             navController.navigate(Screens.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
-                        }*/
+                        }
                     }
                 }
             }
             
             // Monitor session during app usage
-//            LaunchedEffect(Unit) { todo
-//                coroutineScope.launch {
-//                    while (true) {
-//                        delay(300000) // Check every 5 minutes
-//                        if (!sessionManager.isSessionValid()) {
-//                            // Session expired during app usage
-//                            baseViewModel.snackMessage = "Session expired. Please login again."
-//                            navController.navigate(Screens.Login.route) {
-//                                popUpTo(0) { inclusive = true }
-//                            }
-//                            break
-//                        }
-//
-//                        // Check if session is expiring soon
-//                        if (sessionManager.isSessionExpiringSoon()) {
-//                            val timeRemaining = sessionManager.getSessionTimeRemaining()
-//                            val minutesRemaining = TimeUnit.MILLISECONDS.toMinutes(timeRemaining)
-//                            baseViewModel.snackMessage = "Session expires in $minutesRemaining minutes. Please save your work."
-//                        }
-//
-//                        sessionManager.updateLastActivity() // Extend session on activity
-//                    }
-//                }
-//            }
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    while (true) {
+                        delay(300000) // Check every 5 minutes
+                        if (!sessionManager.isSessionValid()) {
+                            // Session expired during app usage
+                            baseViewModel.snackMessage = "Session expired. Please login again."
+                            navController.navigate(Screens.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                            break
+                        }
+
+                        // Check if session is expiring soon
+                        if (sessionManager.isSessionExpiringSoon()) {
+                            val timeRemaining = sessionManager.getSessionTimeRemaining()
+                            val minutesRemaining = TimeUnit.MILLISECONDS.toMinutes(timeRemaining)
+                            baseViewModel.snackMessage = "Session expires in $minutesRemaining minutes. Please save your work."
+                        }
+
+                        sessionManager.updateLastActivity() // Extend session on activity
+                    }
+                }
+            }
 
             JewelVaultTheme {
                 LaunchedEffect(baseViewModel.snackMessage) {
@@ -150,7 +150,7 @@ class MainActivity : FragmentActivity() {
                     Box(Modifier.fillMaxSize()) {
 
                         AppNavigation(
-                            navController, baseViewModel, startDestination = Screens.DraftPreview.route
+                            navController, baseViewModel, startDestination = Screens.Splash.route
                         )
 
                         if (baseViewModel.loading) {

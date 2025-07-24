@@ -60,6 +60,7 @@ fun AppNavigation(
         LocalBaseViewModel provides baseViewModel,
     ) {
         val sellInvoiceViewModel = hiltViewModel<SellInvoiceViewModel>()
+        val draftInvoiceViewModel = hiltViewModel<DraftInvoiceViewModel>()
 
         NavHost(navController = navController, startDestination = startDestination) {
             composable(Screens.Splash.route) {
@@ -84,10 +85,10 @@ fun AppNavigation(
                 PurchaseScreen(hiltViewModel<PurchaseViewModel>())
             }
             composable(Screens.DraftInvoice.route) {
-                DraftInvoiceScreen(hiltViewModel<DraftInvoiceViewModel>())
+                DraftInvoiceScreen(draftInvoiceViewModel)
             }
             composable(Screens.DraftPreview.route) {
-                DraftPreviewScreen(hiltViewModel<DraftInvoiceViewModel>())
+                DraftPreviewScreen(draftInvoiceViewModel)
             }
         }
     }

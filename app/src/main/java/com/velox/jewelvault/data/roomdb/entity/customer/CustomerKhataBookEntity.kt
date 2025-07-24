@@ -1,4 +1,4 @@
-package com.velox.jewelvault.data.roomdb.entity
+package com.velox.jewelvault.data.roomdb.entity.customer
 
 import androidx.room.Entity
 import androidx.room.ForeignKey

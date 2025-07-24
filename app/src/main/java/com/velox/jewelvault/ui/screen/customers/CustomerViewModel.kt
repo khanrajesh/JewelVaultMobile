@@ -8,9 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerKhataBookEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.DataStoreManager
 import com.velox.jewelvault.utils.TransactionUtils
@@ -18,7 +18,6 @@ import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -27,7 +26,6 @@ import java.sql.Timestamp
 import javax.inject.Inject
 
 // Import the data classes from CustomerModels
-import com.velox.jewelvault.ui.screen.customers.KhataBookPlan
 
 // Data classes for Khata Book functionality
 data class KhataBookProgress(

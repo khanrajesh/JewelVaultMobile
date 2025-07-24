@@ -176,10 +176,10 @@ fun LandscapeInventoryItemScreen(
                 .offset(y = 40.dp)
                 .wrapContentHeight()
                 .wrapContentWidth()
-                .background(Color.White, RoundedCornerShape(16.dp))
-                .padding(5.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                .padding(8.dp)
         ) {
-            Text("Add Sub Category",
+            Text("Options",
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable {

@@ -15,9 +15,9 @@ import com.velox.jewelvault.data.roomdb.dao.StoreDao
 import com.velox.jewelvault.data.roomdb.dao.SubCategoryDao
 import com.velox.jewelvault.data.roomdb.dao.UsersDao
 import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerKhataBookEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
