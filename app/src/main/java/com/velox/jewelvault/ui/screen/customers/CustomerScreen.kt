@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
@@ -91,7 +92,12 @@ fun CustomerScreen(
                 onTrailingIconClick = {
                     viewModel.searchCustomers(searchQuery.text)
                 },
-                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
+                leadingIcon = Icons.Default.Clear,
+                onLeadingIconClick = {
+                    searchQuery.text = ""
+                    viewModel.loadCustomerData()
+                }
             )
 
             IconButton(onClick = { showKhataBookPlans = true }) {
