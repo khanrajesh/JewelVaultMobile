@@ -151,7 +151,7 @@ fun SubAppNavigation(
             }
 
             composable(SubScreens.Customers.route) {
-                CustomerScreen(subNavController, hiltViewModel())
+                CustomerScreen( hiltViewModel())
             }
             
             composable(

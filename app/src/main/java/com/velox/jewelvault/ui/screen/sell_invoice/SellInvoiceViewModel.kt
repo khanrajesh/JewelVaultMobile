@@ -16,7 +16,7 @@ import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch

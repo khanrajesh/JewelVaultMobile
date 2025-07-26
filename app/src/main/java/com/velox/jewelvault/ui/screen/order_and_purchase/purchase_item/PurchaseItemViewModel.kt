@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.to2FString
 import dagger.hilt.android.lifecycle.HiltViewModel

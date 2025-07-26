@@ -2,17 +2,20 @@ package com.velox.jewelvault.ui.screen.main
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Dashboard
@@ -56,6 +59,7 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import kotlinx.coroutines.launch
+
 
 @Composable
 @VaultPreview
@@ -144,6 +148,8 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+
+
     ModalNavigationDrawer(drawerState = drawerState, drawerContent = {
         ModalDrawerSheet(
             drawerContainerColor = MaterialTheme.colorScheme.primary,
@@ -153,7 +159,7 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
         }
     }) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("Jewel Vault") }, navigationIcon = {
+            TopAppBar(title = { Text("") }, navigationIcon = {
                 IconButton(onClick = {
                     scope.launch {
                         drawerState.open() // Open drawer on button click
@@ -194,37 +200,50 @@ private fun LandscapeDashboardScreen(
     }, drawerContent = {
         LazyColumn {
             items(inputIconStates) { item ->
-                Row(Modifier
-                    .clickable {
-                        item.onClick.invoke()
-                    }
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    item.icon?.let { icon ->
-                        if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = item.text,
-                                Modifier
-                                    .padding(start = 5.dp)
-                                    .size(30.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Image(
-                                painter = painterResource(icon as Int),
-                                contentDescription = item.text,
-                                Modifier
-                                    .padding(start = 5.dp)
-                                    .size(30.dp)
-                            )
+                Column {
+                    Row(Modifier
+                        .clickable {
+                            inputIconStates.forEach { it.selected = false }
+                            item.selected = true
+                            item.onClick.invoke()
+                        }
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        item.icon?.let { icon ->
+                            if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = item.text,
+                                    Modifier
+                                        .padding(start = 5.dp)
+                                        .size(30.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(icon as Int),
+                                    contentDescription = item.text,
+                                    Modifier
+                                        .padding(start = 5.dp)
+                                        .size(30.dp)
+                                )
+                            }
+                        }
+                        if (drawerState.isOpen) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(item.text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
-                    if (drawerState.isOpen) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(item.text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+
+                    if (item.selected){
+                        Spacer(Modifier.fillMaxWidth()
+                            .height(5.dp)
+                            .padding(start = 2.dp, end = 2.dp)
+                            .background(MaterialTheme.colorScheme.onPrimary, RoundedCornerShape(2.dp))
+                        )
                     }
+                    Spacer(Modifier.height(2.dp))
                 }
             }
         }

@@ -84,7 +84,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel) {
                                 if (existing != null) {
                                     val res =
                                         "Id: ${existing.itemId} ${existing.catName} ${existing.subCatName} ${existing.itemAddName}" +
-                                                "\nWt: ${existing.gsWt.to2FString()} (${existing.fnWt.to2FString()})gm (${existing.purity}) P: ₹.${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
+                                                "\nWt: ${existing.gsWt.to2FString()}(${existing.fnWt.to2FString()}) gm, ${existing.purity}, E.P: ₹${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
                                     Text(text = res, color = Color.Yellow, fontSize = 14.sp)
 
                                 }

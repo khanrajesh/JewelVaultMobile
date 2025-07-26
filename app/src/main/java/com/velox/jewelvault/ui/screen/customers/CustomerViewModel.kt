@@ -12,7 +12,8 @@ import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.utils.TransactionUtils
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -27,7 +28,7 @@ import javax.inject.Inject
 
 // Import the data classes from CustomerModels
 
-// Data classes for Khata Book functionality
+/*// Data classes for Khata Book functionality
 data class KhataBookProgress(
     val paidMonths: Int,
     val remainingMonths: Int,
@@ -43,7 +44,7 @@ data class KhataBookSummary(
     val remainingMonths: Int = 0,
     val progressPercentage: Double = 0.0,
     val status: String = "none"
-)
+)*/
 
 @HiltViewModel
 class CustomerViewModel @Inject constructor(
@@ -717,26 +718,26 @@ class CustomerViewModel @Inject constructor(
     
     // Enhanced Khata Book Functions
     
-    fun getKhataBookProgress(khataBookId: Int): KhataBookProgress {
+   /* fun getKhataBookProgress(khataBookId: Int): KhataBookProgress {
         val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId }
-        val khataTransactions = selectedCustomerTransactions.filter { 
-            it.khataBookId == khataBookId && it.transactionType == "khata_payment" 
+        val khataTransactions = selectedCustomerTransactions.filter {
+            it.khataBookId == khataBookId && it.transactionType == "khata_payment"
         }
-        
+
         if (khataBook == null) return KhataBookProgress(0, 0, 0.0, 0.0)
-        
+
         val paidMonths = khataTransactions.size
         val remainingMonths = khataBook.totalMonths - paidMonths
         val paidAmount = khataTransactions.sumOf { it.amount }
         val remainingAmount = remainingMonths * khataBook.monthlyAmount
-        
+
         return KhataBookProgress(
             paidMonths = paidMonths,
             remainingMonths = remainingMonths,
             paidAmount = paidAmount,
             remainingAmount = remainingAmount
         )
-    }
+    }*/
     
     fun isMonthPaid(khataBookId: Int, monthNumber: Int): Boolean {
         return selectedCustomerTransactions.any { 
@@ -761,11 +762,11 @@ class CustomerViewModel @Inject constructor(
         return khataBook.totalMonths + 1
     }
     
-    fun calculateKhataBookSummary(): KhataBookSummary {
+   /* fun calculateKhataBookSummary(): KhataBookSummary {
         val khataBooks = selectedCustomerKhataBooks.toList()
-        
+
         if (khataBooks.isEmpty()) return KhataBookSummary()
-        
+
         val totalAmount = khataBooks.sumOf { it.totalAmount }
         val paidAmount = selectedCustomerTransactions
             .filter { it.transactionType == "khata_payment" }
@@ -777,7 +778,7 @@ class CustomerViewModel @Inject constructor(
         val totalMonths = khataBooks.sumOf { it.totalMonths }
         val remainingMonths = totalMonths - paidMonths
         val progressPercentage = if (totalAmount > 0) (paidAmount / totalAmount) * 100 else 0.0
-        
+
         return KhataBookSummary(
             totalAmount = totalAmount,
             paidAmount = paidAmount,
@@ -827,7 +828,7 @@ class CustomerViewModel @Inject constructor(
         return selectedCustomerTransactions
             .filter { it.khataBookId == khataBookId && it.transactionType == "khata_payment" }
             .sortedBy { it.monthNumber }
-    }
+    }*/
     
     fun getKhataBookDueDate(khataBookId: Int, monthNumber: Int): java.sql.Timestamp {
         val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } 
@@ -835,7 +836,7 @@ class CustomerViewModel @Inject constructor(
         val monthInMillis = (monthNumber - 1) * 30L * 24 * 60 * 60 * 1000
         return java.sql.Timestamp(khataBook.startDate.time + monthInMillis)
     }
-    
+   /*
     fun isKhataBookOverdue(khataBookId: Int): Boolean {
         val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return false
         val currentTime = System.currentTimeMillis()
@@ -875,7 +876,7 @@ class CustomerViewModel @Inject constructor(
         }
         
         return totalLateFees
-    }
+    }*/
 
     fun searchCustomers(query: String) {
         lastSearchQuery = query

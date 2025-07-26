@@ -42,7 +42,7 @@ import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.monitorInternetConnection
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

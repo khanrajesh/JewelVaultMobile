@@ -97,6 +97,7 @@ fun Double.roundTo3Decimal(): Double {
 
 @SuppressLint("DefaultLocale")
 fun Double.to2FString() = String.format(Locale.US,"%.2f", this)
+fun Double.to1FString() = String.format(Locale.US,"%.1f", this)
 
 fun numberToWords(number: Int): String {
     if (number == 0) return "Zero"

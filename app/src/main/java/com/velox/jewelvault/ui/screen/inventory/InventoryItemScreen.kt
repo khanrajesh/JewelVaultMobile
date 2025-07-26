@@ -554,11 +554,6 @@ private fun AddItemSection(
                                     return@bounceClick
                                 }
 
-                                // Validate inputs
-                                if (viewModel.addToName.text.isBlank()) {
-                                    viewModel.snackBarState.value = "Item name is required"
-                                    return@bounceClick
-                                }
                                 
                                 if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
                                     viewModel.snackBarState.value = "Invalid quantity"

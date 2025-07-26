@@ -1,6 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
+import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -108,7 +109,3 @@ interface CustomerTransactionDao {
     suspend fun getCustomersWithOutstandingBalance(userId: Int, storeId: Int): List<CustomerBalanceSummary>
 }
 
-data class CustomerBalanceSummary(
-    val customerMobile: String,
-    val balance: Double
-) 

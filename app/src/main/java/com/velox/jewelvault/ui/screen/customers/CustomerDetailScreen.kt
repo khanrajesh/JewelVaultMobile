@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.screen.customers
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,11 +59,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
+import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.formatDate
 import kotlinx.coroutines.delay
+import kotlin.collections.isNotEmpty
 
 @Composable
 fun CustomerDetailScreen(
@@ -260,62 +263,117 @@ fun CustomerDetailScreen(
 fun CompactCustomerInfoCard(customer: CustomerEntity?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(0.dp)
         ) {
-            Text(
-                text = "Customer Information",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            customer?.let { c ->
-                // First row: Name and Mobile
+            // Header with gradient background
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                        )
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 16.dp, end = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CompactInfoItem("Name", c.name, Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CompactInfoItem("Mobile", c.mobileNo, Modifier.weight(1f))
-                }
-
-                // Second row: Address and GSTIN/PAN
-                c.address?.let { address ->
-                    CompactInfoItem("Address", address, Modifier.fillMaxWidth())
-                }
-                c.gstin_pan?.let { gstin ->
-                    CompactInfoItem("GSTIN/PAN", gstin, Modifier.fillMaxWidth())
-                }
-
-                // Third row: Date and Status
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    CompactInfoItem("Added", formatDate(c.addDate), Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CompactInfoItem(
-                        "Status", if (c.isActive) "Active" else "Inactive", Modifier.weight(1f)
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
                     )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = customer?.name ?: "Customer",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    // Status chip
+                    if (customer != null) {
+                        StatusChip(isActive = customer.isActive)
+                    }
+                }
+            }
+
+            // Main info section
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Total Amount (highlighted)
+                if (customer != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Payment,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = formatCurrency(customer.totalAmount),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "(${customer.totalItemBought} items)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
-                // Fourth row: Items and Amount
+                // Info chips row
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    CompactInfoItem("Items", c.totalItemBought.toString(), Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    CompactInfoItem("Total", formatCurrency(c.totalAmount), Modifier.weight(1f))
+                    if (customer?.mobileNo != null) {
+                        InfoChip(Icons.Default.Receipt, customer.mobileNo)
+                    }
+                    if (!customer?.gstin_pan.isNullOrEmpty()) {
+                        InfoChip(Icons.Default.History, customer?.gstin_pan ?: "")
+                    }
+                    if (!customer?.address.isNullOrEmpty()) {
+                        InfoChip(Icons.Default.Add, customer?.address ?: "")
+                    }
                 }
 
-                // Notes if available
-                c.notes?.let { notes ->
-                    CompactInfoItem("Notes", notes, Modifier.fillMaxWidth())
+                // Added date and notes
+                if (customer != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Added: ${formatDate(customer.addDate)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (!customer.notes.isNullOrEmpty()) {
+                        Text(
+                            text = "Notes: ${customer.notes}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
         }
@@ -323,19 +381,60 @@ fun CompactCustomerInfoCard(customer: CustomerEntity?) {
 }
 
 @Composable
-fun CompactInfoItem(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Medium,
-            maxLines = 2
-        )
+private fun StatusChip(isActive: Boolean) {
+    Card(
+        shape = RoundedCornerShape(50),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) Color(0xFF4CAF50) else Color(0xFFBDBDBD)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = if (isActive) "Active" else "Inactive",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Card(
+        shape = RoundedCornerShape(50),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.height(28.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
@@ -512,35 +611,6 @@ fun CompactTransactionItem(transaction: TransactionItem) {
     }
 }
 
-data class TransactionItem(
-    val title: String, 
-    val amount: Double, 
-    val date: java.sql.Timestamp, 
-    val isOutstanding: Boolean,
-    val transactionType: String,
-    val category: String
-) {
-    companion object {
-        fun fromTransaction(transaction: CustomerTransactionEntity): TransactionItem {
-            val title = when (transaction.transactionType) {
-                "debit" -> "Debit - ${transaction.description ?: "No description"}"
-                "credit" -> "Credit - ${transaction.paymentMethod ?: "Payment"}"
-                "khata_payment" -> "Khata Payment - Month ${transaction.monthNumber}"
-                "khata_debit" -> "Khata Debit - ${transaction.notes ?: "Khata Book"}"
-                else -> "${transaction.transactionType.capitalize()} - ${transaction.description ?: "Transaction"}"
-            }
-            
-            return TransactionItem(
-                title = title,
-                amount = transaction.amount,
-                date = transaction.transactionDate,
-                isOutstanding = transaction.isDebit,
-                transactionType = transaction.transactionType,
-                category = transaction.category
-            )
-        }
-    }
-}
 
 @Composable
 fun KhataBookCard(
@@ -1404,7 +1474,7 @@ fun CompactOrderItem(order: com.velox.jewelvault.data.roomdb.entity.order.OrderE
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = formatCurrency(order.totalAmount),
+                    text = formatCurrency(order.totalTax+order.totalCharge+order.totalAmount),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -1549,7 +1619,7 @@ fun TransactionHistoryCard(
             }
 
             if (transactionHistory.isNotEmpty()) {
-                transactionHistory.take(5).forEach { transaction ->
+                transactionHistory.forEach {transaction->
                    CompactTransactionItem(transaction)
                 }
 

@@ -11,16 +11,9 @@ data class PurchaseItemInputDto(
     val ntWt: Double = 0.0,
     val purity: String = "",
     val fnWt: Double = 0.0,
-    val fnRate: Double=0.0,
+    val fnRatePerGm: Double=0.0,
     val wastage: Double = 0.0,
     val extraChargeDes: String = "",
     val extraCharge: Double = 0.0,
     val toAdd:Boolean
-)
-data class PurchaseMetalRateDto(
-    val catId: Int,
-    val catName: String,
-    val subCatId: Int,
-    val subCatName: String,
-    val fnWt: Double
 )

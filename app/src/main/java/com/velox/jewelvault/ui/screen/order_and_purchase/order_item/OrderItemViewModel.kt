@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase.order_item
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,7 +11,7 @@ import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderWithItems
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,6 +20,7 @@ import javax.inject.Inject
 class OrderItemViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
+    private val _loading : MutableState<Boolean>
 ) : ViewModel() {
 
     var orderWithItems by mutableStateOf<OrderWithItems?>(null)
@@ -27,8 +29,7 @@ class OrderItemViewModel @Inject constructor(
     var customer by mutableStateOf<CustomerEntity?>(null)
         private set
     
-    var isLoading by mutableStateOf(false)
-        private set
+    var isLoading by _loading
     
     var errorMessage by mutableStateOf<String?>(null)
         private set

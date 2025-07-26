@@ -8,6 +8,7 @@ import android.net.NetworkRequest
 
 import androidx.compose.runtime.MutableState
 import com.velox.jewelvault.BaseViewModel
+import com.velox.jewelvault.data.DataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

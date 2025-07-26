@@ -3,7 +3,9 @@ package com.velox.jewelvault.di
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -15,9 +17,10 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.ktx.storage
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.RoomMigration
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.SessionManager
 import dagger.Module
 import dagger.Provides
@@ -61,6 +64,12 @@ object AppModule {
     @Singleton
     fun provideSnackMessageState(): MutableState<String> {
         return mutableStateOf("")
+    }
+
+    @Provides
+    @Singleton
+    fun provideMetalRateList(): SnapshotStateList<MetalRate> {
+        return mutableStateListOf<MetalRate>()
     }
 
     @Provides

@@ -1,6 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
+import com.velox.jewelvault.data.roomdb.dto.KhataBookSummary
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import kotlinx.coroutines.flow.Flow
@@ -89,13 +90,3 @@ interface CustomerKhataBookDao {
     suspend fun getKhataBookSummaries(userId: Int, storeId: Int): List<KhataBookSummary>
 }
 
-data class KhataBookSummary(
-    val khataBookId: Int,
-    val customerMobile: String,
-    val planName: String,
-    val monthlyAmount: Double,
-    val totalMonths: Int,
-    val status: String,
-    val remainingMonths: Int,
-    val remainingAmount: Double
-) 

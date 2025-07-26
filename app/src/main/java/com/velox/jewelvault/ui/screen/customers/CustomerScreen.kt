@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
@@ -29,7 +28,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,16 +47,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.formatCurrency
 
 @Composable
 fun CustomerScreen(
-    navController: NavController, viewModel: CustomerViewModel = hiltViewModel()
+     viewModel: CustomerViewModel = hiltViewModel()
 ) {
+    val subNavController = LocalSubNavController.current
     var showAddCustomerDialog by remember { mutableStateOf(false) }
     var showKhataBookPlans by remember { mutableStateOf(false) }
     val searchQuery = remember { InputFieldState() }
@@ -122,7 +121,7 @@ fun CustomerScreen(
             // Customer List
             items(viewModel.customerList) { customer ->
                 CustomerCard(customer = customer,
-                    onClick = { navController.navigate("customer_detail/${customer.mobileNo}") })
+                    onClick = { subNavController.navigate("customer_detail/${customer.mobileNo}") })
             }
         }
 
@@ -158,7 +157,7 @@ fun CustomerScreen(
     // Khata Book Plans Navigation
     if (showKhataBookPlans) {
         LaunchedEffect(Unit) {
-            navController.navigate("khata_book_plans")
+            subNavController.navigate("khata_book_plans")
             showKhataBookPlans = false
         }
     }

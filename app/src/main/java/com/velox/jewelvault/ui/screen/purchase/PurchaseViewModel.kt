@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
 import com.velox.jewelvault.data.roomdb.dto.PurchaseItemInputDto
@@ -17,11 +18,10 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.getCurrentDate
 import com.velox.jewelvault.utils.getCurrentTimestamp
 import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
@@ -40,10 +40,12 @@ class PurchaseViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>
+    private val _snackBarState: MutableState<String>,
+    private val _metalRates: SnapshotStateList<MetalRate>,
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
+    val metalRates = _metalRates
 
     val firmName = InputFieldState()
     val firmMobile = InputFieldState()
@@ -68,7 +70,7 @@ class PurchaseViewModel @Inject constructor(
     val addItemPurity = InputFieldState()
     val addItemFnWt = InputFieldState()
     val addItemNtWt = InputFieldState()
-    val addItemFineRate = InputFieldState()
+    val addItemFineRatePerGm = InputFieldState()
     val addItemWastage = InputFieldState()
     val addItemExtraChargeDes = InputFieldState()
     val addItemExtraCharge = InputFieldState()
@@ -84,6 +86,7 @@ class PurchaseViewModel @Inject constructor(
 
 
     val exchangeMetalRateDto = mutableStateListOf<PurchaseMetalRateDto>()
+
 
 
     fun getCategoryAndSubCategoryDetails() {
@@ -137,7 +140,7 @@ class PurchaseViewModel @Inject constructor(
             ntWt = addItemNtWt.text.toDoubleOrNull() ?: 0.0,
             purity = addItemPurity.text,
             fnWt = addItemFnWt.text.toDoubleOrNull() ?: 0.0,
-            fnRate = addItemFineRate.text.toDoubleOrNull() ?: 0.0,
+            fnRatePerGm = addItemFineRatePerGm.text.toDoubleOrNull() ?: 0.0,
             wastage = addItemWastage.text.toDoubleOrNull() ?: 0.0,
             extraChargeDes = addItemExtraChargeDes.text,
             extraCharge = addItemExtraCharge.text.toDoubleOrNull() ?: 0.0,
@@ -156,7 +159,7 @@ class PurchaseViewModel @Inject constructor(
         addItemNtWt.clear()
         addItemPurity.clear()
         addItemFnWt.clear()
-        addItemFineRate.clear()
+        addItemFineRatePerGm.clear()
         addItemWastage.clear()
         addItemExtraChargeDes.clear()
         addItemExtraCharge.clear()
@@ -575,7 +578,7 @@ class PurchaseViewModel @Inject constructor(
                             purity = dto.purity,
                             ntWt = dto.ntWt,
                             fnWt = dto.fnWt,
-                            fnRate = dto.fnRate,
+                            fnRate = dto.fnRatePerGm,
                             wastagePercent = dto.wastage,
 
                         )

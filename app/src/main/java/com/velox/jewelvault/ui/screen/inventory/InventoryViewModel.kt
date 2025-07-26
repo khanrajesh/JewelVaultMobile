@@ -15,7 +15,7 @@ import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log

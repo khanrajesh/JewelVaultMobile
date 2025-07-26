@@ -227,6 +227,11 @@ fun TabNavigationDrawer(
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        baseViewModel.loadStoreName()
+    }
+
+
     val width = if (drawerState.isOpen) 280.dp else 60.dp
     Row {
         Row(modifier.fillMaxSize()) {
@@ -281,7 +286,7 @@ fun TabNavigationDrawer(
                     ) {
                         Spacer(Modifier.width(20.dp))
                         Text(
-                            text = "Jewel Vault",
+                            text = baseViewModel.storeName.value ?:"Jewel Vault",
                             fontSize = 22.sp,
                             fontFamily = ZenFontFamily,
                             fontWeight = FontWeight.Bold,
@@ -310,10 +315,12 @@ fun TabNavigationDrawer(
 class InputIconState(
     initialText: String = "",
     initialIcon: Any? = null, // Can be ImageVector or Int resource
+    selected: Boolean = false,
     initialOnClick: () -> Unit = {}
 ) {
     var text by mutableStateOf(initialText)
     var icon by mutableStateOf(initialIcon)
+    var selected by mutableStateOf(selected)
     var onClick by mutableStateOf(initialOnClick)
 
     fun onTextChanged(newText: String) {
@@ -360,13 +367,7 @@ fun ProfileImage(drawerState: TabDrawerState) {
     LaunchedEffect(Unit) {
         baseViewModel.loadStoreImage()
     }
-    
-    // Refresh image when drawer opens
-    LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen) {
-            baseViewModel.loadStoreImage()
-        }
-    }
+
     
     Box(
         modifier = Modifier

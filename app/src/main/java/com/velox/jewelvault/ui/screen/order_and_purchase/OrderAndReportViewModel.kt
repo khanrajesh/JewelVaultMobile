@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.SortOrder
 import com.velox.jewelvault.utils.ioLaunch
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,10 +32,10 @@ class OrderAndReportViewModel @Inject constructor(
     *
     * */
     val orderHeaderList =  listOf(
-        "S.No", "Order Id","Order Date","Customer Name","Customer No", "Total Amount", "Total Charge"
+        "S.No", "Order Id","Order Date","Customer Name","Customer No", "Amount", "M.Charge", "Tax", "Total"
     )
     val purchaseHeaderList =  listOf(
-        "S.No", "Order Id","Bill Date","Firm Name","Seller Name No", "Bill No", "Item Details","Exchange Details"
+        "S.No", "Order Id","Bill Date","Firm Name/No","Seller Name/No", "Bill No", "Item Details","Exchange Details"
     )
     val orderList: SnapshotStateList<OrderEntity> = SnapshotStateList()
 
