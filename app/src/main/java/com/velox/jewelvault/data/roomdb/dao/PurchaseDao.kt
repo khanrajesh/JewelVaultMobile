@@ -30,19 +30,9 @@ interface PurchaseDao {
     @Query("SELECT * FROM seller WHERE sellerId = :sellerId")
     suspend fun getSellerById(sellerId: Int): SellerEntity?
 
-
-
     @Transaction
     @Query("SELECT * FROM firm")
     suspend fun getAllFirmsWithSellers(): List<FirmWithSellers>
-
-    @Transaction
-    @Query("SELECT * FROM firm WHERE firmId = :firmId")
-    suspend fun getFirmWithSellers(firmId: Int): FirmWithSellers?
-
-    // Step 1: Get seller by mobile number
-    @Query("SELECT * FROM seller WHERE mobileNumber = :mobile LIMIT 1")
-    suspend fun getSellerByMobile(mobile: String): SellerEntity?
 
     // Step 2: Get firm by firmId
     @Query("SELECT * FROM firm WHERE firmId = :firmId LIMIT 1")
@@ -51,6 +41,9 @@ interface PurchaseDao {
     @Query("SELECT * FROM firm WHERE firmMobileNumber = :firmMobileNumber LIMIT 1")
     suspend fun getFirmByMobile(firmMobileNumber: String): FirmEntity?
 
+    // Step 1: Get seller by mobile number
+    @Query("SELECT * FROM seller WHERE mobileNumber = :mobile LIMIT 1")
+    suspend fun getSellerByMobile(mobile: String): SellerEntity?
 
     // ------------------------
     // PurchaseOrderEntity
@@ -126,4 +119,14 @@ interface PurchaseDao {
     @Transaction
     @Query("SELECT * FROM purchase_orders ORDER BY billDate DESC")
      fun getAllOrdersWithDetailsByBillDateDesc(): Flow<List<PurchaseOrderWithDetails>>
+     
+    @Query("SELECT * FROM firm")
+    suspend fun getAllFirms(): List<FirmEntity>
+
+    
+    @Query("SELECT * FROM purchase_order_items")
+    suspend fun getAllPurchaseOrderItems(): List<PurchaseOrderItemEntity>
+    
+    @Query("SELECT * FROM metal_exchange")
+    suspend fun getAllMetalExchanges(): List<MetalExchangeEntity>
 }

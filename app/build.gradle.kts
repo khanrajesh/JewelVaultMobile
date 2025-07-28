@@ -76,7 +76,9 @@ dependencies {
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-
+    implementation (libs.androidx.work.runtime.ktx)
+    implementation ("androidx.hilt:hilt-work:1.1.0")
+    kapt ("androidx.hilt:hilt-compiler:1.1.0")
 
     implementation(libs.androidx.datastore.preferences)
     implementation (libs.jsoup) // Use latest version
@@ -96,51 +98,52 @@ dependencies {
     implementation (libs.androidx.camera.camera2)
     implementation (libs.androidx.camera.lifecycle)
     implementation (libs.androidx.camera.view)
-    implementation ("androidx.work:work-runtime-ktx:2.10.2")
+
+    
+    // Apache POI for Excel processing
+    implementation (libs.poi)
+    implementation (libs.poi.ooxml)
+    implementation (libs.poi.scratchpad)
+
+    // Optional for Android compatibility
+    implementation(libs.xmlbeans)
+    implementation(libs.commons.collections4)
 
 
 // ML Kit Barcode Scanning
     implementation (libs.barcode.scanning)
 
+    // ZXing for QR code generation
+    implementation ("com.google.zxing:core:3.5.3")
+    implementation (libs.zxing.android.embedded)
+
     implementation (libs.exp4j)
-    implementation ("androidx.lifecycle:lifecycle-extensions:2.2.0")
+    implementation (libs.androidx.lifecycle.extensions)
 
     //room
-    implementation ("androidx.room:room-runtime:2.7.1")
-    kapt("androidx.room:room-compiler:2.7.1")
-    implementation("androidx.room:room-ktx:2.7.1")
-
-
+    implementation (libs.androidx.room.runtime)
+    kapt(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
     // Testing
-    androidTestImplementation("androidx.room:room-testing:2.7.1")
-    androidTestImplementation("androidx.test:core:1.5.0")
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.core)
 
-    implementation("org.apache.poi:poi:5.2.3")
-    implementation("org.apache.poi:poi-ooxml:5.2.3")
-    // Optional for Android compatibility
-    implementation("org.apache.xmlbeans:xmlbeans:5.1.1")
-    implementation("org.apache.commons:commons-collections4:4.4")
 
-    implementation("com.itextpdf:itext7-core:7.2.3") // For PDF generation
-
-    implementation ("org.apache.poi:poi:5.2.3") // For .xls
-    implementation ("org.apache.poi:poi-ooxml:5.2.3")    // For .xlsx
-
-    implementation( "com.google.accompanist:accompanist-permissions:0.33.0-alpha") // For permission
+    implementation( libs.accompanist.permissions) // For permission
 
     //firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.auth)
     implementation(libs.firebase.config)
+    implementation(libs.firebase.storage)
     implementation(libs.firebase.firestore.ktx)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Coil for image loading
     implementation(libs.coil.compose)
 
     // Biometric authentication
-    implementation("androidx.biometric:biometric:1.1.0")
+    implementation(libs.androidx.biometric)
 
 }

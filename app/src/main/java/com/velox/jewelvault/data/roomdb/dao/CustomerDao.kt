@@ -51,4 +51,8 @@ interface CustomerDao {
         ORDER BY addDate DESC
     """)
     fun getCustomersByUserAndStore(userId: Int, storeId: Int): Flow<List<CustomerEntity>>
+    
+    // Get all customers (suspend version for backup)
+    @Query("SELECT * FROM customer_entity ORDER BY addDate DESC")
+    suspend fun getAllCustomersList(): List<CustomerEntity>
 }

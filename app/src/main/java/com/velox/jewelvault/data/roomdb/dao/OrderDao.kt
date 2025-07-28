@@ -217,8 +217,12 @@ interface OrderDao {
         start: Timestamp? = null,
         end: Timestamp? = null
     ): SalesSummary
-
-
+    
+    @Query("SELECT * FROM OrderEntity")
+    suspend fun getAllOrders(): List<OrderEntity>
+    
+    @Query("SELECT * FROM OrderItemEntity")
+    suspend fun getAllOrderItems(): List<OrderItemEntity>
 
 }
 

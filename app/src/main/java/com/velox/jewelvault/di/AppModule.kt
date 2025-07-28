@@ -11,12 +11,12 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.ktx.storage
+import com.google.firebase.storage.storage
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.RoomMigration
@@ -97,7 +97,8 @@ object AppModule {
                 RoomMigration.MIGRATION_1_2,
                 RoomMigration.MIGRATION_2_3,
                 RoomMigration.MIGRATION_3_4,
-                RoomMigration.MIGRATION_4_5
+                RoomMigration.MIGRATION_4_5,
+                RoomMigration.MIGRATION_5_6
             )
             .build()
     }

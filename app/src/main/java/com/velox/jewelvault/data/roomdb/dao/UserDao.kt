@@ -36,4 +36,7 @@ interface UsersDao {
 
     @Query("DELETE FROM UsersEntity")
     suspend fun deleteAllUsers(): Int
+    
+    @Query("SELECT * FROM UsersEntity")
+    suspend fun getAllUsers(): List<UsersEntity>
 }

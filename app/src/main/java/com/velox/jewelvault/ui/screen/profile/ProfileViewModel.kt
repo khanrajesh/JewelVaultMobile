@@ -43,6 +43,9 @@ class ProfileViewModel @Inject constructor(
     // User details fields (these get data from UserEntity, no dummy text)
     val userEmail = InputFieldState()
     val userMobile = InputFieldState()
+    
+    // Payment details fields
+    val upiId = InputFieldState()
 
     val storeEntity = mutableStateOf<StoreEntity?>(null)
     val selectedImageUri = mutableStateOf<String?>(null)
@@ -180,7 +183,11 @@ class ProfileViewModel @Inject constructor(
                     gstinNo.text = it.gstinNo
                     panNumber.text = it.panNo
                     selectedImageUri.value = it.image
-                    userEmail.text = it.eamil
+                    userEmail.text = it.email
+                    upiId.text = it.upiId
+                    
+                    // Save store name to DataStore for UPI QR generation
+                    _dataStoreManager.setMerchantName(it.name)
                 }
                 
                 isLoading.value = false
@@ -316,7 +323,8 @@ class ProfileViewModel @Inject constructor(
                     gstinNo = gstinNo.text.trim().uppercase(),
                     panNo = panNumber.text.trim().uppercase(),
                     image = finalImageUrl,
-                    eamil = InputValidator.sanitizeText(userEmail.text)
+                    email = InputValidator.sanitizeText(userEmail.text),
+                    upiId = upiId.text.trim()
                 )
 
                 // Save to local database
@@ -331,6 +339,10 @@ class ProfileViewModel @Inject constructor(
                     if (storeId == -1) {
                         _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, localResult.toInt())
                     }
+                    
+                    // Save UPI settings to DataStore for quick access
+                    _dataStoreManager.setUpiId(upiId.text.trim())
+                    _dataStoreManager.setMerchantName(shopName.text.trim())
                     
                     // Save to Firestore
                     val firestoreData = FirebaseUtils.storeEntityToMap(storeEntity)
@@ -403,6 +415,10 @@ class ProfileViewModel @Inject constructor(
                             _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, result.toInt())
                         }
                         
+                        // Update UPI settings in DataStore
+                        _dataStoreManager.setUpiId(storeFromFirestore.upiId)
+                        _dataStoreManager.setMerchantName(storeFromFirestore.name)
+                        
                         // Update UI with synced data
                         storeEntity.value = storeFromFirestore
                         propName.text = storeFromFirestore.proprietor
@@ -414,7 +430,8 @@ class ProfileViewModel @Inject constructor(
                         gstinNo.text = storeFromFirestore.gstinNo
                         panNumber.text = storeFromFirestore.panNo
                         selectedImageUri.value = storeFromFirestore.image
-                        userEmail.text = storeFromFirestore.eamil
+                        userEmail.text = storeFromFirestore.email
+                        upiId.text = storeFromFirestore.upiId
                         
                         log("Store data synced from Firestore successfully")
                         _snackBarState.value = "Store data synced from cloud"

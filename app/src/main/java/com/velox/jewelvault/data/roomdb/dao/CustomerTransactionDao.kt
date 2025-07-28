@@ -107,5 +107,8 @@ interface CustomerTransactionDao {
         ORDER BY balance DESC
     """)
     suspend fun getCustomersWithOutstandingBalance(userId: Int, storeId: Int): List<CustomerBalanceSummary>
+    
+    @Query("SELECT * FROM customer_transaction")
+    suspend fun getAllTransactions(): List<CustomerTransactionEntity>
 }
 

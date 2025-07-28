@@ -42,6 +42,8 @@ class DataStoreManager @Inject constructor(
         val DEFAULT_IGST = stringPreferencesKey("default_igst")
         val CURRENCY_FORMAT = stringPreferencesKey("currency_format")
         val DATE_FORMAT = stringPreferencesKey("date_format")
+        val UPI_ID = stringPreferencesKey("upi_id")
+        val STORE_NAME = stringPreferencesKey("merchant_name")
 
         // Notification Settings
         val SESSION_WARNING_ENABLED = booleanPreferencesKey("session_warning_enabled")
@@ -61,11 +63,17 @@ class DataStoreManager @Inject constructor(
         // Advanced Settings
         val DEBUG_MODE = booleanPreferencesKey("debug_mode")
         val LOG_EXPORT_ENABLED = booleanPreferencesKey("log_export_enabled")
+        
+        // Backup Settings
+        val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
     }
 
     val userName: Flow<String> = dataStore.data.map { prefs -> prefs[USER_NAME_KEY] ?: "" }
     val userId: Flow<Int> = dataStore.data.map { prefs -> prefs[USER_ID_KEY] ?: -1 }
     val storeId: Flow<Int> = dataStore.data.map { prefs -> prefs[STORE_ID_KEY] ?: -1 }
+    val upiId: Flow<String> = dataStore.data.map { prefs -> prefs[UPI_ID] ?: "" }
+    val storeName: Flow<String> = dataStore.data.map { prefs -> prefs[STORE_NAME] ?: "Merchant" }
+    val backupFrequency: Flow<String> = dataStore.data.map { prefs -> prefs[BACKUP_FREQUENCY] ?: "WEEKLY" }
 
     suspend fun <T> setValue(key: Preferences.Key<T>, value: T) {
         try {
@@ -109,6 +117,18 @@ class DataStoreManager @Inject constructor(
         setValue(DEFAULT_CGST, cgst)
         setValue(DEFAULT_SGST, sgst)
         setValue(DEFAULT_IGST, igst)
+    }
+
+    suspend fun setUpiId(upiId: String) {
+        setValue(UPI_ID, upiId)
+    }
+
+    suspend fun setMerchantName(name: String) {
+        setValue(STORE_NAME, name)
+    }
+
+    suspend fun setBackupFrequency(frequency: String) {
+        setValue(BACKUP_FREQUENCY, frequency)
     }
 
     suspend fun clearAllData() {

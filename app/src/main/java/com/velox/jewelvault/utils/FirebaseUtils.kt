@@ -114,7 +114,7 @@ class FirebaseUtils {
                 "userId" to storeEntity.userId,
                 "proprietor" to storeEntity.proprietor,
                 "name" to storeEntity.name,
-                "email" to storeEntity.eamil,
+                "email" to storeEntity.email,
                 "phone" to storeEntity.phone,
                 "address" to storeEntity.address,
                 "registrationNo" to storeEntity.registrationNo,
@@ -122,6 +122,7 @@ class FirebaseUtils {
                 "panNo" to storeEntity.panNo,
                 "image" to storeEntity.image,
                 "invoiceNo" to storeEntity.invoiceNo,
+                "upiId" to storeEntity.upiId,
                 "lastUpdated" to System.currentTimeMillis()
             )
         }
@@ -135,15 +136,16 @@ class FirebaseUtils {
                 userId = (data["userId"] as? Long)?.toInt() ?: 0,
                 proprietor = data["proprietor"] as? String ?: "",
                 name = data["name"] as? String ?: "",
-                eamil = data["email"] as? String ?: "",
+                email = data["email"] as? String ?: "",
                 phone = data["phone"] as? String ?: "",
                 address = data["address"] as? String ?: "",
                 registrationNo = data["registrationNo"] as? String ?: "",
                 gstinNo = data["gstinNo"] as? String ?: "",
                 panNo = data["panNo"] as? String ?: "",
                 image = data["image"] as? String ?: "",
-                invoiceNo = (data["invoiceNo"] as? Long)?.toInt() ?: 0
+                invoiceNo = (data["invoiceNo"] as? Long)?.toInt() ?: 0,
+                upiId = data["upiId"] as? String ?: ""
             )
         }
     }
-} 
+}

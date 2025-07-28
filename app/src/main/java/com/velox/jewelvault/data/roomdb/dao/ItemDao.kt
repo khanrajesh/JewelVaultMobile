@@ -126,4 +126,7 @@ interface ItemDao {
     // ✅ Update item (full object update)
     @Update
     suspend fun updateItem(item: ItemEntity): Int
+    
+    @Query("SELECT * FROM ItemEntity")
+    suspend fun getAllItems(): List<ItemEntity>
 }

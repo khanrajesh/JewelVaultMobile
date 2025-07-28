@@ -45,6 +45,9 @@ interface CategoryDao {
     @Query("DELETE FROM CategoryEntity")
     suspend fun deleteAllCategories(): Int
     // Returns number of rows deleted
+    
+    @Query("SELECT * FROM CategoryEntity")
+    suspend fun getAllCategories(): List<CategoryEntity>
 
     @Query("UPDATE CategoryEntity SET gsWt = :gsWt, fnWt = :fnWt WHERE catId = :catId")
     suspend fun updateWeights(catId: Int, gsWt: Double, fnWt: Double): Int

@@ -194,9 +194,7 @@ fun LandscapeMainScreen(
                     showTimeRangeDialog = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                CustomerOverview(dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
-                }
+                CustomerOverview(dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
 
                 Column(
@@ -357,7 +355,7 @@ fun CategorySales(
         if (dashboardViewModel.topSubCategories.isNotEmpty()) {
             LazyColumn(
                 Modifier
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             ) {
                 items(dashboardViewModel.topSubCategories) {
@@ -397,13 +395,13 @@ fun CategorySales(
             // Loading state
             Column(
                 Modifier
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Loading...",
+                    "No Bill Found",
                     fontSize = 9.sp,
                     color = Color.Gray
                 )
@@ -476,7 +474,7 @@ fun TopFiveSales(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Loading...",
+                    "No Bill Found",
                     fontSize = 9.sp,
                     color = Color.Gray
                 )
@@ -603,7 +601,6 @@ fun FlowOverView(
 @Composable
 fun CustomerOverview(
     dashboardViewModel: DashboardViewModel,
-    onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
         Modifier
@@ -691,24 +688,15 @@ fun CustomerOverview(
                                 Row(  Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AccountBalance,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.colorScheme.secondary
-                                    )
-                                    Spacer(Modifier.width(4.dp))
                                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier =  Modifier.weight(1f)) {
                                         Text(
                                             "${summary.activeKhataBooks}",
-                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
                                         Text(
                                             "₹${summary.totalKhataBookAmount.to1FString()}",
-                                            fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
@@ -747,25 +735,16 @@ fun CustomerOverview(
                                     Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AccountBalance,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = Color.Red
-                                    )
-                                    Spacer(Modifier.width(4.dp))
                                     Column(horizontalAlignment = Alignment.CenterHorizontally,
                                        modifier =  Modifier.weight(1f)
                                         ) {
                                         Text(
                                             "${summary.customersWithOutstandingBalance}",
-                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.Red
                                         )
                                         Text(
                                             "₹${summary.totalOutstandingBalance.to1FString()}",
-                                            fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.Red
                                         )

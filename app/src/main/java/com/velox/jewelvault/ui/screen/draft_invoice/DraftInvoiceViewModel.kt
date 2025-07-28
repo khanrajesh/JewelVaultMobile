@@ -539,7 +539,7 @@ class DraftInvoiceViewModel @Inject constructor(
                         userId = 1,
                         proprietor = "Raj Kumar",
                         name = "RAJ JEWELLERS",
-                        eamil = "rajjewellers@gmail.com",
+                        email = "rajjewellers@gmail.com",
                         phone = "9437206994",
                         address = "Old Medical Road, Malkangiri, Odisha - 764048",
                         registrationNo = "RAJ-REG-001",

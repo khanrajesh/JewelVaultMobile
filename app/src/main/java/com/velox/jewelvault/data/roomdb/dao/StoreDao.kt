@@ -28,6 +28,9 @@ interface StoreDao {
 
     @Query("DELETE FROM StoreEntity")
     suspend fun deleteAllStores(): Int
+    
+    @Query("SELECT * FROM StoreEntity")
+    suspend fun getAllStores(): List<StoreEntity>
 
     @Query("""
         UPDATE StoreEntity SET

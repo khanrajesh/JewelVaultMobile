@@ -88,5 +88,8 @@ interface CustomerKhataBookDao {
         WHERE kb.userId = :userId AND kb.storeId = :storeId
     """)
     suspend fun getKhataBookSummaries(userId: Int, storeId: Int): List<KhataBookSummary>
+    
+    @Query("SELECT * FROM customer_khata_book")
+    suspend fun getAllKhataBooksList(): List<CustomerKhataBookEntity>
 }
 

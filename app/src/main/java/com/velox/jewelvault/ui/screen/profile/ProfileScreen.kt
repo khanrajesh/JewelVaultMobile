@@ -241,6 +241,15 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
                         )
+                        CusOutlinedTextField(
+                            modifier = Modifier
+                                .padding(vertical = 5.dp)
+                                .fillMaxWidth(),
+                            state = profileViewModel.upiId,
+                            placeholderText = "UPI ID (for QR payments)",
+                            keyboardType = KeyboardType.Email,
+                            readOnly = !isEditable.value
+                        )
                     }
                 }
 

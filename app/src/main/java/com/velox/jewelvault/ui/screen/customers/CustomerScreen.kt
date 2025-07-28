@@ -85,7 +85,7 @@ fun CustomerScreen(
             Spacer(Modifier.weight(1f))
             CusOutlinedTextField(
                 state = searchQuery,
-                placeholderText = "Search by name or mobile number",
+                placeholderText = "Search mobile number",
                 modifier = Modifier.width(400.dp),
                 keyboardType = KeyboardType.Phone,
                 trailingIcon = Icons.Default.Search,

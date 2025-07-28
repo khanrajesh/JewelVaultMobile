@@ -213,4 +213,15 @@ object RoomMigration {
             }
         }
     }
+
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add upiId column to StoreEntity table
+            try {
+                db.execSQL("ALTER TABLE StoreEntity ADD COLUMN upiId TEXT NOT NULL DEFAULT ''")
+            } catch (e: Exception) {
+                // Column might already exist, ignore error
+            }
+        }
+    }
 }

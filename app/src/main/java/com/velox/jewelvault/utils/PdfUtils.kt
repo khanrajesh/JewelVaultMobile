@@ -1258,7 +1258,7 @@ fun generateTaxInvoicePdf(
     y += gapY
     canvas.drawText("Phone: ${store.phone ?: "9437206994"}", startX, y, paint)
     y += gapY
-    canvas.drawText("Email: ${store.eamil ?: "Khanranjan45@gmail.com"}", startX, y, paint)
+    canvas.drawText("Email: ${store.email ?: "Khanranjan45@gmail.com"}", startX, y, paint)
     y += gapY + 5f
 
     // Invoice Details (Right side of header)
@@ -1605,7 +1605,7 @@ fun generateEstimatePdf(
     contactY += 12f
     canvas.drawText("Phone : ${store.phone ?: "9437206994"}", topRightX, contactY, regularPaint)
     contactY += 12f
-    canvas.drawText("Email : ${store.eamil ?: "Khanranjan45@gmail.com"}", topRightX, contactY, regularPaint)
+    canvas.drawText("Email : ${store.email ?: "Khanranjan45@gmail.com"}", topRightX, contactY, regularPaint)
     regularPaint.textAlign = Paint.Align.LEFT // Reset alignment
     boldPaint.textAlign = Paint.Align.LEFT   // Reset alignment
 

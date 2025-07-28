@@ -9,7 +9,7 @@ data class StoreEntity (
     val userId: Int,
     val proprietor: String,
     val name: String,
-    val eamil: String,
+    val email: String, // <-- fixed typo here
     val phone: String,
     val address: String,
     val registrationNo:String,
@@ -17,4 +17,5 @@ data class StoreEntity (
     val panNo:String,
     val image:String,
     val invoiceNo:Int=0,
+    val upiId:String="",
 )
