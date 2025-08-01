@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,20 +19,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.components.SignatureBox
+import com.velox.jewelvault.ui.components.PaymentDialog
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.sharePdf
+import androidx.core.graphics.createBitmap
 
 
 @Composable
@@ -94,21 +100,73 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
                 check = sellInvoiceViewModel.ownerSign.value!=null,
                 onSignatureCaptured = { bitmap -> sellInvoiceViewModel.ownerSign.value = bitmap })
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Payment Status Display
+            sellInvoiceViewModel.paymentInfo.value?.let { payment ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Payment: ${payment.paymentMethod}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                            )
+                            Text(
+                                text = "Paid: ₹${String.format("%.2f", payment.paidAmount)}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        if (payment.outstandingAmount > 0) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Outstanding",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "₹${String.format("%.2f", payment.outstandingAmount)}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             if (pdfFile == null) {
                 Button(onClick = {
                     if (sellInvoiceViewModel.customerSign.value != null && sellInvoiceViewModel.ownerSign.value != null) {
-                        sellInvoiceViewModel.completeOrder(onSuccess = {
-                            sellInvoiceViewModel.snackBarState.value = "Order Completed"
-                        }, onFailure = {
-                            sellInvoiceViewModel.snackBarState.value = it
-                        })
+                        // Show payment dialog if payment info is not set
+                        if (sellInvoiceViewModel.paymentInfo.value == null) {
+                            sellInvoiceViewModel.showPaymentDialog.value = true
+                        } else {
+                            // Payment info already set, proceed with order completion
+                            sellInvoiceViewModel.completeOrder(onSuccess = {
+                                sellInvoiceViewModel.snackBarState.value = "Order Completed"
+                            }, onFailure = {
+                                sellInvoiceViewModel.snackBarState.value = it
+                            })
+                        }
                     } else {
                         sellInvoiceViewModel.snackBarState.value = "Please Sign"
                     }
                 }) {
-                    Text("Complete Order")
+                    Text(if (sellInvoiceViewModel.paymentInfo.value == null) "Proceed to Payment" else "Complete Order")
                 }
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -135,6 +193,27 @@ fun SellPreviewScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
 
         }
     }
+    
+    // Payment Dialog
+    if (sellInvoiceViewModel.showPaymentDialog.value) {
+        PaymentDialog(
+            totalAmount = sellInvoiceViewModel.getTotalOrderAmount(),
+            upiId = sellInvoiceViewModel.upiId.value,
+            merchantName = sellInvoiceViewModel.storeName.value,
+            onPaymentConfirmed = { paymentInfo ->
+                sellInvoiceViewModel.onPaymentConfirmed(paymentInfo)
+                // Automatically proceed with order completion after payment confirmation
+                sellInvoiceViewModel.completeOrder(onSuccess = {
+                    sellInvoiceViewModel.snackBarState.value = "Order Completed"
+                }, onFailure = {
+                    sellInvoiceViewModel.snackBarState.value = it
+                })
+            },
+            onDismiss = {
+                sellInvoiceViewModel.showPaymentDialog.value = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -151,7 +230,7 @@ fun PdfRendererPreview(uri: Uri) {
             val renderer = PdfRenderer(parcelFileDescriptor)
             if (renderer.pageCount > 0) {
                 val page = renderer.openPage(0)
-                val bitmap = Bitmap.createBitmap(a4Width, a4Height, Bitmap.Config.ARGB_8888)
+                val bitmap = createBitmap(a4Width, a4Height)
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 page.close()
                 bitmapState.value = bitmap

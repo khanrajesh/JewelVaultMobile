@@ -12,12 +12,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.ui.components.PaymentInfo
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -54,6 +57,12 @@ class SellInvoiceViewModel @Inject constructor(
     private val customerExists = mutableStateOf(false)
     val ownerSign = mutableStateOf<ImageBitmap?>(null)
     val customerSign = mutableStateOf<ImageBitmap?>(null)
+    
+    // Payment related states
+    val showPaymentDialog = mutableStateOf(false)
+    val paymentInfo = mutableStateOf<PaymentInfo?>(null)
+    val upiId = mutableStateOf("")
+    val storeName = mutableStateOf("Merchant")
 
     var generatedPdfFile by mutableStateOf<Uri?>(null)
         private set
@@ -63,7 +72,20 @@ class SellInvoiceViewModel @Inject constructor(
             showSeparateCharges.value =
                 _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first() ?: false
         }
+        loadUpiSettings()
+    }
 
+    private fun loadUpiSettings() {
+        viewModelScope.launch {
+            _dataStoreManager.upiId.collect { id ->
+                upiId.value = id
+            }
+        }
+        viewModelScope.launch {
+            _dataStoreManager.storeName.collect { name ->
+                storeName.value = name
+            }
+        }
     }
 
     fun updateChargeView(state: Boolean) {
@@ -75,7 +97,7 @@ class SellInvoiceViewModel @Inject constructor(
         }
     }
 
-    fun getItemById(itemId: Int, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
+    fun getItemById(itemId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
         viewModelScope.launch {
             return@launch withIo {
                 val item = appDatabase.itemDao().getItemById(itemId)
@@ -162,6 +184,17 @@ class SellInvoiceViewModel @Inject constructor(
 
     //endregion
 
+    fun onPaymentConfirmed(payment: PaymentInfo) {
+        paymentInfo.value = payment
+        showPaymentDialog.value = false
+    }
+
+    fun getTotalOrderAmount(): Double {
+        val totalAmount = selectedItemList.sumOf { it.price }
+        val totalTax = selectedItemList.sumOf { it.tax }
+        val totalCharge = selectedItemList.sumOf { it.chargeAmount }
+        return totalAmount + totalTax + totalCharge
+    }
 
     fun completeOrder(
         onSuccess: () -> Unit, onFailure: (String) -> Unit
@@ -193,6 +226,16 @@ class SellInvoiceViewModel @Inject constructor(
                 val totalCharge = selectedItemList.sumOf { it.chargeAmount }
                 val userId = _dataStoreManager.userId.first()
                 val storeId = _dataStoreManager.storeId.first()
+                
+                // Get payment info or use default (full cash payment)
+                val payment = paymentInfo.value ?: PaymentInfo(
+                    paymentMethod = "Cash",
+                    totalAmount = totalAmount + totalTax + totalCharge,
+                    paidAmount = totalAmount + totalTax + totalCharge,
+                    outstandingAmount = 0.0,
+                    isPaidInFull = true
+                )
+                
                 //3. add order and its item details
                 addOrderWithItems(
                     userId = userId,
@@ -201,6 +244,7 @@ class SellInvoiceViewModel @Inject constructor(
                     totalAmount = totalAmount,
                     totalTax = totalTax,
                     totalCharge = totalCharge,
+                    paymentInfo = payment,
                     onSuccess = {
                         ioScope {
                             val cus = appDatabase.customerDao().getCustomerByMobile(mobile)
@@ -220,10 +264,27 @@ class SellInvoiceViewModel @Inject constructor(
                                 )
 
                                 if (a != -1) {
-                                    //successfully update the customer details
-                                    //5. remove item from items, subcategory, category
+                                    //5. handle outstanding balance if partial payment
+                                    if (payment.outstandingAmount > 0) {
+                                        val outstandingTransaction = CustomerTransactionEntity(
+                                            transactionId = generateId(),
+                                            customerMobile = mobile,
+                                            transactionDate = Timestamp(System.currentTimeMillis()),
+                                            amount = payment.outstandingAmount,
+                                            transactionType = "debit",
+                                            category = "outstanding",
+                                            description = "Outstanding balance from order",
+                                            paymentMethod = payment.paymentMethod,
+                                            notes = "Order total: ₹${payment.totalAmount}, Paid: ₹${payment.paidAmount}",
+                                            userId = userId,
+                                            storeId = storeId
+                                        )
+                                        appDatabase.customerTransactionDao().insertTransaction(outstandingTransaction)
+                                    }
+                                    
+                                    //6. remove item from items, subcategory, category
                                     removeItemSafely(onSuccess = {
-                                        //6. generate the pdf
+                                        //7. generate the pdf
                                         generateInvoice(
                                             storeId,
                                             cus,
@@ -249,12 +310,13 @@ class SellInvoiceViewModel @Inject constructor(
     }
 
     private fun addOrderWithItems(
-        userId: Int,
-        storeId: Int,
+        userId: String,
+        storeId: String,
         mobile: String,
         totalAmount: Double,
         totalTax: Double,
         totalCharge: Double,
+        paymentInfo: PaymentInfo,
         onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
     ) {
@@ -263,8 +325,10 @@ class SellInvoiceViewModel @Inject constructor(
             try {
                 withIo {
 
+                    val id = generateId()
                     val justNowTime = Timestamp(System.currentTimeMillis())
                     val order = OrderEntity(
+                        orderId = id,
                         customerMobile = mobile,
                         storeId = storeId,
                         userId = userId,
@@ -272,7 +336,7 @@ class SellInvoiceViewModel @Inject constructor(
                         totalAmount = totalAmount,
                         totalTax = totalTax,
                         totalCharge = totalCharge,
-                        note = "note"
+                        note = paymentInfo.toNoteString()
                     )
 
                     val orderId = appDatabase.orderDao().insertOrder(order)
@@ -280,7 +344,8 @@ class SellInvoiceViewModel @Inject constructor(
                     if (orderId != -1L) {
                         val orderItems = selectedItemList.map {
                             OrderItemEntity(
-                                orderId = orderId.toInt(),
+                                orderItemId = generateId(),
+                                orderId = id,
                                 orderDate = justNowTime,
                                 itemId = it.itemId,
                                 customerMobile = mobile,
@@ -434,7 +499,7 @@ class SellInvoiceViewModel @Inject constructor(
 
 
     private fun generateInvoice(
-        storeId: Int, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        storeId: String, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         ioLaunch {
             _loadingState.value = true
@@ -473,6 +538,8 @@ class SellInvoiceViewModel @Inject constructor(
         customerGstin.text = ""
         ownerSign.value = null
         customerSign.value = null
+        showPaymentDialog.value = false
+        paymentInfo.value = null
         generatedPdfFile = null
     }
 

@@ -2,7 +2,7 @@ package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.annotation.SuppressLint
 import android.util.Log
-import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -130,7 +130,7 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
                 itemId.value = code
                 if (code.isNotEmpty() && code.canBeInt()) {
                     sellInvoiceViewModel.getItemById(
-                        itemId.value.toInt(),
+                        itemId.value,
                         onFailure = {
                             sellInvoiceViewModel.snackBarState.value = "No item found with the id: $code"
                         },
@@ -366,10 +366,7 @@ fun ViewAddItemDialog(
         val gold100: Double = (100 / 99.9) * (price24kOneGram?.toDoubleOrNull() ?: 0.0)
 
         if (price24kOneGram == null || gold100 == 0.0) {
-            mainScope {
-                Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
-                    .show()
-            }
+            baseViewModel.snackMessage = "Please load the metal prices"
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
         }
@@ -382,10 +379,7 @@ fun ViewAddItemDialog(
                     ?.toDoubleOrNull() ?: 0.0
 
             if (silverOneGm == 0.0) {
-                mainScope {
-                    Toast.makeText(context, "Please load the metal prices", Toast.LENGTH_SHORT)
-                        .show()
-                }
+                baseViewModel.snackMessage = "Please load the metal prices"
                 viewModel.showAddItemDialog.value = false
                 viewModel.selectedItem.value = null
                 return
@@ -394,9 +388,7 @@ fun ViewAddItemDialog(
         } else {
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
-            mainScope {
-                Toast.makeText(context, "Only Gold and Silver", Toast.LENGTH_SHORT).show()
-            }
+            baseViewModel.snackMessage = "Only Gold and Silver"
             return
         }
 
@@ -801,6 +793,7 @@ fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
 }
 
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun ItemSection(modifier: Modifier, viewModel: SellInvoiceViewModel) {
     val haptic = LocalHapticFeedback.current
@@ -1064,7 +1057,7 @@ private fun AddItemSection(
                     ), keyboardActions = KeyboardActions(onDone = {
                         if (itemId.value.isNotEmpty()) {
                             viewModel.getItemById(
-                                itemId.value.toInt(),
+                                itemId.value,
                                 onFailure = {},
                                 onSuccess = {
                                     viewModel.showAddItemDialog.value = true
@@ -1083,7 +1076,7 @@ private fun AddItemSection(
                 .bounceClick {
                     if (itemId.value.isNotEmpty()) {
                         viewModel.getItemById(
-                            itemId.value.toInt(), onFailure = {
+                            itemId.value, onFailure = {
 
                             }, onSuccess = {
                                 viewModel.showAddItemDialog.value = true
@@ -1141,12 +1134,7 @@ fun CustomerDetails(viewModel: SellInvoiceViewModel) {
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
-                    validation = { input ->
-                        when {
-                            input.length != 10 -> "Please Enter Valid Number"
-                            else -> null
-                        }
-                    }
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
                 )
             }
             Spacer(Modifier.height(5.dp))

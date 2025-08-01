@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Environment
 import android.util.Log
-import android.widget.Toast
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -97,7 +97,8 @@ fun MetalRatesTicker(
         .map { (source, rates) ->
             val dateTime =
                 rates.first().updatedDate // assuming all rates for a source have the same date
-            val sourceText = "$source (Fetched on $dateTime) :"
+//            val sourceText = "$source (Fetched on $dateTime) :"
+            val sourceText = "(Fetched on $dateTime) :"
             val ratesText = rates.joinToString(separator = "  -•-  ") { rate ->
                 "${rate.metal} ${rate.caratOrPurity}: ₹${rate.price}"
             }
@@ -201,14 +202,10 @@ fun EditMetalRatesDialog(
                                             } else if (metalRate.metal != "Gold") {
                                                 editedRates[index] = metalRate.copy(price = it)
                                             } else {
-                                                Toast.makeText(
-                                                    context,
-                                                    "Currently you can only edit 24K Gold and Silver",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                viewModel.snackMessage = "Currently you can only edit 24K Gold and Silver"
                                             }
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Invalid input", Toast.LENGTH_SHORT).show()
+                                            viewModel.snackMessage = "Invalid input"
                                         }
                                     },
                                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
@@ -482,7 +479,9 @@ suspend fun fetchPricesKDBullion(context: Context): List<MetalRate> = withContex
         // Debug: Save or print the whole HTML
         Log.d("KDBullionFetcher", "Document HTML: ${doc.outerHtml()}")
 
-        saveToRootStorage(context, doc, "KdBullion")
+        saveToRootStorage(context, doc, "KdBullion") { message ->
+            Log.d("KDBullionFetcher", message)
+        }
         val prices = mutableListOf<MetalRate>()
         val rows = doc.select("#divProduct tr.product-cover-number")
         Log.d("KDBullionFetcher", "Found ${rows.size} rows.")
@@ -550,11 +549,12 @@ suspend fun registerAndFetchRates(): String = withContext(Dispatchers.IO) {
 
     // Step 1: Register
     val registerUrl = "http://kdbullion.in/WebService/WebService.asmx/InsertOtr"
+    // Use environment variables or secure storage for credentials
     val registerJson = JSONObject().apply {
-        put("Name", "Rajesh")
-        put("FirmName", "")
-        put("City", "")
-        put("ContactNo", "82606636334")
+        put("Name", "JewelVaultApp")
+        put("FirmName", "JewelVault")
+        put("City", "India")
+        put("ContactNo", "00000000000") // Use actual business contact
         put("ClientId", 4)
     }
 
@@ -705,7 +705,7 @@ suspend fun fetchPricesKDBullionrr(context: Context): List<MetalRate> =
         }
     }
 
-fun saveToRootStorage(context: Context, doc: org.jsoup.nodes.Document, fileName: String) {
+fun saveToRootStorage(context: Context, doc: org.jsoup.nodes.Document, fileName: String, onMessage: ((String) -> Unit)? = null) {
     try {
         val rootPath = Environment.getExternalStorageDirectory()
         val folder = File(rootPath, "JewelVault")
@@ -722,16 +722,11 @@ fun saveToRootStorage(context: Context, doc: org.jsoup.nodes.Document, fileName:
             Log.d("GoldPriceFetcher", "File saved at: ${file.absolutePath}")
         }
 
-        // ✅ Show toast on main thread
-        CoroutineScope(Dispatchers.Main).launch {
-            Toast.makeText(context, "File saved at:\n${file.absolutePath}", Toast.LENGTH_LONG)
-                .show()
-        }
+        // Show message through callback if provided
+        onMessage?.invoke("File saved at: ${file.absolutePath}")
 
     } catch (e: IOException) {
         Log.e("GoldPriceFetcher", "Error saving document to file", e)
-        CoroutineScope(Dispatchers.Main).launch {
-            Toast.makeText(context, "Failed to save file: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+        onMessage?.invoke("Failed to save file: ${e.message}")
     }
 }

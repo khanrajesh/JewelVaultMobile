@@ -5,21 +5,25 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.widget.Toast
+
 import androidx.compose.runtime.MutableState
 import com.velox.jewelvault.BaseViewModel
+import com.velox.jewelvault.data.DataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 fun monitorInternetConnection(
     baseViewModel: BaseViewModel,
     speedMonitorJob: MutableState<Job?>,
     coroutineScope: CoroutineScope,
     context: Context,
+    dataStoreManager: DataStoreManager? = null,
 ) {
+
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     val networkRequest = NetworkRequest.Builder()
@@ -29,7 +33,15 @@ fun monitorInternetConnection(
     connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             baseViewModel.isConnectedState.value = true
-            startSpeedMonitor(speedMonitorJob, coroutineScope,context) // Start speed check
+            // Check if speed monitoring is enabled before starting it
+            coroutineScope.launch {
+                try {
+                        startSpeedMonitor(speedMonitorJob, coroutineScope, baseViewModel,dataStoreManager)
+                } catch (e: Exception) {
+                    // If we can't check the setting, don't start speed monitoring
+                    e.printStackTrace()
+                }
+            }
         }
 
         override fun onLost(network: Network) {
@@ -44,16 +56,25 @@ fun monitorInternetConnection(
     })
 }
 
-private fun startSpeedMonitor(speedMonitorJob: MutableState<Job?>, coroutineScope: CoroutineScope,context: Context) {
+private fun startSpeedMonitor(
+    speedMonitorJob: MutableState<Job?>,
+    coroutineScope: CoroutineScope,
+    baseViewModel: BaseViewModel,
+    dataStoreManager: DataStoreManager?
+) {
     stopSpeedMonitor(speedMonitorJob) // Clear previous job if running
 
     speedMonitorJob.value = coroutineScope.launch {
         while (isActive) {
-            val isSlow = !isInternetFast()
-            if (isSlow) {
-                withMain {
-                    Toast.makeText(context, "Internet is slow", Toast.LENGTH_SHORT).show()
+            val speedMonitoringEnabled = dataStoreManager?.getValue(DataStoreManager.NETWORK_SPEED_MONITORING, true)?.first() ?: true
+            if (speedMonitoringEnabled) {
+                val isSlow = !isInternetFast()
+                if (isSlow) {
+                    withMain {
+                        baseViewModel.snackMessage = "Internet is slow"
+                    }
                 }
+
             }
             delay(5000L) // Repeat every 5 seconds
         }

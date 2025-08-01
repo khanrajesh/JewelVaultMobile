@@ -6,13 +6,14 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import com.velox.jewelvault.data.roomdb.TableNames
 
 @Entity(
-    tableName = "firm"
+    tableName = TableNames.FIRM
 )
 data class FirmEntity(
-    @PrimaryKey(autoGenerate = true)
-    val firmId: Int = 0,
+    @PrimaryKey
+    val firmId: String,
     val firmName: String,
     val firmMobileNumber: String,
     val gstNumber: String,
@@ -20,7 +21,7 @@ data class FirmEntity(
 )
 
 @Entity(
-    tableName = "seller",
+    tableName = TableNames.SELLER,
     foreignKeys = [
         ForeignKey(
             entity = FirmEntity::class,
@@ -33,9 +34,9 @@ data class FirmEntity(
 )
 
 data class SellerEntity(
-    @PrimaryKey(autoGenerate = true)
-    val sellerId: Int = 0,
-    val firmId: Int,
+    @PrimaryKey
+    val sellerId:String,
+    val firmId: String,
     val name: String,
     val mobileNumber: String
 )

@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -39,19 +40,33 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.monitorInternetConnection
+import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.mainScope
+import com.velox.jewelvault.data.DataStoreManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import java.sql.Timestamp
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import androidx.fragment.app.FragmentActivity
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val speedMonitorJob: MutableState<Job?> = mutableStateOf(null)
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    
+    @Inject
+    lateinit var sessionManager: SessionManager
+    
+    @Inject
+    lateinit var dataStoreManager: DataStoreManager
 
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -62,8 +77,57 @@ class MainActivity : ComponentActivity() {
 
             val navController = rememberNavController()
             val baseViewModel: BaseViewModel = hiltViewModel()
+            val networkCheckEnabled = remember { mutableStateOf(true) }
 
-            monitorInternetConnection(baseViewModel,speedMonitorJob,coroutineScope,this@MainActivity)
+            // Check if network monitoring is enabled before starting it
+            LaunchedEffect(Unit) {
+                    monitorInternetConnection(baseViewModel, speedMonitorJob, coroutineScope, this@MainActivity, dataStoreManager)
+            }
+
+
+            LaunchedEffect(dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true)) {
+                networkCheckEnabled.value = dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true).first() ?: true
+            }
+
+            // Check session validity on app start
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    if (!sessionManager.isSessionValid()) {
+                        // Session expired, navigate to login
+                        mainScope {
+                            navController.navigate(Screens.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Monitor session during app usage
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    while (true) {
+                        delay(300000) // Check every 5 minutes
+                        if (!sessionManager.isSessionValid()) {
+                            // Session expired during app usage
+                            baseViewModel.snackMessage = "Session expired. Please login again."
+                            navController.navigate(Screens.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                            break
+                        }
+
+                        // Check if session is expiring soon
+                        if (sessionManager.isSessionExpiringSoon()) {
+                            val timeRemaining = sessionManager.getSessionTimeRemaining()
+                            val minutesRemaining = TimeUnit.MILLISECONDS.toMinutes(timeRemaining)
+                            baseViewModel.snackMessage = "Session expires in $minutesRemaining minutes. Please save your work."
+                        }
+
+                        sessionManager.updateLastActivity() // Extend session on activity
+                    }
+                }
+            }
 
             JewelVaultTheme {
                 LaunchedEffect(baseViewModel.snackMessage) {
@@ -127,7 +191,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        if (!baseViewModel.isConnectedState.value) {
+                        if (!baseViewModel.isConnectedState.value && networkCheckEnabled.value) {
                             AlertDialog(onDismissRequest = {},
                                 confirmButton = {},
                                 title = { Text("No Internet Connection") },

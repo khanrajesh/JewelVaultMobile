@@ -12,14 +12,25 @@ import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.data.roomdb.dao.TopSubCategory
 import com.velox.jewelvault.data.roomdb.dao.range
-import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+
+// Data class for customer summary statistics
+data class CustomerSummary(
+    val totalCustomers: Int = 0,
+    val activeCustomers: Int = 0,
+    val activeKhataBooks: Int = 0,
+    val totalOutstandingBalance: Double = 0.0,
+    val totalKhataBookAmount: Double = 0.0,
+    val totalKhataBookPaidAmount: Double = 0.0,
+    val totalKhataBookRemainingAmount: Double = 0.0,
+    val customersWithOutstandingBalance: Int = 0
+)
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
@@ -35,8 +46,10 @@ class DashboardViewModel @Inject constructor(
     val topSellingItemsMap = mutableStateMapOf<String, List<TopItemByCategory>>()
     val topSubCategories = SnapshotStateList<TopSubCategory>()
     val salesSummary: MutableState<SalesSummary?> = mutableStateOf(null)
-
-
+    
+    // Customer-related data
+    val customerSummary: MutableState<CustomerSummary?> = mutableStateOf(null)
+    val customersWithOutstandingBalance = SnapshotStateList<CustomerBalanceSummary>()
 
     fun getRecentSellItem() {
         ioLaunch {
@@ -58,7 +71,6 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-
     fun getTopSellingSubCategories() {
         ioLaunch {
             val (start, end) = selectedRange.value.range()
@@ -75,11 +87,73 @@ class DashboardViewModel @Inject constructor(
             salesSummary.value = summary
         }
     }
+    
+    fun getCustomerSummary() {
+        ioLaunch {
+            try {
+                val userId = dataStoreManager.userId.first()
+                val storeId = dataStoreManager.storeId.first()
+                
+                // Get total customers
+                val allCustomers = appDatabase.customerDao().getAllCustomers().first()
+                val totalCustomers = allCustomers.size
+                val activeCustomers = allCustomers.count { it.isActive }
+                
+                // Get outstanding balance statistics
+                val totalOutstandingBalance = appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
+                val customersWithOutstanding = appDatabase.customerTransactionDao().getCustomersWithOutstandingBalance(userId, storeId)
+                
+                // Get khata book statistics
+                val khataBookSummaries = appDatabase.customerKhataBookDao().getKhataBookSummaries(userId, storeId)
+                val activeKhataBooks = khataBookSummaries.count { it.status == "active" }
+                val totalKhataBookMonthlyAmount = khataBookSummaries.sumOf { it.monthlyAmount }
+                
+                // Calculate paid amounts for active khata books
+                val totalKhataBookPaidAmount = khataBookSummaries.sumOf { summary ->
+                    val paidAmount = appDatabase.customerTransactionDao().getKhataBookTotalPaidAmount(summary.khataBookId)
+                    paidAmount
+                }
+                
+                val totalKhataBookRemainingAmount = totalKhataBookMonthlyAmount
+                
+                val summary = CustomerSummary(
+                    totalCustomers = totalCustomers,
+                    activeCustomers = activeCustomers,
+                    activeKhataBooks = activeKhataBooks,
+                    totalOutstandingBalance = totalOutstandingBalance,
+                    totalKhataBookAmount = totalKhataBookMonthlyAmount,
+                    totalKhataBookPaidAmount = totalKhataBookPaidAmount,
+                    totalKhataBookRemainingAmount = totalKhataBookRemainingAmount,
+                    customersWithOutstandingBalance = customersWithOutstanding.size
+                )
+                
+                customerSummary.value = summary
+                customersWithOutstandingBalance.clear()
+                customersWithOutstandingBalance.addAll(customersWithOutstanding)
+                
+            } catch (e: Exception) {
+                log("Failed to load customer summary: ${e.message}")
+            }
+        }
+    }
 
     fun getSubCategoryCount(onComplete: (Int) -> Unit) {
         ioLaunch {
             val count = appDatabase.subCategoryDao().getSubCategoryCount()
             onComplete(count)
         }
+    }
+
+    fun refreshAllData() {
+        getRecentSellItem()
+        getSalesSummary()
+        getTopSellingItems()
+        getTopSellingSubCategories()
+        getCustomerSummary()
+    }
+
+    fun updateTimeRange(newRange: TimeRange) {
+        selectedRange.value = newRange
+        refreshAllData()
     }
 }

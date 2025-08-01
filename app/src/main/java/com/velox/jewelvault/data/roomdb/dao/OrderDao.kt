@@ -11,6 +11,7 @@ import androidx.room.Update
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderWithItems
+import com.velox.jewelvault.data.roomdb.TableNames
 import kotlinx.coroutines.flow.Flow
 import java.sql.Timestamp
 
@@ -23,23 +24,23 @@ interface OrderDao {
     suspend fun insertItems(items: List<OrderItemEntity>): List<Long>
 
     @Transaction
-    @Query("SELECT * FROM OrderEntity WHERE orderId = :id")
-    suspend fun getOrderWithItems(id: Long): OrderWithItems
+    @Query("SELECT * FROM `${TableNames.ORDER}` WHERE orderId = :id")
+    suspend fun getOrderWithItems(id: String): OrderWithItems
 
-    @Query("SELECT * FROM OrderEntity ORDER BY orderDate DESC")
+    @Query("SELECT * FROM `${TableNames.ORDER}` ORDER BY orderDate DESC")
     fun getAllOrdersDesc(): Flow<List<OrderEntity>>
 
-    @Query("SELECT * FROM OrderItemEntity WHERE purchaseOrderId = :purchaseOrderId ORDER BY orderDate DESC")
+    @Query("SELECT * FROM ${TableNames.ORDER_ITEM} WHERE purchaseOrderId = :purchaseOrderId ORDER BY orderDate DESC")
     fun getAllOrdersByPurchaseOrderIdInDesc(purchaseOrderId: Int): Flow<List<OrderItemEntity>>
 
-    @Query("SELECT * FROM OrderEntity ORDER BY orderDate ASC")
+    @Query("SELECT * FROM `${TableNames.ORDER}` ORDER BY orderDate ASC")
     fun getAllOrdersAsc(): Flow<List<OrderEntity>>
 
     @Query("""
     SELECT o.orderId, o.orderDate, c.name AS customerName, c.mobileNo, 
            o.totalAmount, o.totalTax, o.totalCharge
-    FROM OrderEntity o
-    INNER JOIN CustomerEntity c ON o.customerMobile = c.mobileNo
+    FROM `${TableNames.ORDER}` o
+    INNER JOIN ${TableNames.CUSTOMER} c ON o.customerMobile = c.mobileNo
     WHERE (:start IS NULL OR o.orderDate >= :start)
       AND (:end IS NULL OR o.orderDate <= :end)
     ORDER BY o.orderDate DESC
@@ -56,10 +57,10 @@ interface OrderDao {
            SUM(quantity) AS totalQuantity,
            SUM(gsWt) AS totalWeight,
            SUM(price) AS totalRevenue
-    FROM OrderItemEntity
-    INNER JOIN OrderEntity ON OrderItemEntity.orderId = OrderEntity.orderId
-    WHERE (:start IS NULL OR OrderEntity.orderDate >= :start)
-      AND (:end IS NULL OR OrderEntity.orderDate <= :end)
+    FROM ${TableNames.ORDER_ITEM}
+    INNER JOIN `${TableNames.ORDER}` ON ${TableNames.ORDER_ITEM}.orderId = `${TableNames.ORDER}`.orderId
+    WHERE (:start IS NULL OR `${TableNames.ORDER}`.orderDate >= :start)
+      AND (:end IS NULL OR `${TableNames.ORDER}`.orderDate <= :end)
       AND (:category IS NULL OR catName = :category)
       AND (:subCategory IS NULL OR subCatName = :subCategory)
     GROUP BY itemAddName, catName, subCatName
@@ -78,8 +79,8 @@ interface OrderDao {
     SELECT c.name AS customerName, c.mobileNo,
            COUNT(o.orderId) AS totalOrders,
            SUM(o.totalAmount) AS totalSpent
-    FROM OrderEntity o
-    INNER JOIN CustomerEntity c ON o.customerMobile = c.mobileNo
+    FROM `${TableNames.ORDER}` o
+    INNER JOIN ${TableNames.CUSTOMER} c ON o.customerMobile = c.mobileNo
     WHERE (:start IS NULL OR o.orderDate >= :start)
       AND (:end IS NULL OR o.orderDate <= :end)
     GROUP BY c.mobileNo, c.name
@@ -130,8 +131,8 @@ interface OrderDao {
         oi.charge,
         oi.tax
 
-    FROM OrderItemEntity AS oi
-    INNER JOIN CustomerEntity AS c ON oi.customerMobile = c.mobileNo
+    FROM ${TableNames.ORDER_ITEM} AS oi
+    INNER JOIN ${TableNames.CUSTOMER} AS c ON oi.customerMobile = c.mobileNo
 
     WHERE (:start IS NULL OR oi.orderDate >= :start)
       AND (:end IS NULL OR oi.orderDate <= :end)
@@ -155,7 +156,7 @@ interface OrderDao {
         subCatName,
         SUM(price+charge+tax) AS totalPrice,
         SUM(fnWt) AS totalFnWt
-    FROM OrderItemEntity
+    FROM ${TableNames.ORDER_ITEM}
     WHERE (:start IS NULL OR orderDate >= :start)
       AND (:end IS NULL OR orderDate <= :end)
     GROUP BY subCatName
@@ -174,7 +175,7 @@ interface OrderDao {
         subCatName,
         itemAddName,
         SUM(fnWt) AS totalFnWt
-    FROM OrderItemEntity
+    FROM ${TableNames.ORDER_ITEM}
     WHERE (:start IS NULL OR orderDate >= :start)
       AND (:end IS NULL OR orderDate <= :end)
     GROUP BY catName, itemAddName
@@ -193,7 +194,7 @@ interface OrderDao {
         subCatName,
         itemAddName,
         SUM(fnWt) AS totalFnWt
-    FROM OrderItemEntity
+    FROM ${TableNames.ORDER_ITEM}
     WHERE (:start IS NULL OR orderDate >= :start)
       AND (:end IS NULL OR orderDate <= :end)
     GROUP BY catName, subCatName
@@ -209,7 +210,7 @@ interface OrderDao {
     SELECT 
         COUNT(DISTINCT orderId) AS invoiceCount,
         SUM(totalAmount+totalCharge+totalTax) AS totalAmount
-    FROM OrderEntity
+    FROM `${TableNames.ORDER}`
     WHERE (:start IS NULL OR orderDate >= :start)
       AND (:end IS NULL OR orderDate <= :end)
 """)
@@ -217,8 +218,12 @@ interface OrderDao {
         start: Timestamp? = null,
         end: Timestamp? = null
     ): SalesSummary
-
-
+    
+    @Query("SELECT * FROM `${TableNames.ORDER}`")
+    suspend fun getAllOrders(): List<OrderEntity>
+    
+    @Query("SELECT * FROM ${TableNames.ORDER_ITEM}")
+    suspend fun getAllOrderItems(): List<OrderItemEntity>
 
 }
 
@@ -264,12 +269,12 @@ data class IndividualSellItem(
     val orderItemId: Int = 0,
     val orderId: Int,
     val orderDate: Timestamp,
-    val itemId: Int,
+    val itemId: String,
     val customerMobile:String,
-    val catId: Int,
+    val catId: String,
     val catName: String,
     val itemAddName: String,
-    val subCatId: Int,
+    val subCatId: String,
     val subCatName: String,
     val entryType: String,
     val quantity: Int,
@@ -295,7 +300,7 @@ data class IndividualSellItem(
 )
 
 data class LedgerEntry(
-    val orderId: Long,
+    val orderId: String,
     val orderDate: Timestamp,
     val customerName: String,
     val mobileNo: String,

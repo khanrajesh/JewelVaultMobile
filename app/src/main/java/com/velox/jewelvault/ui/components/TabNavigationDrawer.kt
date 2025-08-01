@@ -4,6 +4,7 @@ import androidx.compose.animation.core.TweenSpec
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -21,16 +22,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +49,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -51,6 +63,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.velox.jewelvault.R
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.ui.theme.ZenFontFamily
@@ -62,18 +76,25 @@ import kotlinx.coroutines.launch
 @Composable
 @VaultPreview
 fun TabNavigationDrawerPreview() {
-    val inputIconStates = List(5) { index ->
+    val inputIconStates = List(6) { index ->
         InputIconState(
-            initialText = "Item ${index + 1}",
+            initialText = when (index) {
+                0 -> "Dashboard"
+                1 -> "Inventory"
+                2 -> "Customers"
+                3 -> "Ledger"
+                4 -> "Profile"
+                else -> "Settings"
+            },
             initialIcon = when (index) {
-                0 -> R.drawable.logo_1 // Replace with your actual icon resource IDs
-                1 -> R.drawable.logo_1
-                2 -> R.drawable.logo_1
-                3 -> R.drawable.logo_1
-                else -> R.drawable.logo_1
+                0 -> Icons.Default.Dashboard
+                1 -> Icons.Default.Inventory
+                2 -> Icons.Default.People
+                3 -> Icons.Default.AccountBalance
+                4 -> Icons.Default.Person
+                else -> Icons.Default.Settings
             },
             initialOnClick = {
-                // Define onClick behavior for each item
                 println("Item ${index + 1} clicked")
             }
         )
@@ -81,41 +102,67 @@ fun TabNavigationDrawerPreview() {
 
     val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
 
-
     TabNavigationDrawer(
         drawerState = drawerState,
         content = {
             Text("Main Content")
         }, drawerContent = {
             LazyColumn(
+                modifier = Modifier.padding(vertical = 8.dp)
             ) {
-
                 items(inputIconStates) { item ->
-                    Row(
-                        Modifier
-                            .clickable {
-                                item.onClick()
-                            }
-                            .fillMaxWidth()
-                            .padding(vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        item.icon?.let {
-                            Image(
-                                painter = painterResource(it),
-                                contentDescription = null,
-                                Modifier.size(40.dp)
-                            )
-                        }
-                        if (drawerState.isOpen) {
-                            Spacer(Modifier.width(10.dp))
-                            Text(item.text)
-                        }
-                    }
+                    DrawerItem(
+                        item = item,
+                        drawerState = drawerState,
+                        onClick = { item.onClick() }
+                    )
                 }
             }
         }
     )
+}
+
+@Composable
+fun DrawerItem(
+    item: InputIconState,
+    drawerState: TabDrawerState,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .clickable { onClick() }
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon with better styling
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
+                    shape = androidx.compose.foundation.shape.CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = item.icon as ImageVector,
+                contentDescription = item.text,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+        
+        if (drawerState.isOpen) {
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = item.text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+    }
 }
 
 enum class TabDrawerValue {
@@ -180,7 +227,12 @@ fun TabNavigationDrawer(
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
-    val width = if (drawerState.isOpen) 200.dp else 60.dp
+    LaunchedEffect(Unit) {
+        baseViewModel.loadStoreName()
+    }
+
+
+    val width = if (drawerState.isOpen) 280.dp else 60.dp
     Row {
         Row(modifier.fillMaxSize()) {
             Column(
@@ -190,11 +242,11 @@ fun TabNavigationDrawer(
                     .background(
                         color = MaterialTheme.colorScheme.primary
                     )
-                    .padding(5.dp)
+                    .padding(8.dp)
             ) {
 
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(Modifier.height(75.dp))
+                    ProfileImage(drawerState)
                     drawerContent()
                 }
 
@@ -211,15 +263,12 @@ fun TabNavigationDrawer(
                     Icon(
                         if (drawerState.isOpen) Icons.AutoMirrored.Filled.KeyboardArrowLeft
                         else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "",
-                        modifier = Modifier.size(40.dp)
+                        contentDescription = if (drawerState.isOpen) "Close drawer" else "Open drawer",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
-
                 }
-
             }
-
-
 
             Column(Modifier.fillMaxSize()) {
                 Column(
@@ -237,7 +286,7 @@ fun TabNavigationDrawer(
                     ) {
                         Spacer(Modifier.width(20.dp))
                         Text(
-                            text = "Jewel Vault",
+                            text = baseViewModel.storeName.value ?:"Jewel Vault",
                             fontSize = 22.sp,
                             fontFamily = ZenFontFamily,
                             fontWeight = FontWeight.Bold,
@@ -253,7 +302,6 @@ fun TabNavigationDrawer(
                         Spacer(Modifier.width(20.dp))
                         notifierContent()
                         Spacer(Modifier.width(10.dp))
-
                     }
                     Box(Modifier.fillMaxSize()) {
                         content()
@@ -266,18 +314,19 @@ fun TabNavigationDrawer(
 
 class InputIconState(
     initialText: String = "",
-    initialIcon: Int? = null,
+    initialIcon: Any? = null, // Can be ImageVector or Int resource
+    selected: Boolean = false,
     initialOnClick: () -> Unit = {}
 ) {
     var text by mutableStateOf(initialText)
     var icon by mutableStateOf(initialIcon)
+    var selected by mutableStateOf(selected)
     var onClick by mutableStateOf(initialOnClick)
 
     fun onTextChanged(newText: String) {
         text = newText
     }
 }
-
 
 @Composable
 private fun TabScrim(
@@ -309,6 +358,70 @@ private fun TabScrim(
 
 fun calculateFraction(a: Float, b: Float, pos: Float) =
     ((pos - a) / (b - a)).coerceIn(0f, 1f)
+
+@Composable
+fun ProfileImage(drawerState: TabDrawerState) {
+    val baseViewModel = LocalBaseViewModel.current
+    val context = LocalContext.current
+    
+    LaunchedEffect(Unit) {
+        baseViewModel.loadStoreImage()
+    }
+
+    
+    Box(
+        modifier = Modifier
+            .size(60.dp)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        val imageUri = baseViewModel.storeImage.value
+        
+        if (!imageUri.isNullOrBlank()) {
+            // Show profile image if available
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(context)
+                        .data(imageUri)
+                        .build()
+                ),
+                contentDescription = "Profile Image",
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(CircleShape)
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    ),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            // Show default profile icon if no image
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile",
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        }
+    }
+}
 
 
 

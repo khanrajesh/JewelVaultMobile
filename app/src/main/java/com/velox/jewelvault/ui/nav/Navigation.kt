@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.nav
 
+import androidx.compose.material.icons.filled.History
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +36,13 @@ import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.setting.SettingScreen
+import com.velox.jewelvault.ui.screen.customers.CustomerScreen
+import com.velox.jewelvault.ui.screen.customers.CustomerViewModel
+import com.velox.jewelvault.ui.screen.customers.CustomerDetailScreen
+import com.velox.jewelvault.ui.screen.customers.KhataBookPlansScreen
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceScreen
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceViewModel
+import com.velox.jewelvault.ui.screen.draft_invoice.DraftPreviewScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -52,6 +60,7 @@ fun AppNavigation(
         LocalBaseViewModel provides baseViewModel,
     ) {
         val sellInvoiceViewModel = hiltViewModel<SellInvoiceViewModel>()
+        val draftInvoiceViewModel = hiltViewModel<DraftInvoiceViewModel>()
 
         NavHost(navController = navController, startDestination = startDestination) {
             composable(Screens.Splash.route) {
@@ -74,6 +83,12 @@ fun AppNavigation(
             }
             composable(Screens.Purchase.route) {
                 PurchaseScreen(hiltViewModel<PurchaseViewModel>())
+            }
+            composable(Screens.DraftInvoice.route) {
+                DraftInvoiceScreen(draftInvoiceViewModel)
+            }
+            composable(Screens.DraftPreview.route) {
+                DraftPreviewScreen(draftInvoiceViewModel)
             }
         }
     }
@@ -116,15 +131,15 @@ fun SubAppNavigation(
             composable(
                 "${SubScreens.InventoryItem.route}/{catId}/{catName}/{subCatId}/{subCatName}",
                 arguments = listOf(
-                    navArgument("catId") { type = NavType.IntType },
+                    navArgument("catId") { type = NavType.StringType },
                     navArgument("catName") { type = NavType.StringType },
-                    navArgument("subCatId") { type = NavType.IntType },
+                    navArgument("subCatId") { type = NavType.StringType },
                     navArgument("subCatName") { type = NavType.StringType },
                 )
             ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getInt("catId") ?: return@composable
+                val catId = backStackEntry.arguments?.getString("catId") ?: return@composable
                 val catName = backStackEntry.arguments?.getString("catName") ?: return@composable
-                val subCatId = backStackEntry.arguments?.getInt("subCatId") ?: return@composable
+                val subCatId = backStackEntry.arguments?.getString("subCatId") ?: return@composable
                 val subCatName =
                     backStackEntry.arguments?.getString("subCatName") ?: return@composable
                 InventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
@@ -133,6 +148,24 @@ fun SubAppNavigation(
 
             composable(SubScreens.InventoryFilter.route) {
                 InventoryFilterScreen(inventoryViewModel)
+            }
+
+            composable(SubScreens.Customers.route) {
+                CustomerScreen( hiltViewModel())
+            }
+            
+            composable(
+                route = "customer_detail/{customerMobile}",
+                arguments = listOf(
+                    navArgument("customerMobile") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val customerMobile = backStackEntry.arguments?.getString("customerMobile") ?: ""
+                CustomerDetailScreen(customerMobile)
+            }
+            
+            composable("khata_book_plans") {
+                KhataBookPlansScreen(subNavController)
             }
 
             composable(SubScreens.OrderAndPurchase.route) {
@@ -153,3 +186,6 @@ fun SubAppNavigation(
         }
     }
 }
+
+
+

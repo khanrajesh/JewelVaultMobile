@@ -3,13 +3,13 @@ package com.velox.jewelvault.data.roomdb.dto
 import java.sql.Timestamp
 
 data class ItemSelectedModel(
-    val itemId: Int,
+    val itemId: String,
     val itemAddName: String,
-    val catId: Int,
-    val userId: Int,
-    val storeId: Int,
+    val catId: String,
+    val userId: String,
+    val storeId: String,
     val catName: String,
-    val subCatId: Int,
+    val subCatId: String,
     val subCatName: String,
     val entryType: String,
     val quantity: Int,
@@ -33,8 +33,8 @@ data class ItemSelectedModel(
     val tax: Double=0.0,
     val addDate:Timestamp?=null,
     //seller info
-    val sellerFirmId: Int,
-    val purchaseOrderId: Int,
-    val purchaseItemId: Int = 0,
+    val sellerFirmId: String,
+    val purchaseOrderId: String,
+    val purchaseItemId: String,
 
 )

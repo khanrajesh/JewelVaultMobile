@@ -35,12 +35,8 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel) {
 
     QrBarScannerPage(valueProcessing = {
         if (baseViewModel.metalRates.isNotEmpty()){
-            if (it.canBeInt()) {
-                viewModel.processScan(it.toInt(), baseViewModel.metalRates)
+                viewModel.processScan(it, baseViewModel.metalRates)
                 "Processing ID: $it…"
-            } else {
-                "Invalid Qr/Bar Code\n ID: $it"
-            }
         }else{
             "Load Metal Rate"
         }
@@ -84,7 +80,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel) {
                                 if (existing != null) {
                                     val res =
                                         "Id: ${existing.itemId} ${existing.catName} ${existing.subCatName} ${existing.itemAddName}" +
-                                                "\nWt: ${existing.gsWt.to2FString()} (${existing.fnWt.to2FString()})gm (${existing.purity}) P: ₹.${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
+                                                "\nWt: ${existing.gsWt.to2FString()}(${existing.fnWt.to2FString()}) gm, ${existing.purity}, E.P: ₹${(existing.price + existing.chargeAmount + existing.tax).to2FString()}"
                                     Text(text = res, color = Color.Yellow, fontSize = 14.sp)
 
                                 }

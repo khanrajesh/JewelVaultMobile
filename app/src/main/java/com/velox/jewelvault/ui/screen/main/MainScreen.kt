@@ -2,19 +2,28 @@ package com.velox.jewelvault.ui.screen.main
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,6 +60,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import kotlinx.coroutines.launch
 
+
 @Composable
 @VaultPreview
 fun MainScreenPreview() {
@@ -70,7 +80,7 @@ fun MainScreen() {
     }
     val inputIconStates = listOf(
         InputIconState(
-            "Dashboard", R.drawable.dashboard_fill
+            "Dashboard", Icons.Default.Dashboard
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -79,7 +89,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Inventory", R.drawable.shapes_fil
+            "Inventory", Icons.Default.Inventory
         ) {
             subNavController.navigate(SubScreens.Inventory.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -87,17 +97,17 @@ fun MainScreen() {
                 }
             }
         },
-//        InputIconState(
-//            "Report", R.drawable.trading_ts
-//        ) {
-//            subNavController.navigate(SubScreens.Report.route) {
-//                popUpTo(SubScreens.Dashboard.route) {
-//                    inclusive = true
-//                }
-//            }
-//        },
         InputIconState(
-            "Ledger", R.drawable.report_fill
+            "Customers", Icons.Default.People
+        ) {
+            subNavController.navigate(SubScreens.Customers.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "Ledger", Icons.Default.AccountBalance
         ) {
             subNavController.navigate(SubScreens.OrderAndPurchase.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -106,7 +116,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Profile", R.drawable.account_fill
+            "Profile", Icons.Default.Person
         ) {
             subNavController.navigate("${SubScreens.Profile.route}/${false}") {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -115,7 +125,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Setting", R.drawable.settings_fill
+            "Setting", Icons.Default.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -130,15 +140,15 @@ fun MainScreen() {
     } else {
         PortraitDashboardScreen(inputIconStates)
     }
-
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+
 
     ModalNavigationDrawer(drawerState = drawerState, drawerContent = {
         ModalDrawerSheet(
@@ -149,7 +159,7 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
         }
     }) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("Jewel Vault") }, navigationIcon = {
+            TopAppBar(title = { Text("") }, navigationIcon = {
                 IconButton(onClick = {
                     scope.launch {
                         drawerState.open() // Open drawer on button click
@@ -190,26 +200,50 @@ private fun LandscapeDashboardScreen(
     }, drawerContent = {
         LazyColumn {
             items(inputIconStates) { item ->
-                Row(Modifier
-                    .clickable {
-                        item.onClick.invoke()
+                Column {
+                    Row(Modifier
+                        .clickable {
+                            inputIconStates.forEach { it.selected = false }
+                            item.selected = true
+                            item.onClick.invoke()
+                        }
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        item.icon?.let { icon ->
+                            if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = item.text,
+                                    Modifier
+                                        .padding(start = 5.dp)
+                                        .size(30.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(icon as Int),
+                                    contentDescription = item.text,
+                                    Modifier
+                                        .padding(start = 5.dp)
+                                        .size(30.dp)
+                                )
+                            }
+                        }
+                        if (drawerState.isOpen) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(item.text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                        }
                     }
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    item.icon?.let {
-                        Image(
-                            painter = painterResource(it),
-                            contentDescription = null,
-                            Modifier
-                                .padding(start = 5.dp)
-                                .size(30.dp)
+
+                    if (item.selected){
+                        Spacer(Modifier.fillMaxWidth()
+                            .height(5.dp)
+                            .padding(start = 2.dp, end = 2.dp)
+                            .background(MaterialTheme.colorScheme.onPrimary, RoundedCornerShape(2.dp))
                         )
                     }
-                    if (drawerState.isOpen) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(item.text, color = MaterialTheme.colorScheme.surface, fontWeight = FontWeight.Bold)
-                    }
+                    Spacer(Modifier.height(2.dp))
                 }
             }
         }

@@ -2,7 +2,7 @@ package com.velox.jewelvault.ui.screen.purchase
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.widget.Toast
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -176,8 +176,8 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
         val exchangeSilverFnWt =
             viewModel.exchangeMetalRateDto.filter { it.catName == "Silver" }.sumOf { it.fnWt }
 
-        val goldFnWtRate = try{ viewModel.purchaseItemList.filter { it.catName == "Gold" }[0].fnRate}catch (_:Exception){1.0}
-        val silverFnWtRate = try{viewModel.purchaseItemList.filter { it.catName == "Silver" }[0].fnRate}catch (_:Exception){1.0}
+        val goldFnWtRate = try{ viewModel.purchaseItemList.filter { it.catName == "Gold" }[0].fnRatePerGm}catch (_:Exception){1.0}
+        val silverFnWtRate = try{viewModel.purchaseItemList.filter { it.catName == "Silver" }[0].fnRatePerGm}catch (_:Exception){1.0}
 
         Text(
             """
@@ -192,7 +192,8 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
                     viewModel.addBillDate.text.isNotBlank() && viewModel.firmName.text.isNotBlank() &&
                     viewModel.sellerName.text.isNotBlank() && viewModel.sellerMobile.text.isNotBlank() &&
                     viewModel.firmMobile.text.isNotBlank() &&
-                    viewModel.purchaseItemList.none { it.fnRate == 0.0 || it.fnWt == 0.0 }) {
+                    viewModel.purchaseItemList.none { it.fnRatePerGm == 0.0 || it.fnWt == 0.0 }
+                ) {
 
 
                     viewModel.addToReg(onComplete = {
@@ -262,12 +263,7 @@ fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableSt
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
-                    validation = { input ->
-                        when {
-                            input.length != 10 -> "Please Enter Valid Number"
-                            else -> null
-                        }
-                    },
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions {
                         viewModel.getFirmByFirmMobile()
@@ -325,12 +321,7 @@ private fun FirmDetailsExtra(
                 },
                 maxLines = 1,
                 keyboardType = KeyboardType.Phone,
-                validation = { input ->
-                    when {
-                        input.length != 10 -> "Please Enter Valid Number"
-                        else -> null
-                    }
-                },
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
                 imeAction = ImeAction.Done,
                 keyboardActions = KeyboardActions {
                     viewModel.getFirmBySellerMobile()
@@ -362,7 +353,7 @@ private fun FirmDetailsExtra(
                 modifier = Modifier.weight(1f),
                 isDatePicker = true,
                 onDateSelected = {
-                    Toast.makeText(context, "$it", Toast.LENGTH_SHORT).show()
+                    viewModel.snackBarState.value = "$it"
                 })
         }
         Spacer(Modifier.height(5.dp))
@@ -398,7 +389,7 @@ fun PurchaseItemDetails(
     val listState = rememberLazyListState()
     val previousIndex = remember { mutableIntStateOf(0) }
     val previousOffset = remember { mutableIntStateOf(0) }
-    var upIgnoreCount by remember { mutableStateOf(0) }
+    var upIgnoreCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
@@ -477,8 +468,6 @@ fun MetalRateListComponent(rates: List<PurchaseMetalRateDto>) {
                 }
             }
         }
-
-
     }
 }
 
@@ -536,6 +525,15 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
                 dropdownItems = viewModel.catSubCatDto.map { it.catName },
                 onDropdownItemSelected = { selected ->
                     viewModel.addItemCat.text = selected
+
+                    val met = viewModel.metalRates.filter { it.metal.lowercase() == selected.lowercase() }
+                    if (met.isNotEmpty()){
+                        val price =  met[0].price.toLongOrNull()
+                        if (price!=null){
+                            viewModel.addItemFineRatePerGm.text = "${price/10}"
+                        }
+                    }
+
                     // Set subcategories from the selected category
                     val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
                     subCategories.clear()
@@ -599,8 +597,8 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
         Spacer(Modifier.height(5.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             CusOutlinedTextField(
-                viewModel.addItemFineRate,
-                placeholderText = "Fn Rate",
+                viewModel.addItemFineRatePerGm,
+                placeholderText = "Fn Rate Per Gm",
                 modifier = Modifier.weight(1f),
                 keyboardType = KeyboardType.Number
             )

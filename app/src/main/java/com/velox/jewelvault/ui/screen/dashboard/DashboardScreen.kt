@@ -2,7 +2,10 @@ package com.velox.jewelvault.ui.screen.dashboard
 
 import android.Manifest
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -22,11 +27,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Pentagon
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,20 +60,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
+import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
+import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
+import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.PermissionRequester
+import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
+import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
@@ -76,6 +104,35 @@ fun LandscapeMainScreen(
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
+
+    // Double back press to exit state
+    var backPressCount by remember { mutableStateOf(0) }
+    
+    // Dialog state for time range selection
+    var showTimeRangeDialog by remember { mutableStateOf(false) }
+
+    // Handle back press
+    BackHandler {
+        when (backPressCount) {
+            0 -> {
+                backPressCount = 1
+                baseViewModel.snackMessage = "Press back again to exit"
+            }
+
+            1 -> {
+                // Exit the application
+                android.os.Process.killProcess(android.os.Process.myPid())
+            }
+        }
+    }
+
+    // Reset back press count when navigating away
+    DisposableEffect(navHost) {
+        onDispose {
+            backPressCount = 0
+        }
+    }
+
     LaunchedEffect(true) {
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
@@ -96,6 +153,7 @@ fun LandscapeMainScreen(
             dashboardViewModel.getSalesSummary()
             dashboardViewModel.getTopSellingItems()
             dashboardViewModel.getTopSellingSubCategories()
+            dashboardViewModel.getCustomerSummary()
             //checking if the user setup the store or not
 
         }
@@ -106,11 +164,7 @@ fun LandscapeMainScreen(
             Manifest.permission.CAMERA,
             Manifest.permission.ACCESS_FINE_LOCATION,
         )
-    ) {
-        mainScope {
-            Toast.makeText(context, "All Permission Granted", Toast.LENGTH_SHORT).show()
-        }
-    }
+    ) {}
 
     Box(
         Modifier
@@ -128,13 +182,19 @@ fun LandscapeMainScreen(
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                //flow over view
-                FlowOverView(dashboardViewModel)
+                FlowOverView(dashboardViewModel, ) { showDialog ->
+                    showTimeRangeDialog = showDialog
+                }
                 Spacer(Modifier.width(5.dp))
-                TopFiveSales(Modifier.weight(1f), dashboardViewModel)
-//                Spacer(Modifier.weight(1f))
+                TopFiveSales(Modifier.weight(1f), dashboardViewModel, ) { showDialog ->
+                    showTimeRangeDialog = showDialog
+                }
                 Spacer(Modifier.width(5.dp))
-                CategorySales(dashboardViewModel)
+                CategorySales(dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog = showDialog
+                }
+                Spacer(Modifier.width(5.dp))
+                CustomerOverview(dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
 
                 Column(
@@ -146,21 +206,47 @@ fun LandscapeMainScreen(
                         )
                         .padding(5.dp), verticalArrangement = Arrangement.Center
                 ) {
-                    Box(modifier = Modifier
-                        .bounceClick {
-                            navHost.navigate(Screens.SellInvoice.route)
+                    Box(
+                        modifier = Modifier
+
+                            .weight(2f)
+                            .fillMaxWidth()
+                           ,
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Box ( modifier = Modifier
+                            .bounceClick {
+                                navHost.navigate(Screens.SellInvoice.route)
+                            }
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center){
+                            Text(
+                                "Create Invoice",
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.surface,
+
+                            )
                         }
-                        .weight(2f)
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                        ), contentAlignment = Alignment.Center) {
-                        Text(
-                            "Create Invoice",
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.surface,
+
+                        Icon(
+                            imageVector = Icons.Default.Pentagon,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .bounceClick {
+                                    navHost.navigate(Screens.DraftInvoice.route)
+                                }
+                                .align(Alignment.TopStart)
+                                .padding(2.dp)
+                                .size(30.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(7.dp)
                         )
+
+
                     }
                     Spacer(Modifier.height(5.dp))
 
@@ -169,37 +255,39 @@ fun LandscapeMainScreen(
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-                        Box(modifier = Modifier
-                            .bounceClick {
-                                navHost.navigate(Screens.QrScanScreen.route)
-                            }
-                            .weight(1f)
-                            .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+                                    navHost.navigate(Screens.QrScanScreen.route)
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                                ), contentAlignment = Alignment.Center) {
                             Text("Cam", textAlign = TextAlign.Center)
                         }
                         Spacer(Modifier.width(5.dp))
-                        Box(modifier = Modifier
-                            .bounceClick {
-                                dashboardViewModel.getSubCategoryCount {
-                                    if (it > 2) {
-                                        mainScope {
-                                            navHost.navigate(Screens.Purchase.route)
+                        Box(
+                            modifier = Modifier
+                                .bounceClick {
+                                    dashboardViewModel.getSubCategoryCount {
+                                        if (it > 2) {
+                                            mainScope {
+                                                navHost.navigate(Screens.Purchase.route)
+                                            }
+                                        } else {
+                                            baseViewModel.snackMessage =
+                                                "Please add more sub categories."
                                         }
-                                    } else {
-                                        baseViewModel.snackMessage =
-                                            "Please add more sub categories."
                                     }
-                                }
 
-                            }
-                            .weight(1f)
-                            .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                                }
+                                .weight(1f)
+                                .fillMaxSize()
+                                .background(
+                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                                ), contentAlignment = Alignment.Center) {
                             Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -210,6 +298,20 @@ fun LandscapeMainScreen(
             //Recent Item Sold
             RecentItemSold(dashboardViewModel.recentSellsItem)
         }
+        
+        // Time Range Selection Dialog
+        if (showTimeRangeDialog) {
+            TimeRangeSelectionDialog(
+                currentRange = dashboardViewModel.selectedRange.value,
+                onRangeSelected = { newRange ->
+                    dashboardViewModel.updateTimeRange(newRange)
+                    showTimeRangeDialog = false
+                },
+                onDismiss = {
+                    showTimeRangeDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -219,7 +321,10 @@ fun PortraitMainScreen() {
 }
 
 @Composable
-fun CategorySales(dashboardViewModel: DashboardViewModel) {
+fun CategorySales(
+    dashboardViewModel: DashboardViewModel,
+    onShowTimeRangeDialog: (Boolean) -> Unit
+) {
     Column(
         Modifier
             .fillMaxHeight()
@@ -228,84 +333,151 @@ fun CategorySales(dashboardViewModel: DashboardViewModel) {
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Category,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
             Text("Category Overview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 9.sp, color = Color.Gray)
+            Text(
+                text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
+                fontSize = 9.sp, 
+                color = Color.Gray,
+                modifier = Modifier.clickable {
+                    onShowTimeRangeDialog(true)
+                }
+            )
         }
 
-        LazyColumn(
-            Modifier
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-        ) {
-
-            items(dashboardViewModel.topSubCategories) {
-                Row(
-                    Modifier
-                        .padding(3.dp)
-                        .fillMaxWidth()
-                        .height(20.dp)
-                ) {
-                    Text(
-                        "${it.subCatName} ",
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .weight(3f)
+        if (dashboardViewModel.topSubCategories.isNotEmpty()) {
+            LazyColumn(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+            ) {
+                items(dashboardViewModel.topSubCategories) {
+                    Row(
+                        Modifier
+                            .padding(3.dp)
+                            .fillMaxWidth()
                             .height(20.dp)
-                    )
-                    Text(
-                        "₹${it.totalPrice.to2FString()}, ",
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(20.dp)
-                    )
-                    Text(
-                        "${it.totalFnWt.to2FString()}g",
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(20.dp)
-                    )
+                    ) {
+                        Text(
+                            "${it.subCatName} ",
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .weight(3f)
+                                .height(20.dp)
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            "₹${(it.totalPrice).to2FString()}, ",
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .weight(3f)
+                                .height(20.dp)
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            "${it.totalFnWt.to2FString()}g",
+                            fontSize = 10.sp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(20.dp)
+                        )
+                    }
                 }
+            }
+        } else {
+            // Loading state
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "No Bill Found",
+                    fontSize = 9.sp,
+                    color = Color.Gray
+                )
             }
         }
     }
 }
 
 @Composable
-fun TopFiveSales(modifier: Modifier, dashboardViewModel: DashboardViewModel) {
+fun TopFiveSales(
+    modifier: Modifier, 
+    dashboardViewModel: DashboardViewModel,
+    onShowTimeRangeDialog: (Boolean) -> Unit
+) {
     Column(
         modifier = modifier
-            .fillMaxHeight()
+            .wrapContentWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.TrendingUp,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
             Text("Top 5 Selling Items", fontSize = 10.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 9.sp, color = Color.Gray)
+            Text(
+                text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
+                fontSize = 9.sp, 
+                color = Color.Gray,
+                modifier = Modifier.clickable {
+                    onShowTimeRangeDialog(true)
+                }
+            )
         }
 
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-                .padding(8.dp)
-        ) {
-            dashboardViewModel.topSellingItemsMap.entries.forEachIndexed { index, entry ->
-                item {
-                    ItemViewItem(category = entry.key, items = entry.value)
-                    if (index < dashboardViewModel.topSellingItemsMap.size - 1) {
-                        Spacer(
-                            Modifier
-                                .padding(horizontal = 8.dp)
-                                .fillMaxHeight()
-                                .width(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant)
-                        )
+        if (dashboardViewModel.topSellingItemsMap.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                    .padding(8.dp)
+            ) {
+                dashboardViewModel.topSellingItemsMap.entries.forEachIndexed { index, entry ->
+                    item {
+                        ItemViewItem(category = entry.key, items = entry.value)
+                        if (index < dashboardViewModel.topSellingItemsMap.size - 1) {
+                            Spacer(
+                                Modifier
+                                    .padding(horizontal = 8.dp)
+                                    .fillMaxHeight()
+                                    .width(1.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                            )
+                        }
                     }
                 }
+            }
+        } else {
+            // Loading state
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "No Bill Found",
+                    fontSize = 9.sp,
+                    color = Color.Gray
+                )
             }
         }
     }
@@ -334,6 +506,7 @@ fun ItemViewItem(
                 )
             }
         }
+        Spacer(modifier = Modifier.weight(1f))
         Text(
             category,
             fontSize = 10.sp,
@@ -348,196 +521,469 @@ fun ItemViewItem(
 
 
 @Composable
-fun FlowOverView(dashboardViewModel: DashboardViewModel) {
+fun FlowOverView(
+    dashboardViewModel: DashboardViewModel,
+    onShowTimeRangeDialog: (Boolean) -> Unit
+) {
     Column(
         Modifier
             .fillMaxHeight()
             .width(300.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
+            .padding(5.dp),
+
     ) {
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Analytics,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
             Text("Flow Overview", fontSize = 10.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.weight(1f))
-            Text("Weekly", fontSize = 10.sp, color = Color.Gray)
+            Text(
+                text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
+                fontSize = 10.sp, 
+                color = Color.Gray,
+                modifier = Modifier.clickable {
+                    onShowTimeRangeDialog(true)
+                }
+            )
+        }
+
+        if (dashboardViewModel.salesSummary.value != null) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                    .padding(8.dp)
+            ) {
+                Spacer(Modifier.weight(1f))
+                Column {
+                    Text(
+                        "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to2FString()}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
+                }
+                Spacer(Modifier.weight(1f))
+                Column {
+                    Text(
+                        "${dashboardViewModel.salesSummary.value?.invoiceCount ?: 0} ",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Text("Total Invoice", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
+        } else {
+            // Loading state
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Loading...",
+                    fontSize = 9.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomerOverview(
+    dashboardViewModel: DashboardViewModel,
+) {
+    Column(
+        Modifier
+            .fillMaxHeight()
+            .width(200.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .padding(5.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.People,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("Customer Overview", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
         }
 
         Column(
             Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
-                .padding(8.dp)
+                .padding(2.dp)
         ) {
-            Spacer(Modifier.weight(1f))
-            Column {
-                Text(
-                    "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to2FString()}",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text("Total Sales", fontSize = 10.sp, color = Color.Gray)
-            }
-            Spacer(Modifier.weight(1f))
-            Column {
-                Text(
-                    "${dashboardViewModel.salesSummary.value?.invoiceCount ?: 0} ",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text("Total Invoice", fontSize = 10.sp, color = Color.Gray)
+            // Customer Statistics
+            dashboardViewModel.customerSummary.value?.let { summary ->
+                // Grid Layout
+                Column(
+                ) {
+                    // Row 1: Total Customers (Large Card)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(45.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.People,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.weight(1f))
+                                Text(
+                                    "${summary.totalCustomers}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+
+                        }
+                    }
+                    Spacer(Modifier.height(5.dp))
+
+                    // Row 2: Khata Books and Outstanding (Two Small Cards)
+                    Row(
+                    ) {
+                        // Khata Book Card
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(6.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Row(  Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier =  Modifier.weight(1f)) {
+                                        Text(
+                                            "${summary.activeKhataBooks}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                        Text(
+                                            "₹${summary.totalKhataBookAmount.to1FString()}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+
+                                    }
+                                }
+                                Text(
+                                    "Active Khata",
+                                    fontSize = 7.sp,
+                                    color = Color.Gray,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.width(5.dp))
+
+                        // Outstanding Balance Card
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                                containerColor = Color.Red.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(6.dp),
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally,
+                                       modifier =  Modifier.weight(1f)
+                                        ) {
+                                        Text(
+                                            "${summary.customersWithOutstandingBalance}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Red
+                                        )
+                                        Text(
+                                            "₹${summary.totalOutstandingBalance.to1FString()}",
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Red
+                                        )
+
+                                    }
+                                }
+                                Text(
+                                    text = "Outstanding",
+                                    fontSize = 7.sp,
+                                    color = Color.Gray,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            } ?: run {
+                // Loading state
+                Column(
+                    Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Loading...",
+                        fontSize = 9.sp,
+                        color = Color.Gray
+                    )
+                }
             }
         }
-
     }
 }
 
 @Composable
+fun TimeRangeSelectionDialog(
+    currentRange: TimeRange,
+    onRangeSelected: (TimeRange) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val timeRangeOptions = listOf(
+        TimeRange.WEEKLY to "Weekly",
+        TimeRange.MONTHLY to "Monthly", 
+        TimeRange.THREE_MONTHS to "3 Months",
+        TimeRange.SIX_MONTHS to "6 Months",
+        TimeRange.YEARLY to "Yearly"
+    )
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Select Time Range", 
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                timeRangeOptions.forEach { (range, displayText) ->
+                    val isSelected = currentRange == range
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onRangeSelected(range)
+                            }
+                            .background(
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    Color.Transparent,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = displayText,
+                            modifier = Modifier.weight(1f),
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) 
+                                MaterialTheme.colorScheme.onPrimaryContainer 
+                            else 
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Pentagon,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text(
+                    "Cancel",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+fun getTimeRangeDisplayText(timeRange: TimeRange): String {
+    return when (timeRange) {
+        TimeRange.WEEKLY -> "Weekly"
+        TimeRange.MONTHLY -> "Monthly"
+        TimeRange.THREE_MONTHS -> "3 Months"
+        TimeRange.SIX_MONTHS -> "6 Months"
+        TimeRange.YEARLY -> "Yearly"
+    }
+}
+
+
+@Composable
 fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
+    val subNavController = LocalSubNavController.current
     Column(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-            .padding(5.dp)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
     ) {
-        Row {
-            Text("Recent Sells")
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.Default.ArrowDropDown, null)
-        }
-        Spacer(Modifier.height(5.dp))
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .padding(5.dp)
+        // Colored header with icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.secondary
+                        )
+                    ),
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                )
+                .padding(vertical = 10.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Recent Sells",
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 16.sp
+            )
+            Spacer(Modifier.weight(1f))
+        }
 
-            Column(
-                Modifier
-                    .padding(2.dp)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-            ) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("Date", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Customer Name",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(2f)
-                    )
-                    Text("Mobile No", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Item", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Weight", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Total Price", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f)
-                    )
-                    Text("Tax", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text("Category", fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
-                    Text(
-                        "Sub Category",
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                }
-                Spacer(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline)
+        // Card for table
+        Card(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // Define headers for all essential fields
+            val headers = listOf(
+                "Date",
+                "Order ID",
+                "Customer Name", 
+                "Mobile No",
+                "Address",
+                "GSTIN/PAN",
+                "Name",
+                "Quantity",
+                "Gross Wt",
+                "Net Wt", 
+                "Fine Wt",
+                "Purity",
+                "Metal Price",
+                "Price",
+                "Tax",
+                "Tax Amount",
+                "Charge",
+                "M.Charge",
+                "Other Charge",
+                "Total Amount",
+                "HUID",
+                "Add. Description"
+            )
+            
+            // Convert IndividualSellItem to List<String> for each row
+            val tableData = recentSellsItem.map { item ->
+                listOf(
+                    item.orderDate.toString(),
+                    item.orderId.toString(),
+                    item.name,
+                    item.mobileNo,
+                    item.address ?: "",
+                    item.gstin_pan ?: "",
+                    "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
+                    item.quantity.toString(),
+                    "${item.gsWt.to2FString()}g",
+                    "${item.ntWt.to2FString()}g",
+                    "${item.fnWt.to2FString()}g",
+                    item.purity,
+                    "₹${item.fnMetalPrice.to2FString()}",
+                    "₹${item.price.to2FString()}",
+                    "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
+                    "₹${item.tax.to2FString()}",
+                    "${item.crg.to2FString()} ${item.crgType}",
+                    "₹${item.charge.to2FString()}",
+                    "${item.othCrgDes}: ₹${item.othCrg.to2FString()}",
+                    "₹${(item.price + item.charge + item.tax).to2FString()}",
+                    item.huid,
+                    "${item.addDesKey}: ${item.addDesValue}"
                 )
             }
-            LazyColumn(
-                Modifier.weight(1f)
-            ) {
-
-                items(recentSellsItem) {
-                    Column(
-                        Modifier
-                            .padding(2.dp)
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                    ) {
-                        Row(Modifier.fillMaxWidth()) {
-                            Text(
-                                "${it.orderDate}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.name} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(2f)
-                            )
-                            Text(
-                                "${it.mobileNo} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.itemAddName} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.gsWt.to2FString()} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${(it.price + it.charge + it.tax).to2FString()} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.tax.to2FString()} ",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.catName} (${it.catId})",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                "${it.subCatName} (${it.subCatId})",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.DarkGray,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
-                        }
-                        Spacer(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outline)
-                        )
-                    }
-
+            
+            TextListView(
+                modifier = Modifier.fillMaxSize(),
+                headerList = headers,
+                items = tableData,
+                onItemClick = { clickedItem ->
+                    val orderId = clickedItem[1]
+                    subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
+                },
+                onItemLongClick = { longClickedItem ->
+                    // Handle item long click if needed
                 }
-            }
+            )
         }
-
-
     }
 }
 

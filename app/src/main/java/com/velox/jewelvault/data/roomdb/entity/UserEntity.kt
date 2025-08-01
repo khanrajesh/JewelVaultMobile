@@ -2,10 +2,12 @@ package com.velox.jewelvault.data.roomdb.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
+import com.velox.jewelvault.utils.generateId
 
-@Entity
+@Entity(tableName = TableNames.USERS)
 data class UsersEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey val id: String,
     val name: String,
     val email: String?=null,
     val mobileNo: String,

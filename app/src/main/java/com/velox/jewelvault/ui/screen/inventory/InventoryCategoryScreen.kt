@@ -45,6 +45,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.to2FString
 
 
 sealed class CatType(val type: String) {
@@ -80,7 +81,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val showAddCatDialog = remember { mutableStateOf(false) }
     val addCatType = remember { mutableStateOf("") }
     val selectedCatName = remember { mutableStateOf<String?>(null) }
-    val selectedCatId = remember { mutableStateOf<Int?>(null) }
+    val selectedCatId = remember { mutableStateOf<String?>(null) }
 
     val subNavController = LocalSubNavController.current
 
@@ -118,13 +119,89 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                         )
                         .padding(10.dp)
                 ) {
+                    // Inventory Summary Section
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            "Inventory Summary",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Summary Statistics
+                        Row {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "${inventoryViewModel.inventorySummary.value.totalItems}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Total Items",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "${inventoryViewModel.inventorySummary.value.totalCategories}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Categories",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "${inventoryViewModel.inventorySummary.value.totalGrossWeight.to2FString()}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Gross Wt (gm)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "${inventoryViewModel.inventorySummary.value.recentItemsAdded}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    "Recent (7d)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
 
-
-                    Spacer(Modifier.weight(1f))
+                    // Add Category Button at bottom
                     Row {
                         Spacer(Modifier.weight(1f))
                         Text(
-                            "Add", Modifier
+                            "Add Category", 
+                            Modifier
                                 .clickable {
                                     addCatType.value = CatType.Category.type
                                     showAddCatDialog.value = true
@@ -134,7 +211,8 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                                     RoundedCornerShape(16.dp),
                                 )
                                 .padding(10.dp),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -281,8 +359,8 @@ fun CategoryItem(
                     .offset(y = 40.dp)
                     .wrapContentHeight()
                     .wrapContentWidth()
-                    .background(Color.White, RoundedCornerShape(16.dp))
-                    .padding(5.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                    .padding(8.dp)
             ) {
                 Text("Add Sub Category",
                     fontSize = 10.sp,

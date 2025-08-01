@@ -2,14 +2,16 @@ package com.velox.jewelvault.data.roomdb.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
+import com.velox.jewelvault.utils.generateId
 import java.sql.Timestamp
 
-@Entity
+@Entity(tableName = TableNames.SUB_CATEGORY)
 data class SubCategoryEntity(
-    @PrimaryKey(autoGenerate = true) val subCatId: Int = 0,  // Auto-increment primary key
-    val catId: Int,
-    val userId: Int,
-    val storeId:Int,
+    @PrimaryKey val subCatId: String ,
+    val catId: String,
+    val userId: String,
+    val storeId:String,
     val catName: String,
     val subCatName: String,
     val quantity: Int = 0,

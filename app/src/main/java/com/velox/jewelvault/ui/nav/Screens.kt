@@ -8,6 +8,9 @@ sealed class Screens(val route:String) {
     data object QrScanScreen : Screens("qrScan")
     data object SellPreview : Screens("sellPreview")
     data object Purchase : Screens("purchase")
+
+    data object DraftInvoice : Screens("draftInvoice")
+    data object DraftPreview : Screens("draftPreview")
 }
 
 sealed class SubScreens(val route:String) {
@@ -20,4 +23,5 @@ sealed class SubScreens(val route:String) {
     data object OrderAndPurchase : SubScreens("ledger")
     data object PurchaseItemDetail : SubScreens("PurchaseItemDetail")
     data object Setting : SubScreens("Setting")
+    data object Customers : SubScreens("customers")
 }

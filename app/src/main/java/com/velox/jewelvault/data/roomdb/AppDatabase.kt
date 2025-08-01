@@ -5,6 +5,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.velox.jewelvault.data.roomdb.dao.CategoryDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerDao
+import com.velox.jewelvault.data.roomdb.dao.CustomerKhataBookDao
+import com.velox.jewelvault.data.roomdb.dao.CustomerTransactionDao
 import com.velox.jewelvault.data.roomdb.dao.ItemDao
 import com.velox.jewelvault.data.roomdb.dao.MasterDao
 import com.velox.jewelvault.data.roomdb.dao.OrderDao
@@ -13,7 +15,9 @@ import com.velox.jewelvault.data.roomdb.dao.StoreDao
 import com.velox.jewelvault.data.roomdb.dao.SubCategoryDao
 import com.velox.jewelvault.data.roomdb.dao.UsersDao
 import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
-import com.velox.jewelvault.data.roomdb.entity.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
@@ -37,6 +41,8 @@ import com.velox.jewelvault.utils.Converters
         StoreEntity::class,
         UsersEntity::class,
         CustomerEntity::class,
+        CustomerKhataBookEntity::class,
+        CustomerTransactionEntity::class,
         OrderEntity::class,
         OrderItemEntity::class,
         FirmEntity::class,
@@ -45,7 +51,7 @@ import com.velox.jewelvault.utils.Converters
         PurchaseOrderItemEntity::class,
         MetalExchangeEntity::class
     ],
-    version = 1,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -57,6 +63,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun subCategoryDao(): SubCategoryDao
     abstract fun itemDao(): ItemDao
     abstract fun customerDao(): CustomerDao
+    abstract fun customerKhataBookDao(): CustomerKhataBookDao
+    abstract fun customerTransactionDao(): CustomerTransactionDao
     abstract fun orderDao(): OrderDao
     abstract fun purchaseDao(): PurchaseDao
 }

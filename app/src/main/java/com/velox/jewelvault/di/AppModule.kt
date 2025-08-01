@@ -3,18 +3,25 @@ package com.velox.jewelvault.di
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.storage
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.utils.DataStoreManager
+import com.velox.jewelvault.data.roomdb.RoomMigration
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.SessionManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -61,8 +68,20 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideMetalRateList(): SnapshotStateList<MetalRate> {
+        return mutableStateListOf<MetalRate>()
+    }
+
+    @Provides
+    @Singleton
     fun provideDataStoreManager(dataStore: DataStore<Preferences>): DataStoreManager {
         return DataStoreManager(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSessionManager(dataStoreManager: DataStoreManager): SessionManager {
+        return SessionManager(dataStoreManager)
     }
 
     // ✅ Room Database
@@ -74,7 +93,13 @@ object AppModule {
             AppDatabase::class.java,
             "vault_room_database"
         )
-//            .addMigrations(RoomMigration.MIGRATION_1_2) // or .fallbackToDestructiveMigration() if needed
+            .addMigrations(
+                RoomMigration.MIGRATION_1_2,
+                RoomMigration.MIGRATION_2_3,
+                RoomMigration.MIGRATION_3_4,
+                RoomMigration.MIGRATION_4_5,
+                RoomMigration.MIGRATION_5_6
+            )
             .build()
     }
 
@@ -90,6 +115,12 @@ object AppModule {
     @Singleton
     fun provideFirebaseFireStore(): FirebaseFirestore {
         return  Firebase.firestore
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return Firebase.storage
     }
 
     //endregion
