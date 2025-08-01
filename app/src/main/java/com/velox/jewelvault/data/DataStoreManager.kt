@@ -16,8 +16,8 @@ class DataStoreManager @Inject constructor(
     companion object {
         // Existing keys
         val USER_NAME_KEY = stringPreferencesKey("user_name")
-        val USER_ID_KEY = intPreferencesKey("user_id")
-        val STORE_ID_KEY = intPreferencesKey("store_id")
+        val USER_ID_KEY = stringPreferencesKey("user_id")
+        val STORE_ID_KEY = stringPreferencesKey("store_id")
         val SHOW_SEPARATE_CHARGE = booleanPreferencesKey("show_separate_charge")
 
         // Network & Connectivity Settings
@@ -69,8 +69,8 @@ class DataStoreManager @Inject constructor(
     }
 
     val userName: Flow<String> = dataStore.data.map { prefs -> prefs[USER_NAME_KEY] ?: "" }
-    val userId: Flow<Int> = dataStore.data.map { prefs -> prefs[USER_ID_KEY] ?: -1 }
-    val storeId: Flow<Int> = dataStore.data.map { prefs -> prefs[STORE_ID_KEY] ?: -1 }
+    val userId: Flow<String> = dataStore.data.map { prefs -> prefs[USER_ID_KEY] ?: "" }
+    val storeId: Flow<String> = dataStore.data.map { prefs -> prefs[STORE_ID_KEY] ?: "" }
     val upiId: Flow<String> = dataStore.data.map { prefs -> prefs[UPI_ID] ?: "" }
     val storeName: Flow<String> = dataStore.data.map { prefs -> prefs[STORE_NAME] ?: "Merchant" }
     val backupFrequency: Flow<String> = dataStore.data.map { prefs -> prefs[BACKUP_FREQUENCY] ?: "WEEKLY" }

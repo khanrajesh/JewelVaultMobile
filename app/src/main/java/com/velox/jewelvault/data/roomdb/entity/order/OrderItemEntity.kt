@@ -3,9 +3,11 @@ package com.velox.jewelvault.data.roomdb.entity.order
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
 import java.sql.Timestamp
 
 @Entity(
+    tableName = TableNames.ORDER_ITEM,
     foreignKeys = [
         ForeignKey(
             entity = OrderEntity::class,
@@ -16,16 +18,16 @@ import java.sql.Timestamp
     ]
 )
 data class OrderItemEntity(
-    @PrimaryKey(autoGenerate = true)
-    val orderItemId: Int = 0,
-    val orderId: Int,
+    @PrimaryKey
+    val orderItemId: String,
+    val orderId: String,
     val orderDate: Timestamp,
-    val itemId: Int,
+    val itemId: String,
     val customerMobile:String,
-    val catId: Int,
+    val catId: String,
     val catName: String,
     val itemAddName: String,
-    val subCatId: Int,
+    val subCatId: String,
     val subCatName: String,
     val entryType: String,
     val quantity: Int,
@@ -49,7 +51,7 @@ data class OrderItemEntity(
     val tax: Double,
 
     //seller info
-    val sellerFirmId: Int,
-    val purchaseOrderId: Int,
-    val purchaseItemId: Int = 0,
+    val sellerFirmId: String,
+    val purchaseOrderId: String,
+    val purchaseItemId: String,
 )

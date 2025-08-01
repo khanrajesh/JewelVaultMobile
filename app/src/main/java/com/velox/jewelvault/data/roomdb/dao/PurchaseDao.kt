@@ -13,6 +13,7 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.MetalExchangeEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
+import com.velox.jewelvault.data.roomdb.TableNames
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -27,22 +28,22 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSeller(seller: SellerEntity): Long
 
-    @Query("SELECT * FROM seller WHERE sellerId = :sellerId")
-    suspend fun getSellerById(sellerId: Int): SellerEntity?
+    @Query("SELECT * FROM ${TableNames.SELLER} WHERE sellerId = :sellerId")
+    suspend fun getSellerById(sellerId: String): SellerEntity?
 
     @Transaction
-    @Query("SELECT * FROM firm")
+    @Query("SELECT * FROM ${TableNames.FIRM}")
     suspend fun getAllFirmsWithSellers(): List<FirmWithSellers>
 
     // Step 2: Get firm by firmId
-    @Query("SELECT * FROM firm WHERE firmId = :firmId LIMIT 1")
-    suspend fun getFirmById(firmId: Int): FirmEntity?
+    @Query("SELECT * FROM ${TableNames.FIRM} WHERE firmId = :firmId LIMIT 1")
+    suspend fun getFirmById(firmId: String): FirmEntity?
 
-    @Query("SELECT * FROM firm WHERE firmMobileNumber = :firmMobileNumber LIMIT 1")
+    @Query("SELECT * FROM ${TableNames.FIRM} WHERE firmMobileNumber = :firmMobileNumber LIMIT 1")
     suspend fun getFirmByMobile(firmMobileNumber: String): FirmEntity?
 
     // Step 1: Get seller by mobile number
-    @Query("SELECT * FROM seller WHERE mobileNumber = :mobile LIMIT 1")
+    @Query("SELECT * FROM ${TableNames.SELLER} WHERE mobileNumber = :mobile LIMIT 1")
     suspend fun getSellerByMobile(mobile: String): SellerEntity?
 
     // ------------------------
@@ -51,26 +52,26 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPurchaseOrder(order: PurchaseOrderEntity): Long
 
-    @Query("SELECT * FROM purchase_orders WHERE purchaseOrderId = :orderId")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} WHERE purchaseOrderId = :orderId")
     suspend fun getPurchaseOrderById(orderId: Long): PurchaseOrderEntity?
 
-    @Query("SELECT * FROM purchase_orders")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER}")
     suspend fun getAllPurchaseOrders(): List<PurchaseOrderEntity>
 
     @Delete
     suspend fun deleteOrder(order: PurchaseOrderEntity)
 
-    @Query("SELECT * FROM purchase_orders WHERE billDate = :billDate")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} WHERE billDate = :billDate")
     suspend fun getOrdersByBillDate(billDate: String): List<PurchaseOrderEntity>
 
     @Query(
         """
-    SELECT * FROM purchase_order_items 
+    SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM} 
     WHERE purchaseOrderId = :orderId AND subCatName = :subCatName
     """
     )
     suspend fun getItemsByOrderIdAndSubCatName(
-        orderId: Int,
+        orderId: String,
         subCatName: String
     ): List<PurchaseOrderItemEntity>
 
@@ -81,8 +82,8 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertOrderItem(item: PurchaseOrderItemEntity): Long
 
-    @Query("SELECT * FROM purchase_order_items WHERE purchaseOrderId = :orderId")
-    suspend fun getItemsByOrderId(orderId: Long): List<PurchaseOrderItemEntity>
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM} WHERE purchaseOrderId = :orderId")
+    suspend fun getItemsByOrderId(orderId: String): List<PurchaseOrderItemEntity>
 
     @Delete
     suspend fun deleteItem(item: PurchaseOrderItemEntity)
@@ -94,7 +95,7 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertExchange(exchange: MetalExchangeEntity): Long
 
-    @Query("SELECT * FROM metal_exchange WHERE purchaseOrderId = :orderId")
+    @Query("SELECT * FROM ${TableNames.METAL_EXCHANGE} WHERE purchaseOrderId = :orderId")
     suspend fun getExchangeByOrderId(orderId: Long): List<MetalExchangeEntity>
 
     @Delete
@@ -105,28 +106,28 @@ interface PurchaseDao {
     // Full Relational Fetch
     // ------------------------
     @Transaction
-    @Query("SELECT * FROM purchase_orders WHERE purchaseOrderId = :orderId")
-    suspend fun getOrderWithDetails(orderId: Long): PurchaseOrderWithDetails?
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} WHERE purchaseOrderId = :orderId")
+    suspend fun getOrderWithDetails(orderId: String): PurchaseOrderWithDetails?
 
     @Transaction
-    @Query("SELECT * FROM purchase_orders")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER}")
     suspend fun getAllOrdersWithDetails(): List<PurchaseOrderWithDetails>
 
     @Transaction
-    @Query("SELECT * FROM purchase_orders ORDER BY billDate ASC")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} ORDER BY billDate ASC")
      fun getAllOrdersWithDetailsByBillDateAsc(): Flow<List<PurchaseOrderWithDetails>>
 
     @Transaction
-    @Query("SELECT * FROM purchase_orders ORDER BY billDate DESC")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} ORDER BY billDate DESC")
      fun getAllOrdersWithDetailsByBillDateDesc(): Flow<List<PurchaseOrderWithDetails>>
      
-    @Query("SELECT * FROM firm")
+    @Query("SELECT * FROM ${TableNames.FIRM}")
     suspend fun getAllFirms(): List<FirmEntity>
 
     
-    @Query("SELECT * FROM purchase_order_items")
+    @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM}")
     suspend fun getAllPurchaseOrderItems(): List<PurchaseOrderItemEntity>
     
-    @Query("SELECT * FROM metal_exchange")
+    @Query("SELECT * FROM ${TableNames.METAL_EXCHANGE}")
     suspend fun getAllMetalExchanges(): List<MetalExchangeEntity>
 }

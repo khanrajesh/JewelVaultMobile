@@ -39,15 +39,10 @@ class OrderItemViewModel @Inject constructor(
             try {
                 isLoading = true
                 errorMessage = null
-                
-                val orderIdLong = orderId.toLongOrNull()
-                if (orderIdLong == null) {
-                    errorMessage = "Invalid order ID"
-                    return@launch
-                }
+
                 
                 // Get order with items
-                val orderData = appDatabase.orderDao().getOrderWithItems(orderIdLong)
+                val orderData = appDatabase.orderDao().getOrderWithItems(orderId)
                 orderWithItems = orderData
                 
                 // Get customer details

@@ -5,11 +5,11 @@ import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
 
 
 data class CatSubCatDto(
-    val catId: Int,
+    val catId: String,
     val catName: String,
     val gsWt: Double,
     val fnWt: Double,
-    val userId: Int,
-    val storeId: Int,
+    val userId: String,
+    val storeId: String,
     val subCategoryList: SnapshotStateList<SubCategoryEntity> = SnapshotStateList()
 )

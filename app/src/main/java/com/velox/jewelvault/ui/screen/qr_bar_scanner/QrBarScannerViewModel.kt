@@ -26,16 +26,16 @@ class QrBarScannerViewModel @Inject constructor(
     private val dataStoreManager: DataStoreManager,
 ) : ViewModel() {
 
-    val selectedItemList = mutableStateListOf<Pair<Int, ItemSelectedModel?>>()
+    val selectedItemList = mutableStateListOf<Pair<String, ItemSelectedModel?>>()
 
-    fun processScan(id: Int, metalRates: SnapshotStateList<MetalRate>) {
+    fun processScan(id: String, metalRates: SnapshotStateList<MetalRate>) {
         viewModelScope.launch {
             checkAndAddList(id, metalRates)
         }
     }
 
     private suspend fun checkAndAddList(
-        id: Int,
+        id: String,
         metalRates: SnapshotStateList<MetalRate>
     ): String = withIo  {
         val existing = selectedItemList.find { it.first == id }?.second
@@ -77,7 +77,7 @@ class QrBarScannerViewModel @Inject constructor(
         return@withIo "Id: $id\nWt: ${item.gsWt.to2FString()} (${item.fnWt.to2FString()})\n(${item.purity}) P: $${(price + charge + tax).to2FString()}"
     }
 
-    private suspend fun getItemByIdSync(itemId: Int): ItemSelectedModel? = withIo {
+    private suspend fun getItemByIdSync(itemId: String): ItemSelectedModel? = withIo {
         val entity = appDatabase.itemDao().getItemById(itemId)
         entity?.let { item ->
             ItemSelectedModel(

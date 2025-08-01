@@ -403,6 +403,7 @@ class LoginViewModel @Inject constructor(
                         } else if (userCount == 0) {
                             // No user exists, create new user
                             val newUser = UsersEntity(
+                                id = uid,
                                 name = phone,
                                 mobileNo = phone,
                                 pin = hashedPin
@@ -575,6 +576,7 @@ class LoginViewModel @Inject constructor(
                         } else if (userCount == 0) {
                             // No user exists, create new user
                             val newUser = UsersEntity(
+                                id = uid,
                                 name = phone, 
                                 mobileNo = phone,
                                 pin = hashedPin
@@ -610,22 +612,6 @@ class LoginViewModel @Inject constructor(
         otpVerificationId.value = null
         firebaseUser.value = null
     }
-    
-    // Function to get current user's phone number
-    suspend fun getCurrentUserPhone(): String? {
-        return try {
-            val userCount = _appDatabase.userDao().getUserCount()
-            if (userCount > 0) {
-                val user = _appDatabase.userDao().getUserById(1) // Assuming single user with ID 1
-                user?.mobileNo
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
 
     
     // Function to check if current phone matches registered user

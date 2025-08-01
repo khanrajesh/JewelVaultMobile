@@ -4,9 +4,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
 
 @Entity(
-    tableName = "purchase_orders",
+    tableName = TableNames.PURCHASE_ORDER,
     foreignKeys = [ForeignKey(
         entity = SellerEntity::class,
         parentColumns = ["sellerId"],
@@ -16,9 +17,9 @@ import androidx.room.PrimaryKey
     indices = [Index("sellerId")]
 )
 data class PurchaseOrderEntity(
-    @PrimaryKey(autoGenerate = true)
-    val purchaseOrderId: Int = 0,
-    val sellerId: Int,
+    @PrimaryKey
+    val purchaseOrderId: String,
+    val sellerId: String,
     val billNo: String,
     val billDate: String,   // Bill issued date
     val entryDate: String,  // Actual entry date

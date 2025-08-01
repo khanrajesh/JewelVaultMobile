@@ -2,6 +2,7 @@ package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.TableNames
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,21 +20,21 @@ interface StoreDao {
     suspend fun deleteStore(store: StoreEntity): Int
     // Returns number of rows deleted
 
-    @Query("SELECT * FROM StoreEntity WHERE storeId = :storeId")
-    suspend fun getStoreById(storeId: Int): StoreEntity?
+    @Query("SELECT * FROM ${TableNames.STORE} WHERE storeId = :storeId")
+    suspend fun getStoreById(storeId: String): StoreEntity?
 
-    @Query("SELECT * FROM StoreEntity WHERE userId = :userId")
-    fun getStoresByUserId(userId: Int): Flow<List<StoreEntity>>
+    @Query("SELECT * FROM ${TableNames.STORE} WHERE userId = :userId")
+    fun getStoresByUserId(userId: String): Flow<List<StoreEntity>>
     // Returns Flow for real-time observation
 
-    @Query("DELETE FROM StoreEntity")
-    suspend fun deleteAllStores(): Int
+    @Query("DELETE FROM ${TableNames.STORE}")
+    suspend fun deleteAllStores()
     
-    @Query("SELECT * FROM StoreEntity")
+    @Query("SELECT * FROM ${TableNames.STORE}")
     suspend fun getAllStores(): List<StoreEntity>
 
     @Query("""
-        UPDATE StoreEntity SET
+        UPDATE ${TableNames.STORE} SET
             proprietor = :proprietor,
             phone = :phone,
             address = :address,
@@ -44,7 +45,7 @@ interface StoreDao {
         WHERE storeId = :storeId
     """)
     suspend fun updateStoreDetails(
-        storeId: Int,
+        storeId: String,
         proprietor: String,
         phone: String,
         address: String,

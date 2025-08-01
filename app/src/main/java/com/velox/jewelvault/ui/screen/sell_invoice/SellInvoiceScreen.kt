@@ -130,7 +130,7 @@ fun SellInvoiceScreen(sellInvoiceViewModel: SellInvoiceViewModel) {
                 itemId.value = code
                 if (code.isNotEmpty() && code.canBeInt()) {
                     sellInvoiceViewModel.getItemById(
-                        itemId.value.toInt(),
+                        itemId.value,
                         onFailure = {
                             sellInvoiceViewModel.snackBarState.value = "No item found with the id: $code"
                         },
@@ -1057,7 +1057,7 @@ private fun AddItemSection(
                     ), keyboardActions = KeyboardActions(onDone = {
                         if (itemId.value.isNotEmpty()) {
                             viewModel.getItemById(
-                                itemId.value.toInt(),
+                                itemId.value,
                                 onFailure = {},
                                 onSuccess = {
                                     viewModel.showAddItemDialog.value = true
@@ -1076,7 +1076,7 @@ private fun AddItemSection(
                 .bounceClick {
                     if (itemId.value.isNotEmpty()) {
                         viewModel.getItemById(
-                            itemId.value.toInt(), onFailure = {
+                            itemId.value, onFailure = {
 
                             }, onSuccess = {
                                 viewModel.showAddItemDialog.value = true

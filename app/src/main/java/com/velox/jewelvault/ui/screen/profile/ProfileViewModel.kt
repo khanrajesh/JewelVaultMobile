@@ -16,6 +16,7 @@ import com.velox.jewelvault.utils.FirebaseUtils
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.generateId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -43,7 +44,7 @@ class ProfileViewModel @Inject constructor(
     // User details fields (these get data from UserEntity, no dummy text)
     val userEmail = InputFieldState()
     val userMobile = InputFieldState()
-    
+
     // Payment details fields
     val upiId = InputFieldState()
 
@@ -59,7 +60,8 @@ class ProfileViewModel @Inject constructor(
                 val userId = _dataStoreManager.userId.first()
                 val storeId = _dataStoreManager.storeId.first()
 
-                val existingCategories = appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId,storeId)
+                val existingCategories =
+                    appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
                 log("Existing categories: $existingCategories")
 
                 if (existingCategories.isNotEmpty()) {
@@ -70,8 +72,8 @@ class ProfileViewModel @Inject constructor(
                 log("No categories found. Inserting default 'Gold' and 'Silver'...")
 
                 val defaultCategories = listOf(
-                    Triple("Gold", 1, "Fine"),
-                    Triple("Silver", 2, "Fine")
+                    Triple("Gold", "1", "Fine"),
+                    Triple("Silver", "2", "Fine")
                 )
 
                 for ((catName, catId, subCatName) in defaultCategories) {
@@ -79,7 +81,12 @@ class ProfileViewModel @Inject constructor(
 
                     if (categoryExists == null) {
                         val insertResult = appDatabase.categoryDao().insertCategory(
-                            CategoryEntity(catId = catId, catName = catName, userId = userId, storeId = storeId)
+                            CategoryEntity(
+                                catId = catId,
+                                catName = catName,
+                                userId = userId,
+                                storeId = storeId
+                            )
                         )
 
                         if (insertResult != -1L) {
@@ -100,6 +107,7 @@ class ProfileViewModel @Inject constructor(
                         if (subExists == null) {
                             val subInsert = appDatabase.subCategoryDao().insertSubCategory(
                                 SubCategoryEntity(
+                                    subCatId = generateId(),
                                     subCatName = subCatName,
                                     catId = category.catId,
                                     catName = category.catName,
@@ -136,15 +144,16 @@ class ProfileViewModel @Inject constructor(
                 val userId = _dataStoreManager.userId.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
-                
+
                 // First try to get data from Firestore
-                val firestoreResult = FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
-                
+                val firestoreResult =
+                    FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
+
                 if (firestoreResult.isSuccess && firestoreResult.getOrNull() != null) {
                     // Data exists in Firestore, use it
                     val firestoreData = firestoreResult.getOrNull()!!
                     val storeFromFirestore = FirebaseUtils.mapToStoreEntity(firestoreData)
-                    
+
                     // Update local database with Firestore data
                     val existingStore = appDatabase.storeDao().getStoreById(userId)
                     if (existingStore != null) {
@@ -154,10 +163,10 @@ class ProfileViewModel @Inject constructor(
                         // Insert new store
                         val insertResult = appDatabase.storeDao().insertStore(storeFromFirestore)
                         if (insertResult != -1L) {
-                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, insertResult.toInt())
+                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeFromFirestore.storeId)
                         }
                     }
-                    
+
                     storeEntity.value = storeFromFirestore
                     log("Store data loaded from Firestore")
                 } else {
@@ -185,11 +194,11 @@ class ProfileViewModel @Inject constructor(
                     selectedImageUri.value = it.image
                     userEmail.text = it.email
                     upiId.text = it.upiId
-                    
+
                     // Save store name to DataStore for UPI QR generation
                     _dataStoreManager.setMerchantName(it.name)
                 }
-                
+
                 isLoading.value = false
             } catch (e: Exception) {
                 log("Error loading store data: ${e.message}")
@@ -202,83 +211,83 @@ class ProfileViewModel @Inject constructor(
     fun saveStoreData(onSuccess: () -> Unit, onFailure: () -> Unit) {
         // Comprehensive validation with specific error messages
         when {
-        /*    shopName.text.isBlank() -> {
-                _snackBarState.value = "Shop name cannot be empty"
-                onFailure()
-                return
-            }
-            shopName.text.length < 3 -> {
-                _snackBarState.value = "Shop name must be at least 3 characters"
-                onFailure()
-                return
-            }
-            propName.text.isBlank() -> {
-                _snackBarState.value = "Proprietor name cannot be empty"
-                onFailure()
-                return
-            }
-            propName.text.length < 2 -> {
-                _snackBarState.value = "Proprietor name must be at least 2 characters"
-                onFailure()
-                return
-            }
-            userEmail.text.isBlank() -> {
-                _snackBarState.value = "Email address is required"
-                onFailure()
-                return
-            }
-            !InputValidator.isValidEmail(userEmail.text) -> {
-                _snackBarState.value = "Please enter a valid email address"
-                onFailure()
-                return
-            }
-            userMobile.text.isBlank() -> {
-                _snackBarState.value = "Mobile number is required"
-                onFailure()
-                return
-            }
-            !InputValidator.isValidPhoneNumber(userMobile.text) -> {
-                _snackBarState.value = "Please enter a valid 10-digit mobile number"
-                onFailure()
-                return
-            }
-            address.text.isBlank() -> {
-                _snackBarState.value = "Store address is required"
-                onFailure()
-                return
-            }
-            address.text.length < 10 -> {
-                _snackBarState.value = "Please enter a complete address (minimum 10 characters)"
-                onFailure()
-                return
-            }
-            registrationNo.text.isBlank() -> {
-                _snackBarState.value = "Registration number is required"
-                onFailure()
-                return
-            }
-            gstinNo.text.isBlank() -> {
-                _snackBarState.value = "GSTIN number is required"
-                onFailure()
-                return
-            }
-            !InputValidator.isValidGSTIN(gstinNo.text) -> {
-                _snackBarState.value = "Please enter a valid GSTIN number (15 characters, format: 22AAAAA0000A1Z5)"
-                onFailure()
-                return
-            }
-            panNumber.text.isBlank() -> {
-                _snackBarState.value = "PAN number is required"
-                onFailure()
-                return
-            }
-            !InputValidator.isValidPAN(panNumber.text) -> {
-                _snackBarState.value = "Please enter a valid PAN number (10 characters, format: ABCDE1234F)"
-                onFailure()
-                return
-            }*/
+            /*    shopName.text.isBlank() -> {
+                    _snackBarState.value = "Shop name cannot be empty"
+                    onFailure()
+                    return
+                }
+                shopName.text.length < 3 -> {
+                    _snackBarState.value = "Shop name must be at least 3 characters"
+                    onFailure()
+                    return
+                }
+                propName.text.isBlank() -> {
+                    _snackBarState.value = "Proprietor name cannot be empty"
+                    onFailure()
+                    return
+                }
+                propName.text.length < 2 -> {
+                    _snackBarState.value = "Proprietor name must be at least 2 characters"
+                    onFailure()
+                    return
+                }
+                userEmail.text.isBlank() -> {
+                    _snackBarState.value = "Email address is required"
+                    onFailure()
+                    return
+                }
+                !InputValidator.isValidEmail(userEmail.text) -> {
+                    _snackBarState.value = "Please enter a valid email address"
+                    onFailure()
+                    return
+                }
+                userMobile.text.isBlank() -> {
+                    _snackBarState.value = "Mobile number is required"
+                    onFailure()
+                    return
+                }
+                !InputValidator.isValidPhoneNumber(userMobile.text) -> {
+                    _snackBarState.value = "Please enter a valid 10-digit mobile number"
+                    onFailure()
+                    return
+                }
+                address.text.isBlank() -> {
+                    _snackBarState.value = "Store address is required"
+                    onFailure()
+                    return
+                }
+                address.text.length < 10 -> {
+                    _snackBarState.value = "Please enter a complete address (minimum 10 characters)"
+                    onFailure()
+                    return
+                }
+                registrationNo.text.isBlank() -> {
+                    _snackBarState.value = "Registration number is required"
+                    onFailure()
+                    return
+                }
+                gstinNo.text.isBlank() -> {
+                    _snackBarState.value = "GSTIN number is required"
+                    onFailure()
+                    return
+                }
+                !InputValidator.isValidGSTIN(gstinNo.text) -> {
+                    _snackBarState.value = "Please enter a valid GSTIN number (15 characters, format: 22AAAAA0000A1Z5)"
+                    onFailure()
+                    return
+                }
+                panNumber.text.isBlank() -> {
+                    _snackBarState.value = "PAN number is required"
+                    onFailure()
+                    return
+                }
+                !InputValidator.isValidPAN(panNumber.text) -> {
+                    _snackBarState.value = "Please enter a valid PAN number (10 characters, format: ABCDE1234F)"
+                    onFailure()
+                    return
+                }*/
         }
-        
+
         ioLaunch {
             try {
                 isLoading.value = true
@@ -296,7 +305,7 @@ class ProfileViewModel @Inject constructor(
                         selectedImageFileUri.value!!,
                         mobileNumber
                     )
-                    
+
                     if (uploadResult.isSuccess) {
                         finalImageUrl = uploadResult.getOrNull() ?: ""
                         selectedImageUri.value = finalImageUrl
@@ -313,7 +322,7 @@ class ProfileViewModel @Inject constructor(
                 }
 
                 val storeEntity = StoreEntity(
-                    storeId = if (storeId != -1) storeId else 0,
+                    storeId = storeId,
                     userId = userId,
                     proprietor = InputValidator.sanitizeText(propName.text),
                     name = InputValidator.sanitizeText(shopName.text),
@@ -328,7 +337,7 @@ class ProfileViewModel @Inject constructor(
                 )
 
                 // Save to local database
-                val localResult = if (storeId != -1) {
+                val localResult = if (storeId != "") {
                     appDatabase.storeDao().updateStore(storeEntity)
                 } else {
                     appDatabase.storeDao().insertStore(storeEntity)
@@ -336,14 +345,13 @@ class ProfileViewModel @Inject constructor(
 
                 if (localResult != -1L) {
                     // Update store ID if it's a new store
-                    if (storeId == -1) {
-                        _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, localResult.toInt())
-                    }
-                    
+                    _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeId)
+
+
                     // Save UPI settings to DataStore for quick access
                     _dataStoreManager.setUpiId(upiId.text.trim())
                     _dataStoreManager.setMerchantName(shopName.text.trim())
-                    
+
                     // Save to Firestore
                     val firestoreData = FirebaseUtils.storeEntityToMap(storeEntity)
                     val firestoreResult = FirebaseUtils.saveStoreDataToFirestore(
@@ -351,7 +359,7 @@ class ProfileViewModel @Inject constructor(
                         mobileNumber,
                         firestoreData
                     )
-                    
+
                     if (firestoreResult.isSuccess) {
                         log("Store data saved to both local database and Firestore")
                         _snackBarState.value = "Store details saved successfully"
@@ -366,7 +374,7 @@ class ProfileViewModel @Inject constructor(
                     _snackBarState.value = "Failed to save store details. Please try again."
                     onFailure()
                 }
-                
+
                 isLoading.value = false
             } catch (e: Exception) {
                 log("Error saving store data: ${e.message}")
@@ -378,13 +386,13 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    
+
     fun setSelectedImageFile(imageUri: Uri?) {
         selectedImageFileUri.value = imageUri
         selectedImageUri.value = imageUri?.toString() // Set the URI string for immediate display
         shopImage.text = imageUri?.toString() ?: ""
     }
-    
+
     /**
      * Sync store data from Firestore to local database
      */
@@ -395,13 +403,14 @@ class ProfileViewModel @Inject constructor(
                 val userId = _dataStoreManager.userId.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
-                
-                val firestoreResult = FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
-                
+
+                val firestoreResult =
+                    FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
+
                 if (firestoreResult.isSuccess && firestoreResult.getOrNull() != null) {
                     val firestoreData = firestoreResult.getOrNull()!!
                     val storeFromFirestore = FirebaseUtils.mapToStoreEntity(firestoreData)
-                    
+
                     // Update or insert in local database
                     val existingStore = appDatabase.storeDao().getStoreById(userId)
                     val result = if (existingStore != null) {
@@ -409,16 +418,16 @@ class ProfileViewModel @Inject constructor(
                     } else {
                         appDatabase.storeDao().insertStore(storeFromFirestore)
                     }
-                    
+
                     if (result != -1L) {
                         if (existingStore == null) {
-                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, result.toInt())
+                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeFromFirestore.storeId)
                         }
-                        
+
                         // Update UPI settings in DataStore
                         _dataStoreManager.setUpiId(storeFromFirestore.upiId)
                         _dataStoreManager.setMerchantName(storeFromFirestore.name)
-                        
+
                         // Update UI with synced data
                         storeEntity.value = storeFromFirestore
                         propName.text = storeFromFirestore.proprietor
@@ -432,7 +441,7 @@ class ProfileViewModel @Inject constructor(
                         selectedImageUri.value = storeFromFirestore.image
                         userEmail.text = storeFromFirestore.email
                         upiId.text = storeFromFirestore.upiId
-                        
+
                         log("Store data synced from Firestore successfully")
                         _snackBarState.value = "Store data synced from cloud"
                         onSuccess()
@@ -446,7 +455,7 @@ class ProfileViewModel @Inject constructor(
                     _snackBarState.value = "No store data found in cloud"
                     onFailure()
                 }
-                
+
                 isLoading.value = false
             } catch (e: Exception) {
                 log("Error syncing from Firestore: ${e.message}")

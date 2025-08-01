@@ -135,7 +135,8 @@ class SettingViewModel @Inject constructor(
     fun verifyPinForWipe(pin: String) {
         ioLaunch {
             try {
-                val currentUser = _appDatabase.userDao().getUserById(1)
+                val userId = _dataStoreManager.userId.first()
+                val currentUser = _appDatabase.userDao().getUserById(userId)
                 if (currentUser != null) {
                     val hashedPin = SecurityUtils.hashPin(pin)
                     if (currentUser.pin == hashedPin) {
@@ -157,7 +158,8 @@ class SettingViewModel @Inject constructor(
     private fun sendOtpForWipe() {
         ioLaunch {
             try {
-                val currentUser = _appDatabase.userDao().getUserById(1)
+                val userId = _dataStoreManager.userId.first()
+                val currentUser = _appDatabase.userDao().getUserById(userId)
                 if (currentUser != null) {
                     val phoneNumber = currentUser.mobileNo
                     if (phoneNumber.isNotEmpty()) {

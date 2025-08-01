@@ -2,17 +2,19 @@ package com.velox.jewelvault.data.roomdb.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
+import com.velox.jewelvault.utils.generateId
 import java.sql.Timestamp
 
-@Entity
+@Entity(tableName = TableNames.ITEM)
 data class ItemEntity(
-    @PrimaryKey(autoGenerate = true) val itemId: Int = 0,  // Auto-increment primary key
+    @PrimaryKey val itemId: String,  // Auto-increment primary key
     val itemAddName: String,
-    val catId: Int,
-    val userId: Int,
-    val storeId: Int,
+    val catId: String,
+    val userId: String,
+    val storeId: String,
     val catName: String,
-    val subCatId: Int,
+    val subCatId: String,
     val subCatName: String,
     val entryType: String,
     val quantity: Int,
@@ -34,8 +36,8 @@ data class ItemEntity(
     val addDate: Timestamp,
     val modifiedDate: Timestamp,
     //seller info
-    val sellerFirmId: Int ,
-    val purchaseOrderId: Int ,
-    val purchaseItemId: Int ,
+    val sellerFirmId: String ,
+    val purchaseOrderId: String ,
+    val purchaseItemId: String ,
     )
 

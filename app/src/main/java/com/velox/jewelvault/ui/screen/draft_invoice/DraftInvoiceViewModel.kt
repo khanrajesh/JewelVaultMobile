@@ -82,7 +82,7 @@ class DraftInvoiceViewModel @Inject constructor(
     val grandTotal = mutableStateOf(0.0)
     
     // Functions
-    fun getItemById(itemId: Int, onSuccess: () -> Unit, onFailure: () -> Unit) {
+    fun getItemById(itemId: String, onSuccess: () -> Unit, onFailure: () -> Unit) {
         viewModelScope.launch {
             try {
                 // TODO: Implement actual database query when repository is available
@@ -90,11 +90,11 @@ class DraftInvoiceViewModel @Inject constructor(
                 val mockItem = ItemSelectedModel(
                     itemId = itemId,
                     itemAddName = "Mock Item $itemId",
-                    catId = 1,
-                    userId = 1,
-                    storeId = 1,
+                    catId = "1",
+                    userId = "1",
+                    storeId = "1",
                     catName = "Ring",
-                    subCatId = 1,
+                    subCatId = "1",
                     subCatName = "Gold Ring",
                     entryType = "Piece",
                     quantity = 1,
@@ -117,9 +117,9 @@ class DraftInvoiceViewModel @Inject constructor(
                     chargeAmount = 600.0,
                     tax = 300.0,
                     addDate = java.sql.Timestamp(System.currentTimeMillis()),
-                    sellerFirmId = 0,
-                    purchaseOrderId = 0,
-                    purchaseItemId = 0
+                    sellerFirmId = "0",
+                    purchaseOrderId = "0",
+                    purchaseItemId = "0"
                 )
                 
                 selectedItem.value = mockItem
@@ -156,13 +156,13 @@ class DraftInvoiceViewModel @Inject constructor(
     fun addSampleItem() {
         // Add a sample item for testing
         val sampleItem = ItemSelectedModel(
-            itemId = 1,
+            itemId =generateId(),
             itemAddName = "Sample Gold Ring",
-            catId = 1,
-            userId = 1,
-            storeId = 1,
+            catId = "1",
+            userId = "1",
+            storeId = "1",
             catName = "Ring",
-            subCatId = 1,
+            subCatId = "1",
             subCatName = "Gold Ring",
             entryType = "Piece",
             quantity = 1,
@@ -185,9 +185,9 @@ class DraftInvoiceViewModel @Inject constructor(
             chargeAmount = 600.0,
             tax = 300.0,
             addDate = java.sql.Timestamp(System.currentTimeMillis()),
-            sellerFirmId = 0,
-            purchaseOrderId = 0,
-            purchaseItemId = 0
+            sellerFirmId = "0",
+            purchaseOrderId = "0",
+            purchaseItemId = "0"
         )
         
         selectedItemList.add(sampleItem)
@@ -298,13 +298,13 @@ class DraftInvoiceViewModel @Inject constructor(
         val finalPrice = basePrice + totalCharges + totalTaxes
         
         val newItem = ItemSelectedModel(
-            itemId = selectedItemList.size + 1, // Temporary ID for draft
+            itemId = (selectedItemList.size + 1).toString(),
             itemAddName = InputValidator.sanitizeText(itemName.text),
-            catId = 1, // Default category ID for draft
-            userId = 1,
-            storeId = 1,
+            catId = "1", // Default category ID for draft
+            userId = "1",
+            storeId = "1",
             catName = InputValidator.sanitizeText(categoryName.text),
-            subCatId = 1, // Default sub-category ID for draft
+            subCatId = "1", // Default sub-category ID for draft
             subCatName = InputValidator.sanitizeText(subCategoryName.text),
             entryType = InputValidator.sanitizeText(entryType.text),
             quantity = quantity.text.toIntOrNull() ?: 1,
@@ -327,9 +327,9 @@ class DraftInvoiceViewModel @Inject constructor(
             chargeAmount = totalCharges,
             tax = totalTaxes,
             addDate = java.sql.Timestamp(System.currentTimeMillis()),
-            sellerFirmId = 0,
-            purchaseOrderId = 0,
-            purchaseItemId = 0
+            sellerFirmId = "0",
+            purchaseOrderId = "0",
+            purchaseItemId = "0"
         )
         
         selectedItemList.add(newItem)
@@ -536,7 +536,7 @@ class DraftInvoiceViewModel @Inject constructor(
                     )
                     
                     val store = StoreEntity(
-                        userId = 1,
+                        userId = generateId(),
                         proprietor = "Raj Kumar",
                         name = "RAJ JEWELLERS",
                         email = "rajjewellers@gmail.com",
@@ -546,7 +546,8 @@ class DraftInvoiceViewModel @Inject constructor(
                         gstinNo = "21APEPK7976C1ZZ",
                         panNo = "APEPK7976C",
                         image = "",
-                        invoiceNo = 0
+                        invoiceNo = 0,
+                        storeId = generateId()
                     )
 
                     // Create DraftInvoiceData object

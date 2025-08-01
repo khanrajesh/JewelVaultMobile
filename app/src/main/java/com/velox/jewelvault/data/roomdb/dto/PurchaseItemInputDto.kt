@@ -2,9 +2,9 @@ package com.velox.jewelvault.data.roomdb.dto
 
 data class PurchaseItemInputDto(
     val billNo: String = "",
-    val catId: Int = -1,
+    val catId: String = "",
     val catName: String = "",
-    val subCatId: Int = -1,
+    val subCatId: String = "",
     val subCatName: String = "",
     val name: String = "",
     val gsWt: Double = 0.0,

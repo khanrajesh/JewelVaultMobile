@@ -13,10 +13,11 @@ object TransactionUtils {
         amount: Double,
         description: String? = null,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,
@@ -38,10 +39,11 @@ object TransactionUtils {
         paymentMethod: String? = null,
         referenceNumber: String? = null,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            transactionId = generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,
@@ -60,14 +62,15 @@ object TransactionUtils {
      */
     fun createKhataPayment(
         customerMobile: String,
-        khataBookId: Int,
+        khataBookId: String,
         monthNumber: Int,
         amount: Double,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,
@@ -86,13 +89,14 @@ object TransactionUtils {
      */
     fun createKhataDebit(
         customerMobile: String,
-        khataBookId: Int,
+        khataBookId: String,
         amount: Double,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,
@@ -114,10 +118,11 @@ object TransactionUtils {
         paymentMethod: String? = null,
         referenceNumber: String? = null,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,
@@ -140,10 +145,11 @@ object TransactionUtils {
         isDebit: Boolean,
         description: String? = null,
         notes: String? = null,
-        userId: Int,
-        storeId: Int
+        userId: String,
+        storeId: String
     ): CustomerTransactionEntity {
         return CustomerTransactionEntity(
+            generateId(),
             customerMobile = customerMobile,
             transactionDate = Timestamp(System.currentTimeMillis()),
             amount = amount,

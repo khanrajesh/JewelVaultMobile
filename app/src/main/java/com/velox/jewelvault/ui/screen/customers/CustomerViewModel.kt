@@ -15,6 +15,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.utils.TransactionUtils
+import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
@@ -258,6 +259,7 @@ class CustomerViewModel @Inject constructor(
                 val totalMonths = plan.payMonths + plan.benefitMonths
 
                 val khataBook = CustomerKhataBookEntity(
+                    khataBookId = generateId(),
                     customerMobile = customerMobile,
                     planName = plan.name,
                     startDate = currentTime,
@@ -409,13 +411,16 @@ class CustomerViewModel @Inject constructor(
                 val currentTime = Timestamp(System.currentTimeMillis())
 
                 val customer = CustomerEntity(
+
                     mobileNo = customerMobile.text.trim(),
                     name = customerName.text.trim(),
                     address = customerAddress.text.trim().takeIf { it.isNotEmpty() },
                     gstin_pan = customerGstin.text.trim().takeIf { it.isNotEmpty() },
                     addDate = currentTime,
                     lastModifiedDate = currentTime,
-                    notes = customerNotes.text.trim().takeIf { it.isNotEmpty() }
+                    notes = customerNotes.text.trim().takeIf { it.isNotEmpty() },
+                    userId = userId,
+                    storeId = storeId
                 )
 
                 val result = appDatabase.customerDao().insertCustomer(customer)
@@ -504,7 +509,9 @@ class CustomerViewModel @Inject constructor(
                 val totalAmount = monthlyAmount * totalMonths
                 val planName = khataBookPlanName.text.trim().takeIf { it.isNotEmpty() } ?: "Standard Plan"
 
+                val khataBookId = generateId()
                 val khataBook = CustomerKhataBookEntity(
+                    khataBookId,
                     customerMobile = customerMobile,
                     planName = planName,
                     startDate = currentTime,
@@ -523,7 +530,7 @@ class CustomerViewModel @Inject constructor(
                     // Create initial khata debit transaction
                     val khataDebit = TransactionUtils.createKhataDebit(
                         customerMobile = customerMobile,
-                        khataBookId = result.toInt(),
+                        khataBookId = khataBookId,
                         amount = totalAmount,
                         notes = "Initial khata book debit for $planName",
                         userId = userId,
@@ -648,7 +655,7 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
-    fun updateKhataBookStatus(khataBookId: Int, status: String) {
+    fun updateKhataBookStatus(khataBookId: String, status: String) {
         viewModelScope.launch {
             try {
                 val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId }
@@ -739,7 +746,7 @@ class CustomerViewModel @Inject constructor(
         )
     }*/
     
-    fun isMonthPaid(khataBookId: Int, monthNumber: Int): Boolean {
+    fun isMonthPaid(khataBookId: String, monthNumber: Int): Boolean {
         return selectedCustomerTransactions.any { 
             it.khataBookId == khataBookId && 
             it.transactionType == "khata_payment" && 
@@ -747,7 +754,7 @@ class CustomerViewModel @Inject constructor(
         }
     }
     
-    fun getNextUnpaidMonth(khataBookId: Int): Int {
+    fun getNextUnpaidMonth(khataBookId: String): Int {
         val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return 1
         val paidMonths = selectedCustomerTransactions
             .filter { it.khataBookId == khataBookId && it.transactionType == "khata_payment" }
@@ -830,7 +837,7 @@ class CustomerViewModel @Inject constructor(
             .sortedBy { it.monthNumber }
     }*/
     
-    fun getKhataBookDueDate(khataBookId: Int, monthNumber: Int): java.sql.Timestamp {
+    fun getKhataBookDueDate(khataBookId: String, monthNumber: Int): java.sql.Timestamp {
         val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } 
             ?: return java.sql.Timestamp(System.currentTimeMillis())
         val monthInMillis = (monthNumber - 1) * 30L * 24 * 60 * 60 * 1000

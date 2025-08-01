@@ -3,10 +3,11 @@ package com.velox.jewelvault.data.roomdb.entity.customer
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
 import java.sql.Timestamp
 
 @Entity(
-    tableName = "customer_khata_book",
+    tableName = TableNames.CUSTOMER_KHATA_BOOK,
     foreignKeys = [
         ForeignKey(
             entity = CustomerEntity::class,
@@ -17,8 +18,8 @@ import java.sql.Timestamp
     ]
 )
 data class CustomerKhataBookEntity(
-    @PrimaryKey(autoGenerate = true)
-    val khataBookId: Int = 0,
+    @PrimaryKey
+    val khataBookId:String,
     val customerMobile: String,
     val planName: String, // Name of the khata book plan
     val startDate: Timestamp,
@@ -28,8 +29,8 @@ data class CustomerKhataBookEntity(
     val totalAmount: Double, // monthlyAmount * totalMonths
     val status: String, // "active", "completed", "cancelled"
     val notes: String? = null,
-    val userId: Int,
-    val storeId: Int
+    val userId: String,
+    val storeId: String
 ) {
     // Helper properties
     val isActive: Boolean

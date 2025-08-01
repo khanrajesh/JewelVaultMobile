@@ -20,6 +20,7 @@ import com.velox.jewelvault.ui.components.PaymentInfo
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -96,7 +97,7 @@ class SellInvoiceViewModel @Inject constructor(
         }
     }
 
-    fun getItemById(itemId: Int, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
+    fun getItemById(itemId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
         viewModelScope.launch {
             return@launch withIo {
                 val item = appDatabase.itemDao().getItemById(itemId)
@@ -266,6 +267,7 @@ class SellInvoiceViewModel @Inject constructor(
                                     //5. handle outstanding balance if partial payment
                                     if (payment.outstandingAmount > 0) {
                                         val outstandingTransaction = CustomerTransactionEntity(
+                                            transactionId = generateId(),
                                             customerMobile = mobile,
                                             transactionDate = Timestamp(System.currentTimeMillis()),
                                             amount = payment.outstandingAmount,
@@ -308,8 +310,8 @@ class SellInvoiceViewModel @Inject constructor(
     }
 
     private fun addOrderWithItems(
-        userId: Int,
-        storeId: Int,
+        userId: String,
+        storeId: String,
         mobile: String,
         totalAmount: Double,
         totalTax: Double,
@@ -323,8 +325,10 @@ class SellInvoiceViewModel @Inject constructor(
             try {
                 withIo {
 
+                    val id = generateId()
                     val justNowTime = Timestamp(System.currentTimeMillis())
                     val order = OrderEntity(
+                        orderId = id,
                         customerMobile = mobile,
                         storeId = storeId,
                         userId = userId,
@@ -340,7 +344,8 @@ class SellInvoiceViewModel @Inject constructor(
                     if (orderId != -1L) {
                         val orderItems = selectedItemList.map {
                             OrderItemEntity(
-                                orderId = orderId.toInt(),
+                                orderItemId = generateId(),
+                                orderId = id,
                                 orderDate = justNowTime,
                                 itemId = it.itemId,
                                 customerMobile = mobile,
@@ -494,7 +499,7 @@ class SellInvoiceViewModel @Inject constructor(
 
 
     private fun generateInvoice(
-        storeId: Int, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        storeId: String, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         ioLaunch {
             _loadingState.value = true

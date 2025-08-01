@@ -1,9 +1,9 @@
 package com.velox.jewelvault.data.roomdb.dto
 
 data class PurchaseMetalRateDto(
-    val catId: Int,
+    val catId: String,
     val catName: String,
-    val subCatId: Int,
+    val subCatId: String,
     val subCatName: String,
     val fnWt: Double
 )

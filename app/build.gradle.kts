@@ -145,5 +145,7 @@ dependencies {
 
     // Biometric authentication
     implementation(libs.androidx.biometric)
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
 
 }

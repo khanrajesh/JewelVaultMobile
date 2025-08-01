@@ -24,7 +24,7 @@ class SessionManager @Inject constructor(
     private val lastActivityKey = longPreferencesKey(LAST_ACTIVITY_KEY)
     private val sessionTokenKey = stringPreferencesKey(SESSION_TOKEN_KEY)
     
-    suspend fun startSession(userId: Int) {
+    suspend fun startSession(userId: String) {
         val token = generateSessionToken()
         dataStoreManager.setValue(sessionTokenKey, token)
         updateLastActivity()

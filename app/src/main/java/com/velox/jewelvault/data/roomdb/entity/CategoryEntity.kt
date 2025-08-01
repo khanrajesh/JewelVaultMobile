@@ -2,13 +2,15 @@ package com.velox.jewelvault.data.roomdb.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.velox.jewelvault.data.roomdb.TableNames
+import com.velox.jewelvault.utils.generateId
 
-@Entity
+@Entity(tableName = TableNames.CATEGORY)
 data class CategoryEntity(
-    @PrimaryKey(autoGenerate = true) val catId: Int = 0,
+    @PrimaryKey val catId: String,
     val catName: String,
     val gsWt: Double=0.0,
     val fnWt: Double=0.0,
-    val userId:Int,
-    val storeId:Int,
+    val userId:String,
+    val storeId:String,
 )

@@ -41,7 +41,6 @@ import com.velox.jewelvault.utils.Converters
         StoreEntity::class,
         UsersEntity::class,
         CustomerEntity::class,
-
         CustomerKhataBookEntity::class,
         CustomerTransactionEntity::class,
         OrderEntity::class,

@@ -81,9 +81,8 @@ class PurchaseItemViewModel @Inject constructor(
     fun getPurchaseOrderById(purchaseOrderId: String) {
         ioLaunch {
             _loadingState.value = true
-            val orderId = purchaseOrderId.toLongOrNull()
-            if (orderId != null) {
-                val order = appDatabase.purchaseDao().getOrderWithDetails(orderId)
+            if (purchaseOrderId != null) {
+                val order = appDatabase.purchaseDao().getOrderWithDetails(purchaseOrderId)
                 if (order != null) {
                     val firmId = order.seller?.firmId
                     firmId?.let {
@@ -102,40 +101,38 @@ class PurchaseItemViewModel @Inject constructor(
     fun getInventoryItemByPurchaseOrderID(purchaseOrderId: String) {
         ioLaunch {
             _loadingState.value = true
-            val orderId = purchaseOrderId.toIntOrNull()
-            if (orderId != null){
-                val data = appDatabase.itemDao().getItemByPurchaseOrderId(orderId)
-                data.collectLatest { items->
-                    val contentList = items.mapIndexed { index, item ->
-                        listOf(
-                            "${index + 1}",
-                            "${item.catName} (${item.catId})",
-                            "${item.subCatName} (${item.subCatId})",
-                            "${item.itemId}",
-                            item.itemAddName,
-                            item.entryType,
-                            item.quantity.toString(),
-                            item.gsWt.to2FString(),
-                            item.ntWt.to2FString(),
-                            item.unit,
-                            item.purity,
-                            item.fnWt.to2FString(),
-                            item.crgType,
-                            item.crg.to2FString(),
-                            item.othCrgDes,
-                            item.othCrg.to2FString(),
-                            (item.cgst + item.sgst + item.igst).to2FString(),
-                            item.huid,
-                            item.addDate.toString(),
-                            item.addDesKey,
-                            item.addDesValue,
-                            "Extra value"
-                        )
-                    }
-
-                    itemList.clear()
-                    itemList.addAll(contentList)
+            val orderId = purchaseOrderId
+            val data = appDatabase.itemDao().getItemByPurchaseOrderId(orderId)
+            data.collectLatest { items->
+                val contentList = items.mapIndexed { index, item ->
+                    listOf(
+                        "${index + 1}",
+                        "${item.catName} (${item.catId})",
+                        "${item.subCatName} (${item.subCatId})",
+                        "${item.itemId}",
+                        item.itemAddName,
+                        item.entryType,
+                        item.quantity.toString(),
+                        item.gsWt.to2FString(),
+                        item.ntWt.to2FString(),
+                        item.unit,
+                        item.purity,
+                        item.fnWt.to2FString(),
+                        item.crgType,
+                        item.crg.to2FString(),
+                        item.othCrgDes,
+                        item.othCrg.to2FString(),
+                        (item.cgst + item.sgst + item.igst).to2FString(),
+                        item.huid,
+                        item.addDate.toString(),
+                        item.addDesKey,
+                        item.addDesValue,
+                        "Extra value"
+                    )
                 }
+
+                itemList.clear()
+                itemList.addAll(contentList)
             }
             _loadingState.value = false
         }

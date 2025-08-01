@@ -3,6 +3,7 @@ package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.*
 import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.TableNames
 
 @Dao
 interface SubCategoryDao {
@@ -24,47 +25,47 @@ interface SubCategoryDao {
 
 
 
-    @Query("SELECT * FROM SubCategoryEntity WHERE catId = :catId AND subCatName = :subCatName LIMIT 1")
-    suspend fun getSubCategoryByName(catId: Int, subCatName: String): SubCategoryEntity?
+    @Query("SELECT * FROM ${TableNames.SUB_CATEGORY} WHERE catId = :catId AND subCatName = :subCatName LIMIT 1")
+    suspend fun getSubCategoryByName(catId: String, subCatName: String): SubCategoryEntity?
 
-    @Query("SELECT * FROM SubCategoryEntity WHERE userId = :userId")
-    suspend fun getSubCategoriesByUserId(userId: Int): List<SubCategoryEntity>
+    @Query("SELECT * FROM ${TableNames.SUB_CATEGORY} WHERE userId = :userId")
+    suspend fun getSubCategoriesByUserId(userId: String): List<SubCategoryEntity>
 
-    @Query("SELECT * FROM SubCategoryEntity WHERE catId = :catId")
-    suspend fun getSubCategoriesByCatId(catId: Int): List<SubCategoryEntity>
+    @Query("SELECT * FROM ${TableNames.SUB_CATEGORY} WHERE catId = :catId")
+    suspend fun getSubCategoriesByCatId(catId: String): List<SubCategoryEntity>
 
-    @Query("SELECT * FROM SubCategoryEntity WHERE subCatId = :subCatId")
-    suspend fun getSubCategoryById(subCatId: Int): SubCategoryEntity?
+    @Query("SELECT * FROM ${TableNames.SUB_CATEGORY} WHERE subCatId = :subCatId")
+    suspend fun getSubCategoryById(subCatId: String): SubCategoryEntity?
 
-    @Query("UPDATE SubCategoryEntity SET gsWt = :gsWt, fnWt = :fnWt WHERE subCatId = :subCatId")
-    suspend fun updateWeights(subCatId: Int, gsWt: Double, fnWt: Double): Int
+    @Query("UPDATE ${TableNames.SUB_CATEGORY} SET gsWt = :gsWt, fnWt = :fnWt WHERE subCatId = :subCatId")
+    suspend fun updateWeights(subCatId: String, gsWt: Double, fnWt: Double): Int
 
-    @Query("UPDATE SubCategoryEntity SET quantity = :quantity WHERE subCatId = :subCatId")
-    suspend fun updateQuantity(subCatId: Int, quantity: Int): Int
+    @Query("UPDATE  ${TableNames.SUB_CATEGORY} SET quantity = :quantity WHERE subCatId = :subCatId")
+    suspend fun updateQuantity(subCatId: String, quantity: Int): Int
 
     @Query(
         """
-    UPDATE SubCategoryEntity 
+    UPDATE  ${TableNames.SUB_CATEGORY} 
     SET gsWt = :gsWt, fnWt = :fnWt, quantity = :quantity 
     WHERE subCatId = :subCatId
     """
     )
     suspend fun updateWeightsAndQuantity(
-        subCatId: Int,
+        subCatId: String,
         gsWt: Double,
         fnWt: Double,
         quantity: Int
     ): Int
 
-    @Query("DELETE FROM SubCategoryEntity")
+    @Query("DELETE FROM  ${TableNames.SUB_CATEGORY}")
     suspend fun deleteAllSubCategories(): Int
     
-    @Query("SELECT * FROM SubCategoryEntity")
+    @Query("SELECT * FROM  ${TableNames.SUB_CATEGORY}")
     suspend fun getAllSubCategories(): List<SubCategoryEntity>
 
 
     @Query("""
     SELECT COUNT(*)
-    FROM SubCategoryEntity""")
+    FROM  ${TableNames.SUB_CATEGORY}""")
     suspend fun getSubCategoryCount(): Int
 }

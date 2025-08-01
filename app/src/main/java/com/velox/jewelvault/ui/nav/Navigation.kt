@@ -131,15 +131,15 @@ fun SubAppNavigation(
             composable(
                 "${SubScreens.InventoryItem.route}/{catId}/{catName}/{subCatId}/{subCatName}",
                 arguments = listOf(
-                    navArgument("catId") { type = NavType.IntType },
+                    navArgument("catId") { type = NavType.StringType },
                     navArgument("catName") { type = NavType.StringType },
-                    navArgument("subCatId") { type = NavType.IntType },
+                    navArgument("subCatId") { type = NavType.StringType },
                     navArgument("subCatName") { type = NavType.StringType },
                 )
             ) { backStackEntry ->
-                val catId = backStackEntry.arguments?.getInt("catId") ?: return@composable
+                val catId = backStackEntry.arguments?.getString("catId") ?: return@composable
                 val catName = backStackEntry.arguments?.getString("catName") ?: return@composable
-                val subCatId = backStackEntry.arguments?.getInt("subCatId") ?: return@composable
+                val subCatId = backStackEntry.arguments?.getString("subCatId") ?: return@composable
                 val subCatName =
                     backStackEntry.arguments?.getString("subCatName") ?: return@composable
                 InventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)

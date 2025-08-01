@@ -53,6 +53,9 @@ import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.to2FString
 import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.generateId
+import com.velox.jewelvault.utils.ioScope
+import kotlinx.coroutines.flow.first
 import java.sql.Timestamp
 
 // Helper function to convert ItemEntity to List<String>
@@ -60,7 +63,7 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     "$index",
     "${catName} (${catId})",
     "${subCatName} (${subCatId})",
-    itemId.toString(),
+    itemId,
     itemAddName,
     entryType,
     quantity.toString(),
@@ -84,9 +87,9 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
 @Composable
 fun InventoryItemScreen(
     inventoryViewModel: InventoryViewModel,
-    catId: Int,
+    catId: String,
     catName: String,
-    subCatId: Int,
+    subCatId: String,
     subCatName: String
 ) {
     LandscapeInventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
@@ -95,9 +98,9 @@ fun InventoryItemScreen(
 @Composable
 fun LandscapeInventoryItemScreen(
     inventoryViewModel: InventoryViewModel,
-    catId: Int,
+    catId: String,
     catName: String,
-    subCatId: Int,
+    subCatId: String,
     subCatName: String
 ) {
 
@@ -159,7 +162,7 @@ fun LandscapeInventoryItemScreen(
                 items = inventoryViewModel.itemList.mapIndexed { index, item -> item.toListString(index + 1) },
                 onItemClick = { _ -> },
                 onItemLongClick = { itemData ->
-                    val itemId = itemData[3].toIntOrNull() // itemId is at index 3
+                    val itemId = itemData[3] // itemId is at index 3
                     val item = inventoryViewModel.itemList.find { it.itemId == itemId }
                     item?.let {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -241,8 +244,8 @@ fun LandscapeInventoryItemScreen(
 @Composable
 private fun AddItemSection(
     addItem: MutableState<Boolean>,
-    catId: Int,
-    subCatId: Int,
+    catId: String,
+    subCatId: String,
     catName: String,
     subCatName: String,
     viewModel: InventoryViewModel,
@@ -548,100 +551,108 @@ private fun AddItemSection(
                         Spacer(Modifier.width(15.dp))
                         Text("Add", Modifier
                             .bounceClick {
-                                if (purItem.isEmpty() && !viewModel.isSelf.value) {
-                                    viewModel.snackBarState.value =
-                                        "No corresponding item found in purchase order"
-                                    return@bounceClick
-                                }
 
-                                
-                                if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
-                                    viewModel.snackBarState.value = "Invalid quantity"
-                                    return@bounceClick
-                                }
-                                
-                                if (!InputValidator.isValidWeight(viewModel.grWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid gross weight"
-                                    return@bounceClick
-                                }
-                                
-                                if (!InputValidator.isValidWeight(viewModel.ntWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid net weight"
-                                    return@bounceClick
-                                }
-                                
-                                if (!InputValidator.isValidWeight(viewModel.fnWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid fine weight"
-                                    return@bounceClick
-                                }
-                                
-                                if (viewModel.purity.text.isBlank()) {
-                                    viewModel.snackBarState.value = "Purity is required"
-                                    return@bounceClick
-                                }
-                                
-                                if (!InputValidator.isValidHUID(viewModel.huid.text)) {
-                                    viewModel.snackBarState.value = "Invalid HUID format"
-                                }
-                                
-                                val newItem = ItemEntity(
-                                    itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
-                                    userId = 1,
-                                    storeId = 1,
-                                    catId = catId,
-                                    subCatId = subCatId,
-                                    catName = catName,
-                                    subCatName = subCatName,
-                                    entryType = InputValidator.sanitizeText(viewModel.entryType.text),
-                                    quantity = viewModel.qty.text.toIntOrNull() ?: 1,
-                                    gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
-                                    ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
-                                    fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
-                                    purity = InputValidator.sanitizeText(viewModel.purity.text),
-                                    crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
-                                    crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
-                                    othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
-                                    othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
-                                    cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
-                                    sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
-                                    igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
-                                    addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
-                                    addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
-                                    huid = viewModel.huid.text.trim().uppercase(),
-                                    addDate = Timestamp(System.currentTimeMillis()),
-                                    modifiedDate = Timestamp(System.currentTimeMillis()),
+                               return@bounceClick ioScope {
+                                    if (purItem.isEmpty() && !viewModel.isSelf.value) {
+                                        viewModel.snackBarState.value =
+                                            "No corresponding item found in purchase order"
+                                        return@ioScope
+                                    }
 
-                                    //seller info todo
-                                    sellerFirmId = 0,
-                                    purchaseOrderId = if (viewModel.isSelf.value) 0 else if (purItem.isEmpty()) 0 else purItem[0].purchaseOrderId,
-                                    purchaseItemId = if (viewModel.isSelf.value) 0 else if (purItem.isEmpty()) 0 else purItem[0].purchaseItemId,
+                                    if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
+                                        viewModel.snackBarState.value = "Invalid quantity"
+                                        return@ioScope
+                                    }
 
-                                    )
+                                    if (!InputValidator.isValidWeight(viewModel.grWt.text)) {
+                                        viewModel.snackBarState.value = "Invalid gross weight"
+                                        return@ioScope
+                                    }
 
-                                viewModel.safeInsertItem(newItem, onFailure = {
-                                    viewModel.snackBarState.value = "Add Item Failed"
-                                }, onSuccess = { itemEntity, l ->
+                                    if (!InputValidator.isValidWeight(viewModel.ntWt.text)) {
+                                        viewModel.snackBarState.value = "Invalid net weight"
+                                        return@ioScope
+                                    }
 
-                                                                    viewModel.filterItems()
+                                    if (!InputValidator.isValidWeight(viewModel.fnWt.text)) {
+                                        viewModel.snackBarState.value = "Invalid fine weight"
+                                        return@ioScope
+                                    }
 
-                                    viewModel.addToName.text = ""
-                                    viewModel.entryType.text = ""
-                                    viewModel.qty.text = ""
-                                    viewModel.grWt.text = ""
-                                    viewModel.ntWt.text = ""
-                                    viewModel.purity.text = ""
-                                    viewModel.fnWt.text = ""
-                                    viewModel.chargeType.text = ""
-                                    viewModel.charge.text = ""
-                                    viewModel.otherChargeDes.text = ""
-                                    viewModel.othCharge.text = ""
-                                    viewModel.desValue.text = ""
-                                    viewModel.huid.text = ""
+                                    if (viewModel.purity.text.isBlank()) {
+                                        viewModel.snackBarState.value = "Purity is required"
+                                        return@ioScope
+                                    }
+
+                                    if (!InputValidator.isValidHUID(viewModel.huid.text)) {
+                                        viewModel.snackBarState.value = "Invalid HUID format"
+                                    }
+
+                                    val userId = viewModel.dataStoreManager.userId.first()
+                                    val storeId = viewModel.dataStoreManager.userId.first()
+
+                                    val newItem = ItemEntity(
+                                        itemId = generateId(),
+                                        itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
+                                        userId =userId,
+                                        storeId = storeId,
+                                        catId = catId,
+                                        subCatId = subCatId,
+                                        catName = catName,
+                                        subCatName = subCatName,
+                                        entryType = InputValidator.sanitizeText(viewModel.entryType.text),
+                                        quantity = viewModel.qty.text.toIntOrNull() ?: 1,
+                                        gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
+                                        ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
+                                        fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
+                                        purity = InputValidator.sanitizeText(viewModel.purity.text),
+                                        crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
+                                        crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
+                                        othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
+                                        othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
+                                        cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
+                                        sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
+                                        igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
+                                        addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
+                                        addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
+                                        huid = viewModel.huid.text.trim().uppercase(),
+                                        addDate = Timestamp(System.currentTimeMillis()),
+                                        modifiedDate = Timestamp(System.currentTimeMillis()),
+
+                                        //seller info todo
+                                        sellerFirmId = storeId,
+                                        purchaseOrderId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseOrderId,
+                                        purchaseItemId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseItemId,
+
+                                        )
+
+                                    viewModel.safeInsertItem(newItem, onFailure = {
+                                        viewModel.snackBarState.value = "Add Item Failed"
+                                    }, onSuccess = { itemEntity, l ->
+
+                                        viewModel.filterItems()
+
+                                        viewModel.addToName.text = ""
+                                        viewModel.entryType.text = ""
+                                        viewModel.qty.text = ""
+                                        viewModel.grWt.text = ""
+                                        viewModel.ntWt.text = ""
+                                        viewModel.purity.text = ""
+                                        viewModel.fnWt.text = ""
+                                        viewModel.chargeType.text = ""
+                                        viewModel.charge.text = ""
+                                        viewModel.otherChargeDes.text = ""
+                                        viewModel.othCharge.text = ""
+                                        viewModel.desValue.text = ""
+                                        viewModel.huid.text = ""
 
 //                                    inventoryViewModel.loadingState.value = false
-                                })
+                                    })
 
-                                addItem.value = false
+                                    addItem.value = false
+                                }
+
+
                             }
                             .background(
                                 MaterialTheme.colorScheme.primary,

@@ -81,7 +81,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val showAddCatDialog = remember { mutableStateOf(false) }
     val addCatType = remember { mutableStateOf("") }
     val selectedCatName = remember { mutableStateOf<String?>(null) }
-    val selectedCatId = remember { mutableStateOf<Int?>(null) }
+    val selectedCatId = remember { mutableStateOf<String?>(null) }
 
     val subNavController = LocalSubNavController.current
 

@@ -132,8 +132,8 @@ class FirebaseUtils {
          */
         fun mapToStoreEntity(data: Map<String, Any>): com.velox.jewelvault.data.roomdb.entity.StoreEntity {
             return com.velox.jewelvault.data.roomdb.entity.StoreEntity(
-                storeId = (data["storeId"] as? Long)?.toInt() ?: 0,
-                userId = (data["userId"] as? Long)?.toInt() ?: 0,
+                storeId = (data["storeId"] as? String)?:"",
+                userId = (data["userId"] as? String)?:"",
                 proprietor = data["proprietor"] as? String ?: "",
                 name = data["name"] as? String ?: "",
                 email = data["email"] as? String ?: "",

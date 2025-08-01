@@ -19,6 +19,7 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.getCurrentDate
 import com.velox.jewelvault.utils.getCurrentTimestamp
 import com.velox.jewelvault.utils.ioLaunch
@@ -126,14 +127,15 @@ class PurchaseViewModel @Inject constructor(
     fun addPurchaseItem() {
 
         val category = catSubCatDto.find { it.catName == addItemCat.text }
-        val catId = category?.catId
-        val subCatId = category?.subCategoryList?.find { it.subCatName == addItemSubCat.text }?.subCatId
+        val catId = category?.catId?:""
+        val subCatId = category?.subCategoryList?.find { it.subCatName == addItemSubCat.text }?.subCatId?:""
 
         val newItem = PurchaseItemInputDto(
+
             billNo = addBillNo.text,
             catName = addItemCat.text,
-            catId = catId ?: 0,
-            subCatId = subCatId ?: 0,
+            catId = catId,
+            subCatId = subCatId,
             subCatName = addItemSubCat.text,
             name = "${addItemCat.text} - ${addItemSubCat.text}",
             gsWt = addItemGsWt.text.toDoubleOrNull() ?: 0.0,
@@ -171,7 +173,7 @@ class PurchaseViewModel @Inject constructor(
         val catName = addExchangeCategory.text
         val category = catSubCatDto.firstOrNull { it.catName == catName }
         val categoryId = category?.catId
-        val subCatId = category?.subCategoryList?.find { it.subCatName == "Fine" }?.subCatId ?: -1
+        val subCatId = category?.subCategoryList?.find { it.subCatName == "Fine" }?.subCatId ?: ""
         val rate = addExchangeFnWeight.text.toDoubleOrNull() ?: 0.0
 
         if (categoryId == null) {
@@ -278,7 +280,7 @@ class PurchaseViewModel @Inject constructor(
                         PurchaseItemInputDto(
                             catId = catPair.first,
                             catName = catPair.second,
-                            subCatId = firstItem?.subCatId ?: -1,
+                            subCatId = firstItem?.subCatId ?: "",
                             subCatName = firstItem?.subCatName ?: "Fine",
                             fnWt = totalFnWt,
                             toAdd = true
@@ -348,7 +350,7 @@ class PurchaseViewModel @Inject constructor(
 
 
     private fun updateCatAndSubCat(
-        subCatId: Int, insertedItem: ItemEntity, toAdd:Boolean,onSuccess: suspend (ItemEntity) -> Unit
+        subCatId: String, insertedItem: ItemEntity, toAdd:Boolean,onSuccess: suspend (ItemEntity) -> Unit
     ) {
         try {
 
@@ -409,9 +411,9 @@ class PurchaseViewModel @Inject constructor(
     }
 
     private fun safeUpdateFineItem(
-        catId: Int,
+        catId: String,
         catName: String,
-        subCatId: Int,
+        subCatId: String,
         subCatName: String,
         fnWt: Double,
         add: Boolean,
@@ -449,6 +451,7 @@ class PurchaseViewModel @Inject constructor(
                         }
                     } else {
                         val newItem = ItemEntity(
+                            itemId = "0",
                             itemAddName = "Fine",
                             userId = userId,
                             storeId = storeId,
@@ -475,14 +478,14 @@ class PurchaseViewModel @Inject constructor(
                             addDesValue = "",
                             addDate = getCurrentTimestamp(),
                             modifiedDate = getCurrentTimestamp(),
-                            sellerFirmId = 0,
-                            purchaseOrderId = 0,
-                            purchaseItemId = 0,
+                            sellerFirmId = "0",
+                            purchaseOrderId = "0",
+                            purchaseItemId = "0",
                         )
                         val insertId = appDatabase.itemDao().insert(newItem)
                         if (insertId != -1L) {
                             _snackBarState.value = "Fine item added successfully"
-                            newItem.copy(itemId = insertId.toInt())
+                            newItem
                         } else {
                             throw Exception("Failed to insert Fine item")
                         }
@@ -499,41 +502,48 @@ class PurchaseViewModel @Inject constructor(
 
 
     private fun verifyAddFirmAndSeller(
-        onSuccess: (sellerId: Int) -> Unit,
+        onSuccess: (sellerId: String) -> Unit,
         onFailure: () -> Unit
     ) {
         if (firmName.text.isNotBlank() && firmMobile.text.isNotBlank() && firmAddress.text.isNotBlank() && firmGstin.text.isNotBlank() && sellerName.text.isNotBlank() && sellerMobile.text.isNotBlank() && addBillNo.text.isNotBlank() && addBillDate.text.isNotBlank()) {
-           ioLaunch {
-                    val dao = appDatabase.purchaseDao()
-
-                    // Check or insert firm
-                    val firm = dao.getFirmByMobile(firmMobile.text)
-                    val firmId = firm?.firmId ?: dao.insertFirm(
+            ioLaunch {
+                val dao = appDatabase.purchaseDao()
+                val tempFirmId = generateId()
+                // Check or insert firm
+                val firm = dao.getFirmByMobile(firmMobile.text)
+                val firmId = firm?.firmId ?: run {
+                    dao.insertFirm(
                         FirmEntity(
+                            firmId = tempFirmId,
                             firmName = firmName.text,
                             firmMobileNumber = firmMobile.text,
                             gstNumber = firmGstin.text,
                             address = firmAddress.text
                         )
-                    ).toInt()
+                    )
+                    tempFirmId
+                }
 
-                    // Check or insert seller
-                    val existingSeller = dao.getSellerByMobile(sellerMobile.text)
-                    val sellerId = if (existingSeller == null || existingSeller.firmId != firmId) {
-                        dao.insertSeller(
-                            SellerEntity(
-                                firmId = firmId,
-                                name = sellerName.text,
-                                mobileNumber = sellerMobile.text
-                            )
-                        ).toInt()
-                    } else {
-                        existingSeller.sellerId
-                    }
+                // Check or insert seller
+                val existingSeller = dao.getSellerByMobile(sellerMobile.text)
+                val sellerId = if (existingSeller == null || existingSeller.firmId != firmId) {
+                    val newSellerId = generateId()
+                    dao.insertSeller(
+                        SellerEntity(
+                            sellerId = newSellerId,
+                            firmId = firmId,
+                            name = sellerName.text,
+                            mobileNumber = sellerMobile.text
+                        )
+                    )
+                    newSellerId
+                } else {
+                    existingSeller.sellerId
+                }
 
-                    withMain {
-                        onSuccess(sellerId)
-                    }
+                withMain {
+                    onSuccess(sellerId)
+                }
             }
         } else {
             _snackBarState.value = "Please fill all firm and seller fields"
@@ -542,66 +552,68 @@ class PurchaseViewModel @Inject constructor(
     }
 
 
-    private fun savePurchaseOrderAndDetails(sellerId: Int, onComplete: () -> Unit) {
+    private fun savePurchaseOrderAndDetails(sellerId: String, onComplete: () -> Unit) {
         ioLaunch {
-                val dao = appDatabase.purchaseDao()
+            val dao = appDatabase.purchaseDao()
 
-                // Insert PurchaseOrder
-                val orderId = dao.insertPurchaseOrder(
-                    PurchaseOrderEntity(
-                        sellerId = sellerId,
-                        billNo = addBillNo.text,
-                        billDate = addBillDate.text,
-                        entryDate = getCurrentDate(),
-                        extraChargeDescription = "",
-                        extraCharge = purchaseItemList.sumOf { it.extraCharge },
-                        totalFinalWeight = purchaseItemList.sumOf { it.ntWt },
-                        totalFinalAmount = purchaseItemList.sumOf { it.fnWt * 0.0 + it.extraCharge },
-                        notes = "purchaseNote.text",
-                        cgstPercent = addCGst.text.toDoubleOrNull()?:1.5,
-                        sgstPercent = addSGst.text.toDoubleOrNull()?:0.0,
-                        igstPercent = addIGst.text.toDoubleOrNull()?:1.5,
+            // Insert PurchaseOrder
+            val orderId = generateId()
+            dao.insertPurchaseOrder(
+                PurchaseOrderEntity(
+                    purchaseOrderId = orderId,
+                    sellerId = sellerId,
+                    billNo = addBillNo.text,
+                    billDate = addBillDate.text,
+                    entryDate = getCurrentDate(),
+                    extraChargeDescription = "",
+                    extraCharge = purchaseItemList.sumOf { it.extraCharge },
+                    totalFinalWeight = purchaseItemList.sumOf { it.ntWt },
+                    totalFinalAmount = purchaseItemList.sumOf { it.fnWt * 0.0 + it.extraCharge },
+                    notes = "purchaseNote.text",
+                    cgstPercent = addCGst.text.toDoubleOrNull() ?: 1.5,
+                    sgstPercent = addSGst.text.toDoubleOrNull() ?: 0.0,
+                    igstPercent = addIGst.text.toDoubleOrNull() ?: 1.5,
+                )
+            )
+
+            // Insert Purchase Items
+            purchaseItemList.forEach { dto ->
+                dao.insertOrderItem(
+                    PurchaseOrderItemEntity(
+                        purchaseItemId = generateId(),
+                        purchaseOrderId = orderId,
+                        catId = dto.catId,
+                        catName = dto.catName,
+                        subCatId = dto.subCatId,
+                        subCatName = dto.subCatName,
+                        gsWt = dto.gsWt,
+                        purity = dto.purity,
+                        ntWt = dto.ntWt,
+                        fnWt = dto.fnWt,
+                        fnRate = dto.fnRatePerGm,
+                        wastagePercent = dto.wastage,
                     )
-                ).toInt()
+                )
+            }
 
-                // Insert Purchase Items
-                purchaseItemList
-                    .forEach { dto ->
-                    dao.insertOrderItem(
-                        PurchaseOrderItemEntity(
-                            purchaseOrderId = orderId,
-                            catId = dto.catId,
-                            catName = dto.catName,
-                            subCatId = dto.subCatId,
-                            subCatName = dto.subCatName,
-                            gsWt = dto.gsWt,
-                            purity = dto.purity,
-                            ntWt = dto.ntWt,
-                            fnWt = dto.fnWt,
-                            fnRate = dto.fnRatePerGm,
-                            wastagePercent = dto.wastage,
-
-                        )
+            // Insert Metal Exchanges
+            exchangeMetalRateDto.forEach { dto ->
+                dao.insertExchange(
+                    MetalExchangeEntity(
+                        generateId(),
+                        purchaseOrderId = orderId,
+                        catId = dto.catId,
+                        catName = dto.catName,
+                        subCatId = dto.subCatId,
+                        subCatName = dto.subCatName,
+                        fnWeight = dto.fnWt
                     )
-                }
+                )
+            }
 
-                // Insert Metal Exchanges
-                exchangeMetalRateDto.forEach { dto ->
-                    dao.insertExchange(
-                        MetalExchangeEntity(
-                            purchaseOrderId = orderId,
-                            catId = dto.catId,
-                            catName = dto.catName,
-                            subCatId = dto.subCatId,
-                            subCatName = dto.subCatName,
-                            fnWeight = dto.fnWt
-                        )
-                    )
-                }
-
-                withMain {
-                    onComplete()
-                }
+            withMain {
+                onComplete()
+            }
         }
     }
 

@@ -16,6 +16,7 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
@@ -106,8 +107,8 @@ class InventoryViewModel @Inject constructor(
     val purchaseOrderIdFilter = InputFieldState()
 
     // Firm and seller lists for dropdowns
-    val firmList = mutableStateListOf<Pair<Int, String>>() // Pair<firmId, firmName>
-    val purchaseOrderList = mutableStateListOf<Pair<Int, String>>() // Pair<orderId, billNo>
+    val firmList = mutableStateListOf<Pair<String, String>>() // Pair<firmId, firmName>
+    val purchaseOrderList = mutableStateListOf<Pair<String, String>>() // Pair<orderId, billNo>
 
     // Sorting states
     val sortBy = mutableStateOf("addDate")
@@ -148,7 +149,7 @@ class InventoryViewModel @Inject constructor(
         "addDate" to "Date Added",
         "itemId" to "Item ID",
         "gsWt" to "Gross Weight",
-        "ntWt" to "Net Weight", 
+        "ntWt" to "Net Weight",
         "fnWt" to "Fine Weight",
         "quantity" to "Quantity",
         "catName" to "Category",
@@ -179,7 +180,9 @@ class InventoryViewModel @Inject constructor(
                 val orders = appDatabase.purchaseDao().getAllPurchaseOrders()
                 mainScope {
                     purchaseOrderList.clear()
-                    purchaseOrderList.addAll(orders.map { it.purchaseOrderId to (it.billNo ?: it.purchaseOrderId.toString()) })
+                    purchaseOrderList.addAll(orders.map {
+                        it.purchaseOrderId to it.billNo
+                    })
                 }
             } catch (e: Exception) {
                 // ignore
@@ -197,7 +200,8 @@ class InventoryViewModel @Inject constructor(
 
                 val newList = result.map { cat ->
                     val subList = appDatabase.subCategoryDao().getSubCategoriesByCatId(cat.catId)
-                    CatSubCatDto(catId = cat.catId,
+                    CatSubCatDto(
+                        catId = cat.catId,
                         catName = cat.catName,
                         gsWt = cat.gsWt,
                         fnWt = cat.fnWt,
@@ -239,29 +243,30 @@ class InventoryViewModel @Inject constructor(
             try {
                 val userId = dataStoreManager.userId.first()
                 val storeId = dataStoreManager.storeId.first()
-                
+
                 // Get all items for the user and store
                 val allItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
-                
+
                 // Calculate summary statistics
                 val totalItems = allItems.size
                 val totalGrossWeight = allItems.sumOf { it.gsWt }
                 val totalNetWeight = allItems.sumOf { it.ntWt }
                 val totalFineWeight = allItems.sumOf { it.fnWt }
-                
+
                 // Get category and subcategory counts
-                val categories = appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
+                val categories =
+                    appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
                 val totalCategories = categories.size
                 val totalSubCategories = categories.sumOf { cat ->
                     appDatabase.subCategoryDao().getSubCategoriesByCatId(cat.catId).size
                 }
-                
+
                 // Get recent items (last 7 days)
                 val calendar = java.util.Calendar.getInstance()
                 calendar.add(java.util.Calendar.DAY_OF_MONTH, -7)
                 val weekAgo = Timestamp(calendar.timeInMillis)
                 val recentItems = allItems.count { it.addDate.after(weekAgo) }
-                
+
                 val summary = InventorySummary(
                     totalItems = totalItems,
                     totalGrossWeight = totalGrossWeight,
@@ -271,7 +276,7 @@ class InventoryViewModel @Inject constructor(
                     totalSubCategories = totalSubCategories,
                     recentItemsAdded = recentItems
                 )
-                
+
                 mainScope {
                     inventorySummary.value = summary
                 }
@@ -288,6 +293,7 @@ class InventoryViewModel @Inject constructor(
                 val storeId = dataStoreManager.storeId.first()
                 val s = appDatabase.categoryDao().insertCategory(
                     CategoryEntity(
+                        catId = generateId(),
                         catName = catName, userId = userId, storeId = storeId
                     )
                 )
@@ -307,13 +313,14 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun addSubCategory(subCatName: String, catName: String, catId: Int) {
+    fun addSubCategory(subCatName: String, catName: String, catId: String) {
         ioLaunch {
             try {
                 val userId = dataStoreManager.userId.first()
                 val storeId = dataStoreManager.storeId.first()
                 val s = appDatabase.subCategoryDao().insertSubCategory(
                     SubCategoryEntity(
+                        subCatId = generateId(),
                         subCatName = subCatName,
                         catId = catId,
                         catName = catName,
@@ -348,7 +355,8 @@ class InventoryViewModel @Inject constructor(
 
                 val startDate = if (startDateFilter.text.isNotEmpty()) {
                     try {
-                        val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                        val dateFormat =
+                            java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
                         val date = dateFormat.parse(startDateFilter.text)
                         date?.let { java.sql.Timestamp(it.time) }
                     } catch (e: Exception) {
@@ -358,7 +366,8 @@ class InventoryViewModel @Inject constructor(
 
                 val endDate = if (endDateFilter.text.isNotEmpty()) {
                     try {
-                        val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                        val dateFormat =
+                            java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
                         val date = dateFormat.parse(endDateFilter.text)
                         date?.let {
                             val calendar = java.util.Calendar.getInstance()
@@ -373,8 +382,8 @@ class InventoryViewModel @Inject constructor(
                     }
                 } else null
 
-                val firmId = firmIdFilter.text.toIntOrNull()
-                val purchaseOrderId = purchaseOrderIdFilter.text.toIntOrNull()
+                val firmId = firmIdFilter.text
+                val purchaseOrderId = purchaseOrderIdFilter.text
 
                 appDatabase.itemDao()
                     .filterItems(
@@ -443,7 +452,7 @@ class InventoryViewModel @Inject constructor(
         purchaseOrderIdFilter.text = ""
         sortBy.value = "addDate"
         sortOrder.value = "DESC"
-        
+
         loadRecentItems()
     }
 
@@ -497,7 +506,7 @@ class InventoryViewModel @Inject constructor(
                     val newItemId = appDatabase.itemDao().insert(it)
 
                     if (newItemId != -1L) {
-                        val insertedItem = it.copy(itemId = newItemId.toInt())
+                        val insertedItem = it
 
                         try {
                             val subCategory = appDatabase.subCategoryDao()
@@ -565,9 +574,9 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun safeDeleteItem(
-        itemId: Int,
-        catId: Int,
-        subCatId: Int,
+        itemId: String,
+        catId: String,
+        subCatId: String,
         onSuccess: (Int) -> Unit,
         onFailure: (Throwable) -> Unit
     ) {
@@ -636,7 +645,7 @@ class InventoryViewModel @Inject constructor(
             val data = appDatabase.purchaseDao().getOrdersByBillDate(billDate.text)
             purchaseOrdersByDate.addAll(data)
 
-            if (purchaseOrdersByDate.isEmpty()){
+            if (purchaseOrdersByDate.isEmpty()) {
                 _snackBarState.value = "No purchase bill found"
             }
         }
@@ -648,21 +657,22 @@ class InventoryViewModel @Inject constructor(
                 .getItemsByOrderIdAndSubCatName(item.purchaseOrderId, subCatName)
             purchaseItems.clear()
             billItemDetails.value = ""
-            if (purchaseItemList.isNotEmpty()){
+            if (purchaseItemList.isNotEmpty()) {
                 val sellerInfo = appDatabase.purchaseDao().getSellerById(item.sellerId)
 
-                if (sellerInfo!=null){
+                if (sellerInfo != null) {
                     //todo
 //                    sellerFirmId = 0,
 //                    purchaseOrderId = 0,
 //                    purchaseItemId = 0,
                     val firInfo = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
-                    val t = "${firInfo?.firmName} by ${sellerInfo.name} (${sellerInfo.mobileNumber})"
+                    val t =
+                        "${firInfo?.firmName} by ${sellerInfo.name} (${sellerInfo.mobileNumber})"
                     val u = purchaseItemList.groupBy { it.purity }.map { (purity, items) ->
                         val total = items.sumOf { it.gsWt }
                         "Purity: $purity: Total Gs Wt: $total gm "
                     }.joinToString(", ")
-                    billItemDetails.value  = "$t \n$u"
+                    billItemDetails.value = "$t \n$u"
 
                     purchaseItems.addAll(purchaseItemList)
                 }

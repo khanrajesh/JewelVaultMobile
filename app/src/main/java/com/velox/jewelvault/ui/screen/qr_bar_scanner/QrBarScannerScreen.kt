@@ -35,12 +35,8 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel) {
 
     QrBarScannerPage(valueProcessing = {
         if (baseViewModel.metalRates.isNotEmpty()){
-            if (it.canBeInt()) {
-                viewModel.processScan(it.toInt(), baseViewModel.metalRates)
+                viewModel.processScan(it, baseViewModel.metalRates)
                 "Processing ID: $it…"
-            } else {
-                "Invalid Qr/Bar Code\n ID: $it"
-            }
         }else{
             "Load Metal Rate"
         }
