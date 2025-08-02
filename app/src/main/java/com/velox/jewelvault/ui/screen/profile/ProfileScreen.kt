@@ -19,9 +19,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
@@ -58,6 +59,7 @@ import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
@@ -75,10 +77,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     }
     
     LaunchedEffect(true) {
-        profileViewModel.getStoreData()
         if (firstLaunch){
             isEditable.value = true
         }
+        val storeId = profileViewModel.dataStoreManager.storeId.first()
+        profileViewModel.getStoreData(storeId)
     }
 
     Box(
@@ -170,6 +173,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     Column(Modifier.weight(1f)) {
                         CusOutlinedTextField(
@@ -211,9 +215,6 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             readOnly = !isEditable.value,
                             maxLines = 3
                         )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
                         CusOutlinedTextField(
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
@@ -241,6 +242,9 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             keyboardType = KeyboardType.Text,
                             readOnly = !isEditable.value
                         )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
                         CusOutlinedTextField(
                             modifier = Modifier
                                 .padding(vertical = 5.dp)
@@ -251,6 +255,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             readOnly = !isEditable.value
                         )
                     }
+
+
                 }
 
                 if (isEditable.value) Row(
@@ -261,9 +267,12 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     Spacer(Modifier.weight(1f))
                     Text("Cancel", Modifier
                         .clickable {
-                            isEditable.value = !isEditable.value
-                            // Reset to original data when canceling
-                            profileViewModel.getStoreData()
+                            ioScope {
+                                isEditable.value = !isEditable.value
+                                // Reset to original data when canceling
+                                val storeId = profileViewModel.dataStoreManager.storeId.first()
+                                profileViewModel.getStoreData(storeId)
+                            }
                         }
                         .background(
                             MaterialTheme.colorScheme.primary,

@@ -31,6 +31,7 @@ class ProfileViewModel @Inject constructor(
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
+    val dataStoreManager = _dataStoreManager
 
     // Store details fields - no dummy data
     val shopName = InputFieldState()
@@ -137,7 +138,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun getStoreData() {
+    fun getStoreData(storeId: String, isFirstLaunch: Boolean = false) {
         ioLaunch {
             try {
                 isLoading.value = true
@@ -145,35 +146,60 @@ class ProfileViewModel @Inject constructor(
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
-                // First try to get data from Firestore
-                val firestoreResult =
-                    FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
-
-                if (firestoreResult.isSuccess && firestoreResult.getOrNull() != null) {
-                    // Data exists in Firestore, use it
-                    val firestoreData = firestoreResult.getOrNull()!!
-                    val storeFromFirestore = FirebaseUtils.mapToStoreEntity(firestoreData)
-
-                    // Update local database with Firestore data
-                    val existingStore = appDatabase.storeDao().getStoreById(userId)
-                    if (existingStore != null) {
-                        // Update existing store
-                        appDatabase.storeDao().updateStore(storeFromFirestore)
+                if (storeId.isNotBlank()) {
+                    val result =
+                        FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber, storeId)
+                    if (result.isSuccess) {
+                        val storeFromFirestore =
+                            FirebaseUtils.mapToStoreEntity(result.getOrNull()!!)
+                        storeEntity.value = storeFromFirestore
                     } else {
-                        // Insert new store
-                        val insertResult = appDatabase.storeDao().insertStore(storeFromFirestore)
-                        if (insertResult != -1L) {
-                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeFromFirestore.storeId)
+                        log("Error getting store data from Firestore: ${result.exceptionOrNull()?.message}")
+                        _snackBarState.value = "Failed to load store data"
+                    }
+                } else {
+                    val result = FirebaseUtils.getAllStores(_firestore, mobileNumber)
+                    if (result.isSuccess) {
+                        val storeList = result.getOrNull()
+                        when {
+                            storeList.isNullOrEmpty() -> {
+                                log("No stores found for this mobile number in Firestore")
+                                _snackBarState.value = "No stores found in cloud"
+                            }
+
+                            storeList.size == 1 -> {
+                                log("Found 1 store in Firestore")
+                                val storeId =storeList[0].first
+                                val storeFromFirestore =
+                                    FirebaseUtils.mapToStoreEntity(storeList[0].second).copy(storeId)
+
+                                _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeId)
+                                // Update local database with Firestore data
+                                val existingStore = appDatabase.storeDao().getStoreById(storeId)
+                                if (existingStore != null) {
+                                    // Update existing store
+                                    appDatabase.storeDao().updateStore(storeFromFirestore)
+                                } else {
+                                    // Insert new store
+
+                                        appDatabase.storeDao().insertStore(storeFromFirestore)
+                                }
+
+                                storeEntity.value = storeFromFirestore
+                                log("Store data loaded from Firestore")
+                                if (isFirstLaunch) {
+                                    initializeDefaultCategories()
+                                }
+                            }
+
+                            storeList.size > 1 -> {
+                                log("Found ${storeList.size} stores in Firestore")
+                                // Handle the multiple stores case here if needed
+                            }
                         }
                     }
-
-                    storeEntity.value = storeFromFirestore
-                    log("Store data loaded from Firestore")
-                } else {
-                    // No data in Firestore, try local database
-                    storeEntity.value = appDatabase.storeDao().getStoreById(userId)
-                    log("Store data loaded from local database")
                 }
+
 
                 // Load user data (no dummy text for these fields)
                 userData?.let {
@@ -321,7 +347,7 @@ class ProfileViewModel @Inject constructor(
                     isUploadingImage.value = false
                 }
 
-                val storeEntity = StoreEntity(
+                var storeEntity = StoreEntity(
                     storeId = storeId,
                     userId = userId,
                     proprietor = InputValidator.sanitizeText(propName.text),
@@ -336,44 +362,58 @@ class ProfileViewModel @Inject constructor(
                     upiId = upiId.text.trim()
                 )
 
-                // Save to local database
-                val localResult = if (storeId != "") {
-                    appDatabase.storeDao().updateStore(storeEntity)
-                } else {
-                    appDatabase.storeDao().insertStore(storeEntity)
-                }
+                // Save to Firestore
+                val firestoreData = FirebaseUtils.storeEntityToMap(storeEntity)
+                val firestoreResult = FirebaseUtils.saveOrUpdateStoreData(
+                    _firestore,
+                    mobileNumber,
+                    firestoreData,
+                    storeId = storeId
 
-                if (localResult != -1L) {
-                    // Update store ID if it's a new store
-                    _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeId)
+                )
 
+                if (firestoreResult.isSuccess) {
 
-                    // Save UPI settings to DataStore for quick access
-                    _dataStoreManager.setUpiId(upiId.text.trim())
-                    _dataStoreManager.setMerchantName(shopName.text.trim())
+                    val generatedId = firestoreResult.getOrNull()
 
-                    // Save to Firestore
-                    val firestoreData = FirebaseUtils.storeEntityToMap(storeEntity)
-                    val firestoreResult = FirebaseUtils.saveStoreDataToFirestore(
-                        _firestore,
-                        mobileNumber,
-                        firestoreData
-                    )
-
-                    if (firestoreResult.isSuccess) {
-                        log("Store data saved to both local database and Firestore")
-                        _snackBarState.value = "Store details saved successfully"
-                        onSuccess()
-                    } else {
-                        log("Failed to save to Firestore: ${firestoreResult.exceptionOrNull()?.message}")
-                        _snackBarState.value = "Saved locally but failed to sync with cloud"
-                        onSuccess() // Still consider it a success since local save worked
+                    // If this is a new store, assign generatedId
+                    if (generatedId != null) {
+                        storeEntity = storeEntity.copy(storeId = generatedId)
+                        _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, generatedId)
                     }
+
+                    log("Store data saved to both local database and Firestore")
+                    _snackBarState.value = "Store details saved successfully"
+
+                    // Save to local database
+                    val localResult = if (storeId != "") {
+                        appDatabase.storeDao().updateStore(storeEntity)
+                    } else {
+                        appDatabase.storeDao().insertStore(storeEntity)
+                    }
+
+                    if (localResult != -1L) {
+                        // Save the final store ID in DataStore
+                        _dataStoreManager.setValue(
+                            DataStoreManager.STORE_ID_KEY,
+                            storeEntity.storeId
+                        )
+
+                        _dataStoreManager.setUpiId(upiId.text.trim())
+                        _dataStoreManager.setMerchantName(shopName.text.trim())
+                    } else {
+                        log("Failed to save store to local database")
+                        _snackBarState.value = "Failed to save store details. Please try again."
+                        onFailure()
+                    }
+                    onSuccess()
                 } else {
-                    log("Failed to save store to local database")
-                    _snackBarState.value = "Failed to save store details. Please try again."
-                    onFailure()
+                    log("Failed to save to Firestore: ${firestoreResult.exceptionOrNull()?.message}")
+                    _snackBarState.value = "Saved locally but failed to sync with cloud"
+                    onSuccess() // Still consider it a success since local save worked
                 }
+
+
 
                 isLoading.value = false
             } catch (e: Exception) {
@@ -400,12 +440,13 @@ class ProfileViewModel @Inject constructor(
         ioLaunch {
             try {
                 isLoading.value = true
+                val storeId = _dataStoreManager.storeId.first()
                 val userId = _dataStoreManager.userId.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
                 val firestoreResult =
-                    FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber)
+                    FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber, storeId)
 
                 if (firestoreResult.isSuccess && firestoreResult.getOrNull() != null) {
                     val firestoreData = firestoreResult.getOrNull()!!
@@ -421,7 +462,10 @@ class ProfileViewModel @Inject constructor(
 
                     if (result != -1L) {
                         if (existingStore == null) {
-                            _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeFromFirestore.storeId)
+                            _dataStoreManager.setValue(
+                                DataStoreManager.STORE_ID_KEY,
+                                storeFromFirestore.storeId
+                            )
                         }
 
                         // Update UPI settings in DataStore

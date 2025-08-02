@@ -142,7 +142,7 @@ class ExcelExporter(private val context: Context) {
         }
         users.forEachIndexed { rowIndex, user ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(user.id.toDouble())
+            row.createCell(0).setCellValue(user.userId.toDouble())
             row.createCell(1).setCellValue(user.name)
             row.createCell(2).setCellValue(user.email ?: "")
             row.createCell(3).setCellValue(user.mobileNo)

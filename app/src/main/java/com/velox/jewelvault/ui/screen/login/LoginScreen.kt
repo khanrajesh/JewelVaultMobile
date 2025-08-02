@@ -338,7 +338,8 @@ private fun AuthScreen(
                         .fillMaxWidth(),
                     state = mobileNo,
                     placeholderText = "Mobile Number",
-                    keyboardType = KeyboardType.Phone
+                    keyboardType = KeyboardType.Phone,
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
                 )
 
 

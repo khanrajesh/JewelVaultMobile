@@ -24,7 +24,6 @@ import com.velox.jewelvault.utils.BiometricAuthManager
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -238,9 +237,9 @@ class LoginViewModel @Inject constructor(
                         if (result != null) {
                             try {
                                 _dataStoreManager.setValue(
-                                    DataStoreManager.USER_ID_KEY, result.id
+                                    DataStoreManager.USER_ID_KEY, result.userId
                                 )
-                                _sessionManager.startSession(result.id)
+                                _sessionManager.startSession(result.userId)
                                 
                                 // Save phone number if requested
                                 if (savePhone) {
@@ -249,7 +248,7 @@ class LoginViewModel @Inject constructor(
                                     }
                                 }
                                 
-                                log("Login successful, user ID: ${result.id}")
+                                log("Login successful, user ID: ${result.userId}")
                                 onSuccess()
                                 _loadingState.value = false
                             } catch (e: Exception) {
@@ -307,7 +306,7 @@ class LoginViewModel @Inject constructor(
             
             // Proceed with OTP generation
         _loadingState.value = true
-        val options = PhoneAuthOptions.newBuilder(_auth).setPhoneNumber(phoneNumber)
+        val options = PhoneAuthOptions.newBuilder(_auth).setPhoneNumber("+91$phoneNumber")
             .setTimeout(60L, TimeUnit.SECONDS).setActivity(activity)
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onCodeSent(
@@ -370,7 +369,7 @@ class LoginViewModel @Inject constructor(
 
 
         val uid = firebaseUser.value?.uid
-        val phone = firebaseUser.value?.phoneNumber
+        val phone = firebaseUser.value?.phoneNumber?.replace("+91", "")?.filter { it.isDigit() }
 
         if (uid != null && phone != null) {
             // Hash the PIN before storing
@@ -403,10 +402,11 @@ class LoginViewModel @Inject constructor(
                         } else if (userCount == 0) {
                             // No user exists, create new user
                             val newUser = UsersEntity(
-                                id = uid,
+                                userId = uid,
                                 name = phone,
                                 mobileNo = phone,
-                                pin = hashedPin
+                                pin = hashedPin,
+                                role = "user"
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
@@ -468,9 +468,9 @@ class LoginViewModel @Inject constructor(
                             if (result != null) {
                                 try {
                                     _dataStoreManager.setValue(
-                                        DataStoreManager.USER_ID_KEY, result.id
+                                        DataStoreManager.USER_ID_KEY, result.userId
                                     )
-                                    _sessionManager.startSession(result.id)
+                                    _sessionManager.startSession(result.userId)
                                     
                                     // Save phone number if requested
                                     if (savePhone) {
@@ -543,7 +543,7 @@ class LoginViewModel @Inject constructor(
         }
 
         val uid = firebaseUser.value?.uid
-        val phone = firebaseUser.value?.phoneNumber
+        val phone = firebaseUser.value?.phoneNumber?.replace("+91", "")?.filter { it.isDigit() }
 
         if (uid != null && phone != null) {
             // Hash the PIN before storing
@@ -576,10 +576,11 @@ class LoginViewModel @Inject constructor(
                         } else if (userCount == 0) {
                             // No user exists, create new user
                             val newUser = UsersEntity(
-                                id = uid,
+                                userId = uid,
                                 name = phone, 
                                 mobileNo = phone,
-                                pin = hashedPin
+                                pin = hashedPin,
+                                role = "user"
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {

@@ -1,6 +1,7 @@
 package com.velox.jewelvault.utils
 
 import android.net.Uri
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
@@ -10,49 +11,91 @@ import java.util.UUID
 class FirebaseUtils {
     companion object {
         private const val USERS_COLLECTION = "users"
-        private const val STORE_DETAILS_SUBCOLLECTION = "store_details"
+        private const val STORE_DETAILS_SUBCOLLECTION = "stores"
         private const val STORE_IMAGES_FOLDER = "store_images"
-        
+
         /**
          * Save store data to Firestore
          * Structure: users/{mobileNumber}/store_details/{storeId}
          */
-        suspend fun saveStoreDataToFirestore(
+        suspend fun saveOrUpdateStoreData(
             firestore: FirebaseFirestore,
             mobileNumber: String,
-            storeData: Map<String, Any>
+            storeData: Map<String, Any>,
+            storeId: String? = null  // Can be null or blank for new
         ): Result<String> {
             return try {
-                val documentRef = firestore
+                val collectionRef = firestore
                     .collection(USERS_COLLECTION)
                     .document(mobileNumber)
                     .collection(STORE_DETAILS_SUBCOLLECTION)
-                    .document("store_info")
-                
-                documentRef.set(storeData).await()
-                Result.success("Store data saved successfully")
+
+                val finalStoreId: String
+                val documentRef: DocumentReference
+
+                if (!storeId.isNullOrBlank()) {
+                    // Update existing document
+                    documentRef = collectionRef.document(storeId)
+                    documentRef.set(storeData).await()
+                    finalStoreId = storeId
+                } else {
+                    // Create new document with auto ID
+                    documentRef = collectionRef.add(storeData).await()
+                    finalStoreId = documentRef.id
+                }
+
+                Result.success(finalStoreId)
             } catch (e: Exception) {
-                log("Error saving store data to Firestore: ${e.message}")
+                log("Error saving/updating store data: ${e.message}")
                 Result.failure(e)
             }
         }
-        
+
+
+
+        suspend fun getAllStores(
+            firestore: FirebaseFirestore,
+            mobileNumber: String
+        ): Result<List<Pair<String, Map<String, Any>>>> {
+            return try {
+                val snapshot = firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(STORE_DETAILS_SUBCOLLECTION)
+                    .get()
+                    .await()
+
+                val storeDocuments = snapshot.documents.mapNotNull { doc ->
+                    val data = doc.data
+                    if (data != null) doc.id to data else null
+                }
+
+                Result.success(storeDocuments)
+
+            } catch (e: Exception) {
+                log("Error fetching store documents: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+
         /**
          * Get store data from Firestore
          */
         suspend fun getStoreDataFromFirestore(
             firestore: FirebaseFirestore,
-            mobileNumber: String
+            mobileNumber: String,
+            storeId:String
         ): Result<Map<String, Any>?> {
             return try {
                 val document = firestore
                     .collection(USERS_COLLECTION)
                     .document(mobileNumber)
                     .collection(STORE_DETAILS_SUBCOLLECTION)
-                    .document("store_info")
+                    .document(storeId)
                     .get()
                     .await()
-                
+
                 if (document.exists()) {
                     Result.success(document.data)
                 } else {
@@ -63,7 +106,7 @@ class FirebaseUtils {
                 Result.failure(e)
             }
         }
-        
+
         /**
          * Upload image to Firebase Storage and return download URL
          */
@@ -75,10 +118,10 @@ class FirebaseUtils {
             return try {
                 val fileName = "${STORE_IMAGES_FOLDER}/${mobileNumber}_${UUID.randomUUID()}.jpg"
                 val storageRef: StorageReference = storage.reference.child(fileName)
-                
+
                 val uploadTask = storageRef.putFile(imageUri).await()
                 val downloadUrl = storageRef.downloadUrl.await()
-                
+
                 log("Image uploaded successfully: ${downloadUrl}")
                 Result.success(downloadUrl.toString())
             } catch (e: Exception) {
@@ -86,7 +129,7 @@ class FirebaseUtils {
                 Result.failure(e)
             }
         }
-        
+
         /**
          * Delete image from Firebase Storage
          */
@@ -104,7 +147,7 @@ class FirebaseUtils {
                 Result.failure(e)
             }
         }
-        
+
         /**
          * Convert StoreEntity to Firestore map
          */
@@ -126,14 +169,14 @@ class FirebaseUtils {
                 "lastUpdated" to System.currentTimeMillis()
             )
         }
-        
+
         /**
          * Convert Firestore map to StoreEntity
          */
         fun mapToStoreEntity(data: Map<String, Any>): com.velox.jewelvault.data.roomdb.entity.StoreEntity {
             return com.velox.jewelvault.data.roomdb.entity.StoreEntity(
-                storeId = (data["storeId"] as? String)?:"",
-                userId = (data["userId"] as? String)?:"",
+                storeId = (data["storeId"] as? String) ?: "",
+                userId = (data["userId"] as? String) ?: "",
                 proprietor = data["proprietor"] as? String ?: "",
                 name = data["name"] as? String ?: "",
                 email = data["email"] as? String ?: "",

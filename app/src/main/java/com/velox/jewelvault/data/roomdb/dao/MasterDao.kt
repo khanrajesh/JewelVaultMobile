@@ -12,7 +12,7 @@ interface MasterDao {
 
     // Deleting a user should delete all associated stores, categories, subcategories, and items
     @Transaction
-    @Query("DELETE FROM ${TableNames.USERS} WHERE id = :userId")
+    @Query("DELETE FROM ${TableNames.USERS} WHERE userId = :userId")
     suspend fun deleteUserAndRelatedData(userId: String)
 
     // Deleting all stores associated with a user
