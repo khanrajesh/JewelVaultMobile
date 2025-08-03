@@ -6,9 +6,12 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.utils.ioScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 class DataStoreManager @Inject constructor(
@@ -71,9 +74,13 @@ class DataStoreManager @Inject constructor(
 
         // Backup Settings
         val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
-    }
 
-    val userName: Flow<String> = dataStore.data.map { prefs -> prefs[USER_NAME_KEY] ?: "" }
+        private val CL_USER_NAME_KEY = stringPreferencesKey("cl_user_name")
+        private val CL_USER_ID_KEY = stringPreferencesKey("cl_user_id")
+        private val CL_USER_MOBILE_KEY = stringPreferencesKey("cl_user_mobile")
+        private val CL_USER_ROLE_KEY = stringPreferencesKey("cl_user_role")
+
+    }
 
     fun saveAdminInfo(userName: String, userId: String, mobileNo: String) {
         ioScope {
@@ -81,6 +88,26 @@ class DataStoreManager @Inject constructor(
             setValue(ADMIN_USER_ID_KEY, userId)
             setValue(ADMIN_USER_MOBILE_KEY, mobileNo)
         }
+    }
+
+
+    fun saveCurrentLoginUser(user: UsersEntity) {
+        ioScope {
+           setValue(CL_USER_ID_KEY, user.userId)
+            setValue(CL_USER_NAME_KEY, user.name)
+            setValue(CL_USER_MOBILE_KEY, user.mobileNo)
+            setValue(CL_USER_ROLE_KEY, user.role)
+        }
+    }
+
+    fun getCurrentLoginUser(): UsersEntity{
+        val prefs = runBlocking { dataStore.data.first() }
+        return UsersEntity(
+            userId = prefs[CL_USER_ID_KEY] ?: "",
+            name = prefs[CL_USER_NAME_KEY] ?: "",
+            mobileNo = prefs[CL_USER_MOBILE_KEY] ?: "",
+            role = prefs[CL_USER_ROLE_KEY] ?: ""
+        )
     }
 
     /**

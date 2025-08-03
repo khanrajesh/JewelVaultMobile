@@ -68,15 +68,13 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
     val password = remember { InputFieldState() }
     val confirmPassword = remember { InputFieldState() }
 
-//    password.text = "0000"
-
     val savePhoneChecked = remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
         ioScope {
-            val userExist = loginViewModel.userExits()
+            val adminUser = loginViewModel.adminUserExits()
 
-            if (!userExist) {
+            if (adminUser == null) {
                 isLogin.value = false
             } else {
                 // Check biometric availability
@@ -546,19 +544,28 @@ private fun loginAction(
 ) {
     if (loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
         // Use biometric authentication directly
-        loginViewModel.loginWithBiometricAndPin(
-            phone = mobileNo.text,
-            pin = password.text,
-            savePhone = savePhoneChecked.value,
+        loginViewModel.checkBiometric(
             context = activity,
             onSuccess = {
-                mainScope {
-                    navHost.navigate(Screens.Main.route) {
-                        popUpTo(Screens.Login.route) {
-                            inclusive = true
+                loginViewModel.logInUser(
+                    phone = mobileNo.text,
+                    pin = password.text,
+                    savePhone = savePhoneChecked.value,
+                    onSuccess = {
+                        mainScope {
+                            navHost.navigate(Screens.Main.route) {
+                                popUpTo(Screens.Login.route) {
+                                    inclusive = true
+                                }
+                            }
                         }
-                    }
-                }
+                    },
+                    onFailure = {
+                        loginViewModel.snackBarState.value = it
+                        if (it == "User not found, please sign up first") {
+                            isLogin.value = false
+                        }
+                    })
             },
             onFailure = { error ->
                 loginViewModel.snackBarState.value = error
@@ -572,7 +579,7 @@ private fun loginAction(
         )
     } else {
         // Use regular PIN authentication
-        loginViewModel.adminLoginWithPin(
+        loginViewModel.logInUser(
             phone = mobileNo.text,
             pin = password.text,
             savePhone = savePhoneChecked.value,

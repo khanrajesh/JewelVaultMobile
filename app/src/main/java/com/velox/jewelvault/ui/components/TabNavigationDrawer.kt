@@ -298,7 +298,7 @@ fun TabNavigationDrawer(
                             }.padding(10.dp)
                         )
                         Spacer(Modifier.width(20.dp))
-                        MetalRatesTicker(Modifier.height(50.dp).weight(1f))
+                        MetalRatesTicker(Modifier.height(50.dp).weight(1f), backgroundColor = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(20.dp))
                         notifierContent()
                         Spacer(Modifier.width(10.dp))

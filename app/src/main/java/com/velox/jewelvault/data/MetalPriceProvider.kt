@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -77,7 +78,8 @@ import java.time.LocalDateTime
 @Composable
 fun MetalRatesTicker(
     modifier: Modifier = Modifier,
-    textColor: Color = Color.Black
+    textColor: Color = Color.Black,
+    backgroundColor: Color = Color.Transparent,
 ) {
     val showEditDialog = remember { mutableStateOf(false) }
     val baseViewModel = LocalBaseViewModel.current
@@ -106,7 +108,7 @@ fun MetalRatesTicker(
         }
         .joinToString(separator = "   •   ")
 
-    Row(
+    Box(
         modifier = modifier
             .padding(horizontal = 10.dp)
             .height(50.dp)
@@ -117,25 +119,66 @@ fun MetalRatesTicker(
                     }
                 )
             }
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (baseViewModel.metalRatesLoading.value) {
+                CircularProgressIndicator(Modifier.size(20.dp), color = Color.Black)
+                Spacer(Modifier.width(10.dp))
+            }
 
-        if (baseViewModel.metalRatesLoading.value) {
-            CircularProgressIndicator(Modifier.size(20.dp), color = Color.Black)
-            Spacer(Modifier.width(10.dp))
+            Text(
+                text = tickerText,
+                color = textColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                modifier = Modifier
+                    .offset(x = animatedOffsetX.dp * 1000) // smooth move right to left
+            )
+        }
+        
+        // Left fade gradient (start of scroll)
+        if (backgroundColor != Color.Transparent){
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(40.dp)
+                    .height(20.dp)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                backgroundColor,
+                                backgroundColor.copy(alpha = 0.8f),
+                                backgroundColor.copy(alpha = 0.0f)
+                            )
+                        )
+                    )
+            )
+            // Right fade gradient (end of scroll)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(40.dp)
+                    .height(20.dp)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                backgroundColor.copy(alpha = 0.0f),
+                                backgroundColor.copy(alpha = 0.8f),
+                                backgroundColor
+                            )
+                        )
+                    )
+            )
+
         }
 
-        Text(
-            text = tickerText,
-            color = textColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            maxLines = 1,
-            modifier = Modifier
-                .offset(x = animatedOffsetX.dp * 1000) // smooth move right to left
-        )
     }
 
     if (showEditDialog.value && baseViewModel.metalRates.isNotEmpty()) {

@@ -19,6 +19,9 @@ interface UsersDao {
     suspend fun deleteUser(user: UsersEntity): Int
     // Returns number of rows deleted
 
+    @Query("SELECT * FROM ${TableNames.USERS} WHERE role = 'admin' LIMIT 1")
+    suspend fun getAdminUser(): UsersEntity?
+
     @Query("SELECT COUNT(*) FROM ${TableNames.USERS}")
     suspend fun getUserCount(): Int
 
