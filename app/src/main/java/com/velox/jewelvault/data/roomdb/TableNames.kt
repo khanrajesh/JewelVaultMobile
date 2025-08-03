@@ -8,6 +8,7 @@ object TableNames {
     
     // Core entities
     const val USERS = "users"
+    const val USER_ADDITIONAL_INFO = "user_additional_info"
     const val STORE = "store"
     const val CATEGORY = "category"
     const val SUB_CATEGORY = "sub_category"

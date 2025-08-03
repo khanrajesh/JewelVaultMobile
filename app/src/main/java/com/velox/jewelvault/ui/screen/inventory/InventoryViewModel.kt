@@ -9,9 +9,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
-import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
@@ -24,6 +24,7 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,6 +50,15 @@ class InventoryViewModel @Inject constructor(
 ) : ViewModel() {
 
     val dataStoreManager = _dataStoreManager
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
 
     //    val loadingState = _loadingState
     val snackBarState = _snackBarState
@@ -193,8 +203,8 @@ class InventoryViewModel @Inject constructor(
     fun getCategoryAndSubCategoryDetails() {
         ioScope {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val result =
                     appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
 
@@ -241,8 +251,8 @@ class InventoryViewModel @Inject constructor(
     fun loadInventorySummary() {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 // Get all items for the user and store
                 val allItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
@@ -289,8 +299,8 @@ class InventoryViewModel @Inject constructor(
     fun addCategory(catName: String) {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val s = appDatabase.categoryDao().insertCategory(
                     CategoryEntity(
                         catId = generateId(),
@@ -316,8 +326,8 @@ class InventoryViewModel @Inject constructor(
     fun addSubCategory(subCatName: String, catName: String, catId: String) {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val s = appDatabase.subCategoryDao().insertSubCategory(
                     SubCategoryEntity(
                         subCatId = generateId(),
@@ -497,8 +507,8 @@ class InventoryViewModel @Inject constructor(
 //            _loadingState.value = true
             try {
                 withIo {
-                    val userId = dataStoreManager.userId.first()
-                    val storeId = dataStoreManager.storeId.first()
+                    val userId = admin.first.first()
+                    val storeId = store.first.first()
                     val it = item.copy(
                         userId = userId, storeId = storeId
                     )

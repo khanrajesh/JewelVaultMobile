@@ -40,7 +40,7 @@ class BackupManager(
             onProgress("Starting backup process...", 0)
             
             // Get user info for backup file naming
-            val userId = dataStoreManager.userId.first()
+            val userId = dataStoreManager.getAdminInfo().first.first()
             val userData = database.userDao().getUserById(userId)
             val userMobile = userData?.mobileNo ?: "unknown"
             

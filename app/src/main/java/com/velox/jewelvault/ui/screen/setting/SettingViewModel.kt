@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -13,10 +12,9 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.ioScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -29,6 +27,12 @@ class SettingViewModel @Inject constructor(
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
 
     // Functional settings that are actually implemented
     val continuousNetworkCheck = mutableStateOf(true)
@@ -135,7 +139,7 @@ class SettingViewModel @Inject constructor(
     fun verifyPinForWipe(pin: String) {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
+                val userId = admin.first.first()
                 val currentUser = _appDatabase.userDao().getUserById(userId)
                 if (currentUser != null) {
                     val hashedPin = SecurityUtils.hashPin(pin)
@@ -158,7 +162,7 @@ class SettingViewModel @Inject constructor(
     private fun sendOtpForWipe() {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
+                val userId =admin.first.first()
                 val currentUser = _appDatabase.userDao().getUserById(userId)
                 if (currentUser != null) {
                     val phoneNumber = currentUser.mobileNo

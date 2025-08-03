@@ -43,8 +43,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.R
@@ -159,17 +163,18 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
         }
     }) {
         Scaffold(topBar = {
-            TopAppBar(title = { Text("") }, navigationIcon = {
-                IconButton(onClick = {
-                    scope.launch {
-                        drawerState.open() // Open drawer on button click
+            TopAppBar(
+                title = { Text("") }, navigationIcon = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            drawerState.open() // Open drawer on button click
+                        }
+                    }) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
                     }
-                }) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu")
-                }
-            }, colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+                }, colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             )
         }) { innerPadding ->
             Column(
@@ -193,61 +198,107 @@ private fun LandscapeDashboardScreen(
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
 
-    TabNavigationDrawer(drawerState = drawerState, content = {
-        SubAppNavigation(
-            subNavController, navHost, baseViewModel, startDestination = SubScreens.Dashboard.route
-        )
-    }, drawerContent = {
-        LazyColumn {
-            items(inputIconStates) { item ->
-                Column {
-                    Row(Modifier
-                        .clickable {
-                            inputIconStates.forEach { it.selected = false }
-                            item.selected = true
-                            item.onClick.invoke()
-                        }
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        item.icon?.let { icon ->
-                            if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = item.text,
-                                    Modifier
-                                        .padding(start = 5.dp)
-                                        .size(30.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(icon as Int),
-                                    contentDescription = item.text,
-                                    Modifier
-                                        .padding(start = 5.dp)
-                                        .size(30.dp)
+    val currentUser = baseViewModel.dataStoreManager.getCurrentLoginUser()
+
+    TabNavigationDrawer(
+        drawerState = drawerState, content = {
+            SubAppNavigation(
+                subNavController,
+                navHost,
+                baseViewModel,
+                startDestination = SubScreens.Dashboard.route
+            )
+        }, drawerContent = {
+            LazyColumn {
+                items(inputIconStates) { item ->
+                    Column {
+                        Row(
+                            Modifier
+                                .clickable {
+                                    inputIconStates.forEach { it.selected = false }
+                                    item.selected = true
+                                    item.onClick.invoke()
+                                }
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            item.icon?.let { icon ->
+                                if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = item.text,
+                                        Modifier
+                                            .padding(start = 5.dp)
+                                            .size(30.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                } else {
+                                    Image(
+                                        painter = painterResource(icon as Int),
+                                        contentDescription = item.text,
+                                        Modifier
+                                            .padding(start = 5.dp)
+                                            .size(30.dp)
+                                    )
+                                }
+                            }
+                            if (drawerState.isOpen) {
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    item.text,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
-                        if (drawerState.isOpen) {
-                            Spacer(Modifier.width(10.dp))
-                            Text(item.text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-                        }
-                    }
 
-                    if (item.selected){
-                        Spacer(Modifier.fillMaxWidth()
-                            .height(5.dp)
-                            .padding(start = 2.dp, end = 2.dp)
-                            .background(MaterialTheme.colorScheme.onPrimary, RoundedCornerShape(2.dp))
-                        )
+                        if (item.selected) {
+                            Spacer(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(5.dp)
+                                    .padding(start = 2.dp, end = 2.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.onPrimary,
+                                        RoundedCornerShape(2.dp)
+                                    )
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
                     }
-                    Spacer(Modifier.height(2.dp))
                 }
             }
-        }
-    })
+        },
+        notifierContent = {
+            Column(
+                modifier = Modifier
+            ) {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            append(currentUser.role.uppercase())
+                        }
+                        append("\n")
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            append(currentUser.name.uppercase())
+                        }
+                    },
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        })
 }
 
 

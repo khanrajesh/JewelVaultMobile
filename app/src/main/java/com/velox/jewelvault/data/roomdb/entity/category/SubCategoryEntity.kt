@@ -1,10 +1,8 @@
-package com.velox.jewelvault.data.roomdb.entity
+package com.velox.jewelvault.data.roomdb.entity.category
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.velox.jewelvault.data.roomdb.TableNames
-import com.velox.jewelvault.utils.generateId
-import java.sql.Timestamp
 
 @Entity(tableName = TableNames.SUB_CATEGORY)
 data class SubCategoryEntity(

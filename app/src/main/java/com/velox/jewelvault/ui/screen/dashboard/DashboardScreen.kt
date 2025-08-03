@@ -1,11 +1,9 @@
 package com.velox.jewelvault.ui.screen.dashboard
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,19 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Pentagon
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Analytics
@@ -62,9 +56,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
-import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
-import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
@@ -80,7 +71,6 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
@@ -137,8 +127,8 @@ fun LandscapeMainScreen(
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
             val storeId =
-                baseViewModel.dataStoreManager.getValue(DataStoreManager.STORE_ID_KEY).first()
-            if (storeId == null) {
+                baseViewModel.dataStoreManager.getSelectedStoreInfo().first.first()
+            if (storeId.isBlank()) {
                 baseViewModel.snackMessage = "Please Set Up Your Store First."
                 mainScope {
                     subNavController.navigate("${SubScreens.Profile.route}/${true}")

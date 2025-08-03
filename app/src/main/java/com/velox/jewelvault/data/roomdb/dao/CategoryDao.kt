@@ -6,7 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.TableNames
 
 

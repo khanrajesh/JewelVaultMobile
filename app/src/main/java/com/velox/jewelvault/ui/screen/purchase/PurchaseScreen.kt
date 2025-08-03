@@ -51,7 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.data.roomdb.dto.PurchaseItemInputDto
 import com.velox.jewelvault.data.roomdb.dto.PurchaseMetalRateDto
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalBaseViewModel

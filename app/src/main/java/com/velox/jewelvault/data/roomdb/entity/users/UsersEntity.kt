@@ -1,4 +1,4 @@
-package com.velox.jewelvault.data.roomdb.entity
+package com.velox.jewelvault.data.roomdb.entity.users
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

@@ -31,7 +31,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick

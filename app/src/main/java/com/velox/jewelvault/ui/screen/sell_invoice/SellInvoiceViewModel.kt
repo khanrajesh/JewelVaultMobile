@@ -29,6 +29,7 @@ import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
@@ -42,6 +43,15 @@ class SellInvoiceViewModel @Inject constructor(
     private val _loadingState: MutableState<Boolean>,
     private val _snackBarState: MutableState<String>
 ) : ViewModel() {
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
 
     val snackBarState = _snackBarState
     val showAddItemDialog = mutableStateOf(false)
@@ -77,14 +87,10 @@ class SellInvoiceViewModel @Inject constructor(
 
     private fun loadUpiSettings() {
         viewModelScope.launch {
-            _dataStoreManager.upiId.collect { id ->
-                upiId.value = id
-            }
+            upiId.value = store.second.first()
         }
         viewModelScope.launch {
-            _dataStoreManager.storeName.collect { name ->
-                storeName.value = name
-            }
+            storeName.value= store.third.first()
         }
     }
 
@@ -224,8 +230,8 @@ class SellInvoiceViewModel @Inject constructor(
                 val totalAmount = selectedItemList.sumOf { it.price }
                 val totalTax = selectedItemList.sumOf { it.tax }
                 val totalCharge = selectedItemList.sumOf { it.chargeAmount }
-                val userId = _dataStoreManager.userId.first()
-                val storeId = _dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 
                 // Get payment info or use default (full cash payment)
                 val payment = paymentInfo.value ?: PaymentInfo(

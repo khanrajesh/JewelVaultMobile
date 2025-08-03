@@ -7,9 +7,9 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.FirebaseUtils
@@ -18,6 +18,7 @@ import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -32,6 +33,17 @@ class ProfileViewModel @Inject constructor(
 
     val snackBarState = _snackBarState
     val dataStoreManager = _dataStoreManager
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
+        _dataStoreManager.getSelectedStoreInfo()
 
     // Store details fields - no dummy data
     val shopName = InputFieldState()
@@ -58,8 +70,8 @@ class ProfileViewModel @Inject constructor(
     fun initializeDefaultCategories() {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
-                val storeId = _dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 val existingCategories =
                     appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
@@ -142,7 +154,7 @@ class ProfileViewModel @Inject constructor(
         ioLaunch {
             try {
                 isLoading.value = true
-                val userId = _dataStoreManager.userId.first()
+                val userId = admin.first.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
@@ -169,11 +181,17 @@ class ProfileViewModel @Inject constructor(
 
                             storeList.size == 1 -> {
                                 log("Found 1 store in Firestore")
-                                val storeId =storeList[0].first
+                                val storeId = storeList[0].first
                                 val storeFromFirestore =
-                                    FirebaseUtils.mapToStoreEntity(storeList[0].second).copy(storeId)
+                                    FirebaseUtils.mapToStoreEntity(storeList[0].second)
+                                        .copy(storeId)
 
-                                _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, storeId)
+                                _dataStoreManager.saveSelectedStoreInfo(
+                                    storeId,
+                                    storeFromFirestore.upiId,
+                                    storeFromFirestore.name
+                                )
+
                                 // Update local database with Firestore data
                                 val existingStore = appDatabase.storeDao().getStoreById(storeId)
                                 if (existingStore != null) {
@@ -182,7 +200,7 @@ class ProfileViewModel @Inject constructor(
                                 } else {
                                     // Insert new store
 
-                                        appDatabase.storeDao().insertStore(storeFromFirestore)
+                                    appDatabase.storeDao().insertStore(storeFromFirestore)
                                 }
 
                                 storeEntity.value = storeFromFirestore
@@ -317,8 +335,8 @@ class ProfileViewModel @Inject constructor(
         ioLaunch {
             try {
                 isLoading.value = true
-                val storeId = _dataStoreManager.storeId.first()
-                val userId = _dataStoreManager.userId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
@@ -379,7 +397,6 @@ class ProfileViewModel @Inject constructor(
                     // If this is a new store, assign generatedId
                     if (generatedId != null) {
                         storeEntity = storeEntity.copy(storeId = generatedId)
-                        _dataStoreManager.setValue(DataStoreManager.STORE_ID_KEY, generatedId)
                     }
 
                     log("Store data saved to both local database and Firestore")
@@ -394,13 +411,11 @@ class ProfileViewModel @Inject constructor(
 
                     if (localResult != -1L) {
                         // Save the final store ID in DataStore
-                        _dataStoreManager.setValue(
-                            DataStoreManager.STORE_ID_KEY,
-                            storeEntity.storeId
+                        _dataStoreManager.saveSelectedStoreInfo(
+                            storeId,
+                            storeEntity.upiId,
+                            storeEntity.name
                         )
-
-                        _dataStoreManager.setUpiId(upiId.text.trim())
-                        _dataStoreManager.setMerchantName(shopName.text.trim())
                     } else {
                         log("Failed to save store to local database")
                         _snackBarState.value = "Failed to save store details. Please try again."
@@ -440,8 +455,8 @@ class ProfileViewModel @Inject constructor(
         ioLaunch {
             try {
                 isLoading.value = true
-                val storeId = _dataStoreManager.storeId.first()
-                val userId = _dataStoreManager.userId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
@@ -461,12 +476,13 @@ class ProfileViewModel @Inject constructor(
                     }
 
                     if (result != -1L) {
-                        if (existingStore == null) {
-                            _dataStoreManager.setValue(
-                                DataStoreManager.STORE_ID_KEY,
-                                storeFromFirestore.storeId
-                            )
-                        }
+
+                        _dataStoreManager.saveSelectedStoreInfo(
+                            storeFromFirestore.storeId,
+                            storeFromFirestore.upiId,
+                            storeFromFirestore.name
+                        )
+
 
                         // Update UPI settings in DataStore
                         _dataStoreManager.setUpiId(storeFromFirestore.upiId)

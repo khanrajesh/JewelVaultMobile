@@ -36,6 +36,7 @@ import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.setting.SettingScreen
+import com.velox.jewelvault.ui.screen.user_management.UserManagementScreen
 import com.velox.jewelvault.ui.screen.customers.CustomerScreen
 import com.velox.jewelvault.ui.screen.customers.CustomerViewModel
 import com.velox.jewelvault.ui.screen.customers.CustomerDetailScreen
@@ -113,6 +114,9 @@ fun SubAppNavigation(
         NavHost(navController = subNavController, startDestination = startDestination) {
             composable(SubScreens.Setting.route) {
                 SettingScreen(dashboardViewModel)
+            }
+            composable(SubScreens.UserManagement.route) {
+                UserManagementScreen()
             }
             composable(SubScreens.Dashboard.route) {
                 DashboardScreen(dashboardViewModel)

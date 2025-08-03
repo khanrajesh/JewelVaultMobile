@@ -26,6 +26,12 @@ class BackupSettingsViewModel @Inject constructor(
     private val storage: FirebaseStorage,
     private val dataStoreManager: DataStoreManager
 ) : ViewModel() {
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getAdminInfo()
+
     
     private val backupManager = BackupManager(context, database, storage, dataStoreManager)
     private val backupScheduler = BackupScheduler(context)
@@ -66,7 +72,7 @@ class BackupSettingsViewModel @Inject constructor(
     private fun loadAvailableBackups() {
         viewModelScope.launch {
             try {
-                val userId = dataStoreManager.userId.first()
+                val userId = admin.first.first()
                 val userData = database.userDao().getUserById(userId)
                 val userMobile = userData?.mobileNo ?: ""
                 
@@ -160,7 +166,7 @@ class BackupSettingsViewModel @Inject constructor(
                     )
                 }
                 
-                val userId = dataStoreManager.userId.first()
+                val userId = admin.first.first()
                 val userData = database.userDao().getUserById(userId)
                 val userMobile = userData?.mobileNo ?: ""
                 
