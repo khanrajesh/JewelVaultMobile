@@ -11,7 +11,7 @@ import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
 import com.velox.jewelvault.data.roomdb.dto.PurchaseItemInputDto
 import com.velox.jewelvault.data.roomdb.dto.PurchaseMetalRateDto
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.MetalExchangeEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
@@ -30,6 +30,7 @@ import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.withMain
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -47,6 +48,15 @@ class PurchaseViewModel @Inject constructor(
 
     val snackBarState = _snackBarState
     val metalRates = _metalRates
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
 
     val firmName = InputFieldState()
     val firmMobile = InputFieldState()
@@ -93,8 +103,8 @@ class PurchaseViewModel @Inject constructor(
     fun getCategoryAndSubCategoryDetails() {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
-                val storeId = _dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val result =
                     appDatabase.categoryDao().getCategoriesByUserIdAndStoreId(userId, storeId)
 
@@ -423,8 +433,8 @@ class PurchaseViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 withIo {
-                    val userId = _dataStoreManager.userId.first()
-                    val storeId = _dataStoreManager.storeId.first()
+                    val userId = admin.first.first()
+                    val storeId = store.first.first()
 
                     val existingItem = appDatabase.itemDao().getFineItemByCat(catId)
 

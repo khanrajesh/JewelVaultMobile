@@ -21,6 +21,7 @@ import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -53,6 +54,15 @@ class CustomerViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val _snackBarState: MutableState<String>
 ) : ViewModel() {
+
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
 
     val snackBarState = _snackBarState
     val dataStoreManager = _dataStoreManager
@@ -167,8 +177,8 @@ class CustomerViewModel @Inject constructor(
     fun loadCustomerData() {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 // Load customers
                 appDatabase.customerDao().getAllCustomers()
@@ -209,8 +219,8 @@ class CustomerViewModel @Inject constructor(
     fun loadKhataBookPlans() {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 // Load active khata book customers
                 val activeKhataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(userId, storeId)
@@ -251,8 +261,8 @@ class CustomerViewModel @Inject constructor(
     fun applyKhataBookPlan(customerMobile: String, plan: KhataBookPlan) {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val currentTime = Timestamp(System.currentTimeMillis())
 
                 val monthlyAmount = 0.0 // This would be calculated based on the plan
@@ -334,8 +344,8 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingCustomerDetails.value = true
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 // Load customer
                 val customer = appDatabase.customerDao().getCustomerByMobile(customerMobile)
@@ -406,8 +416,8 @@ class CustomerViewModel @Inject constructor(
 
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val currentTime = Timestamp(System.currentTimeMillis())
 
                 val customer = CustomerEntity(
@@ -447,8 +457,8 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingPayment.value = true
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 val amount = outstandingAmount.text.toDoubleOrNull() ?: 0.0
                 val transactionType = outstandingType.text
@@ -500,8 +510,8 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingKhataBook.value = true
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 val currentTime = Timestamp(System.currentTimeMillis())
 
                 val monthlyAmount = khataBookMonthlyAmount.text.toDoubleOrNull() ?: 0.0
@@ -563,8 +573,8 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingPayment.value = true
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 val amount = khataPaymentAmount.text.toDoubleOrNull() ?: 0.0
                 val monthNumber = khataPaymentMonth.text.toIntOrNull() ?: 1
@@ -618,8 +628,8 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingPayment.value = true
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
 
                 val amount = regularPaymentAmount.text.toDoubleOrNull() ?: 0.0
                 val paymentType = regularPaymentType.text

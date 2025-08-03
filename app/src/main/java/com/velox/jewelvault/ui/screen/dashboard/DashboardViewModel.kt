@@ -17,6 +17,7 @@ import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -40,6 +41,14 @@ class DashboardViewModel @Inject constructor(
     private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
+    /**
+     * return Triple of Flow<String> for userId, userName, mobileNo
+     * */
+    val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getAdminInfo()
+    /**
+     * return Triple of Flow<String> for storeId, upiId, storeName
+     * */
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getSelectedStoreInfo()
     val selectedRange: MutableState<TimeRange> = mutableStateOf(TimeRange.WEEKLY)
 
     val recentSellsItem = SnapshotStateList<IndividualSellItem>()
@@ -91,8 +100,8 @@ class DashboardViewModel @Inject constructor(
     fun getCustomerSummary() {
         ioLaunch {
             try {
-                val userId = dataStoreManager.userId.first()
-                val storeId = dataStoreManager.storeId.first()
+                val userId = admin.first.first()
+                val storeId = store.first.first()
                 
                 // Get total customers
                 val allCustomers = appDatabase.customerDao().getAllCustomers().first()

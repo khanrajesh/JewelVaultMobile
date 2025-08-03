@@ -13,7 +13,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.data.roomdb.entity.UsersEntity
+import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -53,7 +53,7 @@ class LoginViewModel @Inject constructor(
 
 
     suspend fun userExits():Boolean{
-        return _appDatabase.userDao().getUserCount() == 1
+        return _appDatabase.userDao().getUserCount() >= 1
     }
     
     // Check biometric availability
@@ -184,7 +184,7 @@ class LoginViewModel @Inject constructor(
                 log("Biometric authentication successful, proceeding with Firebase PIN verification")
                 // Biometric successful, now verify PIN with Firebase
                 ioScope {
-                    loginWithPinInternal(phone, pin, savePhone, onSuccess, onFailure)
+                    adminLoginWithPin(phone, pin, savePhone, onSuccess, onFailure)
                 }
             },
             onError = { error ->
@@ -196,87 +196,6 @@ class LoginViewModel @Inject constructor(
                 onCancel()
             }
         )
-    }
-    
-    // Internal method for Firebase PIN verification (validation already done)
-    private suspend fun loginWithPinInternal(
-        phone: String, 
-        pin: String, 
-        savePhone: Boolean = false,
-        onSuccess: () -> Unit, 
-        onFailure: (String) -> Unit
-    ) {
-        log("loginWithPinInternal called with phone: $phone, pin length: ${pin.length}")
-        
-        // Note: Input validation already done in calling function
-        log("Proceeding with Firebase PIN verification")
-
-        val userCount = _appDatabase.userDao().getUserCount()
-        log("User count in database: $userCount")
-
-        if (userCount > 0) {
-            val usr = _appDatabase.userDao().getUserByMobile(phone)
-            if (usr == null) {
-                log("User exists but with different phone number")
-                onFailure("This device is already registered with a different phone number. Cannot proceed.")
-                return
-            }
-            log("User found in database with matching phone number")
-        }
-
-        _loadingState.value = true
-        log("Starting Firebase authentication")
-        _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
-            if (document.exists()) {
-                val storedPin = document.getString("pin")
-                log("User document exists, stored PIN available: ${storedPin != null}")
-                if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
-                    log("PIN verification successful")
-                    ioScope {
-                        val result = _appDatabase.userDao().getUserByMobile(phone)
-                        if (result != null) {
-                            try {
-                                _dataStoreManager.setValue(
-                                    DataStoreManager.USER_ID_KEY, result.userId
-                                )
-                                _sessionManager.startSession(result.userId)
-                                
-                                // Save phone number if requested
-                                if (savePhone) {
-                                    ioLaunch {
-                                        savePhoneNumber(phone)
-                                    }
-                                }
-                                
-                                log("Login successful, user ID: ${result.userId}")
-                                onSuccess()
-                                _loadingState.value = false
-                            } catch (e: Exception) {
-                                log("Exception during login: ${e.message}")
-                                _loadingState.value = false
-                                onFailure("Unable to store the user data")
-                            }
-                        } else {
-                            log("User not found in local database")
-                            _loadingState.value = false
-                            onFailure("User not found, please sign up first")
-                        }
-                    }
-                } else {
-                    log("PIN verification failed")
-                    _loadingState.value = false
-                    onFailure("Invalid PIN")
-                }
-            } else {
-                log("User document does not exist in Firebase")
-                _loadingState.value = false
-                onFailure("User not found")
-            }
-        }.addOnFailureListener {
-            log("Firebase authentication failed: ${it.message}")
-            _loadingState.value = false
-            onFailure(it.message ?: "Login failed")
-        }
     }
 
     fun startPhoneVerification(
@@ -356,7 +275,7 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun uploadUser(
+    fun uploadAdminUser(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
         // Validate PIN
@@ -378,7 +297,8 @@ class LoginViewModel @Inject constructor(
                 "phone" to phone,
                 "uid" to uid,
                 "pin" to hashedPin,
-                "otpVerifiedAt" to System.currentTimeMillis()
+                "otpVerifiedAt" to System.currentTimeMillis(),
+                "role" to "admin"
             )
             _loadingState.value = true
             _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
@@ -406,7 +326,7 @@ class LoginViewModel @Inject constructor(
                                 name = phone,
                                 mobileNo = phone,
                                 pin = hashedPin,
-                                role = "user"
+                                role = "admin"
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
@@ -433,7 +353,7 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun loginWithPin(
+    fun adminLoginWithPin(
         phone: String, pin: String, savePhone: Boolean = false, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         // Validate inputs
@@ -467,9 +387,13 @@ class LoginViewModel @Inject constructor(
                             val result = _appDatabase.userDao().getUserByMobile(phone)
                             if (result != null) {
                                 try {
-                                    _dataStoreManager.setValue(
-                                        DataStoreManager.USER_ID_KEY, result.userId
+
+                                    _dataStoreManager.saveAdminInfo(
+                                        phone,
+                                        result.userId,
+                                        phone
                                     )
+
                                     _sessionManager.startSession(result.userId)
                                     
                                     // Save phone number if requested
@@ -552,7 +476,8 @@ class LoginViewModel @Inject constructor(
                 "phone" to phone,
                 "uid" to uid,
                 "pin" to hashedPin,
-                "pinResetAt" to System.currentTimeMillis()
+                "pinResetAt" to System.currentTimeMillis(),
+                "role" to "admin"
             )
             _loadingState.value = true
             _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
@@ -580,7 +505,7 @@ class LoginViewModel @Inject constructor(
                                 name = phone, 
                                 mobileNo = phone,
                                 pin = hashedPin,
-                                role = "user"
+                                role = "admin"
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {

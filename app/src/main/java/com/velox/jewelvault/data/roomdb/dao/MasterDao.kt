@@ -1,10 +1,5 @@
 package com.velox.jewelvault.data.roomdb.dao
 import androidx.room.*
-import com.velox.jewelvault.data.roomdb.entity.UsersEntity
-import com.velox.jewelvault.data.roomdb.entity.StoreEntity
-import com.velox.jewelvault.data.roomdb.entity.CategoryEntity
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
-import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.TableNames
 
 @Dao

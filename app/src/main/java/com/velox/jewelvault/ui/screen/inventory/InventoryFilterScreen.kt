@@ -1,8 +1,6 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-import android.app.DatePickerDialog
-import android.widget.DatePicker
 
 
 import androidx.compose.foundation.background
@@ -54,20 +52,17 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
 import com.velox.jewelvault.utils.to2FString
-import com.velox.jewelvault.utils.mainScope
 
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 // Helper function to convert ItemEntity to List<String>

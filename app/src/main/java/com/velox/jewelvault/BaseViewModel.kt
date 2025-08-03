@@ -41,8 +41,8 @@ class BaseViewModel @Inject constructor(
     fun loadStoreImage() {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
-                val store = appDatabase.storeDao().getStoreById(userId)
+                val storeId = _dataStoreManager.getSelectedStoreInfo().first.first()
+                val store = appDatabase.storeDao().getStoreById(storeId)
                 log("Loading store image: ${store?.image}")
                 storeImage.value = store?.image
             } catch (e: Exception) {
@@ -54,8 +54,8 @@ class BaseViewModel @Inject constructor(
     fun loadStoreName() {
         ioLaunch {
             try {
-                val userId = _dataStoreManager.userId.first()
-                val store = appDatabase.storeDao().getStoreById(userId)
+                val storeId = _dataStoreManager.getSelectedStoreInfo().first.first()
+                val store = appDatabase.storeDao().getStoreById(storeId)
                 log("Loading store image: ${store?.name}")
                 storeName.value = store?.name
             } catch (e: Exception) {

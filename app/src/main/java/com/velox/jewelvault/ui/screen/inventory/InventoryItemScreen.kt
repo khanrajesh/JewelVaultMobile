@@ -588,8 +588,8 @@ private fun AddItemSection(
                                         viewModel.snackBarState.value = "Invalid HUID format"
                                     }
 
-                                    val userId = viewModel.dataStoreManager.userId.first()
-                                    val storeId = viewModel.dataStoreManager.userId.first()
+                                    val userId = viewModel.dataStoreManager.getAdminInfo().first.first()
+                                    val storeId = viewModel.dataStoreManager.getSelectedStoreInfo().first.first()
 
                                     val newItem = ItemEntity(
                                         itemId = generateId(),

@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,9 +29,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +63,7 @@ import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -67,6 +72,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     val isEditable = remember { mutableStateOf(false) }
     val context = LocalContext.current
     val subNavController = LocalSubNavController.current
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = profileViewModel.dataStoreManager.getSelectedStoreInfo()
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route) {
@@ -80,7 +86,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
         if (firstLaunch){
             isEditable.value = true
         }
-        val storeId = profileViewModel.dataStoreManager.storeId.first()
+        val storeId = store.first.first()
         profileViewModel.getStoreData(storeId)
     }
 
@@ -254,10 +260,57 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             keyboardType = KeyboardType.Email,
                             readOnly = !isEditable.value
                         )
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .bounceClick{
+                                        subNavController.navigate(SubScreens.UserManagement.route)
+                                    }
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
+                                    Text(
+                                        text = "User Management",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "Add, edit, or remove users from your store. Manage roles and permissions for different user types.",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    UserRoleChip("Admin", MaterialTheme.colorScheme.primary)
+                                    UserRoleChip("Manager", MaterialTheme.colorScheme.secondary)
+                                    UserRoleChip("Worker", MaterialTheme.colorScheme.tertiary)
+                                    UserRoleChip("Salesperson", MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+
                     }
 
 
                 }
+
+                // User Management Card
 
                 if (isEditable.value) Row(
                     Modifier
@@ -270,7 +323,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             ioScope {
                                 isEditable.value = !isEditable.value
                                 // Reset to original data when canceling
-                                val storeId = profileViewModel.dataStoreManager.storeId.first()
+                                val storeId = store.first.first()
                                 profileViewModel.getStoreData(storeId)
                             }
                         }
@@ -414,5 +467,27 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun UserRoleChip(role: String, color: Color) {
+    Surface(
+        modifier = Modifier.padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.1f),
+//        border = border(
+//            width = 1.dp,
+//            color = color,
+//            shape = RoundedCornerShape(16.dp)
+//        )
+    ) {
+        Text(
+            text = role,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            fontSize = 12.sp,
+            color = color,
+            fontWeight = FontWeight.Medium
+        )
     }
 }

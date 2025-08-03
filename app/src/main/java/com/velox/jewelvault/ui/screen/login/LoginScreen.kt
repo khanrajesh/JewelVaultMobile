@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.velox.jewelvault.MainActivity
 import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
@@ -453,7 +452,7 @@ private fun AuthScreen(
                                 return@Button
                             }
                             //"Sign Up"
-                            loginViewModel.uploadUser(
+                            loginViewModel.uploadAdminUser(
                                 pin = password.text,
                                 onSuccess = {
                                     loginViewModel.snackBarState.value = "Signed up successfully"
@@ -573,7 +572,7 @@ private fun loginAction(
         )
     } else {
         // Use regular PIN authentication
-        loginViewModel.loginWithPin(
+        loginViewModel.adminLoginWithPin(
             phone = mobileNo.text,
             pin = password.text,
             savePhone = savePhoneChecked.value,

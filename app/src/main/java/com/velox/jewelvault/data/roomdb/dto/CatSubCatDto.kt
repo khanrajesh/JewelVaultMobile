@@ -1,7 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dto
 
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 
 
 data class CatSubCatDto(

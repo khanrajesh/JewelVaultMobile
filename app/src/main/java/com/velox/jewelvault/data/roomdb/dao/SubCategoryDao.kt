@@ -2,7 +2,7 @@ package com.velox.jewelvault.data.roomdb.dao
 
 
 import androidx.room.*
-import com.velox.jewelvault.data.roomdb.entity.SubCategoryEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.TableNames
 
 @Dao
