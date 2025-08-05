@@ -205,13 +205,25 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                 item {
                     SettingsSectionHeader("Data Management", Icons.Default.Settings)
                 }
-                
+                item {
+                    SettingsActionItem(
+                        title = "Export App Data",
+                        subtitle = "Export all data to xlsx file",
+                        icon = Icons.Default.Refresh,
+                        onClick = {
+                            subNavController.navigate(SubScreens.BackUpSetting.route)
+                        }
+                    )
+                }
+
                 item {
                     SettingsActionItem(
                         title = "Reset App Preferences",
                         subtitle = "Reset all settings to default",
                         icon = Icons.Default.Refresh,
-                        onClick = { settingViewModel.resetAppPreferences() }
+                        onClick = {
+                            settingViewModel.resetAppPreferences()
+                        }
                     )
                 }
                 

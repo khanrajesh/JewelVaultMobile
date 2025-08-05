@@ -25,4 +25,5 @@ sealed class SubScreens(val route:String) {
     data object Setting : SubScreens("Setting")
     data object UserManagement : SubScreens("userManagement")
     data object Customers : SubScreens("customers")
+    data object BackUpSetting : SubScreens("backUpSetting")
 }

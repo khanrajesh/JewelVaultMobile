@@ -9,6 +9,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.Date
+import android.net.Uri
 
 /**
  * Handles exporting RoomDB entities to Excel format
@@ -21,12 +23,15 @@ class ExcelExporter(private val context: Context) {
      * Export all entities to a single Excel file with multiple sheets
      */
     suspend fun exportAllEntitiesToExcel(
-        database: AppDatabase, 
-        outputFile: File,
+        database: AppDatabase,
+        outputUri: Uri,
+        context: Context,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<Unit> {
         return try {
+            log("Starting Excel export to: $outputUri")
             val workbook = XSSFWorkbook()
+            log("Created XSSFWorkbook successfully")
             
             // Create header style
             val headerStyle = workbook.createCellStyle().apply {
@@ -37,57 +42,92 @@ class ExcelExporter(private val context: Context) {
                 }
                 setFont(font)
             }
+            log("Created header style successfully")
             
             // Export each entity to its own sheet
+            log("Starting entity export process...")
+            
             onProgress("Exporting Stores...", 5)
+            log("Step 1/14: Exporting StoreEntity...")
             exportStoreEntity(database, workbook, headerStyle)
+            log("✓ StoreEntity export completed")
             
             onProgress("Exporting Users...", 10)
+            log("Step 2/14: Exporting UsersEntity...")
             exportUserEntity(database, workbook, headerStyle)
+            log("✓ UsersEntity export completed")
             
             onProgress("Exporting Categories...", 15)
+            log("Step 3/14: Exporting CategoryEntity...")
             exportCategoryEntity(database, workbook, headerStyle)
+            log("✓ CategoryEntity export completed")
             
             onProgress("Exporting SubCategories...", 20)
+            log("Step 4/14: Exporting SubCategoryEntity...")
             exportSubCategoryEntity(database, workbook, headerStyle)
+            log("✓ SubCategoryEntity export completed")
             
             onProgress("Exporting Items...", 30)
+            log("Step 5/14: Exporting ItemEntity...")
             exportItemEntity(database, workbook, headerStyle)
+            log("✓ ItemEntity export completed")
             
             onProgress("Exporting Customers...", 40)
+            log("Step 6/14: Exporting CustomerEntity...")
             exportCustomerEntity(database, workbook, headerStyle)
+            log("✓ CustomerEntity export completed")
             
             onProgress("Exporting Customer Khata Books...", 50)
+            log("Step 7/14: Exporting CustomerKhataBookEntity...")
             exportCustomerKhataBookEntity(database, workbook, headerStyle)
+            log("✓ CustomerKhataBookEntity export completed")
             
             onProgress("Exporting Customer Transactions...", 60)
+            log("Step 8/14: Exporting CustomerTransactionEntity...")
             exportCustomerTransactionEntity(database, workbook, headerStyle)
+            log("✓ CustomerTransactionEntity export completed")
             
             onProgress("Exporting Orders...", 70)
+            log("Step 9/14: Exporting OrderEntity...")
             exportOrderEntity(database, workbook, headerStyle)
+            log("✓ OrderEntity export completed")
             
             onProgress("Exporting Order Items...", 75)
+            log("Step 10/14: Exporting OrderItemEntity...")
             exportOrderItemEntity(database, workbook, headerStyle)
+            log("✓ OrderItemEntity export completed")
             
             onProgress("Exporting Firms...", 80)
+            log("Step 11/14: Exporting FirmEntity...")
             exportFirmEntity(database, workbook, headerStyle)
+            log("✓ FirmEntity export completed")
             
             onProgress("Exporting Purchase Orders...", 85)
+            log("Step 12/14: Exporting PurchaseOrderEntity...")
             exportPurchaseOrderEntity(database, workbook, headerStyle)
+            log("✓ PurchaseOrderEntity export completed")
             
             onProgress("Exporting Purchase Order Items...", 90)
+            log("Step 13/14: Exporting PurchaseOrderItemEntity...")
             exportPurchaseOrderItemEntity(database, workbook, headerStyle)
+            log("✓ PurchaseOrderItemEntity export completed")
             
             onProgress("Exporting Metal Exchanges...", 95)
+            log("Step 14/14: Exporting MetalExchangeEntity...")
             exportMetalExchangeEntity(database, workbook, headerStyle)
+            log("✓ MetalExchangeEntity export completed")
             
-            // Write to file
-            FileOutputStream(outputFile).use { fileOut ->
-                workbook.write(fileOut)
-            }
+            onProgress("Exporting User Additional Info...", 98)
+            log("Final step: Exporting UserAdditionalInfoEntity...")
+            exportUserAdditionalInfoEntity(database, workbook, headerStyle)
+            log("✓ UserAdditionalInfoEntity export completed")
+            
+            // Write workbook to output stream from content resolver
+            context.contentResolver.openOutputStream(outputUri)?.use { outputStream ->
+                workbook.write(outputStream)
+            } ?: throw Exception("Unable to open output stream for backup Uri")
             workbook.close()
-            
-            log("Excel export completed successfully: ${outputFile.absolutePath}")
+            log("Excel export completed and file saved to: $outputUri")
             Result.success(Unit)
             
         } catch (e: Exception) {
@@ -97,24 +137,30 @@ class ExcelExporter(private val context: Context) {
     }
     
     private suspend fun exportStoreEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Creating StoreEntity sheet...")
         val sheet = workbook.createSheet("StoreEntity")
+        
+        log("  → Fetching stores from database...")
         val stores = database.storeDao().getAllStores()
+        log("  → Found ${stores.size} stores to export")
 
         val headerRow = sheet.createRow(0)
         val headers = listOf(
             "storeId", "userId", "proprietor", "name", "email", "phone", "address",
             "registrationNo", "gstinNo", "panNo", "image", "invoiceNo", "upiId"
         )
+        log("  → Creating headers: ${headers.joinToString(", ")}")
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
             cell.setCellValue(header)
             cell.cellStyle = headerStyle
         }
 
+        log("  → Processing ${stores.size} store records...")
         stores.forEachIndexed { rowIndex, store ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(store.storeId.toDouble())
-            row.createCell(1).setCellValue(store.userId.toDouble())
+            row.createCell(0).setCellValue(store.storeId)
+            row.createCell(1).setCellValue(store.userId)
             row.createCell(2).setCellValue(store.proprietor)
             row.createCell(3).setCellValue(store.name)
             row.createCell(4).setCellValue(store.email)
@@ -127,34 +173,45 @@ class ExcelExporter(private val context: Context) {
             row.createCell(11).setCellValue(store.invoiceNo.toDouble())
             row.createCell(12).setCellValue(store.upiId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → StoreEntity export completed: ${stores.size} records")
     }
     
     private suspend fun exportUserEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Creating UsersEntity sheet...")
         val sheet = workbook.createSheet("UsersEntity")
+        
+        log("  → Fetching users from database...")
         val users = database.userDao().getAllUsers()
+        log("  → Found ${users.size} users to export")
+        
         val headers = listOf("id", "name", "email", "mobileNo", "token", "pin")
+        log("  → Creating headers: ${headers.joinToString(", ")}")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
             cell.setCellValue(header)
             cell.cellStyle = headerStyle
         }
+        
+        log("  → Processing ${users.size} user records...")
         users.forEachIndexed { rowIndex, user ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(user.userId.toDouble())
+            row.createCell(0).setCellValue(user.userId)
             row.createCell(1).setCellValue(user.name)
             row.createCell(2).setCellValue(user.email ?: "")
             row.createCell(3).setCellValue(user.mobileNo)
             row.createCell(4).setCellValue(user.token ?: "")
             row.createCell(5).setCellValue(user.pin ?: "")
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → UsersEntity export completed: ${users.size} records")
     }
     
     private suspend fun exportCategoryEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting CategoryEntity export...")
         val sheet = workbook.createSheet("CategoryEntity")
         val categories = database.categoryDao().getAllCategories()
+        log("  → Found ${categories.size} categories to export")
+        
         val headers = listOf("catId", "catName", "gsWt", "fnWt", "userId", "storeId")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -164,19 +221,22 @@ class ExcelExporter(private val context: Context) {
         }
         categories.forEachIndexed { rowIndex, category ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(category.catId.toDouble())
+            row.createCell(0).setCellValue(category.catId)
             row.createCell(1).setCellValue(category.catName)
             row.createCell(2).setCellValue(category.gsWt)
             row.createCell(3).setCellValue(category.fnWt)
-            row.createCell(4).setCellValue(category.userId.toDouble())
-            row.createCell(5).setCellValue(category.storeId.toDouble())
+            row.createCell(4).setCellValue(category.userId)
+            row.createCell(5).setCellValue(category.storeId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → CategoryEntity export completed: ${categories.size} records")
     }
     
     private suspend fun exportSubCategoryEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting SubCategoryEntity export...")
         val sheet = workbook.createSheet("SubCategoryEntity")
         val subCategories = database.subCategoryDao().getAllSubCategories()
+        log("  → Found ${subCategories.size} sub-categories to export")
+        
         val headers = listOf("subCatId", "catId", "userId", "storeId", "catName", "subCatName", "quantity", "gsWt", "fnWt")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -186,22 +246,25 @@ class ExcelExporter(private val context: Context) {
         }
         subCategories.forEachIndexed { rowIndex, subCategory ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(subCategory.subCatId.toDouble())
-            row.createCell(1).setCellValue(subCategory.catId.toDouble())
-            row.createCell(2).setCellValue(subCategory.userId.toDouble())
-            row.createCell(3).setCellValue(subCategory.storeId.toDouble())
+            row.createCell(0).setCellValue(subCategory.subCatId)
+            row.createCell(1).setCellValue(subCategory.catId)
+            row.createCell(2).setCellValue(subCategory.userId)
+            row.createCell(3).setCellValue(subCategory.storeId)
             row.createCell(4).setCellValue(subCategory.catName)
             row.createCell(5).setCellValue(subCategory.subCatName)
             row.createCell(6).setCellValue(subCategory.quantity.toDouble())
             row.createCell(7).setCellValue(subCategory.gsWt)
             row.createCell(8).setCellValue(subCategory.fnWt)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → SubCategoryEntity export completed: ${subCategories.size} records")
     }
     
     private suspend fun exportItemEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting ItemEntity export...")
         val sheet = workbook.createSheet("ItemEntity")
         val items = database.itemDao().getAllItems()
+        log("  → Found ${items.size} items to export")
+        
         val headers = listOf(
             "itemId", "itemAddName", "catId", "userId", "storeId", "catName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "unit", "addDesKey", "addDesValue", "addDate", "modifiedDate", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
@@ -213,13 +276,13 @@ class ExcelExporter(private val context: Context) {
         }
         items.forEachIndexed { rowIndex, item ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(item.itemId.toDouble())
+            row.createCell(0).setCellValue(item.itemId)
             row.createCell(1).setCellValue(item.itemAddName)
-            row.createCell(2).setCellValue(item.catId.toDouble())
-            row.createCell(3).setCellValue(item.userId.toDouble())
-            row.createCell(4).setCellValue(item.storeId.toDouble())
+            row.createCell(2).setCellValue(item.catId)
+            row.createCell(3).setCellValue(item.userId)
+            row.createCell(4).setCellValue(item.storeId)
             row.createCell(5).setCellValue(item.catName)
-            row.createCell(6).setCellValue(item.subCatId.toDouble())
+            row.createCell(6).setCellValue(item.subCatId)
             row.createCell(7).setCellValue(item.subCatName)
             row.createCell(8).setCellValue(item.entryType)
             row.createCell(9).setCellValue(item.quantity.toDouble())
@@ -240,16 +303,19 @@ class ExcelExporter(private val context: Context) {
             row.createCell(24).setCellValue(item.addDesValue)
             row.createCell(25).setCellValue(dateFormat.format(item.addDate))
             row.createCell(26).setCellValue(dateFormat.format(item.modifiedDate))
-            row.createCell(27).setCellValue(item.sellerFirmId.toDouble())
-            row.createCell(28).setCellValue(item.purchaseOrderId.toDouble())
-            row.createCell(29).setCellValue(item.purchaseItemId.toDouble())
+            row.createCell(27).setCellValue(item.sellerFirmId)
+            row.createCell(28).setCellValue(item.purchaseOrderId)
+            row.createCell(29).setCellValue(item.purchaseItemId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → ItemEntity export completed: ${items.size} records")
     }
     
     private suspend fun exportCustomerEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting CustomerEntity export...")
         val sheet = workbook.createSheet("CustomerEntity")
         val customers = database.customerDao().getAllCustomersList()
+        log("  → Found ${customers.size} customers to export")
+        
         val headers = listOf("mobileNo", "name", "address", "gstin_pan", "addDate", "lastModifiedDate", "totalItemBought", "totalAmount", "notes", "isActive", "userId", "storeId")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -269,15 +335,18 @@ class ExcelExporter(private val context: Context) {
             row.createCell(7).setCellValue(customer.totalAmount)
             row.createCell(8).setCellValue(customer.notes ?: "")
             row.createCell(9).setCellValue(customer.isActive)
-            row.createCell(10).setCellValue(customer.userId.toDouble())
-            row.createCell(11).setCellValue(customer.storeId.toDouble())
+            row.createCell(10).setCellValue(customer.userId)
+            row.createCell(11).setCellValue(customer.storeId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → CustomerEntity export completed: ${customers.size} records")
     }
     
     private suspend fun exportCustomerKhataBookEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting CustomerKhataBookEntity export...")
         val sheet = workbook.createSheet("CustomerKhataBookEntity")
         val khataBooks = database.customerKhataBookDao().getAllKhataBooksList()
+        log("  → Found ${khataBooks.size} khata books to export")
+        
         val headers = listOf("khataBookId", "customerMobile", "planName", "startDate", "endDate", "monthlyAmount", "totalMonths", "totalAmount", "status", "notes", "userId", "storeId")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -287,7 +356,7 @@ class ExcelExporter(private val context: Context) {
         }
         khataBooks.forEachIndexed { rowIndex, khataBook ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(khataBook.khataBookId.toDouble())
+            row.createCell(0).setCellValue(khataBook.khataBookId)
             row.createCell(1).setCellValue(khataBook.customerMobile)
             row.createCell(2).setCellValue(khataBook.planName)
             row.createCell(3).setCellValue(dateFormat.format(khataBook.startDate))
@@ -297,15 +366,18 @@ class ExcelExporter(private val context: Context) {
             row.createCell(7).setCellValue(khataBook.totalAmount)
             row.createCell(8).setCellValue(khataBook.status)
             row.createCell(9).setCellValue(khataBook.notes ?: "")
-            row.createCell(10).setCellValue(khataBook.userId.toDouble())
-            row.createCell(11).setCellValue(khataBook.storeId.toDouble())
+            row.createCell(10).setCellValue(khataBook.userId)
+            row.createCell(11).setCellValue(khataBook.storeId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → CustomerKhataBookEntity export completed: ${khataBooks.size} records")
     }
     
     private suspend fun exportCustomerTransactionEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting CustomerTransactionEntity export...")
         val sheet = workbook.createSheet("CustomerTransactionEntity")
         val transactions = database.customerTransactionDao().getAllTransactions()
+        log("  → Found ${transactions.size} transactions to export")
+        
         val headers = listOf("transactionId", "customerMobile", "transactionDate", "amount", "transactionType", "category", "description", "referenceNumber", "paymentMethod", "khataBookId", "monthNumber", "notes", "userId", "storeId")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -315,7 +387,7 @@ class ExcelExporter(private val context: Context) {
         }
         transactions.forEachIndexed { rowIndex, transaction ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(transaction.transactionId.toDouble())
+            row.createCell(0).setCellValue(transaction.transactionId)
             row.createCell(1).setCellValue(transaction.customerMobile)
             row.createCell(2).setCellValue(dateFormat.format(transaction.transactionDate))
             row.createCell(3).setCellValue(transaction.amount)
@@ -324,18 +396,21 @@ class ExcelExporter(private val context: Context) {
             row.createCell(6).setCellValue(transaction.description ?: "")
             row.createCell(7).setCellValue(transaction.referenceNumber ?: "")
             row.createCell(8).setCellValue(transaction.paymentMethod ?: "")
-            row.createCell(9).setCellValue(transaction.khataBookId?.toDouble() ?: 0.0)
+            row.createCell(9).setCellValue(transaction.khataBookId ?: "")
             row.createCell(10).setCellValue(transaction.monthNumber?.toDouble() ?: 0.0)
             row.createCell(11).setCellValue(transaction.notes ?: "")
-            row.createCell(12).setCellValue(transaction.userId.toDouble())
-            row.createCell(13).setCellValue(transaction.storeId.toDouble())
+            row.createCell(12).setCellValue(transaction.userId)
+            row.createCell(13).setCellValue(transaction.storeId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → CustomerTransactionEntity export completed: ${transactions.size} records")
     }
     
     private suspend fun exportOrderEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting OrderEntity export...")
         val sheet = workbook.createSheet("OrderEntity")
         val orders = database.orderDao().getAllOrders()
+        log("  → Found ${orders.size} orders to export")
+        
         val headers = listOf("orderId", "customerMobile", "storeId", "userId", "orderDate", "totalAmount", "totalTax", "totalCharge", "note")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -345,22 +420,25 @@ class ExcelExporter(private val context: Context) {
         }
         orders.forEachIndexed { rowIndex, order ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(order.orderId.toDouble())
+            row.createCell(0).setCellValue(order.orderId)
             row.createCell(1).setCellValue(order.customerMobile)
-            row.createCell(2).setCellValue(order.storeId.toDouble())
-            row.createCell(3).setCellValue(order.userId.toDouble())
+            row.createCell(2).setCellValue(order.storeId)
+            row.createCell(3).setCellValue(order.userId)
             row.createCell(4).setCellValue(dateFormat.format(order.orderDate))
             row.createCell(5).setCellValue(order.totalAmount)
             row.createCell(6).setCellValue(order.totalTax)
             row.createCell(7).setCellValue(order.totalCharge)
             row.createCell(8).setCellValue(order.note ?: "")
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → OrderEntity export completed: ${orders.size} records")
     }
     
     private suspend fun exportOrderItemEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting OrderItemEntity export...")
         val sheet = workbook.createSheet("OrderItemEntity")
         val orderItems = database.orderDao().getAllOrderItems()
+        log("  → Found ${orderItems.size} order items to export")
+        
         val headers = listOf(
             "orderItemId", "orderId", "orderDate", "itemId", "customerMobile", "catId", "catName", "itemAddName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "fnMetalPrice", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "addDesKey", "addDesValue", "price", "charge", "tax", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
@@ -372,15 +450,15 @@ class ExcelExporter(private val context: Context) {
         }
         orderItems.forEachIndexed { rowIndex, orderItem ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(orderItem.orderItemId.toDouble())
-            row.createCell(1).setCellValue(orderItem.orderId.toDouble())
+            row.createCell(0).setCellValue(orderItem.orderItemId)
+            row.createCell(1).setCellValue(orderItem.orderId)
             row.createCell(2).setCellValue(dateFormat.format(orderItem.orderDate))
-            row.createCell(3).setCellValue(orderItem.itemId.toDouble())
+            row.createCell(3).setCellValue(orderItem.itemId)
             row.createCell(4).setCellValue(orderItem.customerMobile)
-            row.createCell(5).setCellValue(orderItem.catId.toDouble())
+            row.createCell(5).setCellValue(orderItem.catId)
             row.createCell(6).setCellValue(orderItem.catName)
             row.createCell(7).setCellValue(orderItem.itemAddName)
-            row.createCell(8).setCellValue(orderItem.subCatId.toDouble())
+            row.createCell(8).setCellValue(orderItem.subCatId)
             row.createCell(9).setCellValue(orderItem.subCatName)
             row.createCell(10).setCellValue(orderItem.entryType)
             row.createCell(11).setCellValue(orderItem.quantity.toDouble())
@@ -402,16 +480,19 @@ class ExcelExporter(private val context: Context) {
             row.createCell(27).setCellValue(orderItem.price)
             row.createCell(28).setCellValue(orderItem.charge)
             row.createCell(29).setCellValue(orderItem.tax)
-            row.createCell(30).setCellValue(orderItem.sellerFirmId.toDouble())
-            row.createCell(31).setCellValue(orderItem.purchaseOrderId.toDouble())
-            row.createCell(32).setCellValue(orderItem.purchaseItemId.toDouble())
+            row.createCell(30).setCellValue(orderItem.sellerFirmId)
+            row.createCell(31).setCellValue(orderItem.purchaseOrderId)
+            row.createCell(32).setCellValue(orderItem.purchaseItemId)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → OrderItemEntity export completed: ${orderItems.size} records")
     }
     
     private suspend fun exportFirmEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting FirmEntity export...")
         val sheet = workbook.createSheet("FirmEntity")
         val firms = database.purchaseDao().getAllFirms()
+        log("  → Found ${firms.size} firms to export")
+        
         val headers = listOf("firmId", "firmName", "firmMobileNumber", "gstNumber", "address")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -421,18 +502,21 @@ class ExcelExporter(private val context: Context) {
         }
         firms.forEachIndexed { rowIndex, firm ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(firm.firmId.toDouble())
+            row.createCell(0).setCellValue(firm.firmId)
             row.createCell(1).setCellValue(firm.firmName)
             row.createCell(2).setCellValue(firm.firmMobileNumber)
             row.createCell(3).setCellValue(firm.gstNumber)
             row.createCell(4).setCellValue(firm.address)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → FirmEntity export completed: ${firms.size} records")
     }
     
     private suspend fun exportPurchaseOrderEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting PurchaseOrderEntity export...")
         val sheet = workbook.createSheet("PurchaseOrderEntity")
         val purchaseOrders = database.purchaseDao().getAllPurchaseOrders()
+        log("  → Found ${purchaseOrders.size} purchase orders to export")
+        
         val headers = listOf("purchaseOrderId", "sellerId", "billNo", "billDate", "entryDate", "extraChargeDescription", "extraCharge", "totalFinalWeight", "totalFinalAmount", "notes", "cgstPercent", "sgstPercent", "igstPercent")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -442,8 +526,8 @@ class ExcelExporter(private val context: Context) {
         }
         purchaseOrders.forEachIndexed { rowIndex, purchaseOrder ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(purchaseOrder.purchaseOrderId.toDouble())
-            row.createCell(1).setCellValue(purchaseOrder.sellerId.toDouble())
+            row.createCell(0).setCellValue(purchaseOrder.purchaseOrderId)
+            row.createCell(1).setCellValue(purchaseOrder.sellerId)
             row.createCell(2).setCellValue(purchaseOrder.billNo)
             row.createCell(3).setCellValue(purchaseOrder.billDate)
             row.createCell(4).setCellValue(purchaseOrder.entryDate)
@@ -456,12 +540,15 @@ class ExcelExporter(private val context: Context) {
             row.createCell(11).setCellValue(purchaseOrder.sgstPercent)
             row.createCell(12).setCellValue(purchaseOrder.igstPercent)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → PurchaseOrderEntity export completed: ${purchaseOrders.size} records")
     }
     
     private suspend fun exportPurchaseOrderItemEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting PurchaseOrderItemEntity export...")
         val sheet = workbook.createSheet("PurchaseOrderItemEntity")
         val purchaseOrderItems = database.purchaseDao().getAllPurchaseOrderItems()
+        log("  → Found ${purchaseOrderItems.size} purchase order items to export")
+        
         val headers = listOf("purchaseItemId", "purchaseOrderId", "catId", "catName", "subCatId", "subCatName", "gsWt", "purity", "ntWt", "fnWt", "fnRate", "wastagePercent")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -471,11 +558,11 @@ class ExcelExporter(private val context: Context) {
         }
         purchaseOrderItems.forEachIndexed { rowIndex, item ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(item.purchaseItemId.toDouble())
-            row.createCell(1).setCellValue(item.purchaseOrderId.toDouble())
-            row.createCell(2).setCellValue(item.catId.toDouble())
+            row.createCell(0).setCellValue(item.purchaseItemId)
+            row.createCell(1).setCellValue(item.purchaseOrderId)
+            row.createCell(2).setCellValue(item.catId)
             row.createCell(3).setCellValue(item.catName)
-            row.createCell(4).setCellValue(item.subCatId.toDouble())
+            row.createCell(4).setCellValue(item.subCatId)
             row.createCell(5).setCellValue(item.subCatName)
             row.createCell(6).setCellValue(item.gsWt)
             row.createCell(7).setCellValue(item.purity)
@@ -484,12 +571,15 @@ class ExcelExporter(private val context: Context) {
             row.createCell(10).setCellValue(item.fnRate)
             row.createCell(11).setCellValue(item.wastagePercent)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → PurchaseOrderItemEntity export completed: ${purchaseOrderItems.size} records")
     }
     
     private suspend fun exportMetalExchangeEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting MetalExchangeEntity export...")
         val sheet = workbook.createSheet("MetalExchangeEntity")
         val metalExchanges = database.purchaseDao().getAllMetalExchanges()
+        log("  → Found ${metalExchanges.size} metal exchanges to export")
+        
         val headers = listOf("exchangeId", "purchaseOrderId", "catId", "catName", "subCatId", "subCatName", "fnWeight")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -499,14 +589,49 @@ class ExcelExporter(private val context: Context) {
         }
         metalExchanges.forEachIndexed { rowIndex, metalExchange ->
             val row = sheet.createRow(rowIndex + 1)
-            row.createCell(0).setCellValue(metalExchange.exchangeId.toDouble())
-            row.createCell(1).setCellValue(metalExchange.purchaseOrderId.toDouble())
-            row.createCell(2).setCellValue(metalExchange.catId.toDouble())
+            row.createCell(0).setCellValue(metalExchange.exchangeId)
+            row.createCell(1).setCellValue(metalExchange.purchaseOrderId)
+            row.createCell(2).setCellValue(metalExchange.catId)
             row.createCell(3).setCellValue(metalExchange.catName)
-            row.createCell(4).setCellValue(metalExchange.subCatId.toDouble())
+            row.createCell(4).setCellValue(metalExchange.subCatId)
             row.createCell(5).setCellValue(metalExchange.subCatName)
             row.createCell(6).setCellValue(metalExchange.fnWeight)
         }
-        headers.indices.forEach { sheet.autoSizeColumn(it) }
+        log("  → MetalExchangeEntity export completed: ${metalExchanges.size} records")
+    }
+    
+    private suspend fun exportUserAdditionalInfoEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting UserAdditionalInfoEntity export...")
+        val sheet = workbook.createSheet("UserAdditionalInfoEntity")
+        val userAdditionalInfo = database.userAdditionalInfoDao().getAllActiveUserAdditionalInfo()
+        log("  → Found ${userAdditionalInfo.size} user additional info records to export")
+        
+        val headers = listOf(
+            "userId", "aadhaarNumber", "address", "emergencyContactPerson", "emergencyContactNumber", 
+            "governmentIdNumber", "governmentIdType", "dateOfBirth", "bloodGroup", "isActive", 
+            "createdAt", "updatedAt"
+        )
+        val headerRow = sheet.createRow(0)
+        headers.forEachIndexed { index, header ->
+            val cell = headerRow.createCell(index)
+            cell.setCellValue(header)
+            cell.cellStyle = headerStyle
+        }
+        userAdditionalInfo.forEachIndexed { rowIndex, userInfo ->
+            val row = sheet.createRow(rowIndex + 1)
+            row.createCell(0).setCellValue(userInfo.userId)
+            row.createCell(1).setCellValue(userInfo.aadhaarNumber ?: "")
+            row.createCell(2).setCellValue(userInfo.address ?: "")
+            row.createCell(3).setCellValue(userInfo.emergencyContactPerson ?: "")
+            row.createCell(4).setCellValue(userInfo.emergencyContactNumber ?: "")
+            row.createCell(5).setCellValue(userInfo.governmentIdNumber ?: "")
+            row.createCell(6).setCellValue(userInfo.governmentIdType ?: "")
+            row.createCell(7).setCellValue(userInfo.dateOfBirth ?: "")
+            row.createCell(8).setCellValue(userInfo.bloodGroup ?: "")
+            row.createCell(9).setCellValue(userInfo.isActive)
+            row.createCell(10).setCellValue(dateFormat.format(Date(userInfo.createdAt)))
+            row.createCell(11).setCellValue(dateFormat.format(Date(userInfo.updatedAt)))
+        }
+        log("  → UserAdditionalInfoEntity export completed: ${userAdditionalInfo.size} records")
     }
 }

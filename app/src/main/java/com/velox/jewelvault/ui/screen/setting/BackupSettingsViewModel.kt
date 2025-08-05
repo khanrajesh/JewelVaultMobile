@@ -7,6 +7,7 @@ import com.google.firebase.storage.FirebaseStorage
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.utils.backup.*
+import com.velox.jewelvault.utils.backup.BackupFrequency
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,8 +43,54 @@ class BackupSettingsViewModel @Inject constructor(
     private val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     
     init {
+        log("BackupSettingsViewModel: ViewModel initialized")
         loadBackupSettings()
         loadAvailableBackups()
+        collectBackupProgress()
+        log("BackupSettingsViewModel: Init completed")
+    }
+    
+    private fun collectBackupProgress() {
+        log("BackupSettingsViewModel: Starting to collect backup progress from SharedFlow")
+        viewModelScope.launch {
+            try {
+                BackupService.progressFlow.collect { progress ->
+                    log("BackupSettingsViewModel: Received progress update - message: '${progress.message}', progress: ${progress.progress}, isComplete: ${progress.isComplete}, isSuccess: ${progress.isSuccess}")
+                    
+                    if (progress.isComplete) {
+                        // Handle completion
+                        onBackupCompleted(progress.isSuccess, progress.message)
+                    } else {
+                        // Handle progress update
+                        updateBackupProgress(progress.message, progress.progress)
+                    }
+                }
+            } catch (e: Exception) {
+                log("BackupSettingsViewModel: Error collecting backup progress: ${e.message}")
+            }
+        }
+    }
+    
+    private fun updateBackupProgress(message: String, progress: Int) {
+        log("BackupSettingsViewModel: Updating backup progress - message: '$message', progress: $progress")
+        _uiState.update { 
+            it.copy(
+                progressMessage = message,
+                progressPercent = progress
+            )
+        }
+        log("BackupSettingsViewModel: Backup progress updated in UI state")
+    }
+    
+    private fun updateRestoreProgress(message: String, progress: Int) {
+        log("BackupSettingsViewModel: Updating restore progress - message: '$message', progress: $progress")
+        _uiState.update { 
+            it.copy(
+                progressMessage = message,
+                progressPercent = progress
+            )
+        }
+        log("BackupSettingsViewModel: Restore progress updated in UI state")
     }
     
     private fun loadBackupSettings() {
@@ -130,6 +177,7 @@ class BackupSettingsViewModel @Inject constructor(
     fun startBackup() {
         viewModelScope.launch {
             try {
+                log("BackupSettingsViewModel: startBackup called")
                 _uiState.update { 
                     it.copy(
                         isLoading = true,

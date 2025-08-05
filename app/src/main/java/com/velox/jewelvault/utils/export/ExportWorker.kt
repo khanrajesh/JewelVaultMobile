@@ -8,6 +8,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.velox.jewelvault.R
 import com.velox.jewelvault.utils.ExportFormat
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 
@@ -16,6 +17,7 @@ class ExportWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+       log("ExportWorker: Export started")
         val fileName = inputData.getString("fileName") ?: return Result.failure()
         val headers = inputData.getStringArray("headers")?.toList() ?: return Result.failure()
         val rawData = inputData.getStringArray("rows")?.toList() ?: return Result.failure()
@@ -50,6 +52,8 @@ class ExportWorker(
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure()
+        } finally {
+            log("ExportWorker: Export finished")
         }
     }
 
