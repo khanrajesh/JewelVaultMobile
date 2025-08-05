@@ -21,7 +21,10 @@ import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.RoomMigration
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.backup.BackupManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -121,6 +124,37 @@ object AppModule {
     @Singleton
     fun provideFirebaseStorage(): FirebaseStorage {
         return Firebase.storage
+    }
+
+    @Provides
+    @Singleton
+    fun provideRemoteConfigManager(
+        @ApplicationContext context: Context,
+        dataStoreManager: DataStoreManager
+    ): RemoteConfigManager {
+        return RemoteConfigManager(context, dataStoreManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAppUpdateManager(): AppUpdateManager {
+        return AppUpdateManager()
+    }
+
+    @Provides
+    @Singleton
+    fun provideBackupManager(
+        @ApplicationContext context: Context,
+        database: AppDatabase,
+        storage: FirebaseStorage,
+        dataStoreManager: DataStoreManager
+    ): BackupManager {
+        return BackupManager(
+            context = context,
+            database = database,
+            storage = storage,
+            dataStoreManager = dataStoreManager
+        )
     }
 
     //endregion

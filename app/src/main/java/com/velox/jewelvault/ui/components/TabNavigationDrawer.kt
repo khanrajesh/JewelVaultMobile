@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -302,6 +304,45 @@ fun TabNavigationDrawer(
                         Spacer(Modifier.width(20.dp))
                         notifierContent()
                         Spacer(Modifier.width(10.dp))
+                        
+                        // Version info and update notification
+                        Column(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            Text(
+                                text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Normal
+                            )
+                            
+                            // Show update notification if available
+                            if (baseViewModel.updateInfo.value != null) {
+                                // Note: We can't call suspend function here, so we'll show based on updateInfo
+                                val currentVersion = baseViewModel.remoteConfigManager.getCurrentAppVersion()
+                                val latestVersion = baseViewModel.updateInfo.value?.latestVersionCode ?: currentVersion
+                                if (latestVersion > currentVersion) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Update,
+                                        contentDescription = "Update Available",
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                                    )
+                                    Text(
+                                        text = "Update",
+                                        fontSize = 8.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                        }
                     }
                     Box(Modifier.fillMaxSize()) {
                         content()

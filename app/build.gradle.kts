@@ -89,6 +89,7 @@ dependencies {
 
 // For JSON handling
     implementation(libs.json)
+    implementation("com.google.code.gson:gson:2.10.1")
 
 // For Kotlin Coroutines
     implementation(libs.kotlinx.coroutines.android)

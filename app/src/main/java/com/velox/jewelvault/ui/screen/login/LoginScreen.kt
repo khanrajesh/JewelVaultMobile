@@ -49,6 +49,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
+import com.velox.jewelvault.ui.components.ForceUpdateDialog
 
 
 @Composable
@@ -71,26 +72,27 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
     val savePhoneChecked = remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
-        ioScope {
-            val adminUser = loginViewModel.adminUserExits()
+        // Check for force updates first
+        loginViewModel.checkForForceUpdates(context)
+        
+        val adminUser = loginViewModel.adminUserExits()
 
-            if (adminUser == null) {
-                isLogin.value = false
-            } else {
-                // Check biometric availability
-                loginViewModel.checkBiometricAvailability(context)
+        if (adminUser == null) {
+            isLogin.value = false
+        } else {
+            // Check biometric availability
+            loginViewModel.checkBiometricAvailability(context)
 
-                // Load saved phone number if available
-                val savedPhone = loginViewModel.getSavedPhoneNumber()
-                if (!savedPhone.isNullOrBlank()) {
-                    mobileNo.text = savedPhone
-                    savePhoneChecked.value = true
-                }
-
-                // Check if biometric is enabled in settings
-                val biometricEnabled = loginViewModel.getBiometricSetting()
-                loginViewModel.biometricAuthEnabled.value = biometricEnabled
+            // Load saved phone number if available
+            val savedPhone = loginViewModel.getSavedPhoneNumber()
+            if (!savedPhone.isNullOrBlank()) {
+                mobileNo.text = savedPhone
+                savePhoneChecked.value = true
             }
+
+            // Check if biometric is enabled in settings
+            val biometricEnabled = loginViewModel.getBiometricSetting()
+            loginViewModel.biometricAuthEnabled.value = biometricEnabled
         }
     }
 
@@ -115,6 +117,16 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
                 savePhoneChecked,
                 loginViewModel
             )
+        }
+
+        // Show force update dialog if needed
+        if (loginViewModel.showForceUpdateDialog.value) {
+            loginViewModel.updateInfo.value?.let { updateInfo ->
+                ForceUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { loginViewModel.onUpdateClick(context) }
+                )
+            }
         }
 
     }
