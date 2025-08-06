@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.first
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
+import android.net.Uri
 
 /**
  * Main backup manager class that coordinates backup and restore operations
@@ -27,6 +31,7 @@ class BackupManager(
     }
     
     private val excelExporter = ExcelExporter(context)
+    private val googleSheetsExporter = GoogleSheetsExporter(context)
 //    private val excelImporter = ExcelImporter(context, database)
     private val firebaseBackupManager = FirebaseBackupManager(storage)
     
@@ -34,8 +39,10 @@ class BackupManager(
      * Perform complete backup operation
      */
     suspend fun performBackup(
+        useGoogleSheets: Boolean = false, // Default to Excel (Google Sheets available for future use)
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<String> {
+        log("BackupManager: Backup process started (${if (useGoogleSheets) "Google Sheets" else "Excel"})")
         return try {
             onProgress("Starting backup process...", 0)
             
@@ -44,42 +51,62 @@ class BackupManager(
             val userData = database.userDao().getUserById(userId)
             val userMobile = userData?.mobileNo ?: "unknown"
             
-            onProgress("Exporting data to Excel...", 20)
-            
-            // Create Excel file with all entities
-            val backupFile = createBackupFile(userMobile)
-            val exportResult = excelExporter.exportAllEntitiesToExcel(database, backupFile) { message, progress ->
-                onProgress(message, (progress * 0.4).toInt() + 20) // Scale to 20-60% range
+            if (useGoogleSheets) {
+                // Use Google Sheets (for future use when permissions are available)
+                onProgress("Exporting data to Google Sheets...", 20)
+                val sheetsResult = googleSheetsExporter.exportAllEntitiesToGoogleSheets(database) { message, progress ->
+                    onProgress(message, (progress * 0.4).toInt() + 20)
+                }
+                
+                if (sheetsResult.isFailure) {
+                    return Result.failure(sheetsResult.exceptionOrNull() ?: Exception("Google Sheets export failed"))
+                }
+                
+                onProgress("Google Sheets backup completed!", 100)
+                val sheetsUrl = sheetsResult.getOrNull() ?: ""
+                log("Google Sheets backup completed successfully: $sheetsUrl")
+                Result.success("Google Sheets backup completed! Access at: $sheetsUrl")
+                
+            } else {
+                // Use Excel (current default)
+                onProgress("Exporting data to Excel...", 20)
+                
+                // Create Excel file with all entities (now returns Uri)
+                val backupUri = createBackupFile(userMobile)
+                val exportResult = excelExporter.exportAllEntitiesToExcel(database, backupUri, context) { message, progress ->
+                    onProgress(message, (progress * 0.4).toInt() + 20) // Scale to 20-60% range
+                }
+                
+                if (exportResult.isFailure) {
+                    return Result.failure(exportResult.exceptionOrNull() ?: Exception("Export failed"))
+                }
+                
+                onProgress("Uploading to Firebase Storage...", 60)
+                
+                // Copy from Uri to temp file for upload
+                val tempFile = File(context.cacheDir, "temp_backup_upload.xlsx")
+                context.contentResolver.openInputStream(backupUri)?.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                } ?: throw Exception("Unable to open input stream for backup Uri")
+                val uploadResult = firebaseBackupManager.uploadBackupFile(tempFile, userMobile)
+                // Clean up temp file
+                if (tempFile.exists()) tempFile.delete()
+                if (uploadResult.isFailure) {
+                    return Result.failure(uploadResult.exceptionOrNull() ?: Exception("Upload failed"))
+                }
+                onProgress("Cleaning up local files...", 90)
+                // Optionally delete the public file using contentResolver.delete(backupUri, null, null)
+                onProgress("Backup completed successfully!", 100)
+                val downloadUrl = uploadResult.getOrNull() ?: ""
+                log("Backup completed successfully. Download URL: $downloadUrl")
+                log("BackupManager: Backup file saved to Downloads/JewelVault/Backup/ - User can find it in their Downloads folder")
+                Result.success("Backup completed! File saved to Downloads/JewelVault/Backup/ and uploaded to cloud.")
             }
-            
-            if (exportResult.isFailure) {
-                return Result.failure(exportResult.exceptionOrNull() ?: Exception("Export failed"))
-            }
-            
-            onProgress("Uploading to Firebase Storage...", 60)
-            
-            // Upload to Firebase Storage
-            val uploadResult = firebaseBackupManager.uploadBackupFile(backupFile, userMobile)
-            
-            if (uploadResult.isFailure) {
-                return Result.failure(uploadResult.exceptionOrNull() ?: Exception("Upload failed"))
-            }
-            
-            onProgress("Cleaning up local files...", 90)
-            
-            // Clean up local file
-            if (backupFile.exists()) {
-                backupFile.delete()
-            }
-            
-            onProgress("Backup completed successfully!", 100)
-            
-            val downloadUrl = uploadResult.getOrNull() ?: ""
-            log("Backup completed successfully. Download URL: $downloadUrl")
-            Result.success(downloadUrl)
             
         } catch (e: Exception) {
-            log("Backup failed: ${e.message}")
+            log("BackupManager: Backup process failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -91,6 +118,7 @@ class BackupManager(
         userMobile: String,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<String> {
+        log("BackupManager: Restore process started for user: $userMobile")
         return try {
             onProgress("Starting restore process...", 0)
             
@@ -129,7 +157,7 @@ class BackupManager(
             Result.success("Data restored successfully")
             
         } catch (e: Exception) {
-            log("Restore failed: ${e.message}")
+            log("BackupManager: Restore process failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -148,16 +176,26 @@ class BackupManager(
         return firebaseBackupManager.cleanupOldBackups(userMobile, keepCount)
     }
     
-    private fun createBackupFile(userMobile: String): File {
+    private fun createBackupFile(userMobile: String): Uri {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "${BACKUP_FILE_PREFIX}_${userMobile}_${timestamp}${BACKUP_FILE_EXTENSION}"
+        val fileName = "jewelvault_backup_${userMobile}_$timestamp.xlsx"
         
-        val backupDir = File(context.cacheDir, BACKUP_FOLDER)
-        if (!backupDir.exists()) {
-            backupDir.mkdirs()
+        log("BackupManager: Creating backup file: $fileName")
+        
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Backup")
         }
         
-        return File(backupDir, fileName)
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw Exception("Unable to create backup file in MediaStore")
+        
+        log("BackupManager: Backup file created successfully at: $uri")
+        log("BackupManager: File will be saved to: Downloads/JewelVault/Backup/$fileName")
+        
+        return uri
     }
 }
 

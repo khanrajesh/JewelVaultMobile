@@ -2,11 +2,9 @@ package com.velox.jewelvault.utils.backup
 
 import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageReference
 import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.text.SimpleDateFormat
 import java.util.*
 
 /**
@@ -23,6 +21,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Upload backup file to Firebase Storage
      */
     suspend fun uploadBackupFile(backupFile: File, userMobile: String): Result<String> {
+        log("FirebaseBackupManager: Starting upload for user: $userMobile, file: ${backupFile.name}")
         return try {
             // Delete previous backup files for this user
             cleanupPreviousBackups(userMobile)
@@ -38,10 +37,11 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             val downloadUrl = storageRef.downloadUrl.await()
             
             log("Backup uploaded successfully: ${downloadUrl}")
+            log("FirebaseBackupManager: Upload completed successfully")
             Result.success(downloadUrl.toString())
             
         } catch (e: Exception) {
-            log("Failed to upload backup: ${e.message}")
+            log("FirebaseBackupManager: Upload failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -50,6 +50,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Download latest backup file from Firebase Storage
      */
     suspend fun downloadLatestBackup(userMobile: String): Result<File> {
+        log("FirebaseBackupManager: Starting download for user: $userMobile")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
@@ -75,10 +76,11 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             latestBackup.getFile(tempFile).await()
             
             log("Backup downloaded successfully: ${tempFile.absolutePath}")
+            log("FirebaseBackupManager: Download completed successfully")
             Result.success(tempFile)
             
         } catch (e: Exception) {
-            log("Failed to download backup: ${e.message}")
+            log("FirebaseBackupManager: Download failed: ${e.message}")
             Result.failure(e)
         }
     }

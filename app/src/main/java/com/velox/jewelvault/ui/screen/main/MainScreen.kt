@@ -229,7 +229,7 @@ private fun LandscapeDashboardScreen(
                                         contentDescription = item.text,
                                         Modifier
                                             .padding(start = 5.dp)
-                                            .size(30.dp),
+                                            .size(25.dp),
                                         tint = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {

@@ -44,6 +44,7 @@ import com.velox.jewelvault.ui.screen.customers.KhataBookPlansScreen
 import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceScreen
 import com.velox.jewelvault.ui.screen.draft_invoice.DraftInvoiceViewModel
 import com.velox.jewelvault.ui.screen.draft_invoice.DraftPreviewScreen
+import com.velox.jewelvault.ui.screen.setting.BackupSettingsScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -186,6 +187,11 @@ fun SubAppNavigation(
                 arguments = listOf(navArgument("purchaseOrderId") { type = NavType.StringType })) {backStackEntry ->
                 val purchaseOrderId = backStackEntry.arguments?.getString("purchaseOrderId") ?: return@composable
                 PurchaseItemDetailScreen(hiltViewModel<PurchaseItemViewModel>(),purchaseOrderId)
+            }
+            composable(
+                SubScreens.BackUpSetting.route
+            ) {
+                BackupSettingsScreen(onBackPressed = { navController.popBackStack() })
             }
         }
     }
