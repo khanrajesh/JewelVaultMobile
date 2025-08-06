@@ -35,6 +35,8 @@ import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.screen.dashboard.DashboardViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +44,7 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
     val subNavController = LocalSubNavController.current
     val mainNavController = LocalNavController.current
     val settingViewModel: SettingViewModel = hiltViewModel()
+    val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
     BackHandler {
@@ -236,6 +239,17 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                         subtitle = settingViewModel.getAppVersion(context)
                     )
                 }
+                
+                item {
+                    SettingsActionItem(
+                        title = "Check for Updates",
+                        subtitle = "Check for app updates",
+                        icon = Icons.Default.Refresh,
+                        onClick = { 
+                            baseViewModel.checkForUpdates(context, forceCheck = true)
+                        }
+                    )
+                }
             }
         }
     }
@@ -279,6 +293,27 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
             onDismiss = { settingViewModel.showOtpVerificationDialog.value = false },
             isLoading = settingViewModel.isWipeInProgress.value
         )
+    }
+    
+    // Show update dialogs if needed
+    if (baseViewModel.showUpdateDialog.value) {
+        baseViewModel.updateInfo.value?.let { updateInfo ->
+            OptionalUpdateDialog(
+                updateInfo = updateInfo,
+                onUpdateClick = { baseViewModel.onUpdateClick(context) },
+                onDismiss = { baseViewModel.dismissUpdateDialog() },
+                onBackupClick = { baseViewModel.onUpdateClick(context) }
+            )
+        }
+    }
+    
+    if (baseViewModel.showForceUpdateDialog.value) {
+        baseViewModel.updateInfo.value?.let { updateInfo ->
+            com.velox.jewelvault.ui.components.ForceUpdateDialog(
+                updateInfo = updateInfo,
+                onUpdateClick = { baseViewModel.onUpdateClick(context) }
+            )
+        }
     }
 }
 

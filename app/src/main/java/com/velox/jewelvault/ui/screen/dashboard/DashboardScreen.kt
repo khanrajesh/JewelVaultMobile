@@ -70,6 +70,7 @@ import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -97,6 +98,11 @@ fun LandscapeMainScreen(
 
     // Double back press to exit state
     var backPressCount by remember { mutableStateOf(0) }
+    
+    // Check for updates on dashboard load
+    LaunchedEffect(Unit) {
+        baseViewModel.checkForUpdates(context)
+    }
     
     // Dialog state for time range selection
     var showTimeRangeDialog by remember { mutableStateOf(false) }
@@ -301,6 +307,27 @@ fun LandscapeMainScreen(
                     showTimeRangeDialog = false
                 }
             )
+        }
+        
+        // Show update dialogs if needed
+        if (baseViewModel.showUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                OptionalUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) },
+                    onDismiss = { baseViewModel.dismissUpdateDialog() },
+                    onBackupClick = { baseViewModel.onUpdateClick(context) }
+                )
+            }
+        }
+        
+        if (baseViewModel.showForceUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                com.velox.jewelvault.ui.components.ForceUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) }
+                )
+            }
         }
     }
 }

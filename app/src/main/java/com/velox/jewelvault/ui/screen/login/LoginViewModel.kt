@@ -22,6 +22,9 @@ import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.BiometricAuthManager
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.RemoteConfigManager
+import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.data.UpdateInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -36,7 +39,9 @@ class LoginViewModel @Inject constructor(
     private val _loadingState: MutableState<Boolean>,
     private val _snackBarState: MutableState<String>,
     private val _auth: FirebaseAuth,
-    private val _fireStore: FirebaseFirestore
+    private val _fireStore: FirebaseFirestore,
+    private val _remoteConfigManager: RemoteConfigManager,
+    private val _appUpdateManager: AppUpdateManager
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
@@ -50,6 +55,10 @@ class LoginViewModel @Inject constructor(
     // Biometric authentication state
     val isBiometricAvailable = mutableStateOf(false)
     val biometricAuthEnabled = mutableStateOf(false)
+    
+    // Update management state
+    val updateInfo = mutableStateOf<UpdateInfo?>(null)
+    val showForceUpdateDialog = mutableStateOf(false)
 
 
     suspend fun getUserCount(): Int {
@@ -115,14 +124,14 @@ class LoginViewModel @Inject constructor(
         val biometricAuthManager = BiometricAuthManager(context)
 
         // Check if biometric is enabled in settings and start authentication on main thread
-        ioScope {
+        ioLaunch {
             val biometricEnabled =
                 _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_AUTH, false).first() ?: false
             log("Biometric enabled in settings: $biometricEnabled")
             if (!biometricEnabled) {
                 log("Biometric disabled in settings, calling onError")
                 onError("Biometric authentication is disabled in settings")
-                return@ioScope
+                return@ioLaunch
             }
 
             // Switch to main thread for biometric authentication
@@ -597,6 +606,49 @@ class LoginViewModel @Inject constructor(
             false
         }
     }
-
+    
+    // Update management functions
+    suspend fun checkForForceUpdates(context: android.content.Context) {
+        log("🚨 Starting force update check in LoginViewModel...")
+        try {
+            // Fetch remote config
+            log("🔄 Fetching remote config for force update check...")
+            val fetchResult = _remoteConfigManager.fetchAndActivate()
+            if (fetchResult.isSuccess) {
+                log("✅ Remote config fetch successful for force update check")
+                val info = _remoteConfigManager.getUpdateInfo()
+                log("📋 Got update info for force update check: $info")
+                updateInfo.value = info
+                
+                // Check if force update is required
+                val isForceRequired = _remoteConfigManager.isForceUpdateRequired()
+                log("🔍 Force update required check: $isForceRequired")
+                if (isForceRequired) {
+                    log("🚨 Force update required - showing dialog")
+                    showForceUpdateDialog.value = true
+                } else {
+                    log("✅ No force update required")
+                }
+            } else {
+                log("❌ Remote config fetch failed for force update check: ${fetchResult.exceptionOrNull()?.message}")
+            }
+        } catch (e: Exception) {
+            log("❌ Error checking for force updates: ${e.message}")
+            log("❌ Exception details: ${e.javaClass.simpleName}")
+            e.printStackTrace()
+        }
+    }
+    
+    fun onUpdateClick(context: android.content.Context) {
+        log("🔄 Update button clicked in LoginViewModel")
+        val info = updateInfo.value
+        if (info != null) {
+            log("📱 Opening Play Store with update info from LoginViewModel: $info")
+            _appUpdateManager.openPlayStore(context, info)
+        } else {
+            log("📱 Opening Play Store without update info from LoginViewModel")
+            _appUpdateManager.openPlayStore(context)
+        }
+    }
 
 }

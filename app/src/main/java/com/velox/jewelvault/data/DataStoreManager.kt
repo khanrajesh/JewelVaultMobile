@@ -82,22 +82,18 @@ class DataStoreManager @Inject constructor(
 
     }
 
-    fun saveAdminInfo(userName: String, userId: String, mobileNo: String) {
-        ioScope {
-            setValue(ADMIN_USER_NAME_KEY, userName)
-            setValue(ADMIN_USER_ID_KEY, userId)
-            setValue(ADMIN_USER_MOBILE_KEY, mobileNo)
-        }
+    suspend fun saveAdminInfo(userName: String, userId: String, mobileNo: String) {
+        setValue(ADMIN_USER_NAME_KEY, userName)
+        setValue(ADMIN_USER_ID_KEY, userId)
+        setValue(ADMIN_USER_MOBILE_KEY, mobileNo)
     }
 
 
-    fun saveCurrentLoginUser(user: UsersEntity) {
-        ioScope {
-           setValue(CL_USER_ID_KEY, user.userId)
-            setValue(CL_USER_NAME_KEY, user.name)
-            setValue(CL_USER_MOBILE_KEY, user.mobileNo)
-            setValue(CL_USER_ROLE_KEY, user.role)
-        }
+    suspend fun saveCurrentLoginUser(user: UsersEntity) {
+        setValue(CL_USER_ID_KEY, user.userId)
+        setValue(CL_USER_NAME_KEY, user.name)
+        setValue(CL_USER_MOBILE_KEY, user.mobileNo)
+        setValue(CL_USER_ROLE_KEY, user.role)
     }
 
     fun getCurrentLoginUser(): UsersEntity{
@@ -137,12 +133,10 @@ class DataStoreManager @Inject constructor(
         return Triple(storeId, upiId, storeName)
     }
 
-    fun saveSelectedStoreInfo(storeId: String, upiId: String, storeName: String) {
-        ioScope {
-            setValue(SELECTED_STORE_ID_KEY, storeId)
-            setValue(SELECTED_STORE_UPI_ID, upiId)
-            setValue(SELECTED_STORE_NAME, storeName)
-        }
+    suspend fun saveSelectedStoreInfo(storeId: String, upiId: String, storeName: String) {
+        setValue(SELECTED_STORE_ID_KEY, storeId)
+        setValue(SELECTED_STORE_UPI_ID, upiId)
+        setValue(SELECTED_STORE_NAME, storeName)
     }
 
 //    val selectedStoreId: Flow<String> =

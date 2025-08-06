@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,7 @@ import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.sql.Timestamp
 
 // Helper function to convert ItemEntity to List<String>

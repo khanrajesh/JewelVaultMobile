@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +66,7 @@ import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
@@ -339,7 +341,6 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 profileViewModel.saveStoreData(onSuccess = {
                                     // Refresh the store image in BaseViewModel
                                     baseViewModel.loadStoreImage()
-                                    
                                     if (firstLaunch) {
                                         ioScope {
                                             profileViewModel.initializeDefaultCategories()
@@ -353,7 +354,6 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                             }
                                         }
                                     }
-
                                     profileViewModel.snackBarState.value =
                                         "Store Details updated successfully!"
                                 }, onFailure = {

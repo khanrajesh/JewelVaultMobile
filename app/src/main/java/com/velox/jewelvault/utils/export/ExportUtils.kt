@@ -133,10 +133,10 @@ fun exportItemListInBackground(
                 }
             }
 
-            withMain { onSuccess() }
+            mainScope { onSuccess() }
 
         } catch (e: Exception) {
-            withMain { onFailure(e) }
+            mainScope { onFailure(e) }
         }
     }
 }

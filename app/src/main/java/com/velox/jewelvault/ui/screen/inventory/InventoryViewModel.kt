@@ -201,7 +201,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun getCategoryAndSubCategoryDetails() {
-        ioScope {
+        viewModelScope.launch {
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
