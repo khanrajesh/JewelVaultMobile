@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
+import javax.inject.Named
 
 // Data class for inventory summary statistics
 data class InventorySummary(
@@ -46,7 +47,7 @@ data class InventorySummary(
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase, private val _dataStoreManager: DataStoreManager,
 //    private val _loadingState: MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>, context: Context
+    @Named("snackMessage") private val _snackBarState: MutableState<String>, context: Context
 ) : ViewModel() {
 
     val dataStoreManager = _dataStoreManager

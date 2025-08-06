@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -287,18 +288,31 @@ fun TabNavigationDrawer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Spacer(Modifier.width(20.dp))
-                        Text(
-                            text = baseViewModel.storeName.value ?:"Jewel Vault",
-                            fontSize = 22.sp,
-                            fontFamily = ZenFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.bounceClick {
-                                ioScope.launch {
-                                    baseViewModel.refreshMetalRates(context = context)
-                                }
-                            }.padding(10.dp)
-                        )
+                        Column {
+                            Text(
+                                text = baseViewModel.storeName.value ?:"Jewel Vault",
+                                fontSize = 22.sp,
+                                fontFamily = ZenFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.bounceClick {
+                                    ioScope.launch {
+                                        baseViewModel.refreshMetalRates(context = context)
+                                    }
+                                }.padding(top = 5.dp)
+                            )
+                            
+                            // Current Screen Heading
+                            if (baseViewModel.currentScreenHeading.isNotEmpty()) {
+                                Text(
+                                    text = baseViewModel.currentScreenHeading,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(start = 10.dp,).offset(y= (-7).dp)
+                                )
+                            }
+                        }
                         Spacer(Modifier.width(20.dp))
                         MetalRatesTicker(Modifier.height(50.dp).weight(1f), backgroundColor = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.width(20.dp))
@@ -369,36 +383,7 @@ class InputIconState(
     }
 }
 
-@Composable
-private fun TabScrim(
-    open: Boolean,
-    onClose: () -> Unit,
-    fraction: () -> Float,
-    color: Color
-) {
-    val closeDrawer = "Closed"
-    val dismissDrawer = if (open) {
-        Modifier
-            .pointerInput(onClose) { detectTapGestures { onClose() } }
-            .semantics(mergeDescendants = true) {
-                contentDescription = closeDrawer
-                onClick { onClose(); true }
-            }
-    } else {
-        Modifier
-    }
 
-    Canvas(
-        Modifier
-            .fillMaxSize()
-            .then(dismissDrawer)
-    ) {
-        drawRect(color, alpha = fraction())
-    }
-}
-
-fun calculateFraction(a: Float, b: Float, pos: Float) =
-    ((pos - a) / (b - a)).coerceIn(0f, 1f)
 
 @Composable
 fun ProfileImage(drawerState: TabDrawerState) {

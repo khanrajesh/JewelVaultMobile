@@ -253,6 +253,7 @@ private fun LandscapeDashboardScreen(
                         }
 
                         if (item.selected) {
+                            baseViewModel.currentScreenHeading = item.text
                             Spacer(
                                 Modifier
                                     .fillMaxWidth()

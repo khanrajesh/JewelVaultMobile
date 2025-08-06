@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
+import javax.inject.Named
 
 // Import the data classes from CustomerModels
 
@@ -52,7 +53,7 @@ data class KhataBookSummary(
 class CustomerViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    private val _snackBarState: MutableState<String>
+    @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
     /**

@@ -18,12 +18,14 @@ import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class BaseViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState : MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
     private val _metalRates: SnapshotStateList<MetalRate>,
     private val appDatabase: AppDatabase,
     private val _remoteConfigManager: RemoteConfigManager,
@@ -33,6 +35,7 @@ class BaseViewModel @Inject constructor(
 
     var loading by _loadingState
     var snackMessage by _snackBarState
+    var currentScreenHeading by _currentScreenHeadingState
     val dataStoreManager = _dataStoreManager
     val metalRates = _metalRates
     val metalRatesLoading = mutableStateOf(false)

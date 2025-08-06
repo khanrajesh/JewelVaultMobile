@@ -4,9 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -18,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.backup.*
 
 /**
@@ -30,7 +35,16 @@ fun BackupSettingsScreen(
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val subNavController = LocalSubNavController.current
     val uiState by viewModel.uiState.collectAsState()
+    
+    BackHandler {
+        subNavController.navigate(SubScreens.Setting.route) {
+            popUpTo(SubScreens.Setting.route) {
+                inclusive = true
+            }
+        }
+    }
     
     // Register broadcast receiver for backup/restore completion
     LaunchedEffect(Unit) {
@@ -64,197 +78,138 @@ fun BackupSettingsScreen(
         )
     }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Backup & Restore") },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(5.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Quick Actions Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            text = "Quick Actions",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.startBackup() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !uiState.isLoading
-                            ) {
-                                Icon(Icons.Default.CloudUpload, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Backup Now")
-                            }
-                            
-                            OutlinedButton(
-                                onClick = { viewModel.showBackupDialog() },
-                                modifier = Modifier.weight(1f),
-                                enabled = !uiState.isLoading
-                            ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Restore")
-                            }
-                        }
-                    }
-                }
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Backup & Restore",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
             
-            // Automatic Backup Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Quick Actions Section
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "Automatic Backup",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = "Schedule automatic backups to keep your data safe",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        var expanded by remember { mutableStateOf(false) }
-                        
-                        ExposedDropdownMenuBox(
-                            expanded = expanded,
-                            onExpandedChange = { expanded = !expanded }
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            OutlinedTextField(
-                                value = uiState.backupFrequency.name.lowercase().replaceFirstChar { it.uppercase() },
-                                onValueChange = { },
-                                readOnly = true,
-                                label = { Text("Backup Frequency") },
-                                trailingIcon = {
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .menuAnchor()
+                            Text(
+                                text = "Quick Actions",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
                             
-                            ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                BackupFrequency.values().forEach { frequency ->
-                                    DropdownMenuItem(
-                                        text = { 
-                                            Text(frequency.name.lowercase().replaceFirstChar { it.uppercase() })
-                                        },
-                                        onClick = {
-                                            viewModel.setBackupFrequency(frequency)
-                                            expanded = false
-                                        }
-                                    )
+                                Button(
+                                    onClick = { viewModel.startBackup() },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !uiState.isLoading
+                                ) {
+                                    Icon(Icons.Default.CloudUpload, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Backup Now")
+                                }
+                                
+                                OutlinedButton(
+                                    onClick = { viewModel.showBackupDialog() },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !uiState.isLoading
+                                ) {
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Restore")
                                 }
                             }
                         }
                     }
                 }
-            }
-            
-            // Backup Status Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+                
+                // Automatic Backup Section
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "Backup Status",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        if (uiState.isLoading) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Automatic Backup",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = "Schedule automatic backups to keep your data safe",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            var expanded by remember { mutableStateOf(false) }
+                            
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
+                                OutlinedTextField(
+                                    value = uiState.backupFrequency.name.lowercase().replaceFirstChar { it.uppercase() },
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    label = { Text("Backup Frequency") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor()
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = uiState.progressMessage,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Text(
-                                        text = "${uiState.progressPercent}%",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    if (uiState.lastBackupSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = if (uiState.lastBackupSuccess) 
-                                        MaterialTheme.colorScheme.primary 
-                                    else 
-                                        MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = if (uiState.lastBackupDate.isNotEmpty()) 
-                                            "Last backup: ${uiState.lastBackupDate}"
-                                        else 
-                                            "No backup yet",
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    if (uiState.statusMessage.isNotEmpty()) {
-                                        Text(
-                                            text = uiState.statusMessage,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    BackupFrequency.values().forEach { frequency ->
+                                        DropdownMenuItem(
+                                            text = { 
+                                                Text(frequency.name.lowercase().replaceFirstChar { it.uppercase() })
+                                            },
+                                            onClick = {
+                                                viewModel.setBackupFrequency(frequency)
+                                                expanded = false
+                                            }
                                         )
                                     }
                                 }
@@ -262,46 +217,119 @@ fun BackupSettingsScreen(
                         }
                     }
                 }
-            }
-            
-            // Information Section
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
+                
+                // Backup Status Section
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "About Backup",
+                                text = "Backup Status",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            if (uiState.isLoading) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = uiState.progressMessage,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "${uiState.progressPercent}%",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        if (uiState.lastBackupSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = if (uiState.lastBackupSuccess) 
+                                            MaterialTheme.colorScheme.primary 
+                                        else 
+                                            MaterialTheme.colorScheme.error
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = if (uiState.lastBackupDate.isNotEmpty()) 
+                                                "Last backup: ${uiState.lastBackupDate}"
+                                            else 
+                                                "No backup yet",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        if (uiState.statusMessage.isNotEmpty()) {
+                                            Text(
+                                                text = uiState.statusMessage,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Text(
-                            text = "• Backup includes all your data: items, customers, orders, transactions\n" +
-                                    "• Data is stored securely in cloud storage\n" +
-                                    "• Only you can access your backup data\n" +
-                                    "• Restore will replace all current data\n" +
-                                    "• Keep your app updated for best compatibility",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                }
+                
+                // Information Section
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "About Backup",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = "• Backup includes all your data: items, customers, orders, transactions\n" +
+                                        "• Data is stored securely in cloud storage\n" +
+                                        "• Only you can access your backup data\n" +
+                                        "• Restore will replace all current data\n" +
+                                        "• Keep your app updated for best compatibility",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

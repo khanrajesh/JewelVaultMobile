@@ -13,13 +13,14 @@ import com.velox.jewelvault.utils.to2FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class PurchaseItemViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
-    private val _snackBar: MutableState<String>
+    @Named("snackMessage") private val _snackBar: MutableState<String>
 ) : ViewModel() {
 
     val purchaseOrderWithDetails = mutableStateOf<PurchaseOrderWithDetails?>(null)

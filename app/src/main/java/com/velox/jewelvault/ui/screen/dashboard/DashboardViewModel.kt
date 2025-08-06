@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import javax.inject.Named
 
 // Data class for customer summary statistics
 data class CustomerSummary(
@@ -38,7 +39,7 @@ class DashboardViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>
+    @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
     /**

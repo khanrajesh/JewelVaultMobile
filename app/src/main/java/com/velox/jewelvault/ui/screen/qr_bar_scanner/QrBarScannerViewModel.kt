@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class QrBarScannerViewModel @Inject constructor(

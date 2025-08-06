@@ -21,6 +21,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
+import javax.inject.Named
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,7 +31,7 @@ fun Double.to2FString(): String = String.format("%.2f", this)
 
 @HiltViewModel
 class DraftInvoiceViewModel @Inject constructor(
-    private val _snackBarState: MutableState<String>
+    @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
     
     // Customer details

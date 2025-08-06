@@ -15,6 +15,7 @@ import com.velox.jewelvault.data.DataStoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class OrderItemViewModel @Inject constructor(

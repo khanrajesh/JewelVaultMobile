@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -37,7 +38,7 @@ class LoginViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val _sessionManager: SessionManager,
     private val _loadingState: MutableState<Boolean>,
-    private val _snackBarState: MutableState<String>,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _auth: FirebaseAuth,
     private val _fireStore: FirebaseFirestore,
     private val _remoteConfigManager: RemoteConfigManager,

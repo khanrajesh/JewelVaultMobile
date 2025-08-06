@@ -30,7 +30,8 @@ class BackupService : Service() {
     @Inject
     lateinit var dataStoreManager: com.velox.jewelvault.data.DataStoreManager
     
-    private lateinit var backupManager: BackupManager
+    @Inject
+    lateinit var backupManager: BackupManager
     private var serviceJob: Job? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
@@ -72,7 +73,6 @@ class BackupService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        backupManager = BackupManager(this, database, storage, dataStoreManager)
         createNotificationChannel()
     }
     

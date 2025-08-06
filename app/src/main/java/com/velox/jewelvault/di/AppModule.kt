@@ -30,6 +30,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
 
@@ -65,7 +66,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    @Named("snackMessage")
     fun provideSnackMessageState(): MutableState<String> {
+        return mutableStateOf("")
+    }
+
+    @Provides
+    @Singleton
+    @Named("currentScreenHeading")
+    fun provideCurrentScreenHeadingState(): MutableState<String> {
         return mutableStateOf("")
     }
 

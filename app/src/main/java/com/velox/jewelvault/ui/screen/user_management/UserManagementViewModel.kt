@@ -23,11 +23,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class UserManagementViewModel @Inject constructor(
     private val database: AppDatabase,
-    private val _snackBarState: MutableState<String>,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _firestore: FirebaseFirestore,
     private val _dataStoreManager: DataStoreManager
 ) : ViewModel() {

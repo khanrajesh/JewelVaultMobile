@@ -21,12 +21,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val appDatabase: AppDatabase,
-    private val _snackBarState: MutableState<String>,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _firestore: FirebaseFirestore,
     private val _firebaseStorage: FirebaseStorage
 ) : ViewModel() {

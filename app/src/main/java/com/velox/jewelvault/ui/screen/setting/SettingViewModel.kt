@@ -17,13 +17,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class SettingViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val _appDatabase: AppDatabase,
     private val _auth: FirebaseAuth,
-    private val _snackBarState: MutableState<String>
+    @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
