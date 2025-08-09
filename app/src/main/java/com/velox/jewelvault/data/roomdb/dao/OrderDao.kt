@@ -22,6 +22,9 @@ interface OrderDao {
 
     @Insert
     suspend fun insertItems(items: List<OrderItemEntity>): List<Long>
+    
+    @Insert
+    suspend fun insertOrderItem(orderItem: OrderItemEntity): Long
 
     @Transaction
     @Query("SELECT * FROM `${TableNames.ORDER}` WHERE orderId = :id")

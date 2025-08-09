@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.velox.jewelvault.utils.permissions.PermissionRequestDialog
+import com.velox.jewelvault.utils.permissions.getBackupRestorePermissions
 
 @Composable
 fun PermissionRequester(
@@ -215,6 +216,7 @@ private fun getMultiplePermissionMessage(permissions: List<String>): String {
             Manifest.permission.READ_CONTACTS -> "• Contacts access to invite friends."
             Manifest.permission.ACCESS_FINE_LOCATION -> "• Location access for nearby shop recommendations."
             Manifest.permission.RECORD_AUDIO -> "• Microphone access for voice search."
+            Manifest.permission.POST_NOTIFICATIONS -> "• Notification access to show backup/restore progress."
             else -> null
         }
     }
@@ -238,4 +240,17 @@ private fun filterUngrantedPermissions(context: Context, permissions: List<Strin
             }
         }
     }
+}
+
+@Composable
+fun BackupRestorePermissionRequester(
+    onAllPermissionsGranted: () -> Unit
+) {
+    val context = LocalContext.current
+    val permissions = remember { getBackupRestorePermissions() }
+    
+    PermissionRequester(
+        permissions = permissions,
+        onAllPermissionsGranted = onAllPermissionsGranted
+    )
 }

@@ -24,6 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.backup.*
+import com.velox.jewelvault.ui.components.RestoreSourceDialog
+import com.velox.jewelvault.ui.components.BackupRestorePermissionRequester
 
 /**
  * Screen for backup and restore settings
@@ -77,6 +79,13 @@ fun BackupSettingsScreen(
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
+    
+    // Permission requester for backup/restore operations
+    BackupRestorePermissionRequester(
+        onAllPermissionsGranted = {
+            // Permissions granted, continue with normal flow
+        }
+    )
     
     Box(
         modifier = Modifier
@@ -141,7 +150,7 @@ fun BackupSettingsScreen(
                                 }
                                 
                                 OutlinedButton(
-                                    onClick = { viewModel.showBackupDialog() },
+                                    onClick = { viewModel.showRestoreSourceDialog() },
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
                                 ) {
@@ -324,7 +333,9 @@ fun BackupSettingsScreen(
                                 text = "• Backup includes all your data: items, customers, orders, transactions\n" +
                                         "• Data is stored securely in cloud storage\n" +
                                         "• Only you can access your backup data\n" +
-                                        "• Restore will replace all current data\n" +
+                                        "• Smart restore with merge/replace options\n" +
+                                        "• Merge mode: Add new data safely\n" +
+                                        "• Replace mode: Complete data replacement\n" +
                                         "• Keep your app updated for best compatibility",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -338,14 +349,31 @@ fun BackupSettingsScreen(
     
     // Show backup dialog
     if (uiState.showBackupDialog) {
-        BackupDialog(
+        EnhancedBackupDialog(
             onDismiss = { viewModel.hideBackupDialog() },
             onBackupRequested = { viewModel.startBackup() },
-            onRestoreRequested = { fileName -> viewModel.startRestore(fileName) },
+            onRestoreRequested = { fileName, restoreMode -> viewModel.startRestore(fileName, restoreMode) },
             availableBackups = uiState.availableBackups,
             isLoading = uiState.isLoading,
             progressMessage = uiState.progressMessage,
             progressPercent = uiState.progressPercent
+        )
+    }
+    
+    // Show restore source dialog
+    if (uiState.showRestoreSourceDialog) {
+        RestoreSourceDialog(
+            onDismiss = { viewModel.hideRestoreSourceDialog() },
+            onRestore = { restoreSource, localFileUri, restoreMode ->
+                viewModel.startRestoreWithSource(restoreSource, localFileUri, restoreMode)
+            },
+            checkFirebaseBackup = { restoreSource, onResult ->
+                viewModel.checkFirebaseBackupExists(onResult)
+            },
+            validateLocalFile = { fileUri, onResult ->
+                viewModel.validateLocalFile(fileUri, onResult)
+            },
+            defaultBackupFolder = viewModel.getDefaultBackupFolder()
         )
     }
     
@@ -360,10 +388,10 @@ fun BackupSettingsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BackupDialog(
+private fun EnhancedBackupDialog(
     onDismiss: () -> Unit,
     onBackupRequested: () -> Unit,
-    onRestoreRequested: (String) -> Unit,
+    onRestoreRequested: (String, RestoreMode) -> Unit,
     availableBackups: List<BackupInfo>,
     isLoading: Boolean,
     progressMessage: String,
@@ -496,7 +524,7 @@ private fun BackupDialog(
                                 BackupItem(
                                     backup = backup,
                                     dateFormat = dateFormat,
-                                    onRestoreClick = { onRestoreRequested(backup.fileName) }
+                                    onRestoreClick = { restoreMode -> onRestoreRequested(backup.fileName, restoreMode) }
                                 )
                             }
                         }
@@ -518,7 +546,7 @@ private fun BackupDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Restoring will replace all current data. Make sure to backup current data first.",
+                                text = "Choose restore mode carefully. Merge mode is recommended for admin users with existing data.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -534,7 +562,7 @@ private fun BackupDialog(
 private fun BackupItem(
     backup: BackupInfo,
     dateFormat: java.text.SimpleDateFormat,
-    onRestoreClick: () -> Unit
+    onRestoreClick: (RestoreMode) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth()
@@ -567,8 +595,10 @@ private fun BackupItem(
                     )
                 }
             }
+            var showRestoreOptions by remember { mutableStateOf(false) }
+            
             Button(
-                onClick = onRestoreClick,
+                onClick = { showRestoreOptions = true },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
                 )
@@ -576,6 +606,146 @@ private fun BackupItem(
                 Icon(Icons.Default.CloudDownload, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Restore")
+            }
+            
+            if (showRestoreOptions) {
+                RestoreModeDialog(
+                    onDismiss = { showRestoreOptions = false },
+                    onRestoreSelected = { restoreMode ->
+                        onRestoreClick(restoreMode)
+                        showRestoreOptions = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreModeDialog(
+    onDismiss: () -> Unit,
+    onRestoreSelected: (RestoreMode) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Choose Restore Mode",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Text(
+                    text = "Select how you want to handle existing data during restore:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                // Merge Mode Option
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Merge (Recommended)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "• Add new data from backup\n" +
+                                    "• Keep existing data unchanged\n" +
+                                    "• Safe for admin users with existing data\n" +
+                                    "• No data loss",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { onRestoreSelected(RestoreMode.MERGE) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Use Merge Mode")
+                        }
+                    }
+                }
+                
+                // Replace Mode Option
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Replace (Advanced)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "• Replace all data with backup\n" +
+                                    "• Current data will be overwritten\n" +
+                                    "• Only current user/store preserved\n" +
+                                    "• Use with caution",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { onRestoreSelected(RestoreMode.REPLACE) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Use Replace Mode")
+                        }
+                    }
+                }
+                
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel")
+                }
             }
         }
     }

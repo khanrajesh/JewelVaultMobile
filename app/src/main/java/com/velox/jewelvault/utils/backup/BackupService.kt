@@ -2,6 +2,7 @@ package com.velox.jewelvault.utils.backup
 
 import android.app.*
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -62,10 +63,29 @@ class BackupService : Service() {
             context.startForegroundService(intent)
         }
         
-        fun startRestore(context: android.content.Context, userMobile: String) {
+        fun startRestore(context: android.content.Context, userMobile: String, restoreMode: RestoreMode = RestoreMode.MERGE) {
             val intent = Intent(context, BackupService::class.java).apply {
                 action = ACTION_RESTORE
                 putExtra("userMobile", userMobile)
+                putExtra("restoreMode", restoreMode.name)
+            }
+            context.startForegroundService(intent)
+        }
+
+        fun startRestoreWithSource(
+            context: android.content.Context,
+            userMobile: String,
+            restoreSource: RestoreSource,
+            localFileUri: Uri? = null,
+            restoreMode: RestoreMode = RestoreMode.MERGE
+        ) {
+            log("BackupService: startRestoreWithSource called for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+            val intent = Intent(context, BackupService::class.java).apply {
+                action = "START_RESTORE_WITH_SOURCE"
+                putExtra("userMobile", userMobile)
+                putExtra("restoreSource", restoreSource.name)
+                putExtra("localFileUri", localFileUri?.toString())
+                putExtra("restoreMode", restoreMode.name)
             }
             context.startForegroundService(intent)
         }
@@ -84,8 +104,22 @@ class BackupService : Service() {
             }
             ACTION_RESTORE -> {
                 val userMobile = intent.getStringExtra("userMobile") ?: ""
+                val restoreModeStr = intent.getStringExtra("restoreMode") ?: RestoreMode.MERGE.name
+                val restoreMode = RestoreMode.valueOf(restoreModeStr)
                 startForeground(NOTIFICATION_ID, createNotification("Starting restore...", 0))
-                performRestore(userMobile)
+                performRestore(userMobile, restoreMode)
+            }
+            "START_RESTORE_WITH_SOURCE" -> {
+                val userMobile = intent.getStringExtra("userMobile") ?: ""
+                val restoreSourceStr = intent.getStringExtra("restoreSource") ?: RestoreSource.FIREBASE.name
+                val restoreSource = RestoreSource.valueOf(restoreSourceStr)
+                val localFileUriStr = intent.getStringExtra("localFileUri")
+                val localFileUri = if (localFileUriStr != null) Uri.parse(localFileUriStr) else null
+                val restoreModeStr = intent.getStringExtra("restoreMode") ?: RestoreMode.MERGE.name
+                val restoreMode = RestoreMode.valueOf(restoreModeStr)
+                
+                startForeground(NOTIFICATION_ID, createNotification("Starting restore...", 0))
+                performRestoreWithSource(userMobile, restoreSource, localFileUri, restoreMode)
             }
         }
         
@@ -149,19 +183,25 @@ class BackupService : Service() {
         }
     }
     
-    private fun performRestore(userMobile: String) {
-        log("BackupService: performRestore started for user: $userMobile")
+    private fun performRestore(userMobile: String, restoreMode: RestoreMode) {
+        log("BackupService: performRestore started for user: $userMobile with mode: $restoreMode")
         serviceJob = serviceScope.launch {
             try {
-                val result = backupManager.performRestore(userMobile) { message, progress ->
+                val result = backupManager.performRestore(userMobile, restoreMode) { message, progress ->
                     updateRestoreNotification(message, progress)
                 }
                 
                 if (result.isSuccess) {
+                    val restoreResult = result.getOrNull()!!
+                    val summary = restoreResult.summary
+                    val message = "${restoreResult.message}\n\nSummary: $summary"
+                    
                     showCompletionNotification("Restore completed successfully!", true)
                     sendBroadcast(Intent("com.velox.jewelvault.RESTORE_COMPLETED").apply {
                         putExtra("success", true)
-                        putExtra("message", "Restore completed successfully!")
+                        putExtra("message", message)
+                        putExtra("summary", summary.toString())
+                        putExtra("restoreMode", restoreMode.name)
                     })
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
@@ -181,6 +221,100 @@ class BackupService : Service() {
                 })
             } finally {
                 log("BackupService: performRestore finished")
+                // Add a delay to ensure completion notification is visible
+                delay(2000) // 2 seconds delay
+                stopSelf()
+            }
+        }
+    }
+
+    /**
+     * Perform restore with source selection (Firebase or Local)
+     */
+    private fun performRestoreWithSource(
+        userMobile: String, 
+        restoreSource: RestoreSource,
+        localFileUri: Uri? = null,
+        restoreMode: RestoreMode
+    ) {
+        log("BackupService: performRestoreWithSource started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+        serviceJob = serviceScope.launch {
+            try {
+                val result = backupManager.performRestoreWithSource(
+                    userMobile, 
+                    restoreSource, 
+                    localFileUri, 
+                    restoreMode
+                ) { message, progress ->
+                    updateRestoreNotification(message, progress)
+                }
+                
+                if (result.isSuccess) {
+                    val restoreResult = result.getOrNull()!!
+                    val summary = restoreResult.summary
+                    val message = "${restoreResult.message}\n\nSummary: $summary"
+                    
+                    showCompletionNotification("Restore completed successfully!", true)
+                    
+                    // Send completion update via SharedFlow (same as backup)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        try {
+                            _progressFlow.emit(BackupProgress("Restore completed successfully!", 100, true, true))
+                            log("BackupService: Restore completion update sent via SharedFlow - success: true")
+                        } catch (e: Exception) {
+                            log("BackupService: Error sending restore completion update: ${e.message}")
+                        }
+                    }
+                    
+                    sendBroadcast(Intent("com.velox.jewelvault.RESTORE_COMPLETED").apply {
+                        putExtra("success", true)
+                        putExtra("message", message)
+                        putExtra("summary", summary.toString())
+                        putExtra("restoreMode", restoreMode.name)
+                        putExtra("restoreSource", restoreSource.name)
+                    })
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Unknown error"
+                    showCompletionNotification("Restore failed: $error", false)
+                    
+                    // Send completion update via SharedFlow (same as backup)
+                    CoroutineScope(Dispatchers.Main).launch {
+                        try {
+                            _progressFlow.emit(BackupProgress("Restore failed: $error", 100, true, false))
+                            log("BackupService: Restore completion update sent via SharedFlow - success: false")
+                        } catch (e: Exception) {
+                            log("BackupService: Error sending restore completion update: ${e.message}")
+                        }
+                    }
+                    
+                    sendBroadcast(Intent("com.velox.jewelvault.RESTORE_COMPLETED").apply {
+                        putExtra("success", false)
+                        putExtra("message", "Restore failed: $error")
+                        putExtra("restoreSource", restoreSource.name)
+                    })
+                }
+                
+            } catch (e: Exception) {
+                log("Restore service error: ${e.message}")
+                showCompletionNotification("Restore failed: ${e.message}", false)
+                
+                // Send completion update via SharedFlow (same as backup)
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        _progressFlow.emit(BackupProgress("Restore failed: ${e.message}", 100, true, false))
+                        log("BackupService: Restore completion update sent via SharedFlow - success: false (exception)")
+                    } catch (e2: Exception) {
+                        log("BackupService: Error sending restore completion update: ${e2.message}")
+                    }
+                }
+                
+                sendBroadcast(Intent("com.velox.jewelvault.RESTORE_COMPLETED").apply {
+                    putExtra("success", false)
+                    putExtra("message", "Restore failed: ${e.message}")
+                    putExtra("restoreSource", restoreSource.name)
+                })
+            } finally {
+                log("BackupService: performRestoreWithSource finished")
                 // Add a delay to ensure completion notification is visible
                 delay(2000) // 2 seconds delay
                 stopSelf()
@@ -256,7 +390,17 @@ class BackupService : Service() {
         notificationManager.notify(NOTIFICATION_ID, notification)
         log("BackupService: Restore notification updated successfully")
         
-        // Send progress broadcast to update UI
+        // Send progress update via SharedFlow (same as backup)
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                _progressFlow.emit(BackupProgress(message, progress))
+                log("BackupService: Restore progress update sent via SharedFlow - message: '$message', progress: $progress")
+            } catch (e: Exception) {
+                log("BackupService: Error sending restore progress update: ${e.message}")
+            }
+        }
+        
+        // Also send progress broadcast to update UI (for backward compatibility)
         val broadcastIntent = Intent("com.velox.jewelvault.RESTORE_PROGRESS").apply {
             putExtra("message", message)
             putExtra("progress", progress)

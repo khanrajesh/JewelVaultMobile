@@ -81,6 +81,9 @@ interface PurchaseDao {
     // ------------------------
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertOrderItem(item: PurchaseOrderItemEntity): Long
+    
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertPurchaseOrderItem(item: PurchaseOrderItemEntity): Long
 
     @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM} WHERE purchaseOrderId = :orderId")
     suspend fun getItemsByOrderId(orderId: String): List<PurchaseOrderItemEntity>
@@ -94,6 +97,9 @@ interface PurchaseDao {
     // ------------------------
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertExchange(exchange: MetalExchangeEntity): Long
+    
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMetalExchange(exchange: MetalExchangeEntity): Long
 
     @Query("SELECT * FROM ${TableNames.METAL_EXCHANGE} WHERE purchaseOrderId = :orderId")
     suspend fun getExchangeByOrderId(orderId: Long): List<MetalExchangeEntity>

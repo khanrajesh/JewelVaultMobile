@@ -13,6 +13,26 @@ import android.content.ContentValues
 import android.os.Environment
 import android.provider.MediaStore
 import android.net.Uri
+import com.velox.jewelvault.utils.backup.ExcelExporter
+import com.velox.jewelvault.utils.backup.ExcelImporter
+import com.velox.jewelvault.utils.backup.FirebaseBackupManager
+
+/**
+ * Enum for restore source options
+ */
+enum class RestoreSource {
+    FIREBASE,   // Download from Firebase Storage
+    LOCAL       // Select from local file
+}
+
+/**
+ * Data class for file validation result
+ */
+data class FileValidationResult(
+    val isValid: Boolean,
+    val message: String,
+    val file: File? = null
+)
 
 /**
  * Main backup manager class that coordinates backup and restore operations
@@ -32,7 +52,7 @@ class BackupManager(
     
     private val excelExporter = ExcelExporter(context)
     private val googleSheetsExporter = GoogleSheetsExporter(context)
-//    private val excelImporter = ExcelImporter(context, database)
+    private val excelImporter = ExcelImporter(context, database)
     private val firebaseBackupManager = FirebaseBackupManager(storage)
     
     /**
@@ -112,15 +132,24 @@ class BackupManager(
     }
     
     /**
-     * Perform complete restore operation
+     * Perform complete restore operation with smart conflict resolution
      */
     suspend fun performRestore(
         userMobile: String,
+        restoreMode: RestoreMode = RestoreMode.MERGE,
         onProgress: (String, Int) -> Unit = { _, _ -> }
-    ): Result<String> {
-        log("BackupManager: Restore process started for user: $userMobile")
+    ): Result<RestoreResult> {
+        log("BackupManager: Restore process started for user: $userMobile with mode: $restoreMode")
         return try {
             onProgress("Starting restore process...", 0)
+            
+            // Get current user and store info
+            val currentUserId = dataStoreManager.getAdminInfo().first.first()
+            val currentStoreId = dataStoreManager.getSelectedStoreInfo().first.first()
+            
+            if (currentUserId.isEmpty()) {
+                return Result.failure(Exception("No current user found. Please login first."))
+            }
             
             onProgress("Downloading backup from Firebase...", 20)
             
@@ -135,14 +164,19 @@ class BackupManager(
             
             onProgress("Importing data from Excel...", 60)
             
-            // Import data from Excel
-//            val importResult = excelImporter.importAllEntitiesFromExcel(backupFile) { message, progress ->
-//                onProgress(message, progress)
-//            }
-//
-//            if (importResult.isFailure) {
-//                return Result.failure(importResult.exceptionOrNull() ?: Exception("Import failed"))
-//            }
+            // Import data from Excel with smart conflict resolution
+            val importResult = excelImporter.importAllEntitiesFromExcel(
+                backupFile, 
+                currentUserId, 
+                currentStoreId, 
+                restoreMode
+            ) { message, progress ->
+                onProgress(message, (progress * 0.3).toInt() + 60) // Scale to 60-90% range
+            }
+            
+            if (importResult.isFailure) {
+                return Result.failure(importResult.exceptionOrNull() ?: Exception("Import failed"))
+            }
             
             onProgress("Cleaning up downloaded files...", 90)
             
@@ -153,8 +187,16 @@ class BackupManager(
             
             onProgress("Restore completed successfully!", 100)
             
-            log("Restore completed successfully")
-            Result.success("Data restored successfully")
+            val summary = importResult.getOrNull()!!
+            val result = RestoreResult(
+                success = true,
+                message = "Data restored successfully",
+                summary = summary,
+                restoreMode = restoreMode
+            )
+            
+            log("Restore completed successfully: $summary")
+            Result.success(result)
             
         } catch (e: Exception) {
             log("BackupManager: Restore process failed: ${e.message}")
@@ -197,6 +239,198 @@ class BackupManager(
         
         return uri
     }
+
+    /**
+     * Check if Firebase backup exists for user
+     */
+    suspend fun checkFirebaseBackupExists(userMobile: String): Result<Boolean> {
+        return try {
+            val backupList = firebaseBackupManager.getBackupList(userMobile)
+            if (backupList.isSuccess) {
+                val backups = backupList.getOrNull() ?: emptyList()
+                Result.success(backups.isNotEmpty())
+            } else {
+                Result.success(false)
+            }
+        } catch (e: Exception) {
+            log("BackupManager: Error checking Firebase backup: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Validate Excel file for import
+     */
+    suspend fun validateExcelFile(fileUri: Uri): FileValidationResult {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(fileUri)
+            if (inputStream == null) {
+                return FileValidationResult(false, "Cannot open file. Please check file permissions.")
+            }
+
+            // Check file extension
+            val fileName = getFileNameFromUri(fileUri)
+            if (!fileName.lowercase().endsWith(".xlsx")) {
+                return FileValidationResult(false, "Invalid file format. Please select an Excel (.xlsx) file.")
+            }
+
+            // Create temporary file for validation
+            val tempFile = File.createTempFile("validation", ".xlsx")
+            tempFile.outputStream().use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+
+            // Validate Excel structure
+            val validationResult = excelImporter.validateExcelStructure(tempFile)
+            
+            if (validationResult.isSuccess) {
+                FileValidationResult(true, "File is valid and ready for import.", tempFile)
+            } else {
+                tempFile.delete()
+                FileValidationResult(false, "Invalid Excel structure: ${validationResult.exceptionOrNull()?.message ?: "Unknown error"}")
+            }
+
+        } catch (e: Exception) {
+            log("BackupManager: File validation failed: ${e.message}")
+            FileValidationResult(false, "File validation failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Get file name from URI
+     */
+    private fun getFileNameFromUri(uri: Uri): String {
+        return try {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val displayNameIndex = it.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME)
+                    if (displayNameIndex != -1) {
+                        return it.getString(displayNameIndex)
+                    }
+                }
+            }
+            uri.lastPathSegment ?: "unknown_file"
+        } catch (e: Exception) {
+            uri.lastPathSegment ?: "unknown_file"
+        }
+    }
+
+    /**
+     * Get default backup folder path
+     */
+    fun getDefaultBackupFolder(): String {
+        val downloadsDir = context.getExternalFilesDir(null)?.absolutePath ?: context.filesDir.absolutePath
+        return "$downloadsDir/JewelVault/Backup"
+    }
+
+    /**
+     * Perform complete restore operation with source selection
+     */
+    suspend fun performRestoreWithSource(
+        userMobile: String,
+        restoreSource: RestoreSource,
+        localFileUri: Uri? = null,
+        restoreMode: RestoreMode = RestoreMode.MERGE,
+        onProgress: (String, Int) -> Unit = { _, _ -> }
+    ): Result<RestoreResult> {
+        log("BackupManager: Restore process started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+        return try {
+            onProgress("Starting restore process...", 0)
+            
+            // Get current user and store info
+            val currentUserId = dataStoreManager.getAdminInfo().first.first()
+            val currentStoreId = dataStoreManager.getSelectedStoreInfo().first.first()
+            
+            if (currentUserId.isEmpty()) {
+                return Result.failure(Exception("No current user found. Please login first."))
+            }
+
+            val backupFile: File = when (restoreSource) {
+                RestoreSource.FIREBASE -> {
+                    onProgress("Checking Firebase backup availability...", 10)
+                    
+                    // Check if backup exists in Firebase
+                    val backupExists = checkFirebaseBackupExists(userMobile)
+                    if (backupExists.isFailure) {
+                        return Result.failure(Exception("Failed to check Firebase backup: ${backupExists.exceptionOrNull()?.message}"))
+                    }
+                    
+                    if (!backupExists.getOrNull()!!) {
+                        return Result.failure(Exception("No backup files found in Firebase for user: $userMobile"))
+                    }
+                    
+                    onProgress("Downloading backup from Firebase...", 20)
+                    
+                    // Download backup file from Firebase
+                    val downloadResult = firebaseBackupManager.downloadLatestBackup(userMobile)
+                    
+                    if (downloadResult.isFailure) {
+                        return Result.failure(downloadResult.exceptionOrNull() ?: Exception("Download failed"))
+                    }
+                    
+                    downloadResult.getOrNull()!!
+                }
+                
+                RestoreSource.LOCAL -> {
+                    if (localFileUri == null) {
+                        return Result.failure(Exception("Local file URI is required for local restore"))
+                    }
+                    
+                    onProgress("Validating local file...", 10)
+                    
+                    // Validate the local file
+                    val validationResult = validateExcelFile(localFileUri)
+                    if (!validationResult.isValid) {
+                        return Result.failure(Exception(validationResult.message))
+                    }
+                    
+                    onProgress("Local file validated successfully", 20)
+                    validationResult.file!!
+                }
+            }
+            
+            onProgress("Importing data from Excel...", 60)
+            
+            // Import data from Excel with smart conflict resolution
+            val importResult = excelImporter.importAllEntitiesFromExcel(
+                backupFile, 
+                currentUserId, 
+                currentStoreId, 
+                restoreMode
+            ) { message, progress ->
+                onProgress(message, (progress * 0.3).toInt() + 60) // Scale to 60-90% range
+            }
+            
+            if (importResult.isFailure) {
+                return Result.failure(importResult.exceptionOrNull() ?: Exception("Import failed"))
+            }
+            
+            onProgress("Cleaning up temporary files...", 90)
+            
+            // Clean up temporary file
+            if (backupFile.exists() && (backupFile.name.startsWith("validation") || backupFile.name.startsWith("backup_download"))) {
+                backupFile.delete()
+            }
+            
+            onProgress("Restore completed successfully!", 100)
+            
+            val summary = importResult.getOrNull()!!
+            val result = RestoreResult(
+                success = true,
+                message = "Data restored successfully from ${restoreSource.name.lowercase()}",
+                summary = summary,
+                restoreMode = restoreMode
+            )
+            
+            log("Restore completed successfully: $summary")
+            Result.success(result)
+            
+        } catch (e: Exception) {
+            log("BackupManager: Restore process failed: ${e.message}")
+            Result.failure(e)
+        }
+    }
 }
 
 /**
@@ -208,4 +442,14 @@ data class BackupInfo(
     val fileSize: Long,
     val downloadUrl: String,
     val description :String
+)
+
+/**
+ * Data class to hold restore operation result
+ */
+data class RestoreResult(
+    val success: Boolean,
+    val message: String,
+    val summary: ImportSummary,
+    val restoreMode: RestoreMode
 )
