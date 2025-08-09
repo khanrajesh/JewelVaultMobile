@@ -86,7 +86,6 @@ import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.canBeInt
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
-import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
 import com.velox.jewelvault.utils.to2FString
 import kotlinx.coroutines.launch
@@ -366,7 +365,7 @@ fun ViewAddItemDialog(
         val gold100: Double = (100 / 99.9) * (price24kOneGram?.toDoubleOrNull() ?: 0.0)
 
         if (price24kOneGram == null || gold100 == 0.0) {
-            baseViewModel.snackMessage = "Please load the metal prices"
+            baseViewModel.snackBarState = "Please load the metal prices"
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
         }
@@ -379,7 +378,7 @@ fun ViewAddItemDialog(
                     ?.toDoubleOrNull() ?: 0.0
 
             if (silverOneGm == 0.0) {
-                baseViewModel.snackMessage = "Please load the metal prices"
+                baseViewModel.snackBarState = "Please load the metal prices"
                 viewModel.showAddItemDialog.value = false
                 viewModel.selectedItem.value = null
                 return
@@ -388,7 +387,7 @@ fun ViewAddItemDialog(
         } else {
             viewModel.showAddItemDialog.value = false
             viewModel.selectedItem.value = null
-            baseViewModel.snackMessage = "Only Gold and Silver"
+            baseViewModel.snackBarState = "Only Gold and Silver"
             return
         }
 

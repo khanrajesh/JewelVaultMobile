@@ -105,7 +105,6 @@ fun SubAppNavigation(
 ) {
 
     val inventoryViewModel = hiltViewModel<InventoryViewModel>()
-    val dashboardViewModel = hiltViewModel<DashboardViewModel>()
 
     CompositionLocalProvider(
         LocalSubNavController provides subNavController,
@@ -114,13 +113,13 @@ fun SubAppNavigation(
     ) {
         NavHost(navController = subNavController, startDestination = startDestination) {
             composable(SubScreens.Setting.route) {
-                SettingScreen(dashboardViewModel)
+                SettingScreen()
             }
             composable(SubScreens.UserManagement.route) {
                 UserManagementScreen()
             }
             composable(SubScreens.Dashboard.route) {
-                DashboardScreen(dashboardViewModel)
+                DashboardScreen( hiltViewModel<DashboardViewModel>())
             }
             composable("${SubScreens.Profile.route}/{firstLaunch}",
                 arguments = listOf(
@@ -191,7 +190,7 @@ fun SubAppNavigation(
             composable(
                 SubScreens.BackUpSetting.route
             ) {
-                BackupSettingsScreen(onBackPressed = { navController.popBackStack() })
+                BackupSettingsScreen(hiltViewModel())
             }
         }
     }

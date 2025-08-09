@@ -19,8 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
-import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -113,7 +111,7 @@ private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
             subNavController.navigate("${SubScreens.PurchaseItemDetail.route}/$purchaseOrderId")
         },
         onItemLongClick = { item ->
-            baseViewModel.snackMessage = "Not yet implemented"
+            baseViewModel.snackBarState = "Not yet implemented"
         }
     )
 }

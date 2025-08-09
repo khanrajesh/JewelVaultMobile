@@ -2,6 +2,7 @@ package com.velox.jewelvault.ui.screen.setting
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.storage.FirebaseStorage
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import javax.inject.Named
 
 /**
  * ViewModel for backup settings screen
@@ -30,8 +32,12 @@ class BackupSettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: AppDatabase,
     private val storage: FirebaseStorage,
-    private val dataStoreManager: DataStoreManager
+    private val dataStoreManager: DataStoreManager,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 ) : ViewModel() {
+
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo

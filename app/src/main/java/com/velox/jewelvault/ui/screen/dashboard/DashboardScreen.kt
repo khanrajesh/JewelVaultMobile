@@ -61,7 +61,6 @@ import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
-import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -112,7 +111,7 @@ fun LandscapeMainScreen(
         when (backPressCount) {
             0 -> {
                 backPressCount = 1
-                baseViewModel.snackMessage = "Press back again to exit"
+                baseViewModel.snackBarState = "Press back again to exit"
             }
 
             1 -> {
@@ -135,7 +134,7 @@ fun LandscapeMainScreen(
             val storeId =
                 baseViewModel.dataStoreManager.getSelectedStoreInfo().first.first()
             if (storeId.isBlank()) {
-                baseViewModel.snackMessage = "Please Set Up Your Store First."
+                baseViewModel.snackBarState = "Please Set Up Your Store First."
                 mainScope {
                     subNavController.navigate("${SubScreens.Profile.route}/${true}")
                 }
@@ -159,8 +158,10 @@ fun LandscapeMainScreen(
         permissions = listOf(
             Manifest.permission.CAMERA,
             Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS
         )
     ) {}
+
 
     Box(
         Modifier
@@ -273,7 +274,7 @@ fun LandscapeMainScreen(
                                                 navHost.navigate(Screens.Purchase.route)
                                             }
                                         } else {
-                                            baseViewModel.snackMessage =
+                                            baseViewModel.snackBarState =
                                                 "Please add more sub categories."
                                         }
                                     }

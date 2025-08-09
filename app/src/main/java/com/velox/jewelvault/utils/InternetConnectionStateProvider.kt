@@ -71,7 +71,7 @@ private fun startSpeedMonitor(
                 val isSlow = !isInternetFast()
                 if (isSlow) {
                     withMain {
-                        baseViewModel.snackMessage = "Internet is slow"
+                        baseViewModel.snackBarState = "Internet is slow"
                     }
                 }
 

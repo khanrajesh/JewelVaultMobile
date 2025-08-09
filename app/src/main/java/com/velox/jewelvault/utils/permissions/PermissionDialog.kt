@@ -1,139 +1,167 @@
 package com.velox.jewelvault.utils.permissions
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun PermissionRequestDialog(
+fun IconPermissionDialog(
     showDialog: Boolean,
     title: String,
     message: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    isWarning: Boolean = false
-) {
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isWarning) Icons.Default.Warning else Icons.Default.Info,
-                        contentDescription = null,
-                        tint = if (isWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            text = {
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Grant Permission")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel")
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-fun PermissionRequestDialogWithIcon(
-    showDialog: Boolean,
-    title: String,
-    message: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+    permissionType: PermissionType,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     confirmButtonText: String = "Grant Permission",
-    dismissButtonText: String = "Cancel"
+    dismissButtonText: String = "Cancel",
+    showCredibilityIndicator: Boolean = true
 ) {
     if (showDialog) {
+        val backgroundColor = getPermissionTypeColor(permissionType)
+        
         AlertDialog(
             onDismissRequest = onDismiss,
+            modifier = Modifier.fillMaxWidth(0.95f),
+            shape = RoundedCornerShape(16.dp),
             title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    // Icon with background
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(backgroundColor.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = permissionType.icon,
+                            contentDescription = null,
+                            tint = backgroundColor,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
                     Text(
                         text = title,
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                 }
             },
             text = {
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Start
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Permission details card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = permissionType.detailIcon,
+                                    contentDescription = null,
+                                    tint = backgroundColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "What this permission allows:",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = permissionType.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    if (showCredibilityIndicator) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Credibility indicator
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Verified,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "This permission is required for core app functionality",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = backgroundColor
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(confirmButtonText)
                 }
             },
@@ -152,16 +180,88 @@ fun PermissionRequestDialogWithIcon(
     }
 }
 
+enum class PermissionType(
+    val icon: ImageVector,
+    val detailIcon: ImageVector,
+    val description: String
+) {
+    STORAGE(
+        icon = Icons.Default.Folder,
+        detailIcon = Icons.Default.Storage,
+        description = "• Save and read backup files\n• Import data from Excel files\n• Export data to local storage"
+    ),
+    NOTIFICATION(
+        icon = Icons.Default.Notifications,
+        detailIcon = Icons.Default.NotificationsActive,
+        description = "• Show backup/restore progress\n• Display completion notifications\n• Alert you about important events"
+    ),
+    CAMERA(
+        icon = Icons.Default.CameraAlt,
+        detailIcon = Icons.Default.QrCodeScanner,
+        description = "• Scan QR codes and barcodes\n• Capture product images\n• Read product information"
+    ),
+    LOCATION(
+        icon = Icons.Default.LocationOn,
+        detailIcon = Icons.Default.MyLocation,
+        description = "• Find nearby shops\n• Get location-based recommendations\n• Improve service accuracy"
+    ),
+    CONTACTS(
+        icon = Icons.Default.Contacts,
+        detailIcon = Icons.Default.People,
+        description = "• Import customer contacts\n• Sync with phone contacts\n• Invite friends to the app"
+    ),
+    MICROPHONE(
+        icon = Icons.Default.Mic,
+        detailIcon = Icons.Default.RecordVoiceOver,
+        description = "• Voice search functionality\n• Audio notes for items\n• Voice commands"
+    )
+}
+
+@Composable
+fun getPermissionTypeColor(permissionType: PermissionType): Color {
+    return when (permissionType) {
+        PermissionType.STORAGE -> MaterialTheme.colorScheme.primary
+        PermissionType.NOTIFICATION -> MaterialTheme.colorScheme.secondary
+        PermissionType.CAMERA -> MaterialTheme.colorScheme.tertiary
+        PermissionType.LOCATION -> MaterialTheme.colorScheme.error
+        PermissionType.CONTACTS -> MaterialTheme.colorScheme.primary
+        PermissionType.MICROPHONE -> MaterialTheme.colorScheme.secondary
+    }
+}
+
+// Legacy function for backward compatibility
+@Composable
+fun PermissionRequestDialog(
+    showDialog: Boolean,
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    isWarning: Boolean = false
+) {
+    val permissionType = if (isWarning) PermissionType.STORAGE else PermissionType.STORAGE
+    
+    IconPermissionDialog(
+        showDialog = showDialog,
+        title = title,
+        message = message,
+        permissionType = permissionType,
+        onDismiss = onDismiss,
+        onConfirm = onConfirm
+    )
+}
+
 @Preview(showBackground = true)
 @Composable
-fun PermissionRequestDialogPreview() {
+fun IconPermissionDialogPreview() {
     MaterialTheme {
         var showDialog by remember { mutableStateOf(true) }
         
-        PermissionRequestDialog(
+        IconPermissionDialog(
             showDialog = showDialog,
             title = "Storage Permission Required",
-            message = "This app needs access to your device's storage to save backup files and import data. Please grant the permission to continue.",
+            message = "This app needs access to your device's storage to save backup files and import data. This ensures your data is safely backed up and can be restored when needed.",
+            permissionType = PermissionType.STORAGE,
             onDismiss = { showDialog = false },
             onConfirm = { showDialog = false }
         )
@@ -170,17 +270,34 @@ fun PermissionRequestDialogPreview() {
 
 @Preview(showBackground = true)
 @Composable
-fun PermissionRequestDialogWarningPreview() {
+fun NotificationPermissionDialogPreview() {
     MaterialTheme {
         var showDialog by remember { mutableStateOf(true) }
         
-        PermissionRequestDialog(
+        IconPermissionDialog(
             showDialog = showDialog,
-            title = "Critical Permission Required",
-            message = "This permission is essential for the app to function properly. Without it, you won't be able to use backup and restore features.",
+            title = "Notification Permission",
+            message = "Enable notifications to stay updated on backup progress, completion status, and important app events. This helps you track the status of your data operations.",
+            permissionType = PermissionType.NOTIFICATION,
             onDismiss = { showDialog = false },
-            onConfirm = { showDialog = false },
-            isWarning = true
+            onConfirm = { showDialog = false }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CameraPermissionDialogPreview() {
+    MaterialTheme {
+        var showDialog by remember { mutableStateOf(true) }
+        
+        IconPermissionDialog(
+            showDialog = showDialog,
+            title = "Camera Access Required",
+            message = "Camera access is needed to scan QR codes and barcodes for quick product identification and inventory management.",
+            permissionType = PermissionType.CAMERA,
+            onDismiss = { showDialog = false },
+            onConfirm = { showDialog = false }
         )
     }
 }

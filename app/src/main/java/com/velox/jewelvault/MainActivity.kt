@@ -2,7 +2,6 @@ package com.velox.jewelvault
 
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
@@ -110,7 +109,7 @@ class MainActivity : FragmentActivity() {
                         delay(300000) // Check every 5 minutes
                         if (!sessionManager.isSessionValid()) {
                             // Session expired during app usage
-                            baseViewModel.snackMessage = "Session expired. Please login again."
+                            baseViewModel.snackBarState = "Session expired. Please login again."
                             navController.navigate(Screens.Login.route) {
                                 popUpTo(0) { inclusive = true }
                             }
@@ -121,7 +120,7 @@ class MainActivity : FragmentActivity() {
                         if (sessionManager.isSessionExpiringSoon()) {
                             val timeRemaining = sessionManager.getSessionTimeRemaining()
                             val minutesRemaining = TimeUnit.MILLISECONDS.toMinutes(timeRemaining)
-                            baseViewModel.snackMessage = "Session expires in $minutesRemaining minutes. Please save your work."
+                            baseViewModel.snackBarState = "Session expires in $minutesRemaining minutes. Please save your work."
                         }
 
                         sessionManager.updateLastActivity() // Extend session on activity
@@ -130,10 +129,10 @@ class MainActivity : FragmentActivity() {
             }
 
             JewelVaultTheme {
-                LaunchedEffect(baseViewModel.snackMessage) {
-                    log("snackMessage: ${baseViewModel.snackMessage}")
-                    if (baseViewModel.snackMessage.isNotBlank()) delay(5000)
-                    baseViewModel.snackMessage = ""
+                LaunchedEffect(baseViewModel.snackBarState) {
+                    log("snackMessage: ${baseViewModel.snackBarState}")
+                    if (baseViewModel.snackBarState.isNotBlank()) delay(5000)
+                    baseViewModel.snackBarState = ""
                 }
 
                 LaunchedEffect(baseViewModel.loading) {
@@ -171,7 +170,7 @@ class MainActivity : FragmentActivity() {
                             }
                         }
 
-                        if (baseViewModel.snackMessage.isNotEmpty()) {
+                        if (baseViewModel.snackBarState.isNotEmpty()) {
                             Text(
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
@@ -183,7 +182,7 @@ class MainActivity : FragmentActivity() {
                                         RoundedCornerShape(12.dp)
                                     )
                                     .padding(16.dp),
-                                text = baseViewModel.snackMessage,
+                                text = baseViewModel.snackBarState,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.surfaceBright,
                                 fontSize = 16.sp

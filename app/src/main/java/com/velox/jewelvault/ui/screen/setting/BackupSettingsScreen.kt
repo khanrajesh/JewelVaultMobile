@@ -1,9 +1,7 @@
 package com.velox.jewelvault.ui.screen.setting
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.Manifest
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,19 +11,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.backup.*
 import com.velox.jewelvault.ui.components.RestoreSourceDialog
-import com.velox.jewelvault.ui.components.BackupRestorePermissionRequester
+import com.velox.jewelvault.ui.components.PermissionRequester
 
 /**
  * Screen for backup and restore settings
@@ -33,13 +29,11 @@ import com.velox.jewelvault.ui.components.BackupRestorePermissionRequester
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackupSettingsScreen(
-    onBackPressed: () -> Unit,
-    viewModel: BackupSettingsViewModel = hiltViewModel()
+    viewModel: BackupSettingsViewModel
 ) {
-    val context = LocalContext.current
     val subNavController = LocalSubNavController.current
     val uiState by viewModel.uiState.collectAsState()
-    
+    viewModel.currentScreenHeadingState.value= "Backup & Restore"
     BackHandler {
         subNavController.navigate(SubScreens.Setting.route) {
             popUpTo(SubScreens.Setting.route) {
@@ -48,44 +42,14 @@ fun BackupSettingsScreen(
         }
     }
     
-    // Register broadcast receiver for backup/restore completion
-    LaunchedEffect(Unit) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                when (intent?.action) {
-                    "com.velox.jewelvault.BACKUP_COMPLETED" -> {
-                        val success = intent.getBooleanExtra("success", false)
-                        val message = intent.getStringExtra("message") ?: ""
-                        viewModel.onBackupCompleted(success, message)
-                    }
-                    "com.velox.jewelvault.RESTORE_COMPLETED" -> {
-                        val success = intent.getBooleanExtra("success", false)
-                        val message = intent.getStringExtra("message") ?: ""
-                        viewModel.onRestoreCompleted(success, message)
-                    }
-                }
-            }
-        }
-        
-        val filter = IntentFilter().apply {
-            addAction("com.velox.jewelvault.BACKUP_COMPLETED")
-            addAction("com.velox.jewelvault.RESTORE_COMPLETED")
-        }
-
-        ContextCompat.registerReceiver(
-            context,
-            receiver,
-            filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
-    }
-    
     // Permission requester for backup/restore operations
-    BackupRestorePermissionRequester(
-        onAllPermissionsGranted = {
-            // Permissions granted, continue with normal flow
-        }
-    )
+    PermissionRequester(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS
+        )
+    ) {}
     
     Box(
         modifier = Modifier
@@ -96,28 +60,12 @@ fun BackupSettingsScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Backup & Restore",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
             
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 0.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Quick Actions Section
                 item {
@@ -210,7 +158,7 @@ fun BackupSettingsScreen(
                                     expanded = expanded,
                                     onDismissRequest = { expanded = false }
                                 ) {
-                                    BackupFrequency.values().forEach { frequency ->
+                                    BackupFrequency.entries.forEach { frequency ->
                                         DropdownMenuItem(
                                             text = { 
                                                 Text(frequency.name.lowercase().replaceFirstChar { it.uppercase() })
@@ -446,8 +394,11 @@ private fun EnhancedBackupDialog(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = progressPercent / 100f,
-                            modifier = Modifier.fillMaxWidth()
+                        progress = { progressPercent / 100f },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = ProgressIndicatorDefaults.linearColor,
+                        trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                        strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                         )
                         Text(
                             text = "$progressPercent%",
@@ -751,6 +702,7 @@ private fun RestoreModeDialog(
     }
 }
 
+@SuppressLint("DefaultLocale")
 private fun formatFileSize(bytes: Long): String {
     val kb = bytes / 1024.0
     val mb = kb / 1024.0

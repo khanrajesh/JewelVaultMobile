@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
@@ -40,12 +39,13 @@ import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingScreen(dashboardViewModel: DashboardViewModel) {
+fun SettingScreen() {
     val subNavController = LocalSubNavController.current
     val mainNavController = LocalNavController.current
-    val settingViewModel: SettingViewModel = hiltViewModel()
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
+
+    baseViewModel.currentScreenHeading = "Settings"
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route) {
@@ -56,8 +56,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
     }
 
     // Handle data wipe completion
-    LaunchedEffect(settingViewModel.snackBarState.value) {
-        if (settingViewModel.snackBarState.value.contains("All data wiped successfully")) {
+    LaunchedEffect(baseViewModel.snackBarState) {
+        if (baseViewModel.snackBarState.contains("All data wiped successfully")) {
             // Navigate to login screen after successful data wipe
             mainNavController.navigate(Screens.Login.route) {
                 popUpTo(0) { inclusive = true }
@@ -66,12 +66,12 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
     }
     
     // Handle settings updates
-    LaunchedEffect(settingViewModel.snackBarState.value) {
-        if (settingViewModel.snackBarState.value.isNotEmpty() && 
-            !settingViewModel.snackBarState.value.contains("All data wiped successfully")) {
+    LaunchedEffect(baseViewModel.snackBarState) {
+        if (baseViewModel.snackBarState.isNotEmpty() &&
+            !baseViewModel.snackBarState.contains("All data wiped successfully")) {
             // Clear the message after 3 seconds
             kotlinx.coroutines.delay(3000)
-            settingViewModel.snackBarState.value = ""
+            baseViewModel.snackBarState = ""
         }
     }
 
@@ -115,8 +115,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsSwitchItem(
                         title = "Continuous Network Check",
                         subtitle = "Monitor internet connection continuously",
-                        checked = settingViewModel.continuousNetworkCheck.value,
-                        onCheckedChange = { settingViewModel.updateSetting("continuous_network_check", it) }
+                        checked = baseViewModel.continuousNetworkCheck.value,
+                        onCheckedChange = { baseViewModel.updateSetting("continuous_network_check", it) }
                     )
                 }
                 
@@ -124,8 +124,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsSwitchItem(
                         title = "Network Speed Monitoring",
                         subtitle = "Check internet speed periodically",
-                        checked = settingViewModel.networkSpeedMonitoring.value,
-                        onCheckedChange = { settingViewModel.updateSetting("network_speed_monitoring", it) }
+                        checked = baseViewModel.networkSpeedMonitoring.value,
+                        onCheckedChange = { baseViewModel.updateSetting("network_speed_monitoring", it) }
                     )
                 }
                 
@@ -133,8 +133,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsSwitchItem(
                         title = "Auto-refresh Metal Rates",
                         subtitle = "Automatically refresh metal prices",
-                        checked = settingViewModel.autoRefreshMetalRates.value,
-                        onCheckedChange = { settingViewModel.updateSetting("auto_refresh_metal_rates", it) }
+                        checked = baseViewModel.autoRefreshMetalRates.value,
+                        onCheckedChange = { baseViewModel.updateSetting("auto_refresh_metal_rates", it) }
                     )
                 }
 
@@ -147,8 +147,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsTextInputItem(
                         title = "Default CGST (%)",
                         subtitle = "Central Goods and Services Tax",
-                        value = settingViewModel.defaultCgst.value,
-                        onValueChange = { settingViewModel.updateSetting("default_cgst", it) }
+                        value = baseViewModel.defaultCgst.value,
+                        onValueChange = { baseViewModel.updateSetting("default_cgst", it) }
                     )
                 }
                 
@@ -156,8 +156,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsTextInputItem(
                         title = "Default SGST (%)",
                         subtitle = "State Goods and Services Tax",
-                        value = settingViewModel.defaultSgst.value,
-                        onValueChange = { settingViewModel.updateSetting("default_sgst", it) }
+                        value = baseViewModel.defaultSgst.value,
+                        onValueChange = { baseViewModel.updateSetting("default_sgst", it) }
                     )
                 }
                 
@@ -165,8 +165,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsTextInputItem(
                         title = "Default IGST (%)",
                         subtitle = "Integrated Goods and Services Tax",
-                        value = settingViewModel.defaultIgst.value,
-                        onValueChange = { settingViewModel.updateSetting("default_igst", it) }
+                        value = baseViewModel.defaultIgst.value,
+                        onValueChange = { baseViewModel.updateSetting("default_igst", it) }
                     )
                 }
 
@@ -178,9 +178,9 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                 item {
                     SettingsSliderItem(
                         title = "Session Timeout",
-                        subtitle = "${settingViewModel.sessionTimeoutMinutes.value} minutes",
-                        value = settingViewModel.sessionTimeoutMinutes.value.toFloat(),
-                        onValueChange = { settingViewModel.updateSetting("session_timeout_minutes", it.toInt()) },
+                        subtitle = "${baseViewModel.sessionTimeoutMinutes.value} minutes",
+                        value = baseViewModel.sessionTimeoutMinutes.value.toFloat(),
+                        onValueChange = { baseViewModel.updateSetting("session_timeout_minutes", it.toInt()) },
                         valueRange = 5f..120f,
                         steps = 23
                     )
@@ -190,8 +190,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsSwitchItem(
                         title = "Auto-logout on Inactivity",
                         subtitle = "Automatically logout when inactive",
-                        checked = settingViewModel.autoLogoutInactivity.value,
-                        onCheckedChange = { settingViewModel.updateSetting("auto_logout_inactivity", it) }
+                        checked = baseViewModel.autoLogoutInactivity.value,
+                        onCheckedChange = { baseViewModel.updateSetting("auto_logout_inactivity", it) }
                     )
                 }
                 
@@ -199,8 +199,8 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                     SettingsSwitchItem(
                         title = "Biometric Authentication",
                         subtitle = "Use fingerprint or face unlock",
-                        checked = settingViewModel.biometricAuth.value,
-                        onCheckedChange = { settingViewModel.updateSetting("biometric_auth", it) }
+                        checked = baseViewModel.biometricAuth.value,
+                        onCheckedChange = { baseViewModel.updateSetting("biometric_auth", it) }
                     )
                 }
 
@@ -225,7 +225,7 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                         subtitle = "Reset all settings to default",
                         icon = Icons.Default.Refresh,
                         onClick = {
-                            settingViewModel.resetAppPreferences()
+                            baseViewModel.resetAppPreferences()
                         }
                     )
                 }
@@ -235,7 +235,7 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                         title = "Wipe All Data",
                         subtitle = "Delete all data and return to login",
                         icon = Icons.Default.DeleteForever,
-                        onClick = { settingViewModel.showDataWipeConfirmation.value = true },
+                        onClick = { baseViewModel.showDataWipeConfirmation.value = true },
                         isDestructive = true
                     )
                 }
@@ -248,7 +248,7 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
                 item {
                     SettingsInfoItem(
                         title = "App Version",
-                        subtitle = settingViewModel.getAppVersion(context)
+                        subtitle = baseViewModel.getAppVersion(context)
                     )
                 }
                 
@@ -267,23 +267,23 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
     }
 
     // Data Wipe Confirmation Dialog
-    if (settingViewModel.showDataWipeConfirmation.value) {
+    if (baseViewModel.showDataWipeConfirmation.value) {
         AlertDialog(
-            onDismissRequest = { settingViewModel.showDataWipeConfirmation.value = false },
+            onDismissRequest = { baseViewModel.showDataWipeConfirmation.value = false },
             title = { Text("Confirm Data Wipe") },
             text = { Text("This action will permanently delete all your data including:\n\n• All inventory items\n• Customer information\n• Order history\n• Store settings\n• User data\n\nThis action cannot be undone. Are you sure you want to continue?") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        settingViewModel.showDataWipeConfirmation.value = false
-                        settingViewModel.initiateDataWipe()
+                        baseViewModel.showDataWipeConfirmation.value = false
+                        baseViewModel.initiateDataWipe()
                     }
                 ) {
                     Text("Yes, Wipe All Data", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { settingViewModel.showDataWipeConfirmation.value = false }) {
+                TextButton(onClick = { baseViewModel.showDataWipeConfirmation.value = false }) {
                     Text("Cancel")
                 }
             }
@@ -291,19 +291,19 @@ fun SettingScreen(dashboardViewModel: DashboardViewModel) {
     }
 
     // PIN Verification Dialog
-    if (settingViewModel.showPinVerificationDialog.value) {
+    if (baseViewModel.showPinVerificationDialog.value) {
         PinVerificationDialog(
-            onPinSubmit = { pin -> settingViewModel.verifyPinForWipe(pin) },
-            onDismiss = { settingViewModel.showPinVerificationDialog.value = false }
+            onPinSubmit = { pin -> baseViewModel.verifyPinForWipe(pin) },
+            onDismiss = { baseViewModel.showPinVerificationDialog.value = false }
         )
     }
 
     // OTP Verification Dialog
-    if (settingViewModel.showOtpVerificationDialog.value) {
+    if (baseViewModel.showOtpVerificationDialog.value) {
         OtpVerificationDialog(
-            onOtpSubmit = { otp -> settingViewModel.verifyOtpForWipe(otp) },
-            onDismiss = { settingViewModel.showOtpVerificationDialog.value = false },
-            isLoading = settingViewModel.isWipeInProgress.value
+            onOtpSubmit = { otp -> baseViewModel.verifyOtpForWipe(otp) },
+            onDismiss = { baseViewModel.showOtpVerificationDialog.value = false },
+            isLoading = baseViewModel.isWipeInProgress.value
         )
     }
     

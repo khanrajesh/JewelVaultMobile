@@ -54,13 +54,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.ui.components.CalculatorScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.toCustomFormat
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import java.io.File
@@ -245,10 +242,10 @@ fun EditMetalRatesDialog(
                                             } else if (metalRate.metal != "Gold") {
                                                 editedRates[index] = metalRate.copy(price = it)
                                             } else {
-                                                viewModel.snackMessage = "Currently you can only edit 24K Gold and Silver"
+                                                viewModel.snackBarState = "Currently you can only edit 24K Gold and Silver"
                                             }
                                         } catch (e: Exception) {
-                                            viewModel.snackMessage = "Invalid input"
+                                            viewModel.snackBarState = "Invalid input"
                                         }
                                     },
                                     keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
