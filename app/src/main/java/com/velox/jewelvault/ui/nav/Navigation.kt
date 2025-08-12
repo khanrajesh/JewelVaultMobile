@@ -17,6 +17,8 @@ import com.velox.jewelvault.ui.screen.inventory.InventoryCategoryScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryFilterScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryItemScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
+import com.velox.jewelvault.ui.screen.inventory.ImportItemsScreen
+import com.velox.jewelvault.ui.screen.inventory.ImportItemsViewModel
 import com.velox.jewelvault.ui.screen.login.LoginScreen
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
 import com.velox.jewelvault.ui.screen.main.MainScreen
@@ -152,6 +154,12 @@ fun SubAppNavigation(
 
             composable(SubScreens.InventoryFilter.route) {
                 InventoryFilterScreen(inventoryViewModel)
+            }
+
+            composable(SubScreens.ImportItems.route) {
+                ImportItemsScreen(
+                    viewModel = hiltViewModel<ImportItemsViewModel>()
+                )
             }
 
             composable(SubScreens.Customers.route) {

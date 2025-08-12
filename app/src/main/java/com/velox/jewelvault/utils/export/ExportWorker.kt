@@ -2,6 +2,7 @@ package com.velox.jewelvault.utils.export
 
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -9,11 +10,15 @@ import androidx.work.workDataOf
 import com.velox.jewelvault.R
 import com.velox.jewelvault.utils.ExportFormat
 import com.velox.jewelvault.utils.log
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 
-class ExportWorker(
-    private val context: Context, workerParams: WorkerParameters
+@HiltWorker
+class ExportWorker @AssistedInject constructor(
+    @Assisted private val context: Context, 
+    @Assisted workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {

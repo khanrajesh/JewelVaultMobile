@@ -393,8 +393,8 @@ class InventoryViewModel @Inject constructor(
                     }
                 } else null
 
-                val firmId = firmIdFilter.text
-                val purchaseOrderId = purchaseOrderIdFilter.text
+                val firmId = firmIdFilter.text.ifBlank { null }
+                val purchaseOrderId = purchaseOrderIdFilter.text.ifBlank { null }
 
                 appDatabase.itemDao()
                     .filterItems(

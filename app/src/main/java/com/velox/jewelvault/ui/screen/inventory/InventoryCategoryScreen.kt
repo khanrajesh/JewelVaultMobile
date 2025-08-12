@@ -199,6 +199,21 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                     Row {
                         Spacer(Modifier.weight(1f))
                         Text(
+                            "Import Item",
+                            Modifier
+                                .clickable {
+                                    subNavController.navigate(SubScreens.ImportItems.route)
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(10.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
                             "Add Category", 
                             Modifier
                                 .clickable {

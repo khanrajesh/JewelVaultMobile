@@ -7,10 +7,12 @@ import com.velox.jewelvault.data.roomdb.dao.CategoryDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerKhataBookDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerTransactionDao
+import com.velox.jewelvault.data.roomdb.dao.FirmDao
 import com.velox.jewelvault.data.roomdb.dao.ItemDao
 import com.velox.jewelvault.data.roomdb.dao.MasterDao
 import com.velox.jewelvault.data.roomdb.dao.OrderDao
 import com.velox.jewelvault.data.roomdb.dao.PurchaseDao
+import com.velox.jewelvault.data.roomdb.dao.SellerDao
 import com.velox.jewelvault.data.roomdb.dao.StoreDao
 import com.velox.jewelvault.data.roomdb.dao.SubCategoryDao
 import com.velox.jewelvault.data.roomdb.dao.UsersDao
@@ -65,6 +67,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun storeDao(): StoreDao
     abstract fun categoryDao(): CategoryDao
     abstract fun subCategoryDao(): SubCategoryDao
+    abstract fun firmDao(): FirmDao
+    abstract fun sellerDao(): SellerDao
     abstract fun itemDao(): ItemDao
     abstract fun customerDao(): CustomerDao
     abstract fun customerKhataBookDao(): CustomerKhataBookDao

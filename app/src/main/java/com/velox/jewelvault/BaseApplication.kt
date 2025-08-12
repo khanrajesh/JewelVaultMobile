@@ -1,16 +1,17 @@
 package com.velox.jewelvault
 
 import android.app.Application
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
-import javax.inject.Inject
 
 @HiltAndroidApp
-class BaseApplication : Application(){
+class BaseApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // No need to manually initialize WorkManager, Hilt will handle it via getWorkManagerConfiguration
+        // WorkManager will be initialized via workManagerConfiguration
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().build()
 }

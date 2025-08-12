@@ -78,6 +78,7 @@ val surfaceContainerHighestDark = Color(0xFF38342B)
 //custom color component
 val LightGreen = Color(0xFF90EE90)
 val LightRed = Color(0xFFF08080)
+val Orange = Color(0xFFFFA500)
 
 
 

@@ -1,7 +1,10 @@
 package com.velox.jewelvault.utils.export
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
@@ -13,7 +16,6 @@ import androidx.work.workDataOf
 import com.velox.jewelvault.utils.ExportFormat
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.utils.withMain
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.BufferedWriter
@@ -29,6 +31,9 @@ fun enqueueExportWorker(
     rows: List<List<String>>,
     format: ExportFormat = ExportFormat.XLSX
 ) {
+    // Create notification channel for export operations
+    createExportNotificationChannel(context)
+    
     mainScope {
         val flatRows = rows.flatten().toTypedArray()
         val inputData = workDataOf(
@@ -42,7 +47,7 @@ fun enqueueExportWorker(
             .setInputData(inputData)
             .build()
 
-        val workerManager =WorkManager.getInstance(context)
+        val workerManager = WorkManager.getInstance(context)
 
         workerManager.enqueue(request)
         workerManager.getWorkInfoByIdLiveData(request.id).observe(lifecycleOwner) { workInfo ->
@@ -54,6 +59,25 @@ fun enqueueExportWorker(
         }
 
         Toast.makeText(context, "Export started...", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun createExportNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        // Check if channel already exists
+        if (notificationManager.getNotificationChannel("export_channel") == null) {
+            val exportChannel = NotificationChannel(
+                "export_channel",
+                "Export Operations",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Notifications for export operations"
+                setShowBadge(false)
+            }
+            notificationManager.createNotificationChannel(exportChannel)
+        }
     }
 }
 

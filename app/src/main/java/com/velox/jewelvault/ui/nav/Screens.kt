@@ -19,6 +19,7 @@ sealed class SubScreens(val route:String) {
     data object Inventory : SubScreens("inventory")
     data object InventoryItem : SubScreens("inventoryItem")
     data object InventoryFilter : SubScreens("inventoryFilter")
+    data object ImportItems : SubScreens("importItems")
     data object OrderItemDetail : SubScreens("report")
     data object OrderAndPurchase : SubScreens("ledger")
     data object PurchaseItemDetail : SubScreens("PurchaseItemDetail")
