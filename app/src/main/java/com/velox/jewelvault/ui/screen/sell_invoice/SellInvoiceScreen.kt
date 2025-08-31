@@ -48,6 +48,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -72,6 +74,7 @@ import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.ExchangeItemDialog
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.TextListView
@@ -329,6 +332,22 @@ fun SellInvoiceLandscape(
             ViewAddItemDialog(viewModel)
         }
 
+        if (viewModel.showExchangeItemDialog.value) {
+            ExchangeItemDialog(
+                existingExchangeItems = viewModel.exchangeItemList.toList(),
+                metalRates = baseViewModel.metalRates,
+                onDismiss = {
+                    viewModel.showExchangeItemDialog.value = false
+                },
+                onSave = { exchangeItemList ->
+                    viewModel.updateExchangeItemList(exchangeItemList)
+                },
+                onClearAll = {
+                    viewModel.clearAllExchangeItems()
+                }
+            )
+        }
+
     }
 }
 
@@ -570,9 +589,9 @@ fun ViewAddItemDialog(
                                 onTextChange = {
                                     if (it.isNotBlank()) {
                                         val ntWtValue = takeNtWt.text.toDoubleOrNull() ?: 0.0
-                                        if (ntWtValue > takeGsWt.text.toDoubleOrNull()?:0.0){
+                                        if (ntWtValue > takeGsWt.text.toDoubleOrNull() ?: 0.0) {
                                             takeNtWt.error = "Nt Wt cannot be greater than Gs Wt"
-                                        }else{
+                                        } else {
                                             val multiplier =
                                                 Purity.fromLabel(item.purity)?.multiplier ?: 1.0
                                             takeFnWt.text =
@@ -762,15 +781,17 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
         viewModel.selectedItemList
         Spacer(Modifier.weight(1f))
-        SummarySection(viewModel.selectedItemList)
+        SummarySection(viewModel)
     }
 }
 
 
 @Composable
-fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
+fun SummarySection(viewModel: InvoiceViewModel) {
     // Use CalculationUtils for summary calculations
-    val summary = CalculationUtils.summaryTotals(selectedItemList)
+    val summary = CalculationUtils.summaryTotals(viewModel.selectedItemList)
+    val totalExchangeValue = viewModel.getTotalExchangeValue()
+    val netPayableAmount = viewModel.getNetPayableAmount()
 
     Column(Modifier.padding(16.dp)) {
         Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -818,15 +839,100 @@ fun SummarySection(selectedItemList: List<ItemSelectedModel>) {
             Text(
                 "Grand Total (after tax)",
                 modifier = Modifier.weight(1.5f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
             )
             Text(
                 "₹${summary.grandTotal.to2FString()}",
                 modifier = Modifier.weight(1f),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium, textAlign = TextAlign.End
             )
+        }
+
+        // Show exchange items if any
+        if (viewModel.exchangeItemList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(thickness = 1.dp)
+            Spacer(modifier = Modifier.height(5.dp))
+
+            Text(
+                "Exchange Items (${viewModel.exchangeItemList.size})",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            // Display exchange items in a more structured way
+            viewModel.exchangeItemList.forEachIndexed { index, exchangeItem ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${index + 1}. ${exchangeItem.metalType} ${exchangeItem.purity}, Gs: ${exchangeItem.grossWeight.to2FString()}gm, Fn: ${exchangeItem.fineWeight.to2FString()}gm",
+                            modifier = Modifier.weight(2f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Text(
+                            "₹${exchangeItem.exchangeValue.to2FString()}",
+                            modifier = Modifier,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(1.dp))
+            }
+
+            Spacer(modifier = Modifier.height(5.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    "Total Exchange Value",
+                    modifier = Modifier.weight(1.5f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    "-₹${totalExchangeValue.to2FString()}",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
+
+        // Net payable amount
+        if (viewModel.exchangeItemList.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(thickness = 2.dp)
+            Spacer(Modifier.height(5.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    "Net Payable Amount",
+                    modifier = Modifier.weight(1.5f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "₹${netPayableAmount.to2FString()}",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.End
+                )
+            }
         }
     }
 }
@@ -898,7 +1004,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
             TextListView(
                 headerList = headerList,
                 items = itemsData,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f),
                 onItemClick = { clickedItemData ->
                     // Find the corresponding item from selectedItemList
                     val itemIndex =
@@ -914,6 +1020,77 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     // Handle long click if needed
                 }
             )
+
+            // Exchange Items Section
+            if (viewModel.exchangeItemList.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(thickness = 1.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    "Exchange Items (${viewModel.exchangeItemList.size})",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Exchange items header
+                val exchangeHeaderList =
+                    listOf("Metal", "Purity", "Gs/Fn.Wt", "Method", "Value", "")
+
+                // Exchange items data
+                val exchangeItemsData =
+                    viewModel.exchangeItemList.mapIndexed { index, exchangeItem ->
+                        listOf(
+                            exchangeItem.metalType,
+                            exchangeItem.purity,
+                            "${exchangeItem.grossWeight.to2FString()}/${exchangeItem.fineWeight.to2FString()}gm",
+                            if (exchangeItem.isExchangedByMetal) "Metal Rate" else "Price",
+                            "₹${exchangeItem.exchangeValue.to2FString()}",
+                            "Edit/Del"
+                        )
+                    }
+
+                TextListView(
+                    headerList = exchangeHeaderList,
+                    items = exchangeItemsData,
+                    modifier = Modifier.heightIn(max = 200.dp),
+                    onItemClick = { clickedItemData ->
+                        // Find the corresponding exchange item
+                        val itemIndex = exchangeItemsData.indexOf(clickedItemData)
+                        if (itemIndex >= 0 && itemIndex < viewModel.exchangeItemList.size) {
+                            val exchangeItemToEdit = viewModel.exchangeItemList[itemIndex]
+                            viewModel.editExchangeItem(exchangeItemToEdit)
+                        }
+                    },
+                    onItemLongClick = { clickedItemData ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        // Find the corresponding exchange item and delete it
+                        val itemIndex = exchangeItemsData.indexOf(clickedItemData)
+                        if (itemIndex >= 0 && itemIndex < viewModel.exchangeItemList.size) {
+                            val exchangeItemToDelete = viewModel.exchangeItemList[itemIndex]
+                            viewModel.deleteExchangeItem(exchangeItemToDelete)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        "Total Exchange Value: ",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "₹${viewModel.getTotalExchangeValue().to2FString()}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
         }
     }
 }
@@ -940,10 +1117,13 @@ private fun AddItemSection(
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
                 )
+                .bounceClick {
+                    viewModel.showExchangeItemDialog.value = true
+                }
                 .padding(horizontal = 10.dp), contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Exchange Item",
+                text = "Exchange Item (${viewModel.exchangeItemList.size})",
             )
         }
 

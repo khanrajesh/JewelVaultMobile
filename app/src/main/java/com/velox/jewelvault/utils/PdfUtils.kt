@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.createBitmap
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
@@ -320,6 +321,7 @@ suspend fun createDraftInvoiceData(
     customer: CustomerEntity,
     items: List<ItemSelectedModel>,
     metalRates: List<MetalRate>,
+    exchangeItems: List<ExchangeItemDto> = emptyList(),
     paymentInfo: MutableState<PaymentInfo?>,
     appDatabase: AppDatabase,
     customerSign: MutableState<ImageBitmap?>,

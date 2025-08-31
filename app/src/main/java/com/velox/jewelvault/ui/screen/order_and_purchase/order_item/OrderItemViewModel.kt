@@ -8,14 +8,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
-import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
-import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
-import com.velox.jewelvault.data.roomdb.entity.order.OrderWithItems
+import com.velox.jewelvault.data.roomdb.entity.order.OrderDetailsEntity
 import com.velox.jewelvault.data.DataStoreManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import javax.inject.Named
 
 @HiltViewModel
 class OrderItemViewModel @Inject constructor(
@@ -24,7 +21,7 @@ class OrderItemViewModel @Inject constructor(
     private val _loading : MutableState<Boolean>
 ) : ViewModel() {
 
-    var orderWithItems by mutableStateOf<OrderWithItems?>(null)
+    var orderDetailsEntity by mutableStateOf<OrderDetailsEntity?>(null)
         private set
     
     var customer by mutableStateOf<CustomerEntity?>(null)
@@ -44,7 +41,7 @@ class OrderItemViewModel @Inject constructor(
                 
                 // Get order with items
                 val orderData = appDatabase.orderDao().getOrderWithItems(orderId)
-                orderWithItems = orderData
+                orderDetailsEntity = orderData
                 
                 // Get customer details
                 val customerData = appDatabase.customerDao().getCustomerByMobile(orderData.order.customerMobile)

@@ -224,4 +224,31 @@ object RoomMigration {
             }
         }
     }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create exchange_item table for handling jewelry exchanges in orders
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS exchange_item (
+                    exchangeItemId TEXT PRIMARY KEY NOT NULL,
+                    orderId TEXT NOT NULL,
+                    orderDate INTEGER NOT NULL,
+                    customerMobile TEXT NOT NULL,
+                    metalType TEXT NOT NULL,
+                    purity TEXT NOT NULL,
+                    grossWeight REAL NOT NULL,
+                    fineWeight REAL NOT NULL,
+                    price REAL NOT NULL,
+                    isExchangedByMetal INTEGER NOT NULL,
+                    exchangeValue REAL NOT NULL,
+                    addDate INTEGER NOT NULL,
+                    FOREIGN KEY (orderId) REFERENCES `order` (orderId) ON DELETE CASCADE
+                )
+            """)
+            
+            // Create index for exchange_item foreign key
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_exchange_item_orderId ON exchange_item (orderId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_exchange_item_customerMobile ON exchange_item (customerMobile)")
+        }
+    }
 }

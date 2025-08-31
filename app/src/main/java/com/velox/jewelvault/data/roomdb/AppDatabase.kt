@@ -28,6 +28,7 @@ import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
+import com.velox.jewelvault.data.roomdb.entity.order.ExchangeItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.MetalExchangeEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
@@ -50,13 +51,14 @@ import com.velox.jewelvault.utils.Converters
         CustomerTransactionEntity::class,
         OrderEntity::class,
         OrderItemEntity::class,
+        ExchangeItemEntity::class,
         FirmEntity::class,
         SellerEntity::class,
         PurchaseOrderEntity::class,
         PurchaseOrderItemEntity::class,
         MetalExchangeEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

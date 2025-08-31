@@ -180,7 +180,7 @@ class MainActivity : FragmentActivity() {
                                     .wrapContentHeight()
                                     .padding(10.dp)
                                     .background(
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = MaterialTheme.colorScheme.onSurface.copy ( alpha = 0.5f ),
                                         RoundedCornerShape(12.dp)
                                     )
                                     .padding(16.dp),

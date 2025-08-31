@@ -64,12 +64,13 @@ fun CusOutlinedTextField(
     placeholderText: String,
     dropdownItems: List<String> = emptyList(),
     onDropdownItemSelected: ((String) -> Unit)? = null,
+    allowEditOnDropdown: Boolean = false,
     leadingIcon: ImageVector? = null,
     onLeadingIconClick: (() -> Unit)? = null,
     trailingIcon: ImageVector? = null,
     onTrailingIconClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    readOnly: Boolean = false ,
+    readOnly: Boolean = false,
     textStyle: TextStyle = LocalTextStyle.current,
     prefix:String = "",
     suffix:String = "",
@@ -140,11 +141,11 @@ fun CusOutlinedTextField(
     Box(
         modifier = modifier
             .clickable(
-                enabled = dropdownItems.isNotEmpty(),
+                enabled = dropdownItems.isNotEmpty() && !allowEditOnDropdown,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) {
-                if (dropdownItems.isNotEmpty()) {
+                if (dropdownItems.isNotEmpty() && !allowEditOnDropdown) {
                     expanded = !expanded
                 }
             }
@@ -154,7 +155,7 @@ fun CusOutlinedTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .onFocusChanged {
-                        if (dropdownItems.isNotEmpty()) {
+                        if (dropdownItems.isNotEmpty() && !allowEditOnDropdown) {
                             expanded = it.isFocused
                         }
                     },
@@ -194,7 +195,7 @@ fun CusOutlinedTextField(
                 label = { Text(placeholderText) },
                 isError = state.error.isNotEmpty(),
                 enabled = enabled,
-                readOnly = readOnly || dropdownItems.isNotEmpty() || isDatePicker,
+                readOnly = readOnly || (dropdownItems.isNotEmpty() && !allowEditOnDropdown) || isDatePicker,
                 keyboardActions = enhancedKeyboardActions,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = keyboardType,

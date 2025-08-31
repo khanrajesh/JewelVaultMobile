@@ -43,6 +43,7 @@ import java.sql.Timestamp
 import javax.inject.Inject
 import javax.inject.Named
 import com.velox.jewelvault.utils.createDraftInvoiceData
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 
 @HiltViewModel
 class InvoiceViewModel @Inject constructor(
@@ -72,6 +73,10 @@ class InvoiceViewModel @Inject constructor(
     val selectedItem = mutableStateOf<ItemSelectedModel?>(null)
     val selectedItemList = SnapshotStateList<ItemSelectedModel>()
 
+    // Exchange Items related states
+    val showExchangeItemDialog = mutableStateOf(false)
+    val exchangeItemList = SnapshotStateList<ExchangeItemDto>()
+
     val customerName = InputFieldState()
     val customerMobile = InputFieldState()
     val customerAddress = InputFieldState()
@@ -84,7 +89,7 @@ class InvoiceViewModel @Inject constructor(
     // Payment related states
     val showPaymentDialog = mutableStateOf(false)
     val paymentInfo = mutableStateOf<PaymentInfo?>(null)
-    val discount = mutableDoubleStateOf(0.0)
+    val discount = InputFieldState()
     val upiId = mutableStateOf("")
     val storeName = mutableStateOf("Merchant")
 
@@ -204,12 +209,6 @@ class InvoiceViewModel @Inject constructor(
 
     //endregion
 
-    fun onPaymentConfirmed(payment: PaymentInfo, discount: Double) {
-        paymentInfo.value = payment
-        this.discount.doubleValue = discount
-        showPaymentDialog.value = false
-    }
-
     fun getTotalOrderAmount(): Double {
         val summary = CalculationUtils.summaryTotals(selectedItemList.toList())
         return summary.grandTotal
@@ -262,7 +261,7 @@ class InvoiceViewModel @Inject constructor(
                     userId = userId,
                     storeId = storeId,
                     mobile = mobile,
-                    discount = discount.value,
+                    discount = discount.text.toDoubleOrNull() ?: 0.0,
                     totalAmount = totalAmount,
                     totalTax = totalTax,
                     totalCharge = totalCharge,
@@ -408,6 +407,17 @@ class InvoiceViewModel @Inject constructor(
                         val res = appDatabase.orderDao().insertItems(orderItems)
 
                         if (res.isNotEmpty()) {
+                            // Also save exchange items if any
+                            if (exchangeItemList.isNotEmpty()) {
+                                val exchangeEntities = exchangeItemList.map { exchangeItem ->
+                                    exchangeItem.toEntity().copy(
+                                        orderId = id,
+                                        orderDate = justNowTime,
+                                        customerMobile = mobile
+                                    )
+                                }
+                                appDatabase.orderDao().insertExchangeItems(exchangeEntities)
+                            }
                             onSuccess()
                         } else {
                             _loadingState.value = false
@@ -539,6 +549,7 @@ class InvoiceViewModel @Inject constructor(
                         cus,
                         selectedItemList,
                         metalRates,
+                        exchangeItemList,
                         paymentInfo,
                         appDatabase,
                         customerSign,
@@ -555,17 +566,6 @@ class InvoiceViewModel @Inject constructor(
                         _loadingState.value = false
                         onSuccess()
                     }
-
-                    generateInvoicePdf(
-                        context = context,
-                        store = store,
-                        customer = cus,
-                        items = selectedItemList,
-                        customerSign = customerSign.value!!,
-                        ownerSign = ownerSign.value!!
-                    ) { file ->
-
-                    }
                 } else {
                     _loadingState.value = false
                     onFailure("Store Details Not Found")
@@ -581,6 +581,7 @@ class InvoiceViewModel @Inject constructor(
     fun clearData() {
         selectedItem.value = null
         selectedItemList.clear()
+        clearExchangeItems()
         customerName.text = ""
         customerMobile.text = ""
         customerAddress.text = ""
@@ -910,6 +911,7 @@ class InvoiceViewModel @Inject constructor(
         customerName.clear()
         customerMobile.clear()
         draftClearItemForm()
+        clearExchangeItems()
         customerSign.value = null
         ownerSign.value = null
         selectedItemList.clear()
@@ -957,6 +959,7 @@ class InvoiceViewModel @Inject constructor(
                         customer,
                         selectedItemList,
                         _metalRates,
+                        emptyList(),
                         mutableStateOf(PaymentInfo()),
                         appDatabase,
                         customerSign,
@@ -978,6 +981,41 @@ class InvoiceViewModel @Inject constructor(
                 onFailure("Unable to Generate Draft Invoice PDF: ${e.message}")
             }
         }
+    }
+    //endregion
+
+
+    fun editExchangeItem(exchangeItem: ExchangeItemDto) {
+        showExchangeItemDialog.value = true
+    }
+
+    fun deleteExchangeItem(exchangeItem: ExchangeItemDto) {
+        exchangeItemList.remove(exchangeItem)
+    }
+
+    fun getTotalExchangeValue(): Double {
+        return exchangeItemList.sumOf { it.exchangeValue }
+    }
+
+    fun getNetPayableAmount(): Double {
+        val orderTotal = getTotalOrderAmount()
+        val manualDiscount = discount.text.toDoubleOrNull() ?: 0.0
+        val exchangeValue = getTotalExchangeValue()
+        return orderTotal - manualDiscount - exchangeValue
+    }
+
+    fun clearExchangeItems() {
+        exchangeItemList.clear()
+        showExchangeItemDialog.value = false
+    }
+
+    fun updateExchangeItemList(newList: List<ExchangeItemDto>) {
+        exchangeItemList.clear()
+        exchangeItemList.addAll(newList)
+    }
+
+    fun clearAllExchangeItems() {
+        exchangeItemList.clear()
     }
     //endregion
 

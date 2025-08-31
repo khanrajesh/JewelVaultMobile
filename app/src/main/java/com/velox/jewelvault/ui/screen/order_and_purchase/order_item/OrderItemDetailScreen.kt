@@ -1,6 +1,5 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase.order_item
 
-import android.provider.CalendarContract
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,8 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,7 +59,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
             )
             .padding(5.dp)) {
 
-        if (viewModel.orderWithItems == null){
+        if (viewModel.orderDetailsEntity == null){
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -76,7 +73,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                 // Compact Header
                 item {
                     CompactOrderHeader(
-                        order = viewModel.orderWithItems!!.order,
+                        order = viewModel.orderDetailsEntity!!.order,
                         customer = viewModel.customer,
                         onCustomerClick = { customerMobile ->
                             subNavController.navigate("customer_detail/$customerMobile")
@@ -86,13 +83,13 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
 
                 // Order Items using TextListView
                 item {
-                    OrderItemsTextListView(items = viewModel.orderWithItems!!.items)
+                    OrderItemsTextListView(items = viewModel.orderDetailsEntity!!.items)
                 }
 
                 // Order Notes (if any)
-                if (viewModel.orderWithItems!!.order.note?.isNotEmpty() == true) {
+                if (viewModel.orderDetailsEntity!!.order.note?.isNotEmpty() == true) {
                     item {
-                        CompactNotesCard(note = viewModel.orderWithItems!!.order.note!!)
+                        CompactNotesCard(note = viewModel.orderDetailsEntity!!.order.note!!)
                     }
                 }
             }

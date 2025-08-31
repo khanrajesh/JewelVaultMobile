@@ -1,16 +1,14 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Update
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
-import com.velox.jewelvault.data.roomdb.entity.order.OrderWithItems
+import com.velox.jewelvault.data.roomdb.entity.order.OrderDetailsEntity
+import com.velox.jewelvault.data.roomdb.entity.order.ExchangeItemEntity
 import com.velox.jewelvault.data.roomdb.TableNames
 import kotlinx.coroutines.flow.Flow
 import java.sql.Timestamp
@@ -28,7 +26,7 @@ interface OrderDao {
 
     @Transaction
     @Query("SELECT * FROM `${TableNames.ORDER}` WHERE orderId = :id")
-    suspend fun getOrderWithItems(id: String): OrderWithItems
+    suspend fun getOrderWithItems(id: String): OrderDetailsEntity
 
     @Query("SELECT * FROM `${TableNames.ORDER}` ORDER BY orderDate DESC")
     fun getAllOrdersDesc(): Flow<List<OrderEntity>>
@@ -228,6 +226,25 @@ interface OrderDao {
     @Query("SELECT * FROM ${TableNames.ORDER_ITEM}")
     suspend fun getAllOrderItems(): List<OrderItemEntity>
 
+    // Exchange Items related queries
+    @Query("SELECT * FROM `${TableNames.EXCHANGE_ITEM}` WHERE orderId = :orderId ORDER BY addDate ASC")
+    suspend fun getExchangeItemsByOrderId(orderId: String): List<ExchangeItemEntity>
+
+    @Query("DELETE FROM `${TableNames.EXCHANGE_ITEM}` WHERE orderId = :orderId")
+    suspend fun deleteExchangeItemsByOrderId(orderId: String)
+
+    @Query("DELETE FROM `${TableNames.EXCHANGE_ITEM}` WHERE exchangeItemId = :exchangeItemId")
+    suspend fun deleteExchangeItem(exchangeItemId: String)
+
+    @Query("SELECT SUM(exchangeValue) FROM `${TableNames.EXCHANGE_ITEM}` WHERE orderId = :orderId")
+    suspend fun getTotalExchangeValueByOrderId(orderId: String): Double?
+
+    // Insert exchange items
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExchangeItem(exchangeItem: ExchangeItemEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertExchangeItems(exchangeItems: List<ExchangeItemEntity>): List<Long>
 }
 
 
