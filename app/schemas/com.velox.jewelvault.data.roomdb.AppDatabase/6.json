@@ -1,0 +1,1520 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "8565c161241cad6e5b5d5c04b62dedca",
+    "entities": [
+      {
+        "tableName": "item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`itemId` TEXT NOT NULL, `itemAddName` TEXT NOT NULL, `catId` TEXT NOT NULL, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, `catName` TEXT NOT NULL, `subCatId` TEXT NOT NULL, `subCatName` TEXT NOT NULL, `entryType` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `gsWt` REAL NOT NULL, `ntWt` REAL NOT NULL, `fnWt` REAL NOT NULL, `purity` TEXT NOT NULL, `crgType` TEXT NOT NULL, `crg` REAL NOT NULL, `othCrgDes` TEXT NOT NULL, `othCrg` REAL NOT NULL, `cgst` REAL NOT NULL, `sgst` REAL NOT NULL, `igst` REAL NOT NULL, `huid` TEXT NOT NULL, `unit` TEXT NOT NULL, `addDesKey` TEXT NOT NULL, `addDesValue` TEXT NOT NULL, `addDate` INTEGER NOT NULL, `modifiedDate` INTEGER NOT NULL, `sellerFirmId` TEXT NOT NULL, `purchaseOrderId` TEXT NOT NULL, `purchaseItemId` TEXT NOT NULL, PRIMARY KEY(`itemId`))",
+        "fields": [
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemAddName",
+            "columnName": "itemAddName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatId",
+            "columnName": "subCatId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatName",
+            "columnName": "subCatName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryType",
+            "columnName": "entryType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gsWt",
+            "columnName": "gsWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ntWt",
+            "columnName": "ntWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWt",
+            "columnName": "fnWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purity",
+            "columnName": "purity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "crgType",
+            "columnName": "crgType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "crg",
+            "columnName": "crg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "othCrgDes",
+            "columnName": "othCrgDes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "othCrg",
+            "columnName": "othCrg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cgst",
+            "columnName": "cgst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sgst",
+            "columnName": "sgst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "igst",
+            "columnName": "igst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "huid",
+            "columnName": "huid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addDesKey",
+            "columnName": "addDesKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addDesValue",
+            "columnName": "addDesValue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addDate",
+            "columnName": "addDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modifiedDate",
+            "columnName": "modifiedDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sellerFirmId",
+            "columnName": "sellerFirmId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseOrderId",
+            "columnName": "purchaseOrderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseItemId",
+            "columnName": "purchaseItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "itemId"
+          ]
+        }
+      },
+      {
+        "tableName": "category",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`catId` TEXT NOT NULL, `catName` TEXT NOT NULL, `gsWt` REAL NOT NULL, `fnWt` REAL NOT NULL, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`catId`))",
+        "fields": [
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gsWt",
+            "columnName": "gsWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWt",
+            "columnName": "fnWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "catId"
+          ]
+        }
+      },
+      {
+        "tableName": "sub_category",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`subCatId` TEXT NOT NULL, `catId` TEXT NOT NULL, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, `catName` TEXT NOT NULL, `subCatName` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `gsWt` REAL NOT NULL, `fnWt` REAL NOT NULL, PRIMARY KEY(`subCatId`))",
+        "fields": [
+          {
+            "fieldPath": "subCatId",
+            "columnName": "subCatId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatName",
+            "columnName": "subCatName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gsWt",
+            "columnName": "gsWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWt",
+            "columnName": "fnWt",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "subCatId"
+          ]
+        }
+      },
+      {
+        "tableName": "store",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`storeId` TEXT NOT NULL, `userId` TEXT NOT NULL, `proprietor` TEXT NOT NULL, `name` TEXT NOT NULL, `email` TEXT NOT NULL, `phone` TEXT NOT NULL, `address` TEXT NOT NULL, `registrationNo` TEXT NOT NULL, `gstinNo` TEXT NOT NULL, `panNo` TEXT NOT NULL, `image` TEXT NOT NULL, `invoiceNo` INTEGER NOT NULL, `upiId` TEXT NOT NULL, PRIMARY KEY(`storeId`))",
+        "fields": [
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proprietor",
+            "columnName": "proprietor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registrationNo",
+            "columnName": "registrationNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gstinNo",
+            "columnName": "gstinNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "panNo",
+            "columnName": "panNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "image",
+            "columnName": "image",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invoiceNo",
+            "columnName": "invoiceNo",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upiId",
+            "columnName": "upiId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "storeId"
+          ]
+        }
+      },
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `name` TEXT NOT NULL, `email` TEXT, `mobileNo` TEXT NOT NULL, `token` TEXT, `pin` TEXT, `role` TEXT NOT NULL, PRIMARY KEY(`userId`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mobileNo",
+            "columnName": "mobileNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "token",
+            "columnName": "token",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pin",
+            "columnName": "pin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        }
+      },
+      {
+        "tableName": "user_additional_info",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`userId` TEXT NOT NULL, `aadhaarNumber` TEXT, `address` TEXT, `emergencyContactPerson` TEXT, `emergencyContactNumber` TEXT, `governmentIdNumber` TEXT, `governmentIdType` TEXT, `dateOfBirth` TEXT, `bloodGroup` TEXT, `isActive` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`userId`), FOREIGN KEY(`userId`) REFERENCES `users`(`userId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aadhaarNumber",
+            "columnName": "aadhaarNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "emergencyContactPerson",
+            "columnName": "emergencyContactPerson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "emergencyContactNumber",
+            "columnName": "emergencyContactNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "governmentIdNumber",
+            "columnName": "governmentIdNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "governmentIdType",
+            "columnName": "governmentIdType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "dateOfBirth",
+            "columnName": "dateOfBirth",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bloodGroup",
+            "columnName": "bloodGroup",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "userId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "userId"
+            ],
+            "referencedColumns": [
+              "userId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "customer",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mobileNo` TEXT NOT NULL, `name` TEXT NOT NULL, `address` TEXT, `gstin_pan` TEXT, `addDate` INTEGER NOT NULL, `lastModifiedDate` INTEGER NOT NULL, `totalItemBought` INTEGER NOT NULL, `totalAmount` REAL NOT NULL, `notes` TEXT, `isActive` INTEGER NOT NULL, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`mobileNo`))",
+        "fields": [
+          {
+            "fieldPath": "mobileNo",
+            "columnName": "mobileNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gstin_pan",
+            "columnName": "gstin_pan",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "addDate",
+            "columnName": "addDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModifiedDate",
+            "columnName": "lastModifiedDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalItemBought",
+            "columnName": "totalItemBought",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "totalAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mobileNo"
+          ]
+        }
+      },
+      {
+        "tableName": "customer_khata_book",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`khataBookId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `planName` TEXT NOT NULL, `startDate` INTEGER NOT NULL, `endDate` INTEGER NOT NULL, `monthlyAmount` REAL NOT NULL, `totalMonths` INTEGER NOT NULL, `totalAmount` REAL NOT NULL, `status` TEXT NOT NULL, `notes` TEXT, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`khataBookId`), FOREIGN KEY(`customerMobile`) REFERENCES `customer`(`mobileNo`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "khataBookId",
+            "columnName": "khataBookId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerMobile",
+            "columnName": "customerMobile",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "planName",
+            "columnName": "planName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endDate",
+            "columnName": "endDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "monthlyAmount",
+            "columnName": "monthlyAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalMonths",
+            "columnName": "totalMonths",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "totalAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "khataBookId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "customer",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "customerMobile"
+            ],
+            "referencedColumns": [
+              "mobileNo"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "customer_transaction",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`transactionId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `transactionDate` INTEGER NOT NULL, `amount` REAL NOT NULL, `transactionType` TEXT NOT NULL, `category` TEXT NOT NULL, `description` TEXT, `referenceNumber` TEXT, `paymentMethod` TEXT, `khataBookId` TEXT, `monthNumber` INTEGER, `notes` TEXT, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`transactionId`), FOREIGN KEY(`customerMobile`) REFERENCES `customer`(`mobileNo`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "transactionId",
+            "columnName": "transactionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerMobile",
+            "columnName": "customerMobile",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionDate",
+            "columnName": "transactionDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transactionType",
+            "columnName": "transactionType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "referenceNumber",
+            "columnName": "referenceNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "paymentMethod",
+            "columnName": "paymentMethod",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "khataBookId",
+            "columnName": "khataBookId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "monthNumber",
+            "columnName": "monthNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "transactionId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "customer",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "customerMobile"
+            ],
+            "referencedColumns": [
+              "mobileNo"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "order",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`orderId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `storeId` TEXT NOT NULL, `userId` TEXT NOT NULL, `orderDate` INTEGER NOT NULL, `discount` REAL NOT NULL, `totalAmount` REAL NOT NULL, `totalTax` REAL NOT NULL, `totalCharge` REAL NOT NULL, `note` TEXT, PRIMARY KEY(`orderId`))",
+        "fields": [
+          {
+            "fieldPath": "orderId",
+            "columnName": "orderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerMobile",
+            "columnName": "customerMobile",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "storeId",
+            "columnName": "storeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderDate",
+            "columnName": "orderDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "discount",
+            "columnName": "discount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalAmount",
+            "columnName": "totalAmount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalTax",
+            "columnName": "totalTax",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalCharge",
+            "columnName": "totalCharge",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "orderId"
+          ]
+        }
+      },
+      {
+        "tableName": "order_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`orderItemId` TEXT NOT NULL, `orderId` TEXT NOT NULL, `orderDate` INTEGER NOT NULL, `itemId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `catId` TEXT NOT NULL, `catName` TEXT NOT NULL, `itemAddName` TEXT NOT NULL, `subCatId` TEXT NOT NULL, `subCatName` TEXT NOT NULL, `entryType` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `gsWt` REAL NOT NULL, `ntWt` REAL NOT NULL, `fnWt` REAL NOT NULL, `fnMetalPrice` REAL NOT NULL, `purity` TEXT NOT NULL, `crgType` TEXT NOT NULL, `crg` REAL NOT NULL, `othCrgDes` TEXT NOT NULL, `othCrg` REAL NOT NULL, `cgst` REAL NOT NULL, `sgst` REAL NOT NULL, `igst` REAL NOT NULL, `huid` TEXT NOT NULL, `addDesKey` TEXT NOT NULL, `addDesValue` TEXT NOT NULL, `price` REAL NOT NULL, `charge` REAL NOT NULL, `tax` REAL NOT NULL, `sellerFirmId` TEXT NOT NULL, `purchaseOrderId` TEXT NOT NULL, `purchaseItemId` TEXT NOT NULL, PRIMARY KEY(`orderItemId`), FOREIGN KEY(`orderId`) REFERENCES `order`(`orderId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "orderItemId",
+            "columnName": "orderItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderId",
+            "columnName": "orderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderDate",
+            "columnName": "orderDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemId",
+            "columnName": "itemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerMobile",
+            "columnName": "customerMobile",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemAddName",
+            "columnName": "itemAddName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatId",
+            "columnName": "subCatId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatName",
+            "columnName": "subCatName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryType",
+            "columnName": "entryType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gsWt",
+            "columnName": "gsWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ntWt",
+            "columnName": "ntWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWt",
+            "columnName": "fnWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnMetalPrice",
+            "columnName": "fnMetalPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purity",
+            "columnName": "purity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "crgType",
+            "columnName": "crgType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "crg",
+            "columnName": "crg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "othCrgDes",
+            "columnName": "othCrgDes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "othCrg",
+            "columnName": "othCrg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cgst",
+            "columnName": "cgst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sgst",
+            "columnName": "sgst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "igst",
+            "columnName": "igst",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "huid",
+            "columnName": "huid",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addDesKey",
+            "columnName": "addDesKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addDesValue",
+            "columnName": "addDesValue",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "price",
+            "columnName": "price",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "charge",
+            "columnName": "charge",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tax",
+            "columnName": "tax",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sellerFirmId",
+            "columnName": "sellerFirmId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseOrderId",
+            "columnName": "purchaseOrderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseItemId",
+            "columnName": "purchaseItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "orderItemId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "order",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "orderId"
+            ],
+            "referencedColumns": [
+              "orderId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "firm",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`firmId` TEXT NOT NULL, `firmName` TEXT NOT NULL, `firmMobileNumber` TEXT NOT NULL, `gstNumber` TEXT NOT NULL, `address` TEXT NOT NULL, PRIMARY KEY(`firmId`))",
+        "fields": [
+          {
+            "fieldPath": "firmId",
+            "columnName": "firmId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firmName",
+            "columnName": "firmName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firmMobileNumber",
+            "columnName": "firmMobileNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gstNumber",
+            "columnName": "gstNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "firmId"
+          ]
+        }
+      },
+      {
+        "tableName": "seller",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`sellerId` TEXT NOT NULL, `firmId` TEXT NOT NULL, `name` TEXT NOT NULL, `mobileNumber` TEXT NOT NULL, PRIMARY KEY(`sellerId`), FOREIGN KEY(`firmId`) REFERENCES `firm`(`firmId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "sellerId",
+            "columnName": "sellerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firmId",
+            "columnName": "firmId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mobileNumber",
+            "columnName": "mobileNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "sellerId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_seller_firmId",
+            "unique": false,
+            "columnNames": [
+              "firmId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_seller_firmId` ON `${TABLE_NAME}` (`firmId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "firm",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "firmId"
+            ],
+            "referencedColumns": [
+              "firmId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "purchase_order",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchaseOrderId` TEXT NOT NULL, `sellerId` TEXT NOT NULL, `billNo` TEXT NOT NULL, `billDate` TEXT NOT NULL, `entryDate` TEXT NOT NULL, `extraChargeDescription` TEXT, `extraCharge` REAL, `totalFinalWeight` REAL, `totalFinalAmount` REAL, `notes` TEXT, `cgstPercent` REAL NOT NULL, `sgstPercent` REAL NOT NULL, `igstPercent` REAL NOT NULL, PRIMARY KEY(`purchaseOrderId`), FOREIGN KEY(`sellerId`) REFERENCES `seller`(`sellerId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "purchaseOrderId",
+            "columnName": "purchaseOrderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sellerId",
+            "columnName": "sellerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "billNo",
+            "columnName": "billNo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "billDate",
+            "columnName": "billDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryDate",
+            "columnName": "entryDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "extraChargeDescription",
+            "columnName": "extraChargeDescription",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "extraCharge",
+            "columnName": "extraCharge",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "totalFinalWeight",
+            "columnName": "totalFinalWeight",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "totalFinalAmount",
+            "columnName": "totalFinalAmount",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "cgstPercent",
+            "columnName": "cgstPercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sgstPercent",
+            "columnName": "sgstPercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "igstPercent",
+            "columnName": "igstPercent",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "purchaseOrderId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_purchase_order_sellerId",
+            "unique": false,
+            "columnNames": [
+              "sellerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_purchase_order_sellerId` ON `${TABLE_NAME}` (`sellerId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "seller",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sellerId"
+            ],
+            "referencedColumns": [
+              "sellerId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "purchase_order_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`purchaseItemId` TEXT NOT NULL, `purchaseOrderId` TEXT NOT NULL, `catId` TEXT NOT NULL, `catName` TEXT NOT NULL, `subCatId` TEXT NOT NULL, `subCatName` TEXT NOT NULL, `gsWt` REAL NOT NULL, `purity` TEXT NOT NULL, `ntWt` REAL NOT NULL, `fnWt` REAL NOT NULL, `fnRate` REAL NOT NULL, `wastagePercent` REAL NOT NULL, PRIMARY KEY(`purchaseItemId`), FOREIGN KEY(`purchaseOrderId`) REFERENCES `purchase_order`(`purchaseOrderId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "purchaseItemId",
+            "columnName": "purchaseItemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseOrderId",
+            "columnName": "purchaseOrderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatId",
+            "columnName": "subCatId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatName",
+            "columnName": "subCatName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gsWt",
+            "columnName": "gsWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purity",
+            "columnName": "purity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ntWt",
+            "columnName": "ntWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWt",
+            "columnName": "fnWt",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnRate",
+            "columnName": "fnRate",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wastagePercent",
+            "columnName": "wastagePercent",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "purchaseItemId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_purchase_order_item_purchaseOrderId",
+            "unique": false,
+            "columnNames": [
+              "purchaseOrderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_purchase_order_item_purchaseOrderId` ON `${TABLE_NAME}` (`purchaseOrderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "purchase_order",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "purchaseOrderId"
+            ],
+            "referencedColumns": [
+              "purchaseOrderId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "metal_exchange",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`exchangeId` TEXT NOT NULL, `purchaseOrderId` TEXT NOT NULL, `catId` TEXT NOT NULL, `catName` TEXT NOT NULL, `subCatId` TEXT NOT NULL, `subCatName` TEXT NOT NULL, `fnWeight` REAL NOT NULL, PRIMARY KEY(`exchangeId`), FOREIGN KEY(`purchaseOrderId`) REFERENCES `purchase_order`(`purchaseOrderId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "exchangeId",
+            "columnName": "exchangeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchaseOrderId",
+            "columnName": "purchaseOrderId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catId",
+            "columnName": "catId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catName",
+            "columnName": "catName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatId",
+            "columnName": "subCatId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subCatName",
+            "columnName": "subCatName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fnWeight",
+            "columnName": "fnWeight",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "exchangeId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_metal_exchange_purchaseOrderId",
+            "unique": false,
+            "columnNames": [
+              "purchaseOrderId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_metal_exchange_purchaseOrderId` ON `${TABLE_NAME}` (`purchaseOrderId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "purchase_order",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "purchaseOrderId"
+            ],
+            "referencedColumns": [
+              "purchaseOrderId"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8565c161241cad6e5b5d5c04b62dedca')"
+    ]
+  }
+}
