@@ -341,7 +341,7 @@ suspend fun createDraftInvoiceData(
     val draftItems = items.mapIndexed { index, item ->
         DraftInvoiceData.DraftItemModel(
             serialNumber = "${index + 1}",
-            referenceNumber = item.purchaseItemId.toString(),
+            referenceNumber = item.purchaseItemId,
             productDescription = "${item.catName} ${item.subCatName} ${item.itemAddName}",
             quantitySet = "${item.quantity}",
             grossWeightGms = "${item.gsWt.to2FString()}",
