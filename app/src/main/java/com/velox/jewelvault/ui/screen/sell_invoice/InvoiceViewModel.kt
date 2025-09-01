@@ -44,6 +44,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import com.velox.jewelvault.utils.createDraftInvoiceData
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
+import com.velox.jewelvault.utils.to2FString
 
 @HiltViewModel
 class InvoiceViewModel @Inject constructor(
@@ -542,18 +543,23 @@ class InvoiceViewModel @Inject constructor(
                 val store = appDatabase.storeDao().getStoreById(storeId)
                 if (store != null && customerSign.value != null && ownerSign.value != null) {
 
+                   val oldExchange = exchangeItemList.sumOf { it.exchangeValue }
 
                     // Create DraftInvoiceData object
                     val invoiceData = createDraftInvoiceData(
-                        store,
-                        cus,
-                        selectedItemList,
-                        metalRates,
-                        exchangeItemList,
-                        paymentInfo,
-                        appDatabase,
-                        customerSign,
-                        ownerSign
+                        store = store,
+                        customer = cus,
+                        items =selectedItemList,
+                        metalRates = metalRates,
+                        paymentInfo = paymentInfo,
+                        appDatabase = appDatabase,
+                        customerSign = customerSign,
+                        ownerSign = ownerSign,
+                        gstLabel = "GST @3 ",
+                        discount = discount.text,
+                        cardCharges= "0.00",
+                        oldExchange = oldExchange.to2FString(),
+                        roundOff = "0.00"
                     )
 
 
@@ -954,16 +960,21 @@ class InvoiceViewModel @Inject constructor(
 
 
                     // Create DraftInvoiceData object
+
                     val invoiceData = createDraftInvoiceData(
-                        store,
-                        customer,
-                        selectedItemList,
-                        _metalRates,
-                        emptyList(),
-                        mutableStateOf(PaymentInfo()),
-                        appDatabase,
-                        customerSign,
-                        ownerSign
+                        store = store,
+                        customer = customer,
+                        items =selectedItemList,
+                        metalRates = metalRates,
+                        paymentInfo = paymentInfo,
+                        appDatabase = appDatabase,
+                        customerSign = customerSign,
+                        ownerSign = ownerSign,
+                        gstLabel = "GST @3 ",
+                        discount = discount.text,
+                        cardCharges= "0.00",
+                        oldExchange = "0.00",
+                        roundOff = "0.00"
                     )
 
                     generateDraftInvoicePdf(

@@ -35,7 +35,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.createBitmap
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
@@ -45,6 +44,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // PdfUtils.kt
 
@@ -107,6 +107,7 @@ fun PdfRendererPreview(uri: Uri, modifier: Modifier = Modifier, highQuality: Boo
     } ?: Text("Rendering PDF...")
 }
 
+@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateInvoicePdf(
     context: Context,
     store: StoreEntity,
@@ -316,22 +317,22 @@ fun sharePdf(context: Context, pdfUri: Uri) {
 }
 
 
+@Suppress("RemoveSingleExpressionStringTemplate")
 suspend fun createDraftInvoiceData(
     store: StoreEntity,
     customer: CustomerEntity,
     items: List<ItemSelectedModel>,
     metalRates: List<MetalRate>,
-    exchangeItems: List<ExchangeItemDto> = emptyList(),
     paymentInfo: MutableState<PaymentInfo?>,
     appDatabase: AppDatabase,
     customerSign: MutableState<ImageBitmap?>,
     ownerSign: MutableState<ImageBitmap?>,
-    gstLabel:String = "GST @3%",
-    discount:String  = "₹0.00",
-    cardCharges:String  = "0.00",
-    oldExchange:String  = "0.00",
-    roundOff:String  = "0.00",
-): DraftInvoiceData {
+    gstLabel: String,
+    discount: String,
+    cardCharges: String,
+    oldExchange: String,
+    roundOff: String = "0.00",
+): InvoiceData {
 
     val tag = "createDraftInvoiceData"
     val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
@@ -339,18 +340,18 @@ suspend fun createDraftInvoiceData(
 
     // Convert ItemSelectedModel to DraftItemModel
     val draftItems = items.mapIndexed { index, item ->
-        DraftInvoiceData.DraftItemModel(
+        InvoiceData.DraftItemModel(
             serialNumber = "${index + 1}",
-            referenceNumber = item.purchaseItemId,
             productDescription = "${item.catName} ${item.subCatName} ${item.itemAddName}",
             quantitySet = "${item.quantity}",
-            grossWeightGms = "${item.gsWt.to2FString()}",
-            netWeightGms = "${item.ntWt.to2FString()}",
-            ratePerGm = "₹${item.fnMetalPrice.to2FString()}",
-            makingAmount = "₹${item.chargeAmount.to2FString()}",
+            grossWeightGms = item.gsWt.to2FString(),
+            netWeightGms = item.ntWt.to2FString(),
+            ratePerGm = item.fnMetalPrice.to2FString(),
+            makingAmount = item.chargeAmount.to2FString(),
             purityPercent = item.purity,
-            egColumnValue = "", // Empty for now
-            totalAmount = "₹${item.price.to2FString()}"
+            totalAmount = item.price.to2FString(),
+            metalType = item.catName,
+            metalPrice = (item.fnWt*item.fnMetalPrice).to2FString(),
         )
     }
 
@@ -358,45 +359,54 @@ suspend fun createDraftInvoiceData(
     val summary = CalculationUtils.summaryTotals(items)
     val subTotalAmount = summary.totalPriceBeforeTax
     val totalTaxAmount = summary.totalTax
-    val grandTotalAmount = summary.grandTotal
+    val itemGrandTotalAmount = summary.grandTotal
 
     // Get actual metal rates from passed parameter
     // Log available metal rates for debugging
     if (metalRates.isNotEmpty()) {
-        log("Available metal rates: ${metalRates.joinToString { "${it.metal} (${it.caratOrPurity}): ${it.price}" }}",tag)
+        log(
+            "Available metal rates: ${metalRates.joinToString { "${it.metal} (${it.caratOrPurity}): ${it.price}" }}",
+            tag
+        )
     }
 
     // Use CalculationUtils for metal rate validation
-    val goldRate = CalculationUtils.metalUnitPrice("Gold", metalRates)?.let { "₹${it.to2FString()}/gm" } ?: "NA"
-    val silverRate = CalculationUtils.metalUnitPrice("Silver", metalRates)?.let { "₹${it.to2FString()}/gm" } ?: "NA"
+    val goldRate =
+        CalculationUtils.metalUnitPrice("Gold", metalRates)?.let { "₹${it.to2FString()}/gm" }
+            ?: "NA"
+    val silverRate =
+        CalculationUtils.metalUnitPrice("Silver", metalRates)?.let { "₹${it.to2FString()}/gm" }
+            ?: "NA"
 
-    log("Selected gold rate: $goldRate, silver rate: $silverRate",tag)
+    log("Selected gold rate: $goldRate, silver rate: $silverRate", tag)
 
     // Get payment type info from paymentInfo
     val paymentMethod = paymentInfo.value?.paymentMethod ?: "Cash"
     val isPaidInFull = paymentInfo.value?.isPaidInFull ?: true
-    val paidAmount = paymentInfo.value?.paidAmount ?: grandTotalAmount
+    val paidAmount = paymentInfo.value?.paidAmount ?: itemGrandTotalAmount
     val outstandingAmount = paymentInfo.value?.outstandingAmount ?: 0.0
 
     // Get firm and seller info from items
     val firmIds = items.map { it.sellerFirmId }.distinct()
-    log("Found firm IDs: $firmIds",tag)
+    log("Found firm IDs: $firmIds", tag)
 
     val firmInfos = firmIds.mapNotNull { firmId ->
         try {
             appDatabase.firmDao().getFirmById(firmId)
         } catch (e: Exception) {
-            log("Error getting firm info for ID $firmId: ${e.message}",tag)
+            log("Error getting firm info for ID $firmId: ${e.message}", tag)
             null
         }
     }
     val firmNames = firmInfos.joinToString(", ") { it.firmName }
-    log("Retrieved firm names: $firmNames",tag)
+    log("Retrieved firm names: $firmNames", tag)
 
-    return DraftInvoiceData(
+    val netAmountPayable = itemGrandTotalAmount- (discount.toDoubleOrNull() ?:0.0)+(cardCharges.toDoubleOrNull() ?:0.0)-(oldExchange.toDoubleOrNull() ?:0.0)
+
+    return InvoiceData(
         storeInfo = store,
         customerInfo = customer,
-        invoiceMeta = DraftInvoiceData.InvoiceMetadata(
+        invoiceMeta = InvoiceData.InvoiceMetadata(
             invoiceNumber = "${System.currentTimeMillis() % 10000}",
             date = currentDate,
             time = currentTime,
@@ -404,22 +414,22 @@ suspend fun createDraftInvoiceData(
             documentType = "INVOICE"
         ),
         items = draftItems,
+        jurisdiction = "Malkangiri",
         goldRate = goldRate,
         silverRate = silverRate,
-        Jurisdiction = "Malkangiri",
-        paymentSummary = DraftInvoiceData.PaymentSummary(
+        paymentSummary = InvoiceData.PaymentSummary(
             subTotal = "₹${subTotalAmount.to2FString()}",
             gstAmount = "₹${totalTaxAmount.to2FString()}",
             gstLabel = gstLabel,
             discount = discount,
             cardCharges = cardCharges,
-            totalAmountBeforeOldExchange = "${grandTotalAmount.to2FString()}",
+            totalAmountBeforeOldExchange = "${itemGrandTotalAmount.to2FString()}",
             oldExchange = oldExchange,
             roundOff = roundOff,
-            netAmountPayable = "₹${grandTotalAmount.to2FString()}",
-            amountInWords = "Indian Rupee ${numberToWords(grandTotalAmount.toInt())} Only"
+            netAmountPayable = "₹${netAmountPayable.to2FString()}",
+            amountInWords = "Indian Rupee ${numberToWords(netAmountPayable.roundToInt())} Only"
         ),
-        paymentReceived = DraftInvoiceData.PaymentReceivedDetails(
+        paymentReceived = InvoiceData.PaymentReceivedDetails(
             cashLabel1 = paymentMethod.uppercase(),
             cashAmount1 = "${paidAmount.to2FString()}"
         ),
@@ -439,9 +449,10 @@ suspend fun createDraftInvoiceData(
     )
 }
 
+@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateDraftInvoicePdf(
     context: Context,
-    data: DraftInvoiceData,
+    data: InvoiceData,
     scale: Float = 2f,
     onFileReady: (Uri) -> Unit
 ) {
@@ -481,11 +492,6 @@ fun generateDraftInvoicePdf(
         textSize = 10f
     }
 
-    val tp14Bold = Paint(paint).apply {
-        textSize = 14f
-        isFakeBoldText = true
-        color = Color.BLACK
-    }
     val tp14 = Paint(paint).apply {
         textSize = 14f
         color = Color.BLACK
@@ -499,11 +505,7 @@ fun generateDraftInvoicePdf(
         textSize = 16f
         color = Color.BLACK
     }
-    val headerPaint = Paint(paint).apply {
-        textSize = 14f
-        isFakeBoldText = true
-        color = Color.rgb(139, 0, 0)
-    }
+
 
     // White background
     canvas.drawColor(Color.WHITE)
@@ -581,29 +583,27 @@ fun generateDraftInvoicePdf(
         // Define relative proportions for each column (should sum to 1.0)
         val columnProportions = listOf(
             0.03f,  // Sr
-            0.08f,  // Ref No.
-            0.20f,  // Product Description
+            0.18f,  // Product Description
             0.07f,  // Qty/Set
             0.08f,  // Gross.Wt in GMS
             0.08f,  // Net.Wt in GMS
-            0.08f,  // Rate/Gm
-            0.10f,  // Making Amount
+            0.10f,  // Rate/Gm
+            0.12f,  // Metal Price
+            0.12f,  // Making Amount
             0.07f,  // Purity %
-            0.04f,  // E.G
-            0.16f   // Total Amount (reduced, rest is right margin)
+            0.14f   // Total Amount (reduced, rest is right margin)
         )
         // Calculate actual widths
         val columns = listOf(
             "Sr",
-            "Ref No.",
             "Product Description",
             "Qty/Set",
             "Gross.Wt\nin GMS",
             "Net.Wt\nin GMS",
             "Rate/Gm",
+            "Metal\nPrice",
             "Making\nAmount",
             "Purity %",
-            "E.G",
             "Total Amount"
         ).zip(columnProportions.map { it * totalWidth })
         // Calculate x positions for columns
@@ -651,24 +651,19 @@ fun generateDraftInvoicePdf(
         val itemRows = data.items.mapIndexed { index, entity ->
             listOf(
                 "${index + 1}",
-                entity.referenceNumber,
                 entity.productDescription,
                 entity.quantitySet,
                 entity.grossWeightGms,
                 entity.netWeightGms,
                 entity.ratePerGm,
+                entity.metalPrice,
                 entity.makingAmount,
                 entity.purityPercent,
-                entity.egColumnValue,
                 entity.totalAmount
             )
         }
 
 
-//        val itemRows = listOf(
-//            listOf("1", "REF123", "Gold Ring", "2", "10.50", "10.00", "6000", "500", "91.6", "E1", "11000"),
-//            listOf("2", "REF456", "Silver Chain", "1", "20.00", "19.50", "800", "100", "92.5", "E2", "1700")
-//        )
         for (rowIndex in itemRows.indices) {
             val y = headingBottomY + rowHeight * (rowIndex + 1)
             val row = itemRows[rowIndex]
@@ -701,7 +696,7 @@ fun generateDraftInvoicePdf(
         drawRect(startX, metalBoxTop, metalBoxRight, metalBoxBottom, innerBoxPaint)
 
         // Headings for the top small box
-        val headings = listOf("Pcs", "Weight", "Total Val", "Tot-Mc", "E.G.", "Total Amount")
+        val headings = listOf("Pcs", "Weight", "Total Val", "Tot-Mc", "Total Amount")
         val headingColumnWidth = (metalBoxRight - startX) / headings.size
         for (i in headings.indices) {
             val heading = headings[i]
@@ -732,23 +727,21 @@ fun generateDraftInvoicePdf(
         )
 
         // Calculate gold items totals
-        val goldItems = data.items.filter { isGoldItem(it) }
+        val goldItems = data.items.filter { it.metalType.trim().lowercase() == "gold" }
 
         val goldPcs = goldItems.size
-        val goldWeight = goldItems.sumOf { (it.grossWeightGms.toFloatOrNull() ?: 0f).toDouble() }
-        val goldTotalVal = goldItems.sumOf { (it.totalAmount.toFloatOrNull() ?: 0f).toDouble() }
-        val goldTotMc = goldItems.sumOf { (it.makingAmount.toFloatOrNull() ?: 0f).toDouble() }
-        val goldEg = goldItems.sumOf { (it.egColumnValue.toFloatOrNull() ?: 0f).toDouble() }
-        val goldTotalAmount = CalculationUtils.totalPrice(goldTotalVal, goldTotMc, goldEg, 0.0)
+        val goldWeight = goldItems.sumOf { it.grossWeightGms.toDoubleOrNull() ?: 0.0}
+        val goldTotalVal = goldItems.sumOf { it.totalAmount.toDoubleOrNull() ?: 0.0} //todo mistake
+        val goldTotMc = goldItems.sumOf { it.makingAmount.toDoubleOrNull() ?: 0.0 }
+        val goldTotalAmount = CalculationUtils.totalPrice(goldTotalVal, goldTotMc, 0.0)
 
         // Display gold data
         val goldData = listOf(
             goldPcs.toString(),
-            String.format("%.2f", goldWeight),
-            String.format("%.2f", goldTotalVal),
-            String.format("%.2f", goldTotMc),
-            String.format("%.2f", goldEg),
-            String.format("%.2f", goldTotalAmount)
+            goldWeight.to2FString(),
+            goldTotalVal.to2FString(),
+            goldTotMc.to2FString(),
+            goldTotalAmount.to2FString()
         )
 
         for (i in headings.indices) {
@@ -781,24 +774,21 @@ fun generateDraftInvoicePdf(
         )
 
         // Calculate silver items totals
-        val silverItems = data.items.filter { isSilverItem(it) }
+        val silverItems = data.items.filter { it.metalType.trim().lowercase() == "silver" }
 
         val silverPcs = silverItems.size
-        val silverWeight =
-            silverItems.sumOf { (it.grossWeightGms.toFloatOrNull() ?: 0f).toDouble() }
-        val silverTotalVal = silverItems.sumOf { (it.totalAmount.toFloatOrNull() ?: 0f).toDouble() }
-        val silverTotMc = silverItems.sumOf { (it.makingAmount.toFloatOrNull() ?: 0f).toDouble() }
-        val silverEg = silverItems.sumOf { (it.egColumnValue.toFloatOrNull() ?: 0f).toDouble() }
-        val silverTotalAmount = CalculationUtils.totalPrice(silverTotalVal, silverTotMc, silverEg, 0.0)
+        val silverWeight = silverItems.sumOf { it.grossWeightGms.toDoubleOrNull() ?: 0.0}
+        val silverTotalVal = silverItems.sumOf { it.totalAmount.toDoubleOrNull() ?: 0.0} //todo mistake
+        val silverTotMc = silverItems.sumOf { it.makingAmount.toDoubleOrNull() ?: 0.0 }
+        val silverTotalAmount = CalculationUtils.totalPrice(silverTotalVal, silverTotMc, 0.0)
 
         // Display silver data
         val silverData = listOf(
             silverPcs.toString(),
-            String.format("%.2f", silverWeight),
-            String.format("%.2f", silverTotalVal),
-            String.format("%.2f", silverTotMc),
-            String.format("%.2f", silverEg),
-            String.format("%.2f", silverTotalAmount)
+            silverWeight.to2FString(),
+            silverTotalVal.to2FString(),
+            silverTotMc.to2FString(),
+            silverTotalAmount.to2FString()
         )
 
         for (i in headings.indices) {
@@ -946,7 +936,7 @@ fun generateDraftInvoicePdf(
         // Signature section
         val signatureWidth = s80f
         val signatureHeight = s50f
-        val signatureY = endY - s50f
+        val signatureY = endY - s20f - s5f
 
         // Customer signature
         val customerSignX = endX - s200f - s50f
@@ -1025,387 +1015,7 @@ fun generateDraftInvoicePdf(
 }
 
 
-/*fun generateDraftInvoicePdf2d(
-
-    context: Context,
-    store: StoreEntity,
-    customer: CustomerEntity,
-    items: List<ItemSelectedModel>,
-    customerSign: ImageBitmap,
-    ownerSign: ImageBitmap,
-    onFileReady: (Uri) -> Unit
-) {
-    val pdfDocument = PdfDocument()
-    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size in points
-    val page = pdfDocument.startPage(pageInfo)
-    val canvas = page.canvas
-    val paint = Paint().apply {
-        color = Color.BLACK
-        textSize = 10f
-    }
-    val boldPaint = Paint(paint).apply {
-        isFakeBoldText = true
-    }
-    val titlePaint = Paint(paint).apply {
-        textSize = 16f
-        isFakeBoldText = true
-        color = Color.rgb(139, 0, 0) // Dark red/maroon
-    }
-    val headerPaint = Paint(paint).apply {
-        textSize = 14f
-        isFakeBoldText = true
-        color = Color.rgb(139, 0, 0)
-    }
-
-    // White background
-    canvas.drawColor(Color.WHITE)
-
-    var y = 30f
-    val startX = 30f
-    val gapY = 15f
-    // Left side - Logo placeholder
-    canvas.drawRect(
-        startX,
-        y,
-        startX + 60f,
-        y + 60f,
-        Paint().apply { color = Color.rgb(139, 0, 0) })
-    boldPaint.textSize = 12f
-    canvas.drawText("R.K.J", startX + 10f, y + 35f, boldPaint)
-
-    // Center - Certifications
-    val certText = "Govt. Registered ✓ DIC: Registered ✓ ISO: Certified ✓ BIS: Certified"
-    paint.textSize = 8f
-    val certBoxLeft = startX + 80f
-    val certBoxTop = y
-    val certBoxRight = certBoxLeft + 270f
-    val certBoxBottom = certBoxTop + 20f
-    canvas.drawRect(
-        certBoxLeft,
-        certBoxTop,
-        certBoxRight,
-        certBoxBottom,
-        Paint().apply { color = Color.rgb(255, 255, 224) })
-    canvas.drawText(certText, certBoxLeft + 5f, certBoxTop + 12f, paint)
-
-    // Company name (centered above cert box)
-    titlePaint.textSize = 18f
-    val companyName = "R. K. JEWELLERS"
-    val companyNameX =
-        certBoxLeft + (certBoxRight - certBoxLeft) / 2 - titlePaint.measureText(companyName) / 2
-    canvas.drawText(companyName, companyNameX, y + 40f, titlePaint)
-
-    // Address (below cert box)
-    paint.textSize = 10f
-    canvas.drawText(
-        "D.N.K. Chowk, Main Road, Malkangiri, Odisha - 764048",
-        certBoxLeft,
-        y + 65f,
-        paint
-    )
-    canvas.drawText("Phone : 6861-796018, 8895311750, 9411111425", certBoxLeft, y + 80f, paint)
-
-    // Right side - Logos (aligned to right margin)
-    val rightLogoX = startX + 420f
-    val logoY = y + 10f
-    canvas.drawCircle(rightLogoX + 20f, logoY + 10f, 10f, Paint().apply { color = Color.GREEN })
-    paint.textSize = 6f
-    canvas.drawText("HALLMARKED", rightLogoX + 35f, logoY + 15f, paint)
-    canvas.drawText("GOLD", rightLogoX + 35f, logoY + 25f, paint)
-    canvas.drawCircle(rightLogoX + 20f, logoY + 40f, 10f, Paint().apply { color = Color.GREEN })
-    canvas.drawText("ISO 9001", rightLogoX + 35f, logoY + 45f, paint)
-    canvas.drawText("CERTIFIED", rightLogoX + 35f, logoY + 55f, paint)
-
-    y += 100f
-
-    // Customer and Invoice Details
-    // Left Column - Customer Details
-    boldPaint.textSize = 11f
-    canvas.drawText("Name : ${customer.name ?: "PADMA DURA"}", startX, y, boldPaint)
-    y += gapY
-    canvas.drawText("PODAVETA", startX, y, paint)
-    y += gapY
-    canvas.drawText("Mobile : ${customer.mobileNo ?: "7854900171"}", startX, y, paint)
-
-    // Right Column - Invoice Details
-    val rightDetailX = startX + 350f
-    y -= 30f
-    canvas.drawText("Invoice No. : ${store.invoiceNo ?: "A003439"}", rightDetailX, y, boldPaint)
-    y += gapY
-    canvas.drawText(
-        "Date : ${SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())}",
-        rightDetailX,
-        y,
-        paint
-    )
-    y += gapY
-    canvas.drawText(
-        "Issue Time : ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}",
-        rightDetailX,
-        y,
-        paint
-    )
-    y += gapY
-    canvas.drawText("Sales Man :", rightDetailX, y, paint)
-
-    // ESTIMATE text (centered below details)
-    titlePaint.textSize = 20f
-    val estimateText = "ESTIMATE"
-    val estimateX = startX + 250f - titlePaint.measureText(estimateText) / 2
-    canvas.drawText(estimateText, estimateX, y + 40f, titlePaint)
-
-    y += 50f
-
-    // Item Details Table Header
-    val tableStartX = startX
-    val colWidths = listOf(40f, 120f, 50f, 70f, 70f, 60f, 70f, 50f, 50f, 70f) // 10 columns
-    val headers = listOf(
-        "Sr Ref No.",
-        "Product Description",
-        "Qty./Set",
-        "Gross.Wt in GMS",
-        "Net Weight in GMS",
-        "Rate/Gm",
-        "Making Amount",
-        "Purity %",
-        "E.G.",
-        "Total Amount"
-    )
-
-    // Draw table border
-    val tablePaint = Paint().apply {
-        color = Color.BLACK
-        style = Paint.Style.STROKE
-        strokeWidth = 1f
-    }
-
-    var currentX = tableStartX
-    val tableWidth = colWidths.sum()
-    val tableHeight = 20f + (items.size * 25f)
-
-    // Draw outer table border
-    canvas.drawRect(tableStartX, y, tableStartX + tableWidth, y + tableHeight, tablePaint)
-
-    // Draw header row background and text
-    headers.forEachIndexed { index, header ->
-        canvas.drawRect(
-            currentX,
-            y,
-            currentX + colWidths[index],
-            y + 20f,
-            Paint().apply { color = Color.LTGRAY })
-        // Use a consistent left padding for header text
-        canvas.drawText(header, currentX + 6f, y + 14f, paint.apply { textSize = 7f })
-        currentX += colWidths[index]
-    }
-
-    y += 25f
-
-    // Item Data Row
-    items.forEachIndexed { index, item ->
-        currentX = tableStartX
-        val rowData = listOf(
-            "${index + 1}",
-            "${item.huid ?: "R1047371"}",
-            "${item.itemAddName ?: "NECKLACE 750/HUID"}",
-            "${item.quantity}",
-            "${item.gsWt}",
-            "${item.ntWt}",
-            "₹${item.fnMetalPrice}",
-            "₹${item.chargeAmount}",
-            "${item.purity}",
-            "₹${item.price}"
-        )
-
-        rowData.forEachIndexed { colIndex, data ->
-            // Draw cell background
-            canvas.drawRect(
-                currentX,
-                y,
-                currentX + colWidths[colIndex],
-                y + 20f,
-                Paint().apply { color = Color.WHITE })
-            // Draw cell border
-            canvas.drawRect(currentX, y, currentX + colWidths[colIndex], y + 20f, Paint().apply {
-                color = Color.BLACK
-                style = Paint.Style.STROKE
-                strokeWidth = 0.5f
-            })
-            // Use a consistent left padding for data text
-            canvas.drawText(data, currentX + 6f, y + 14f, paint.apply { textSize = 7f })
-            currentX += colWidths[colIndex]
-        }
-        y += 25f
-    }
-
-    // Draw vertical lines for table columns
-    currentX = tableStartX
-    colWidths.forEachIndexed { index, width ->
-        if (index < colWidths.size - 1) {
-            canvas.drawLine(
-                currentX + width, y - (items.size * 25f),
-                currentX + width, y,
-                tablePaint
-            )
-        }
-        currentX += width
-    }
-
-    y += 20f // Summary Section - Three Columns
-    val col1X = startX
-    val col2X = startX + 200f
-    val col3X = startX + 400f
-    // Left Column - Gold/Silver Details
-    boldPaint.textSize = 11f
-    canvas.drawText("GOLD DETAIL", col1X, y, boldPaint)
-    y += gapY
-    canvas.drawText("Weight: ${items.sumOf { it.gsWt }}", col1X, y, paint)
-    y += gapY
-    // Use CalculationUtils for summary calculations
-    val summary = CalculationUtils.calculateSummaryTotals(items)
-    canvas.drawText("Total Val: ${summary.totalBasePrice}", col1X, y, paint)
-    y += gapY
-    canvas.drawText("Tot-MC: ${summary.totalMakingCharges}", col1X, y, paint)
-    y += gapY
-    canvas.drawText("E.G.: ${summary.totalOtherCharges}", col1X, y, paint)
-    y += gapY
-    canvas.drawText(
-        "Tot-Amt: ${summary.totalPriceBeforeTax}",
-        col1X,
-        y,
-        paint
-    )
-    y += gapY
-
-    canvas.drawText("SILVER DETAIL", col1X, y, boldPaint)
-    y += gapY
-    canvas.drawText("Weight: 0", col1X, y, paint)
-    y += gapY
-    canvas.drawText("Total Val: 0", col1X, y, paint)
-    y += gapY
-    canvas.drawText("Tot-MC: 0", col1X, y, paint)
-    y += gapY
-    canvas.drawText("E.G.: 0", col1X, y, paint)
-    y += gapY
-    canvas.drawText("Tot-Amt: 0", col1X, y, paint)
-    y += gapY
-
-    // Amount in words using CalculationUtils
-    val totalAmount = summary.totalPriceBeforeTax
-    val amountInWords = "Rs. ${numberToWords(totalAmount.toInt())} only"
-    canvas.drawText("Amount in words:", col1X, y, boldPaint)
-    y += gapY
-    canvas.drawText(amountInWords, col1X, y, paint)
-    y += gapY
-
-    // Declaration
-    canvas.drawText("Declaration:", col1X, y, boldPaint)
-    y += gapY
-    val declaration =
-        "Goods once sold will not be taken back. Goods once sold will not be taken back or exchanged. All disputes subject to Malkangiri Jurisdiction only. Please refer backside for all Terms & Conditions."
-    paint.textSize = 8f
-    canvas.drawText(declaration, col1X, y, paint)
-    y += gapY
-    canvas.drawText("E.& O.E.", col1X, y, paint)
-
-    // Middle Column - Current Rates & Payment
-    y = 400f
-    canvas.drawText("Current Rates:", col2X, y, boldPaint)
-    y += gapY
-    canvas.drawText("Gold @ Rs. 92150", col2X, y, paint)
-    y += gapY
-    canvas.drawText("Silver @ Rs. 1000", col2X, y, paint)
-    y += gapY
-
-    canvas.drawText("Payment Detail:", col2X, y, boldPaint)
-    y += gapY
-    canvas.drawText("CASH ${totalAmount}", col2X, y, paint)
-
-    // Right Column - Final Calculation
-    y = 400f
-    canvas.drawText("SUB TOTAL: ${totalAmount}", col3X, y, paint)
-    y += gapY
-    canvas.drawText("GST @3%: 0.00", col3X, y, paint)
-    y += gapY
-    canvas.drawText("Discount: 39", col3X, y, paint)
-    y += gapY
-    canvas.drawText("Card Charges: 0.00", col3X, y, paint)
-    y += gapY
-    canvas.drawText("Total Amt: ${totalAmount - 39}", col3X, y, paint)
-    y += gapY
-    canvas.drawText("Old Exchange: 0.00", col3X, y, paint)
-    y += gapY
-    canvas.drawText("R. off: 0.26", col3X, y, paint)
-    y += gapY
-    canvas.drawText("Net Amount: ${totalAmount}", col3X, y, paint)
-
-    // PAID Stamp (place in summary area, right column)
-    val paidCircleX = col3X + 80f
-    val paidCircleY = 400f + 4 * gapY + 10f
-    canvas.drawCircle(paidCircleX, paidCircleY, 18f, Paint().apply {
-        color = Color.RED
-        style = Paint.Style.STROKE
-        strokeWidth = 3f
-    })
-    boldPaint.textSize = 12f
-    canvas.drawText("PAID", paidCircleX - 16f, paidCircleY + 5f, boldPaint)
-
-    // Footer
-    y = 800f
-    paint.textSize = 12f
-    canvas.drawText("Thank You.. Please Visit Again.", startX + 120f, y, paint)
-    canvas.drawText("For R.K. JEWELLERS", startX + 370f, y, paint)
-
-    // Signatures
-    y = 780f
-    canvas.drawBitmap(customerSign.asAndroidBitmap(), startX, y, paint)
-    canvas.drawText("Customer Signature", startX, y + 60f, paint)
-
-    canvas.drawBitmap(ownerSign.asAndroidBitmap(), startX + 30f, y, paint)
-    canvas.drawText("Authorised Signatory", startX + 300f, y + 60f, paint)
-
-    pdfDocument.finishPage(page)
-
-    val fileName = "draft_invoice_${System.currentTimeMillis()}.pdf"
-    val contentValues = ContentValues().apply {
-        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-        put(
-            MediaStore.Downloads.RELATIVE_PATH,
-            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice"
-        )
-    }
-
-    val resolver = context.contentResolver
-    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-
-    if (uri != null) {
-        var success = false
-        try {
-            resolver.openOutputStream(uri)?.use { outputStream ->
-                pdfDocument.writeTo(outputStream)
-                outputStream.flush()
-                success = true
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
-            Log.e("PDF_GENERATION", "Error writing PDF: ${e.message}")
-        } finally {
-            pdfDocument.close()
-        }
-
-        if (success) {
-            onFileReady(uri)
-        } else {
-            resolver.delete(uri, null, null)
-            Log.e("PDF_GENERATION", "Failed to write PDF file")
-        }
-    } else {
-        Log.e("PDF_GENERATION", "Failed to create file in MediaStore")
-        pdfDocument.close()
-    }
-}*/
-
+@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateTaxInvoicePdf(
     context: Context,
     store: StoreEntity,
@@ -1876,6 +1486,7 @@ fun generateTaxInvoicePdf(
     }
 }
 
+@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateEstimatePdf(
     context: Context,
     store: StoreEntity,
@@ -2646,48 +2257,20 @@ fun generateEstimatePdf(
 }
 
 
-// Helper function to determine if an item is gold or silver
-// Now considers both category and purity for better accuracy
-fun isGoldItem(item: DraftInvoiceData.DraftItemModel): Boolean {
-    // First check by category (primary method)
-    val category = extractCategoryFromDescription(item.productDescription)
-    if (category.equals("Gold", ignoreCase = true)) {
-        return true
-    }
-
-    // Fallback to purity check if category is not clearly gold
-    val purity = item.purityPercent.toFloatOrNull() ?: 0f
-    return purity >= 91.6f // 91.6%+ purity is typically gold
-}
-
-fun isSilverItem(item: DraftInvoiceData.DraftItemModel): Boolean {
-    // First check by category (primary method)
-    val category = extractCategoryFromDescription(item.productDescription)
-    if (category.equals("Silver", ignoreCase = true)) {
-        return true
-    }
-
-    // Fallback to purity check if category is not clearly silver
-    val purity = item.purityPercent.toFloatOrNull() ?: 0f
-    return purity < 91.6f && purity > 0f // < 91.6% purity is typically silver
-}
-
-// Helper function to extract category from product description
-// productDescription format: "Category SubCategory ItemName"
 private fun extractCategoryFromDescription(description: String): String {
     return description.trim().split(" ").firstOrNull() ?: ""
 }
 
 // Represents the overall information needed for the draft invoice
-data class DraftInvoiceData(
+data class InvoiceData(
     val storeInfo: StoreEntity,
     val customerInfo: CustomerEntity,
     val invoiceMeta: InvoiceMetadata,
     val items: List<DraftItemModel>,
+    val jurisdiction: String = "Malkangiri",
     val goldRate: String,
-    val silverRate: String,// For Gold/Silver rates
-    val Jurisdiction: String = "Malkangiri",
-    val paymentSummary: PaymentSummary,   // For the summary box (Sub Total, GST, etc.)
+    val silverRate: String,
+    val paymentSummary: PaymentSummary,
     val paymentReceived: PaymentReceivedDetails, // For CASH/Card details received
     val declarationPoints: List<String>,
     val termsAndConditions: String? = null, // Optional, if you have more extensive T&Cs
@@ -2706,15 +2289,15 @@ data class DraftInvoiceData(
 
     data class DraftItemModel(
         val serialNumber: String,
-        val referenceNumber: String,    // from purchaseItemId
         val productDescription: String, // from catName, subCatName, itemAddName
         val quantitySet: String,        // from quantity (formatted as string)
         val grossWeightGms: String,     // from gsWt (formatted)
         val netWeightGms: String,       // from ntWt (formatted)
+        val metalPrice: String,          // metal type
+        val metalType: String,          // metal type
         val ratePerGm: String,          // from fnMetalPrice (formatted)
         val makingAmount: String,       // from chargeAmount (formatted)
         val purityPercent: String,      // from purity (formatted)
-        val egColumnValue: String,      // Value for the "E.G" column (if any)
         val totalAmount: String         // from price (formatted)
     )
 

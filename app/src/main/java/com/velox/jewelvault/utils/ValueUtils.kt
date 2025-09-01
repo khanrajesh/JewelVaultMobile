@@ -103,7 +103,13 @@ fun Double.roundTo3Decimal(): Double {
 }
 
 @SuppressLint("DefaultLocale")
-fun Double.to2FString() = String.format(Locale.US, "%.2f", this)
+fun Double.to2FString(): String{
+   return try {
+        String.format(Locale.US, "%.2f", this)
+    }catch (_:Exception){
+        "NULL"
+    }
+}
 fun Double.to1FString() = String.format(Locale.US, "%.1f", this)
 
 fun numberToWords(number: Int): String {
