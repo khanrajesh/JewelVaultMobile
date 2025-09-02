@@ -20,3 +20,6 @@ key/
 *.keystore
 /app/build
 keystore.properties
+/app/release
+.kotlin
+.idea
