@@ -252,7 +252,6 @@ private fun AddItemSection(
     subCatName: String,
     viewModel: InventoryViewModel,
 ) {
-    val context = LocalContext.current
     if (addItem.value) {
         Column(
             Modifier

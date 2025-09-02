@@ -325,7 +325,7 @@ private fun AuthScreen(
                         forgotPassClick.value = false
                         isLogin.value = true
                         // Clear all fields
-                        mobileNo.clear()
+//                        mobileNo.clear()
                         password.clear()
                         confirmPassword.clear()
                         otp.clear()
@@ -359,7 +359,7 @@ private fun AuthScreen(
                         loginViewModel.snackBarState.value = "Signed up successfully"
                         isLogin.value = true
                         // Clear all fields
-                        mobileNo.clear()
+//                        mobileNo.clear()
                         password.clear()
                         confirmPassword.clear()
                         otp.clear()
@@ -554,7 +554,7 @@ private fun AuthScreen(
                                     loginViewModel.snackBarState.value = "Signed up successfully"
                                     isLogin.value = true
                                     // Clear all fields
-                                    mobileNo.clear()
+//                                    mobileNo.clear()
                                     password.clear()
                                     confirmPassword.clear()
                                     otp.clear()

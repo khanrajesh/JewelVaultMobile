@@ -22,6 +22,13 @@
 -keep class com.google.firebase.auth.PhoneAuthProvider { *; }
 -keep class com.google.firebase.auth.PhoneAuthCredential { *; }
 -keep class com.google.firebase.auth.PhoneAuthOptions { *; }
+# Keep Firebase KTX
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
+# Keep Kotlin metadata
+-keep class kotlin.Metadata { *; }
+-keepclassmembers class kotlin.Metadata { *; }
 
 # Keep SafetyNet and Play Integrity classes
 -keep class com.google.android.gms.safetynet.** { *; }

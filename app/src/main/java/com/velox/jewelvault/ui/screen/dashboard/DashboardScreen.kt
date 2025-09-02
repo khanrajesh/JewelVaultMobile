@@ -977,7 +977,7 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
             val tableData = recentSellsItem.map { item ->
                 listOf(
                     item.orderDate.toString(),
-                    item.orderId.toString(),
+                    item.orderId,
                     item.name,
                     item.mobileNo,
                     item.address ?: "",
@@ -1007,7 +1007,9 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                 items = tableData,
                 onItemClick = { clickedItem ->
                     val orderId = clickedItem[1]
-                    subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
+                    if (orderId.isNotEmpty()) {
+                        subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
+                    }
                 },
                 onItemLongClick = { longClickedItem ->
                     // Handle item long click if needed
