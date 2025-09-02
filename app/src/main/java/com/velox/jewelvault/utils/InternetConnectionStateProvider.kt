@@ -66,7 +66,7 @@ private fun startSpeedMonitor(
 
     speedMonitorJob.value = coroutineScope.launch {
         while (isActive) {
-            val speedMonitoringEnabled = dataStoreManager?.getValue(DataStoreManager.NETWORK_SPEED_MONITORING, true)?.first() ?: true
+            val speedMonitoringEnabled = dataStoreManager?.getValue(DataStoreManager.NETWORK_SPEED_MONITORING, false)?.first() ?: false
             if (speedMonitoringEnabled) {
                 val isSlow = !isInternetFast()
                 if (isSlow) {

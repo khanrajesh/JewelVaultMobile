@@ -230,6 +230,9 @@ interface OrderDao {
     @Query("SELECT * FROM `${TableNames.EXCHANGE_ITEM}` WHERE orderId = :orderId ORDER BY addDate ASC")
     suspend fun getExchangeItemsByOrderId(orderId: String): List<ExchangeItemEntity>
 
+    @Query("SELECT * FROM `${TableNames.EXCHANGE_ITEM}` ORDER BY addDate ASC")
+    suspend fun getAllExchangeItems(): List<ExchangeItemEntity>
+
     @Query("DELETE FROM `${TableNames.EXCHANGE_ITEM}` WHERE orderId = :orderId")
     suspend fun deleteExchangeItemsByOrderId(orderId: String)
 
@@ -287,7 +290,7 @@ data class IndividualSellItem(
     val gstin_pan: String? = null,
     //item details
     val orderItemId: Int = 0,
-    val orderId: Int,
+    val orderId: String,
     val orderDate: Timestamp,
     val itemId: String,
     val customerMobile:String,

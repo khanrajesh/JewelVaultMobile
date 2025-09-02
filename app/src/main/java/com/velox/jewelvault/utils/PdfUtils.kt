@@ -340,6 +340,8 @@ suspend fun createDraftInvoiceData(
 
     // Convert ItemSelectedModel to DraftItemModel
     val draftItems = items.mapIndexed { index, item ->
+
+        val price = item.price+item.chargeAmount
         InvoiceData.DraftItemModel(
             serialNumber = "${index + 1}",
             productDescription = "${item.catName} ${item.subCatName} ${item.itemAddName}",
@@ -349,7 +351,7 @@ suspend fun createDraftInvoiceData(
             ratePerGm = item.fnMetalPrice.to2FString(),
             makingAmount = item.chargeAmount.to2FString(),
             purityPercent = item.purity,
-            totalAmount = item.price.to2FString(),
+            totalAmount = price.to2FString(),
             metalType = item.catName,
             metalPrice = (item.fnWt*item.fnMetalPrice).to2FString(),
         )

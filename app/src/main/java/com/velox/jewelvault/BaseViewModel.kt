@@ -232,7 +232,7 @@ class BaseViewModel @Inject constructor(
                     _dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true)
                         .first() ?: true
                 networkSpeedMonitoring.value =
-                    _dataStoreManager.getValue(DataStoreManager.NETWORK_SPEED_MONITORING, true)
+                    _dataStoreManager.getValue(DataStoreManager.NETWORK_SPEED_MONITORING, false)
                         .first() ?: true
                 autoRefreshMetalRates.value =
                     _dataStoreManager.getValue(DataStoreManager.AUTO_REFRESH_METAL_RATES, true)

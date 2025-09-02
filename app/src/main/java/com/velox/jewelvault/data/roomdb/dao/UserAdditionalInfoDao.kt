@@ -22,6 +22,9 @@ interface UserAdditionalInfoDao {
     @Query("SELECT * FROM ${TableNames.USER_ADDITIONAL_INFO} WHERE isActive = 1")
     suspend fun getAllActiveUserAdditionalInfo(): List<UserAdditionalInfoEntity>
 
+    @Query("SELECT * FROM ${TableNames.USER_ADDITIONAL_INFO}")
+    suspend fun getAllUserAdditionalInfos(): List<UserAdditionalInfoEntity>
+
     @Query("UPDATE ${TableNames.USER_ADDITIONAL_INFO} SET isActive = :isActive, updatedAt = :updatedAt WHERE userId = :userId")
     suspend fun updateUserStatus(userId: String, isActive: Boolean, updatedAt: Long = System.currentTimeMillis()): Int
 

@@ -27,7 +27,7 @@ class ExcelExporter(private val context: Context) {
         outputUri: Uri,
         context: Context,
         onProgress: (String, Int) -> Unit = { _, _ -> }
-    ): Result<Unit> {
+    ): Result<Unit>  {
         return try {
             log("Starting Excel export to: $outputUri")
             val workbook = XSSFWorkbook()
@@ -48,72 +48,77 @@ class ExcelExporter(private val context: Context) {
             log("Starting entity export process...")
             
             onProgress("Exporting Stores...", 5)
-            log("Step 1/14: Exporting StoreEntity...")
+            log("Step 1/15: Exporting StoreEntity...")
             exportStoreEntity(database, workbook, headerStyle)
             log("✓ StoreEntity export completed")
             
             onProgress("Exporting Users...", 10)
-            log("Step 2/14: Exporting UsersEntity...")
+            log("Step 2/15: Exporting UsersEntity...")
             exportUserEntity(database, workbook, headerStyle)
             log("✓ UsersEntity export completed")
             
             onProgress("Exporting Categories...", 15)
-            log("Step 3/14: Exporting CategoryEntity...")
+            log("Step 3/15: Exporting CategoryEntity...")
             exportCategoryEntity(database, workbook, headerStyle)
             log("✓ CategoryEntity export completed")
             
             onProgress("Exporting SubCategories...", 20)
-            log("Step 4/14: Exporting SubCategoryEntity...")
+            log("Step 4/15: Exporting SubCategoryEntity...")
             exportSubCategoryEntity(database, workbook, headerStyle)
             log("✓ SubCategoryEntity export completed")
             
             onProgress("Exporting Items...", 30)
-            log("Step 5/14: Exporting ItemEntity...")
+            log("Step 5/15: Exporting ItemEntity...")
             exportItemEntity(database, workbook, headerStyle)
             log("✓ ItemEntity export completed")
             
             onProgress("Exporting Customers...", 40)
-            log("Step 6/14: Exporting CustomerEntity...")
+            log("Step 6/15: Exporting CustomerEntity...")
             exportCustomerEntity(database, workbook, headerStyle)
             log("✓ CustomerEntity export completed")
             
             onProgress("Exporting Customer Khata Books...", 50)
-            log("Step 7/14: Exporting CustomerKhataBookEntity...")
+            log("Step 7/15: Exporting CustomerKhataBookEntity...")
             exportCustomerKhataBookEntity(database, workbook, headerStyle)
             log("✓ CustomerKhataBookEntity export completed")
             
             onProgress("Exporting Customer Transactions...", 60)
-            log("Step 8/14: Exporting CustomerTransactionEntity...")
+            log("Step 8/15: Exporting CustomerTransactionEntity...")
             exportCustomerTransactionEntity(database, workbook, headerStyle)
             log("✓ CustomerTransactionEntity export completed")
             
             onProgress("Exporting Orders...", 70)
-            log("Step 9/14: Exporting OrderEntity...")
+            log("Step 9/15: Exporting OrderEntity...")
             exportOrderEntity(database, workbook, headerStyle)
             log("✓ OrderEntity export completed")
             
             onProgress("Exporting Order Items...", 75)
-            log("Step 10/14: Exporting OrderItemEntity...")
+            log("Step 10/15: Exporting OrderItemEntity...")
             exportOrderItemEntity(database, workbook, headerStyle)
             log("✓ OrderItemEntity export completed")
             
+            onProgress("Exporting Exchange Items...", 78)
+            log("Step 11/15: Exporting ExchangeItemEntity...")
+            exportExchangeItemEntity(database, workbook, headerStyle)
+            log("✓ ExchangeItemEntity export completed")
+            
             onProgress("Exporting Firms...", 80)
-            log("Step 11/14: Exporting FirmEntity...")
+            log("Step 12/15: Exporting FirmEntity...")
             exportFirmEntity(database, workbook, headerStyle)
             log("✓ FirmEntity export completed")
             
             onProgress("Exporting Purchase Orders...", 85)
-            log("Step 12/14: Exporting PurchaseOrderEntity...")
+            log("Step 13/15: Exporting PurchaseOrderEntity...")
             exportPurchaseOrderEntity(database, workbook, headerStyle)
             log("✓ PurchaseOrderEntity export completed")
             
             onProgress("Exporting Purchase Order Items...", 90)
-            log("Step 13/14: Exporting PurchaseOrderItemEntity...")
+            log("Step 14/15: Exporting PurchaseOrderItemEntity...")
             exportPurchaseOrderItemEntity(database, workbook, headerStyle)
             log("✓ PurchaseOrderItemEntity export completed")
             
             onProgress("Exporting Metal Exchanges...", 95)
-            log("Step 14/14: Exporting MetalExchangeEntity...")
+            log("Step 15/15: Exporting MetalExchangeEntity...")
             exportMetalExchangeEntity(database, workbook, headerStyle)
             log("✓ MetalExchangeEntity export completed")
             
@@ -485,6 +490,50 @@ class ExcelExporter(private val context: Context) {
             row.createCell(32).setCellValue(orderItem.purchaseItemId)
         }
         log("  → OrderItemEntity export completed: ${orderItems.size} records")
+    }
+    
+    private suspend fun exportExchangeItemEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
+        log("  → Starting ExchangeItemEntity export...")
+        val sheet = workbook.createSheet("ExchangeItemEntity")
+        
+        // Get all exchange items from all orders
+        val allOrders = database.orderDao().getAllOrders()
+        val allExchangeItems = mutableListOf<com.velox.jewelvault.data.roomdb.entity.order.ExchangeItemEntity>()
+        
+        for (order in allOrders) {
+            val exchangeItems = database.orderDao().getExchangeItemsByOrderId(order.orderId)
+            allExchangeItems.addAll(exchangeItems)
+        }
+        
+        log("  → Found ${allExchangeItems.size} exchange items to export")
+        
+        val headers = listOf(
+            "exchangeItemId", "orderId", "orderDate", "customerMobile", "metalType", "purity", 
+            "grossWeight", "fineWeight", "price", "isExchangedByMetal", "exchangeValue", "addDate"
+        )
+        val headerRow = sheet.createRow(0)
+        headers.forEachIndexed { index, header ->
+            val cell = headerRow.createCell(index)
+            cell.setCellValue(header)
+            cell.cellStyle = headerStyle
+        }
+        
+        allExchangeItems.forEachIndexed { rowIndex, exchangeItem ->
+            val row = sheet.createRow(rowIndex + 1)
+            row.createCell(0).setCellValue(exchangeItem.exchangeItemId)
+            row.createCell(1).setCellValue(exchangeItem.orderId)
+            row.createCell(2).setCellValue(dateFormat.format(exchangeItem.orderDate))
+            row.createCell(3).setCellValue(exchangeItem.customerMobile)
+            row.createCell(4).setCellValue(exchangeItem.metalType)
+            row.createCell(5).setCellValue(exchangeItem.purity)
+            row.createCell(6).setCellValue(exchangeItem.grossWeight)
+            row.createCell(7).setCellValue(exchangeItem.fineWeight)
+            row.createCell(8).setCellValue(exchangeItem.price)
+            row.createCell(9).setCellValue(exchangeItem.isExchangedByMetal)
+            row.createCell(10).setCellValue(exchangeItem.exchangeValue)
+            row.createCell(11).setCellValue(dateFormat.format(exchangeItem.addDate))
+        }
+        log("  → ExchangeItemEntity export completed: ${allExchangeItems.size} records")
     }
     
     private suspend fun exportFirmEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {

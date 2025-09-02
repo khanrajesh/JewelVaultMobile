@@ -38,6 +38,7 @@ class ExcelImporter(
     private object TransactionCols { const val TRANSACTIONID = 0; const val CUSTOMERMOBILE = 1; const val TRANSACTIONDATE = 2; const val AMOUNT = 3; const val TRANSACTIONTYPE = 4; const val CATEGORY = 5; const val DESCRIPTION = 6; const val REFERENCENUMBER = 7; const val PAYMENTMETHOD = 8; const val KHATABOOKID = 9; const val MONTHNUMBER = 10; const val NOTES = 11; const val USERID = 12; const val STOREID = 13 }
     private object OrderCols { const val ORDERID = 0; const val CUSTOMERMOBILE = 1; const val STOREID = 2; const val USERID = 3; const val ORDERDATE = 4; const val TOTALAMOUNT = 5; const val TOTALTAX = 6; const val TOTALCHARGE = 7; const val DISCOUNT = 8 ; const val NOTE = 9 }
     private object OrderItemCols { const val ORDERITEMID = 0; const val ORDERID = 1; const val ORDERDATE = 2; const val ITEMID = 3; const val CUSTOMERMOBILE = 4; const val CATID = 5; const val CATNAME = 6; const val ITEMADDNAME = 7; const val SUBCATID = 8; const val SUBCATNAME = 9; const val ENTRYTYPE = 10; const val QUANTITY = 11; const val GSWt = 12; const val NTWt = 13; const val FNWt = 14; const val FNMETALPRICE = 15; const val PURITY = 16; const val CRGTYPE = 17; const val CRG = 18; const val OTHCRGDES = 19; const val OTHCRG = 20; const val CGST = 21; const val SGST = 22; const val IGST = 23; const val HUID = 24; const val ADDDESKEY = 25; const val ADDDESVALUE = 26; const val PRICE = 27; const val CHARGE = 28; const val TAX = 29; const val SELLERFIRMID = 30; const val PURCHASEORDERID = 31; const val PURCHASEITEMID = 32 }
+    private object ExchangeItemCols { const val EXCHANGEITEMID = 0; const val ORDERID = 1; const val ORDERDATE = 2; const val CUSTOMERMOBILE = 3; const val METALTYPE = 4; const val PURITY = 5; const val GROSSWEIGHT = 6; const val FINEWEIGHT = 7; const val PRICE = 8; const val ISEXCHANGEDBYMETAL = 9; const val EXCHANGEVALUE = 10; const val ADDDATE = 11 }
     private object FirmCols { const val FIRMID = 0; const val FIRMNAME = 1; const val FIRMMOBILENUMBER = 2; const val GSTNUMBER = 3; const val ADDRESS = 4 }
     private object PurchaseOrderCols { const val PURCHASEORDERID = 0; const val SELLERID = 1; const val BILLNO = 2; const val BILLDATE = 3; const val ENTRYDATE = 4; const val EXTRACHARGEDESCRIPTION = 5; const val EXTRACHARGE = 6; const val TOTALFINALWEIGHT = 7; const val TOTALFINALAMOUNT = 8; const val NOTES = 9; const val CGSTPERCENT = 10; const val SGSTPERCENT = 11; const val IGSTPERCENT = 12 }
     private object PurchaseOrderItemCols { const val PURCHASEITEMID = 0; const val PURCHASEORDERID = 1; const val CATID = 2; const val CATNAME = 3; const val SUBCATID = 4; const val SUBCATNAME = 5; const val GSWt = 6; const val PURITY = 7; const val NTWt = 8; const val FNWt = 9; const val FNRATE = 10; const val WASTAGEPERCENT = 11 }
@@ -90,7 +91,10 @@ class ExcelImporter(
             onProgress("Importing order items...", 55)
             importOrderItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing firms...", 60)
+            onProgress("Importing exchange items...", 60)
+            importExchangeItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+            
+            onProgress("Importing firms...", 65)
             importFirmEntity(workbook, restoreMode, summary)
             
             onProgress("Importing purchase orders...", 65)
@@ -798,6 +802,65 @@ class ExcelImporter(
         }
     }
     
+    private suspend fun importExchangeItemEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
+        val sheet = workbook.getSheet("ExchangeItemEntity") ?: return
+        val existingExchangeItems = database.orderDao().getAllExchangeItems().associateBy { it.exchangeItemId }
+        
+        for (rowIndex in 1..sheet.lastRowNum) {
+            val row = sheet.getRow(rowIndex) ?: continue
+            try {
+                val exchangeItemId = getCellValueAsString(row.getCell(ExchangeItemCols.EXCHANGEITEMID))
+                val existingExchangeItem = existingExchangeItems[exchangeItemId]
+                
+                when (restoreMode) {
+                    RestoreMode.MERGE -> {
+                        if (existingExchangeItem == null) {
+                            val exchangeItem = ExchangeItemEntity(
+                                exchangeItemId = exchangeItemId,
+                                orderId = getCellValueAsString(row.getCell(ExchangeItemCols.ORDERID)),
+                                orderDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ORDERDATE))),
+                                customerMobile = getCellValueAsString(row.getCell(ExchangeItemCols.CUSTOMERMOBILE)),
+                                metalType = getCellValueAsString(row.getCell(ExchangeItemCols.METALTYPE)),
+                                purity = getCellValueAsString(row.getCell(ExchangeItemCols.PURITY)),
+                                grossWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.GROSSWEIGHT)),
+                                fineWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.FINEWEIGHT)),
+                                price = getCellValueAsDouble(row.getCell(ExchangeItemCols.PRICE)),
+                                isExchangedByMetal = getCellValueAsBoolean(row.getCell(ExchangeItemCols.ISEXCHANGEDBYMETAL)),
+                                exchangeValue = getCellValueAsDouble(row.getCell(ExchangeItemCols.EXCHANGEVALUE)),
+                                addDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ADDDATE)))
+                            )
+                            database.orderDao().insertExchangeItem(exchangeItem)
+                            summary.exchangeItemsAdded++
+                        } else {
+                            summary.exchangeItemsSkipped++
+                        }
+                    }
+                    RestoreMode.REPLACE -> {
+                        val exchangeItem = ExchangeItemEntity(
+                            exchangeItemId = exchangeItemId,
+                            orderId = getCellValueAsString(row.getCell(ExchangeItemCols.ORDERID)),
+                            orderDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ORDERDATE))),
+                            customerMobile = getCellValueAsString(row.getCell(ExchangeItemCols.CUSTOMERMOBILE)),
+                            metalType = getCellValueAsString(row.getCell(ExchangeItemCols.METALTYPE)),
+                            purity = getCellValueAsString(row.getCell(ExchangeItemCols.PURITY)),
+                            grossWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.GROSSWEIGHT)),
+                            fineWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.FINEWEIGHT)),
+                            price = getCellValueAsDouble(row.getCell(ExchangeItemCols.PRICE)),
+                            isExchangedByMetal = getCellValueAsBoolean(row.getCell(ExchangeItemCols.ISEXCHANGEDBYMETAL)),
+                            exchangeValue = getCellValueAsDouble(row.getCell(ExchangeItemCols.EXCHANGEVALUE)),
+                            addDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ADDDATE)))
+                        )
+                        database.orderDao().insertExchangeItem(exchangeItem)
+                        summary.exchangeItemsAdded++
+                    }
+                }
+            } catch (e: Exception) {
+                log("Error importing exchange item at row $rowIndex: ${e.message}")
+                summary.exchangeItemsFailed++
+            }
+        }
+    }
+    
     private suspend fun importFirmEntity(workbook: Workbook, restoreMode: RestoreMode, summary: ImportSummary) {
         val sheet = workbook.getSheet("FirmEntity") ?: return
         val existingFirms = database.purchaseDao().getAllFirms().associateBy { it.firmName }
@@ -1152,7 +1215,10 @@ data class ImportSummary(
     var khataBooksFailed: Int = 0,
     var transactionsAdded: Int = 0,
     var transactionsSkipped: Int = 0,
-    var transactionsFailed: Int = 0
+    var transactionsFailed: Int = 0,
+    var exchangeItemsAdded: Int = 0,
+    var exchangeItemsSkipped: Int = 0,
+    var exchangeItemsFailed: Int = 0
 ) {
     override fun toString(): String {
         return "Import Summary: " +
@@ -1169,6 +1235,7 @@ data class ImportSummary(
                 "PurchaseOrderItems($purchaseOrderItemsAdded added, $purchaseOrderItemsSkipped skipped, $purchaseOrderItemsFailed failed), " +
                 "MetalExchanges($metalExchangesAdded added, $metalExchangesSkipped skipped, $metalExchangesFailed failed), " +
                 "KhataBooks($khataBooksAdded added, $khataBooksSkipped skipped, $khataBooksFailed failed), " +
-                "Transactions($transactionsAdded added, $transactionsSkipped skipped, $transactionsFailed failed)"
+                "Transactions($transactionsAdded added, $transactionsSkipped skipped, $transactionsFailed failed), " +
+                "ExchangeItems($exchangeItemsAdded added, $exchangeItemsSkipped skipped, $exchangeItemsFailed failed)"
     }
 }

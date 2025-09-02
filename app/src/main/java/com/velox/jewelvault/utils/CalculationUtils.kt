@@ -117,6 +117,26 @@ object CalculationUtils {
     }
 
     /**
+     * Calculate total price with discount applied
+     * @param basePrice Base price of the item
+     * @param discount Discount amount to be subtracted
+     * @param makingCharge Making charge amount
+     * @param otherCharge Other charges amount
+     * @param taxAmount Tax amount
+     * @return Total price including discount, charges and taxes
+     */
+    fun totalPriceWithDiscount(
+        basePrice: Double,
+        discount: Double,
+        makingCharge: Double,
+        otherCharge: Double = 0.0,
+        taxAmount: Double = 0.0
+    ): Double {
+        val priceAfterDiscount = basePrice - discount
+        return priceAfterDiscount + makingCharge + otherCharge + taxAmount
+    }
+
+    /**
      * Calculate fine weight from net weight using purity multiplier
      * @param netWeight Net weight in grams
      * @param purity Purity label (e.g., "916", "750")
