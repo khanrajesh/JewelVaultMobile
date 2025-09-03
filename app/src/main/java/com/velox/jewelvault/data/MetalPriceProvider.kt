@@ -330,15 +330,33 @@ suspend fun fetchAllMetalRates(
 ): List<MetalRate> = withContext(Dispatchers.IO) {
     val combinedRates = mutableListOf<MetalRate>()
     metalRatesLoading.value = true
-    // Fetch gold rates with separate error handling
+    
+    // Fetch gold rates from GoodReturns with separate error handling
     try {
-        val goldRates = fetchGoldPricesGoodReturns(state, context)
-        combinedRates.addAll(goldRates)
+//        val goldRates = fetchGoldPricesGoodReturns(state, context)
+//        combinedRates.addAll(goldRates)
     } catch (e: Exception) {
         // Handle error specifically for gold rates, add an error item
         combinedRates.add(
             MetalRate(
-                source = "GoldFetcher",
+                source = "GoodReturns",
+                metal = "Gold",
+                caratOrPurity = "Error",
+                price = e.localizedMessage ?: "Unknown error",
+                updatedDate = LocalDateTime.now().toCustomFormat()
+            )
+        )
+    }
+
+    // Fetch gold rates from Angel One with separate error handling
+    try {
+        val angelOneGoldRates = fetchGoldPricesAngelOne(state, context)
+        combinedRates.addAll(angelOneGoldRates)
+    } catch (e: Exception) {
+        // Handle error specifically for Angel One gold rates, add an error item
+        combinedRates.add(
+            MetalRate(
+                source = "AngelOne",
                 metal = "Gold",
                 caratOrPurity = "Error",
                 price = e.localizedMessage ?: "Unknown error",
@@ -444,6 +462,141 @@ suspend fun fetchGoldPricesGoodReturns(state: String, context: Context): List<Me
             listOf(
                 MetalRate(
                     "GoodReturns",
+                    "Gold",
+                    "Error",
+                    e.localizedMessage ?: "Unknown error",
+                    LocalDateTime.now().toCustomFormat()
+                )
+            )
+        }
+    }
+
+suspend fun fetchGoldPricesAngelOne(state: String, context: Context): List<MetalRate> =
+    withContext(Dispatchers.IO) {
+        val url = "https://www.angelone.in/gold-rates-today"
+
+        try {
+            val doc = Jsoup.connect(url).userAgent("Mozilla/5.0").get()
+            val prices = mutableListOf<MetalRate>()
+            val todayDate = LocalDateTime.now().toCustomFormat()
+
+            // Look for table rows containing gold prices
+            val tableRows = doc.select("tr.MuiTableRow-root")
+            
+            for (row in tableRows) {
+                val cells = row.select("td.MuiTableCell-root")
+                
+                if (cells.size >= 4) {
+                    val gramText = cells[0].text().trim()
+                    val price24kText = cells[1].select("div").text().trim()
+                    val price22kText = cells[2].select("div").text().trim()
+                    val price18kText = cells[3].select("div").text().trim()
+
+                    // Check if this row contains 1 gm data
+                    if (gramText.contains("1 gm", ignoreCase = true)) {
+                        // Add 24K gold price
+                        if (price24kText.isNotEmpty()) {
+                            prices.add(
+                                MetalRate(
+                                    source = "AngelOne",
+                                    metal = "Gold",
+                                    caratOrPurity = "24K",
+                                    price = price24kText.replace("₹", "").replace(",", ""),
+                                    updatedDate = todayDate
+                                )
+                            )
+                        }
+
+                        // Add 22K gold price
+                        if (price22kText.isNotEmpty()) {
+                            prices.add(
+                                MetalRate(
+                                    source = "AngelOne",
+                                    metal = "Gold",
+                                    caratOrPurity = "22K",
+                                    price = price22kText.replace("₹", "").replace(",", ""),
+                                    updatedDate = todayDate
+                                )
+                            )
+                        }
+
+                        // Add 18K gold price
+                        if (price18kText.isNotEmpty()) {
+                            prices.add(
+                                MetalRate(
+                                    source = "AngelOne",
+                                    metal = "Gold",
+                                    caratOrPurity = "18K",
+                                    price = price18kText.replace("₹", "").replace(",", ""),
+                                    updatedDate = todayDate
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // If no table rows found, try alternative selectors
+            if (prices.isEmpty()) {
+                // Try to find the main price display elements
+                val price24kElement = doc.selectFirst("div:contains(24K Gold)")
+                val price22kElement = doc.selectFirst("div:contains(22K Gold)")
+                val price18kElement = doc.selectFirst("div:contains(18K Gold)")
+
+                // Look for price patterns in the document
+                val pricePattern = Regex("₹[0-9,]+")
+                val allText = doc.text()
+                val priceMatches = pricePattern.findAll(allText).map { it.value }.toList()
+
+                if (priceMatches.size >= 3) {
+                    prices.add(
+                        MetalRate(
+                            source = "AngelOne",
+                            metal = "Gold",
+                            caratOrPurity = "24K",
+                            price = priceMatches[0].replace("₹", "").replace(",", ""),
+                            updatedDate = todayDate
+                        )
+                    )
+                    prices.add(
+                        MetalRate(
+                            source = "AngelOne",
+                            metal = "Gold",
+                            caratOrPurity = "22K",
+                            price = priceMatches[1].replace("₹", "").replace(",", ""),
+                            updatedDate = todayDate
+                        )
+                    )
+                    prices.add(
+                        MetalRate(
+                            source = "AngelOne",
+                            metal = "Gold",
+                            caratOrPurity = "18K",
+                            price = priceMatches[2].replace("₹", "").replace(",", ""),
+                            updatedDate = todayDate
+                        )
+                    )
+                }
+            }
+
+            if (prices.isEmpty()) {
+                listOf(
+                    MetalRate(
+                        "AngelOne",
+                        "Gold",
+                        "Error",
+                        "No data found",
+                        todayDate
+                    )
+                )
+            } else {
+                prices
+            }
+
+        } catch (e: Exception) {
+            listOf(
+                MetalRate(
+                    "AngelOne",
                     "Gold",
                     "Error",
                     e.localizedMessage ?: "Unknown error",

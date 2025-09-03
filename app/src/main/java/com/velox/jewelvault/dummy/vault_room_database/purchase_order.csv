@@ -1,0 +1,7 @@
+purchaseOrderId;userId;storeId;sellerId;orderDate;totalAmount;discount;taxAmount;finalAmount;paymentStatus;orderStatus;notes;createdDate;lastUpdated
+PO001;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER001;2025-01-10;25000.0;1000.0;2175.0;26175.0;Paid;Delivered;Gold jewelry stock;2025-01-10;2025-01-12
+PO002;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER002;2025-01-11;45000.0;2000.0;3915.0;46915.0;Paid;Delivered;Diamond jewelry;2025-01-11;2025-01-13
+PO003;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER003;2025-01-12;15000.0;500.0;1305.0;15805.0;Paid;Delivered;Silver items;2025-01-12;2025-01-14
+PO004;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER004;2025-01-13;35000.0;1500.0;3045.0;36545.0;Paid;Delivered;Platinum collection;2025-01-13;2025-01-15
+PO005;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER005;2025-01-14;28000.0;1200.0;2436.0;29236.0;Paid;Delivered;Gemstone jewelry;2025-01-14;2025-01-16
+PO006;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;SELLER006;2025-01-15;22000.0;1000.0;1914.0;22914.0;Paid;Delivered;Pearl collection;2025-01-15;2025-01-17

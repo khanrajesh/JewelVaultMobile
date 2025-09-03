@@ -266,13 +266,13 @@ fun OptionalUpdateDialog(
             }
         },
         confirmButton = {
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = { showBackupDialog = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
@@ -282,10 +282,10 @@ fun OptionalUpdateDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Backup & Update")
                 }
-                
+
                 OutlinedButton(
                     onClick = onUpdateClick,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,

@@ -1,0 +1,8 @@
+transactionId;customerId;userId;storeId;orderId;transactionType;amount;paymentMethod;transactionDate;description;createdDate;lastUpdated
+TXN001;CUST001;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;ORD001;Credit;158050.0;UPI;2025-01-20;Wedding jewelry payment;2025-01-20;2025-01-20
+TXN002;CUST002;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;ORD002;Credit;79025.0;Card;2025-01-21;Anniversary gift payment;2025-01-21;2025-01-21
+TXN003;CUST003;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;ORD003;Credit;47415.0;Cash;2025-01-22;Birthday gift payment;2025-01-22;2025-01-22
+TXN004;CUST004;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;ORD004;Credit;122440.0;UPI;2025-01-23;Festival purchase payment;2025-01-23;2025-01-23
+TXN005;CUST005;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;ORD005;Credit;89380.0;Card;2025-01-24;Custom design payment;2025-01-24;2025-01-24
+TXN006;CUST001;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;;Debit;5000.0;Cash;2025-01-25;Advance payment for new order;2025-01-25;2025-01-25
+TXN007;CUST002;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;;Debit;10000.0;UPI;2025-01-26;Advance for custom jewelry;2025-01-26;2025-01-26
