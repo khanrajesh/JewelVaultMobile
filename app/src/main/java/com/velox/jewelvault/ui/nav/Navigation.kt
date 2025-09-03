@@ -43,6 +43,8 @@ import com.velox.jewelvault.ui.screen.customers.CustomerDetailScreen
 import com.velox.jewelvault.ui.screen.customers.KhataBookPlansScreen
 import com.velox.jewelvault.ui.screen.sell_invoice.DraftInvoiceScreen
 import com.velox.jewelvault.ui.screen.setting.BackupSettingsScreen
+import com.velox.jewelvault.ui.screen.audit.AuditScreen
+import com.velox.jewelvault.ui.screen.audit.AuditViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -191,6 +193,10 @@ fun SubAppNavigation(
                 SubScreens.BackUpSetting.route
             ) {
                 BackupSettingsScreen(hiltViewModel())
+            }
+            
+            composable(SubScreens.Audit.route) {
+                AuditScreen(hiltViewModel<AuditViewModel>())
             }
         }
     }

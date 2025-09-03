@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,6 +124,15 @@ fun MainScreen() {
             "Profile", Icons.Default.Person
         ) {
             subNavController.navigate("${SubScreens.Profile.route}/${false}") {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "Audit", Icons.Default.QrCodeScanner
+        ) {
+            subNavController.navigate(SubScreens.Audit.route) {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }
