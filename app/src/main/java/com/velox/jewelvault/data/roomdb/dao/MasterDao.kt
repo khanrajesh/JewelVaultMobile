@@ -39,4 +39,48 @@ interface MasterDao {
     @Transaction
     @Query("DELETE FROM ${TableNames.ITEM} WHERE storeId = :storeId")
     suspend fun deleteItemsByStore(storeId: String)
+
+
+
+        // update every sub_category from item aggregates
+        @Query(
+            """
+        UPDATE ${TableNames.SUB_CATEGORY} 
+        SET 
+          gsWt = COALESCE((
+            SELECT SUM(gsWt) FROM ${TableNames.ITEM} WHERE ${TableNames.ITEM}.subCatId = ${TableNames.SUB_CATEGORY}.subCatId
+          ), 0),
+          fnWt = COALESCE((
+            SELECT SUM(fnWt) FROM ${TableNames.ITEM} WHERE ${TableNames.ITEM}.subCatId = ${TableNames.SUB_CATEGORY}.subCatId
+          ), 0),
+          quantity = COALESCE((
+            SELECT SUM(quantity) FROM ${TableNames.ITEM} WHERE ${TableNames.ITEM}.subCatId = ${TableNames.SUB_CATEGORY}.subCatId
+          ), 0)
+        """
+        )
+        suspend fun recalcAllSubCategories(): Int
+
+        // update every category from sub_category aggregates
+        @Query(
+            """
+        UPDATE ${TableNames.CATEGORY}
+        SET
+          gsWt = COALESCE((
+            SELECT SUM(gsWt) FROM ${TableNames.SUB_CATEGORY} WHERE ${TableNames.SUB_CATEGORY}.catId = ${TableNames.CATEGORY}.catId
+          ), 0),
+          fnWt = COALESCE((
+            SELECT SUM(fnWt) FROM ${TableNames.SUB_CATEGORY} WHERE ${TableNames.SUB_CATEGORY}.catId = ${TableNames.CATEGORY}.catId
+          ), 0)
+        """
+        )
+        suspend fun recalcAllCategories(): Int
+
+        // optional convenience transactional wrapper
+        @Transaction
+        suspend fun recalcAll() {
+            recalcAllSubCategories()
+            recalcAllCategories()
+        }
+
+
 }

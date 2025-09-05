@@ -18,6 +18,7 @@ import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.backup.BackupManager
+import com.velox.jewelvault.utils.backup.BackupService
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -209,6 +210,11 @@ class BaseViewModel @Inject constructor(
         log("🔄 Update button clicked")
         val info = updateInfo.value
         if (info != null) {
+            try {
+                BackupService.startBackup(context)
+            }catch (e: Exception){
+
+            }
             log("📱 Opening Play Store with update info: $info")
             appUpdateManager.openPlayStore(context, info)
         } else {

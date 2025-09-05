@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -122,13 +123,24 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(
-                            "Inventory Summary",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
+                        Row {
+                            Text(
+                                "Inventory Summary",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Spacer(Modifier.weight(1f))
+
+                            Icon(Icons.Default.Refresh,"",
+                                modifier = Modifier.bounceClick{
+                                inventoryViewModel.updateCatAndSubQtyAndWt()
+                            },
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         // Summary Statistics
@@ -280,12 +292,16 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                             "Add", Modifier
                                 .clickable {
 //                                    inventoryViewModel.catSubCatDto.clear()
+                                    val name = text.text.trim().let {
+                                        if (it.isNotEmpty()) it.substring(0, 1)
+                                            .uppercase() + it.substring(1).lowercase() else it
+                                    }
                                     if (addCatType.value == CatType.Category.type) {
-                                        inventoryViewModel.addCategory(text.text)
+                                        inventoryViewModel.addCategory(name)
                                     } else {
                                         if (selectedCatId.value != null && selectedCatName.value != null) {
                                             inventoryViewModel.addSubCategory(
-                                                subCatName = text.text,
+                                                subCatName = name,
                                                 catName = selectedCatName.value!!,
                                                 catId = selectedCatId.value!!
                                             )

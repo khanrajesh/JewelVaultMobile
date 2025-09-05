@@ -55,10 +55,12 @@ class PurchaseViewModel @Inject constructor(
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
     val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+
     /**
      * return Triple of Flow<String> for storeId, upiId, storeName
      * */
-    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
+        _dataStoreManager.getSelectedStoreInfo()
 
     val firmName = InputFieldState()
     val firmMobile = InputFieldState()
@@ -89,7 +91,6 @@ class PurchaseViewModel @Inject constructor(
     val addItemExtraCharge = InputFieldState()
 
 
-
     val addExchangeCategory = InputFieldState()
     val addExchangeFnWeight = InputFieldState()
 
@@ -99,7 +100,6 @@ class PurchaseViewModel @Inject constructor(
 
 
     val exchangeMetalRateDto = mutableStateListOf<PurchaseMetalRateDto>()
-
 
 
     fun getCategoryAndSubCategoryDetails() {
@@ -112,7 +112,8 @@ class PurchaseViewModel @Inject constructor(
 
                 val newList = result.map { cat ->
                     val subList = appDatabase.subCategoryDao().getSubCategoriesByCatId(cat.catId)
-                    CatSubCatDto(catId = cat.catId,
+                    CatSubCatDto(
+                        catId = cat.catId,
                         catName = cat.catName,
                         gsWt = cat.gsWt,
                         fnWt = cat.fnWt,
@@ -139,8 +140,9 @@ class PurchaseViewModel @Inject constructor(
     fun addPurchaseItem() {
 
         val category = catSubCatDto.find { it.catName == addItemCat.text }
-        val catId = category?.catId?:""
-        val subCatId = category?.subCategoryList?.find { it.subCatName == addItemSubCat.text }?.subCatId?:""
+        val catId = category?.catId ?: ""
+        val subCatId =
+            category?.subCategoryList?.find { it.subCatName == addItemSubCat.text }?.subCatId ?: ""
 
         val newItem = PurchaseItemInputDto(
 
@@ -210,63 +212,63 @@ class PurchaseViewModel @Inject constructor(
     }
 
     fun getFirmByFirmMobile() {
-        ioLaunch{
-                try {
-                    if (firmMobile.text.length != 10) {
-                        _snackBarState.value = "Invalid Firm Mobile Number"
-                        return@ioLaunch
-                    }
-                    val firmDetails = appDatabase.purchaseDao().getFirmByMobile(firmMobile.text)
-                    firmDetails?.let {
-                        firmName.text = it.firmName
-                        firmAddress.text = it.address
-                        firmGstin.text = it.gstNumber
-                    } ?: run {
-                        _snackBarState.value = "No Firm Found"
-                    }
-
-                } catch (e: Exception) {
-                    _snackBarState.value = "Fail to search firm by mobile"
-                    this@PurchaseViewModel.log("Fail to search firm by mobile")
+        ioLaunch {
+            try {
+                if (firmMobile.text.length != 10) {
+                    _snackBarState.value = "Invalid Firm Mobile Number"
+                    return@ioLaunch
                 }
+                val firmDetails = appDatabase.purchaseDao().getFirmByMobile(firmMobile.text)
+                firmDetails?.let {
+                    firmName.text = it.firmName
+                    firmAddress.text = it.address
+                    firmGstin.text = it.gstNumber
+                } ?: run {
+                    _snackBarState.value = "No Firm Found"
+                }
+
+            } catch (e: Exception) {
+                _snackBarState.value = "Fail to search firm by mobile"
+                this@PurchaseViewModel.log("Fail to search firm by mobile")
+            }
 
         }
     }
 
     fun getFirmBySellerMobile() {
         ioLaunch {
-                try {
+            try {
 
-                    if (sellerMobile.text.length != 10) {
-                        _snackBarState.value = "Invalid Seller Mobile Number"
-                        return@ioLaunch
-                    }
-                    val sellerInfo = appDatabase.purchaseDao().getSellerByMobile(sellerMobile.text)
+                if (sellerMobile.text.length != 10) {
+                    _snackBarState.value = "Invalid Seller Mobile Number"
+                    return@ioLaunch
+                }
+                val sellerInfo = appDatabase.purchaseDao().getSellerByMobile(sellerMobile.text)
 
-                    sellerInfo?.let {
-                        sellerMobile.text = it.mobileNumber
-                        sellerName.text = it.name
+                sellerInfo?.let {
+                    sellerMobile.text = it.mobileNumber
+                    sellerName.text = it.name
 
-                        val firmDetails = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
-                        firmDetails?.let { it2 ->
-                            if (firmMobile.text.isEmpty()) {
-                                firmName.text = it2.firmName
-                                firmAddress.text = it2.address
-                                firmGstin.text = it2.gstNumber
-                                firmMobile.text = it2.firmMobileNumber
-                            }
-                        } ?: run {
-                            _snackBarState.value = "No Firm Found"
-                            return@ioLaunch
+                    val firmDetails = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
+                    firmDetails?.let { it2 ->
+                        if (firmMobile.text.isEmpty()) {
+                            firmName.text = it2.firmName
+                            firmAddress.text = it2.address
+                            firmGstin.text = it2.gstNumber
+                            firmMobile.text = it2.firmMobileNumber
                         }
                     } ?: run {
-                        _snackBarState.value = "No Seller Found"
+                        _snackBarState.value = "No Firm Found"
                         return@ioLaunch
                     }
-                } catch (e: Exception) {
-                    _snackBarState.value = "Fail to search firm by seller mobile"
-                    this@PurchaseViewModel.log("Fail to search firm by seller mobile")
+                } ?: run {
+                    _snackBarState.value = "No Seller Found"
+                    return@ioLaunch
                 }
+            } catch (e: Exception) {
+                _snackBarState.value = "Fail to search firm by seller mobile"
+                this@PurchaseViewModel.log("Fail to search firm by seller mobile")
+            }
         }
     }
 
@@ -274,7 +276,7 @@ class PurchaseViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun addToReg(onComplete: () -> Unit) {
         _loadingState.value = true
-        verifyAddFirmAndSeller(onSuccess =   { sellerId ->
+        verifyAddFirmAndSeller(onSuccess = { sellerId ->
             if (purchaseItemList.isEmpty()) {
                 _snackBarState.value = "Please add items"
                 _loadingState.value = false
@@ -319,42 +321,44 @@ class PurchaseViewModel @Inject constructor(
                 }
 
                 ioLaunch {
-                        try {
-                            allUpdates.forEach { item ->
-                                suspendCancellableCoroutine { continuation ->
-                                    safeUpdateFineItem(
-                                        catId = item.catId,
-                                        catName = item.catName,
-                                        subCatId = item.subCatId,
-                                        subCatName = item.subCatName,
-                                        fnWt = item.fnWt,
-                                        add = item.toAdd,
-                                        onSuccess = { updatedItem ->
-                                            updateCatAndSubCat(item.subCatId,
+                    try {
+                        allUpdates.forEach { item ->
+                            suspendCancellableCoroutine { continuation ->
+                                safeUpdateFineItem(
+                                    catId = item.catId,
+                                    catName = item.catName,
+                                    subCatId = item.subCatId,
+                                    subCatName = item.subCatName,
+                                    fnWt = item.fnWt,
+                                    add = item.toAdd,
+                                    onSuccess = { updatedItem ->
+                                        if (updatedItem != null)
+                                            updateCatAndSubCat(
+                                                item.subCatId,
                                                 updatedItem,
                                                 item.toAdd
                                             ) {
                                                 continuation.resume(Unit) { cause, _, _ -> }
                                             }
-                                        },
-                                        onFailure = {
-                                            continuation.resume(Unit) { cause, _, _ -> }
-                                        }
-                                    )
-                                }
+                                    },
+                                    onFailure = {
+                                        continuation.resume(Unit) { cause, _, _ -> }
+                                    }
+                                )
                             }
-
-                            _loadingState.value = false
-                            _snackBarState.value = "Completed"
-                            onComplete()
-                        } catch (e: Exception) {
-                            _loadingState.value = false
-                            _snackBarState.value = "Error finalizing registration: ${e.message}"
                         }
+
+                        _loadingState.value = false
+                        _snackBarState.value = "Completed"
+                        onComplete()
+                    } catch (e: Exception) {
+                        _loadingState.value = false
+                        _snackBarState.value = "Error finalizing registration: ${e.message}"
+                    }
 
                 }
             }
-        },onFailure = {
+        }, onFailure = {
             _loadingState.value = false
         })
 
@@ -362,61 +366,65 @@ class PurchaseViewModel @Inject constructor(
 
 
     private fun updateCatAndSubCat(
-        subCatId: String, insertedItem: ItemEntity, toAdd:Boolean,onSuccess: suspend (ItemEntity) -> Unit
+        subCatId: String,
+        insertedItem: ItemEntity,
+        toAdd: Boolean,
+        onSuccess: suspend (ItemEntity) -> Unit
     ) {
         try {
 
-           ioLaunch {
-                    val subCategory =
-                        appDatabase.subCategoryDao().getSubCategoryById(subCatId = subCatId)
-                    subCategory?.let { subCat ->
+            ioLaunch {
+                val subCategory =
+                    appDatabase.subCategoryDao().getSubCategoryById(subCatId = subCatId)
+                subCategory?.let { subCat ->
 //                        val subCatGsWt =if(toAdd){(subCat.gsWt + insertedItem.gsWt)}else{(subCat.gsWt - insertedItem.gsWt)}.roundTo3Decimal()
 //                        val subCatFnWt = if(toAdd){(subCat.fnWt + insertedItem.fnWt)}else{(subCat.fnWt - insertedItem.fnWt)}.roundTo3Decimal()
 
-                        val subCatGsWt = insertedItem.gsWt
-                        val subCatFnWt = insertedItem.fnWt
+                    val subCatGsWt = insertedItem.gsWt
+                    val subCatFnWt = insertedItem.fnWt
 
-                        val upSub = appDatabase.subCategoryDao().updateWeightsAndQuantity(
-                            subCatId = insertedItem.subCatId,
-                            gsWt = subCatGsWt.roundTo3Decimal(),
-                            fnWt = subCatFnWt.roundTo3Decimal(),
-                            quantity = 1
-                        )
+                    val upSub = appDatabase.subCategoryDao().updateWeightsAndQuantity(
+                        subCatId = insertedItem.subCatId,
+                        gsWt = subCatGsWt.roundTo3Decimal(),
+                        fnWt = subCatFnWt.roundTo3Decimal(),
+                        quantity = 1
+                    )
 
-                        if (upSub != -1) {
-                            this@PurchaseViewModel.log("Sub Cat id: ${insertedItem.subCatId} update with weight")
-                            val cat = appDatabase.categoryDao()
-                                .getCategoryById(catId = insertedItem.catId)
-                            cat?.let { catEntity ->
+                    if (upSub != -1) {
+                        this@PurchaseViewModel.log("Sub Cat id: ${insertedItem.subCatId} update with weight")
+                        val cat = appDatabase.categoryDao()
+                            .getCategoryById(catId = insertedItem.catId)
+                        cat?.let { catEntity ->
 
-                                val subCatItem = appDatabase.subCategoryDao().getSubCategoriesByCatId(catId = insertedItem.catId)
+                            val subCatItem = appDatabase.subCategoryDao()
+                                .getSubCategoriesByCatId(catId = insertedItem.catId)
 
-                                val catGsWt = subCatItem.sumOf { it.fnWt }.roundTo3Decimal()
-                                val catFnWt = subCatItem.sumOf { it.gsWt }.roundTo3Decimal()
+                            val catGsWt = subCatItem.sumOf { it.fnWt }.roundTo3Decimal()
+                            val catFnWt = subCatItem.sumOf { it.gsWt }.roundTo3Decimal()
 
 
-                                val upCat = appDatabase.categoryDao().updateWeights(
-                                    catId = insertedItem.catId, gsWt = catGsWt, fnWt = catFnWt
-                                )
+                            val upCat = appDatabase.categoryDao().updateWeights(
+                                catId = insertedItem.catId, gsWt = catGsWt, fnWt = catFnWt
+                            )
 
-                                if (upCat != -1) {
-                                    this@PurchaseViewModel.log("Cat id: ${insertedItem.catId} update with weight")
-                                    _snackBarState.value = "Item Added and categories updated."
-                                            _loadingState.value = false
-                                    onSuccess(insertedItem)
-                                }
+                            if (upCat != -1) {
+                                this@PurchaseViewModel.log("Cat id: ${insertedItem.catId} update with weight")
+                                _snackBarState.value = "Item Added and categories updated."
+                                _loadingState.value = false
+                                onSuccess(insertedItem)
                             }
-                        } else {
-
-                            _snackBarState.value = "Failed to update Sub Category Weight"
-                                    _loadingState.value = false
                         }
+                    } else {
+
+                        _snackBarState.value = "Failed to update Sub Category Weight"
+                        _loadingState.value = false
                     }
+                }
             }
 
 
         } catch (e: Exception) {
-                            _loadingState.value = false
+            _loadingState.value = false
             _snackBarState.value = ("Error updating cat and sub cat weight: ${e.message}")
             this@PurchaseViewModel.log("Error updating cat and sub cat weight: ${e.message}")
         }
@@ -429,7 +437,7 @@ class PurchaseViewModel @Inject constructor(
         subCatName: String,
         fnWt: Double,
         add: Boolean,
-        onSuccess: suspend (ItemEntity) -> Unit,
+        onSuccess: suspend (ItemEntity?) -> Unit,
         onFailure: (Throwable) -> Unit
     ) {
         viewModelScope.launch {
@@ -462,44 +470,48 @@ class PurchaseViewModel @Inject constructor(
                             throw Exception("Failed to update Fine item")
                         }
                     } else {
-                        val newItem = ItemEntity(
-                            itemId = "0",
-                            itemAddName = "Fine",
-                            userId = userId,
-                            storeId = storeId,
-                            catId = catId,
-                            catName = catName,
-                            subCatId = subCatId,
-                            subCatName = subCatName,
-                            quantity = 0,
-                            gsWt = fnWt,
-                            fnWt = fnWt,
-                            ntWt = fnWt,
-                            entryType = "",
-                            purity = "1000",
-                            crgType = "",
-                            crg = 0.0,
-                            othCrgDes = "",
-                            othCrg = 0.0,
-                            cgst = 1.5,
-                            sgst = 0.0,
-                            igst = 1.5,
-                            huid = "",
-                            unit = "gm",
-                            addDesKey = "",
-                            addDesValue = "",
-                            addDate = getCurrentTimestamp(),
-                            modifiedDate = getCurrentTimestamp(),
-                            sellerFirmId = "0",
-                            purchaseOrderId = "0",
-                            purchaseItemId = "0",
-                        )
-                        val insertId = appDatabase.itemDao().insert(newItem)
-                        if (insertId != -1L) {
-                            _snackBarState.value = "Fine item added successfully"
-                            newItem
+                        if (modifiedFnWt > 0) {
+                            val newItem = ItemEntity(
+                                itemId = "0",
+                                itemAddName = "Fine",
+                                userId = userId,
+                                storeId = storeId,
+                                catId = catId,
+                                catName = catName,
+                                subCatId = subCatId,
+                                subCatName = subCatName,
+                                quantity = 0,
+                                gsWt = fnWt,
+                                fnWt = fnWt,
+                                ntWt = fnWt,
+                                entryType = "",
+                                purity = "1000",
+                                crgType = "",
+                                crg = 0.0,
+                                othCrgDes = "",
+                                othCrg = 0.0,
+                                cgst = 1.5,
+                                sgst = 0.0,
+                                igst = 1.5,
+                                huid = "",
+                                unit = "gm",
+                                addDesKey = "",
+                                addDesValue = "",
+                                addDate = getCurrentTimestamp(),
+                                modifiedDate = getCurrentTimestamp(),
+                                sellerFirmId = "0",
+                                purchaseOrderId = "0",
+                                purchaseItemId = "0",
+                            )
+                            val insertId = appDatabase.itemDao().insert(newItem)
+                            if (insertId != -1L) {
+                                _snackBarState.value = "Fine item added successfully"
+                                newItem
+                            } else {
+                                throw Exception("Failed to insert Fine item")
+                            }
                         } else {
-                            throw Exception("Failed to insert Fine item")
+                            null
                         }
                     }
 

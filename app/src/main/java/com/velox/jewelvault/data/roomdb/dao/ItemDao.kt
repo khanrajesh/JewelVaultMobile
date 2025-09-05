@@ -133,4 +133,9 @@ interface ItemDao {
     
     @Query("SELECT * FROM ${TableNames.ITEM}")
     suspend fun getAllItems(): List<ItemEntity>
+
+    @Query("SELECT * FROM ${TableNames.ITEM} WHERE catId = :catId AND subCatId = :subCatId")
+    fun getItemsByCatIdAndSubId(catId: String, subCatId: String): List<ItemEntity>
+
+
 }

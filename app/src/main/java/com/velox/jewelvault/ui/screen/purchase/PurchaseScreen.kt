@@ -630,7 +630,16 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
             Spacer(Modifier.width(8.dp))
             Text("Add", Modifier
                 .bounceClick {
-                    if (viewModel.addItemFnWt.text.isNotBlank() && viewModel.addItemNtWt.text.isNotBlank() && viewModel.addItemGsWt.text.isNotBlank() && viewModel.addItemPurity.text.isNotBlank() && viewModel.addItemSubCat.text.isNotBlank() && viewModel.addItemCat.text.isNotBlank() && viewModel.addItemWastage.text.isNotBlank()) {
+                    if (viewModel.addItemFnWt.text.isNotBlank() &&
+                        viewModel.addItemNtWt.text.isNotBlank() &&
+                        viewModel.addItemGsWt.text.isNotBlank() &&
+                        viewModel.addItemPurity.text.isNotBlank() &&
+                        viewModel.addItemSubCat.text.isNotBlank() &&
+                        viewModel.addItemCat.text.isNotBlank() &&
+                        viewModel.addItemWastage.text.isNotBlank() &&
+                        viewModel.addItemFineRatePerGm.text.isNotBlank()
+
+                        ) {
 
                         viewModel.addPurchaseItem()
                     } else {

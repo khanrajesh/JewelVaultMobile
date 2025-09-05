@@ -259,7 +259,7 @@ class InventoryViewModel @Inject constructor(
                 val allItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
 
                 // Calculate summary statistics
-                val totalItems = allItems.size
+                val totalItems = allItems.sumOf { it.quantity }
                 val totalGrossWeight = allItems.sumOf { it.gsWt }
                 val totalNetWeight = allItems.sumOf { it.ntWt }
                 val totalFineWeight = allItems.sumOf { it.fnWt }
@@ -691,4 +691,11 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    fun updateCatAndSubQtyAndWt(){
+        ioLaunch {
+            appDatabase.masterDao().recalcAll()
+            getCategoryAndSubCategoryDetails()
+            loadInventorySummary()
+        }
+    }
 }

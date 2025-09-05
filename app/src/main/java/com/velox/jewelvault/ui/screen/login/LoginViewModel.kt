@@ -479,6 +479,8 @@ class LoginViewModel @Inject constructor(
             } catch (e: Exception) {
                 onFailure(e.message ?: "Login failed")
             }
+        }else{
+            onFailure("Invalid Pin!")
         }
     }
 
@@ -725,7 +727,6 @@ class LoginViewModel @Inject constructor(
         } catch (e: Exception) {
             log("❌ Error checking for force updates: ${e.message}")
             log("❌ Exception details: ${e.javaClass.simpleName}")
-            e.printStackTrace()
         }
     }
     
