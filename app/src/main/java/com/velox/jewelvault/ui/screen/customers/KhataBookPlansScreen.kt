@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.formatDate
@@ -128,7 +129,7 @@ fun KhataBookPlansScreen(
             items(viewModel.activeKhataBookCustomers) { customer ->
                 ActiveKhataBookCustomerCard(
                     customer = customer,
-                    onClick = { navController.navigate("customer_detail/${customer.customerMobile}") }
+                    onClick = { navController.navigate("${SubScreens.CustomersDetails.route}/${customer.customerMobile}") }
                 )
             }
         }

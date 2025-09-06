@@ -19,14 +19,17 @@ import com.velox.jewelvault.utils.ioLaunch
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 @HiltViewModel
 class OrderItemViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    private val _loading : MutableState<Boolean>
-) : ViewModel() {
+    private val _loading : MutableState<Boolean>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 
+) : ViewModel() {
+    val currentScreenHeadingState = _currentScreenHeadingState
     var orderDetailsEntity by mutableStateOf<OrderDetailsEntity?>(null)
         private set
     

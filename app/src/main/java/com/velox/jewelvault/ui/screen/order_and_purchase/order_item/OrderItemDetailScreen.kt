@@ -1,7 +1,7 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase.order_item
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,8 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -51,37 +50,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
-import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
-import com.velox.jewelvault.data.roomdb.entity.order.ExchangeItemEntity
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalSubNavController
-import com.velox.jewelvault.utils.VaultPreview
-import com.velox.jewelvault.utils.to2FString
 import com.velox.jewelvault.utils.PdfRendererPreview
+import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.formatDate
-import com.velox.jewelvault.utils.CalculationUtils
+import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.sharePdf
-import com.velox.jewelvault.utils.generateDraftInvoicePdf
-import com.velox.jewelvault.utils.createDraftInvoiceData
-import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
-import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.to2FString
 
 @Composable
 @VaultPreview
-fun OrderItemDetailScreenPreview(){
+fun OrderItemDetailScreenPreview() {
     val viewModel = hiltViewModel<OrderItemViewModel>()
     val orderId = "2"
-     OrderItemDetailScreen(viewModel, orderId)
+    OrderItemDetailScreen(viewModel, orderId)
 }
 
 @Composable
 fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
-    
+
     val context = LocalContext.current
-    val navController = LocalSubNavController.current
+    val subNavigation = LocalSubNavController.current
     val pdfFile = viewModel.generatedPdfUri
-    
+
+    viewModel.currentScreenHeadingState.value = "Order Details ($orderId)"
+
+
     LaunchedEffect(true) {
         viewModel.loadOrderDetails(orderId)
     }
@@ -89,124 +85,72 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Header with Order Details
-        Card(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Order Details",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                viewModel.orderDetailsEntity?.order?.let { order ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Order ID: ${order.orderId}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "Date: ${formatDate(order.orderDate)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Store: ${viewModel.store?.name ?: "N/A"}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "User: ${viewModel.store?.userId ?: "N/A"}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Customer Details Section
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Customer Information",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                viewModel.customer?.let { customer ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Name: ${customer.name}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "Mobile: ${customer.mobileNo}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Address: ${customer.address ?: "N/A"}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "GSTIN/PAN: ${customer.gstin_pan ?: "N/A"}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                } ?: run {
+
+            viewModel.orderDetailsEntity?.order?.let { order ->
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Customer information not available",
+                        text = "Order ID: ${order.orderId}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "Date: ${formatDate(order.orderDate)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "Store: ${viewModel.store?.name ?: "N/A"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "User: ${viewModel.store?.userId ?: "N/A"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                 }
+
+            }
+
+            viewModel.customer?.let { customer ->
+                Column(modifier = Modifier
+                    .weight(1f)
+                    .bounceClick {
+                        mainScope {
+                            subNavigation.navigate("SubScreens.CustomersDetails/${customer.mobileNo}")
+                        }
+                    }) {
+                    Text(
+                        text = "Name: ${customer.name}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "Mobile: ${customer.mobileNo}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "Address: ${customer.address ?: "N/A"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "GSTIN/PAN: ${customer.gstin_pan ?: "N/A"}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                }
+
+
             }
         }
-        
+
+
         // Main content area
         Row(
             modifier = Modifier
@@ -216,20 +160,16 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
             if (pdfFile == null) {
                 // Before PDF generation: Order details on left, summary on right
                 OrderDetailsCard(
-                    viewModel = viewModel,
-                    modifier = Modifier.weight(1f)
+                    viewModel = viewModel, modifier = Modifier.weight(1f)
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
+
+                Spacer(modifier = Modifier.width(4.dp))
+
                 // Order Summary Card (similar to SellPreviewScreen)
                 OrderSummaryCard(
-                    viewModel = viewModel,
-                    onGeneratePdf = {
+                    viewModel = viewModel, onGeneratePdf = {
                         viewModel.generateOrderPdf(context)
-                    },
-                    isGenerating = viewModel.isPdfGenerating,
-                    modifier = Modifier.weight(1f)
+                    }, isGenerating = viewModel.isPdfGenerating, modifier = Modifier.weight(1f)
                 )
             } else {
                 // After PDF generation: PDF on left, summary on right
@@ -257,8 +197,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                     offsetX = (offsetX + pan.x).coerceIn(-maxPanX, maxPanX)
                                     offsetY = (offsetY + pan.y).coerceIn(-maxPanY, maxPanY)
                                 }
-                            }
-                    ) {
+                            }) {
                         PdfRendererPreview(
                             uri = pdfFile,
                             modifier = Modifier
@@ -285,8 +224,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                 .padding(16.dp)
                                 .size(36.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.background,
-                                    RoundedCornerShape(18.dp)
+                                    MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp)
                                 )
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom/Pan")
@@ -313,13 +251,11 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { 
+                            onClick = {
                                 if (pdfFile != null) {
                                     sharePdf(context, pdfFile)
                                 }
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
+                            }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondary,
                                 contentColor = MaterialTheme.colorScheme.onSecondary
                             )
@@ -332,9 +268,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         Button(
                             onClick = {
                                 viewModel.clearPdf()
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
+                            }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -352,15 +286,12 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
 
 @Composable
 fun OrderDetailsCard(
-    viewModel: OrderItemViewModel,
-    modifier: Modifier = Modifier
+    viewModel: OrderItemViewModel, modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxHeight(),
-        colors = CardDefaults.cardColors(
+        modifier = modifier.fillMaxHeight(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -378,8 +309,7 @@ fun OrderDetailsCard(
             viewModel.orderDetailsEntity?.let { orderDetails ->
                 if (orderDetails.items.isEmpty()) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "No items in this order.",
@@ -412,8 +342,7 @@ fun OrderDetailsCard(
                         items = itemsData,
                         modifier = Modifier.heightIn(max = 300.dp),
                         onItemClick = { },
-                        onItemLongClick = { }
-                    )
+                        onItemLongClick = { })
 
                     // Exchange Items Section
                     if (orderDetails.exchangeItems.isNotEmpty()) {
@@ -430,23 +359,23 @@ fun OrderDetailsCard(
                             "S.No", "Metal", "Purity", "Weight", "Value"
                         )
 
-                        val exchangeItemsData = orderDetails.exchangeItems.mapIndexed { index, exchange ->
-                            listOf(
-                                "${index + 1}.",
-                                exchange.metalType,
-                                exchange.purity,
-                                "${exchange.fineWeight}g",
-                                "₹${exchange.exchangeValue.to2FString()}"
-                            )
-                        }
+                        val exchangeItemsData =
+                            orderDetails.exchangeItems.mapIndexed { index, exchange ->
+                                listOf(
+                                    "${index + 1}.",
+                                    exchange.metalType,
+                                    exchange.purity,
+                                    "${exchange.fineWeight}g",
+                                    "₹${exchange.exchangeValue.to2FString()}"
+                                )
+                            }
 
                         TextListView(
                             headerList = exchangeHeaderList,
                             items = exchangeItemsData,
                             modifier = Modifier.heightIn(max = 120.dp),
                             onItemClick = { },
-                            onItemLongClick = { }
-                        )
+                            onItemLongClick = { })
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(Modifier.fillMaxWidth()) {
@@ -457,11 +386,12 @@ fun OrderDetailsCard(
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "₹${orderDetails.exchangeItems.sumOf { it.exchangeValue }.to2FString()}",
+                                "₹${
+                                orderDetails.exchangeItems.sumOf { it.exchangeValue }.to2FString()
+                            }",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.End
-                            )
+                                textAlign = TextAlign.End)
                         }
                     }
                 }
@@ -478,11 +408,9 @@ fun OrderSummaryCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxHeight(),
-        colors = CardDefaults.cardColors(
+        modifier = modifier.fillMaxHeight(), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -499,7 +427,7 @@ fun OrderSummaryCard(
 
             viewModel.orderDetailsEntity?.let { orderDetails ->
                 val order = orderDetails.order
-                
+
                 // Order Summary
                 Column(
                     modifier = Modifier.padding(12.dp)
@@ -516,7 +444,7 @@ fun OrderSummaryCard(
                     groupedItems.forEach { (metalType, items) ->
                         val totalGrossWeight = items.sumOf { it.gsWt ?: 0.0 }
                         val totalFineWeight = items.sumOf { it.fnWt ?: 0.0 }
-                        
+
                         Row(Modifier.fillMaxWidth()) {
                             Text(
                                 "${metalType} Gs/Fn Wt",
@@ -538,9 +466,7 @@ fun OrderSummaryCard(
                     // Financial totals
                     Row(Modifier.fillMaxWidth()) {
                         Text(
-                            "Subtotal",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 10.sp
+                            "Subtotal", modifier = Modifier.weight(1f), fontSize = 10.sp
                         )
                         Text(
                             "₹${order.totalAmount.to2FString()}",
@@ -571,9 +497,7 @@ fun OrderSummaryCard(
                     if (order.totalCharge > 0) {
                         Row(Modifier.fillMaxWidth()) {
                             Text(
-                                "Making Charges",
-                                modifier = Modifier.weight(1f),
-                                fontSize = 10.sp
+                                "Making Charges", modifier = Modifier.weight(1f), fontSize = 10.sp
                             )
                             Text(
                                 "₹${order.totalCharge.to2FString()}",
@@ -587,9 +511,7 @@ fun OrderSummaryCard(
                     if (order.totalTax > 0) {
                         Row(Modifier.fillMaxWidth()) {
                             Text(
-                                "Tax",
-                                modifier = Modifier.weight(1f),
-                                fontSize = 10.sp
+                                "Tax", modifier = Modifier.weight(1f), fontSize = 10.sp
                             )
                             Text(
                                 "₹${order.totalTax.to2FString()}",
@@ -634,7 +556,8 @@ fun OrderSummaryCard(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        val grandTotal = order.totalAmount - order.discount + order.totalCharge + order.totalTax - totalExchangeValue
+                        val grandTotal =
+                            order.totalAmount - order.discount + order.totalCharge + order.totalTax - totalExchangeValue
                         Text(
                             "₹${grandTotal.to2FString()}",
                             modifier = Modifier.weight(1f),
@@ -648,9 +571,7 @@ fun OrderSummaryCard(
                     if (!order.note.isNullOrEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Notes:",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
+                            "Notes:", fontSize = 10.sp, fontWeight = FontWeight.Bold
                         )
                         Text(
                             order.note,
