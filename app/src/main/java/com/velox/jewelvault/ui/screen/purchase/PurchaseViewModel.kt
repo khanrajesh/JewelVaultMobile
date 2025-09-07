@@ -46,10 +46,13 @@ class PurchaseViewModel @Inject constructor(
     private val _loadingState: MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _metalRates: SnapshotStateList<MetalRate>,
-) : ViewModel() {
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
+
+    ) : ViewModel() {
 
     val snackBarState = _snackBarState
     val metalRates = _metalRates
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo

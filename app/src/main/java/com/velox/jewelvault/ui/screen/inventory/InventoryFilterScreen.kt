@@ -96,6 +96,8 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    viewModel.currentScreenHeadingState.value = "Inventory Filter"
+
     // Keep track of subcategories for selected category
     val subCategories = remember { mutableStateListOf<SubCategoryEntity>() }
     var showSortMenu by remember { mutableStateOf(false) }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.SalesSummary
@@ -13,7 +14,6 @@ import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.data.roomdb.dao.TopSubCategory
 import com.velox.jewelvault.data.roomdb.dao.range
 import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
-import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,24 +39,32 @@ class DashboardViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
-    @Named("snackMessage") private val _snackBarState: MutableState<String>
-) : ViewModel() {
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
+
+    ) : ViewModel() {
+
+    val loadingState = _loadingState
+    val snackBarState = _snackBarState
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
     val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getAdminInfo()
+
     /**
      * return Triple of Flow<String> for storeId, upiId, storeName
      * */
-    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getSelectedStoreInfo()
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
+        dataStoreManager.getSelectedStoreInfo()
     val selectedRange: MutableState<TimeRange> = mutableStateOf(TimeRange.WEEKLY)
 
     val recentSellsItem = SnapshotStateList<IndividualSellItem>()
     val topSellingItemsMap = mutableStateMapOf<String, List<TopItemByCategory>>()
     val topSubCategories = SnapshotStateList<TopSubCategory>()
     val salesSummary: MutableState<SalesSummary?> = mutableStateOf(null)
-    
+
     // Customer-related data
     val customerSummary: MutableState<CustomerSummary?> = mutableStateOf(null)
     val customersWithOutstandingBalance = SnapshotStateList<CustomerBalanceSummary>()
@@ -97,35 +105,39 @@ class DashboardViewModel @Inject constructor(
             salesSummary.value = summary
         }
     }
-    
+
     fun getCustomerSummary() {
         ioLaunch {
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
-                
+
                 // Get total customers
                 val allCustomers = appDatabase.customerDao().getAllCustomers().first()
                 val totalCustomers = allCustomers.size
                 val activeCustomers = allCustomers.count { it.isActive }
-                
+
                 // Get outstanding balance statistics
-                val totalOutstandingBalance = appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
-                val customersWithOutstanding = appDatabase.customerTransactionDao().getCustomersWithOutstandingBalance(userId, storeId)
-                
+                val totalOutstandingBalance =
+                    appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
+                val customersWithOutstanding = appDatabase.customerTransactionDao()
+                    .getCustomersWithOutstandingBalance(userId, storeId)
+
                 // Get khata book statistics
-                val khataBookSummaries = appDatabase.customerKhataBookDao().getKhataBookSummaries(userId, storeId)
+                val khataBookSummaries =
+                    appDatabase.customerKhataBookDao().getKhataBookSummaries(userId, storeId)
                 val activeKhataBooks = khataBookSummaries.count { it.status == "active" }
                 val totalKhataBookMonthlyAmount = khataBookSummaries.sumOf { it.monthlyAmount }
-                
+
                 // Calculate paid amounts for active khata books
                 val totalKhataBookPaidAmount = khataBookSummaries.sumOf { summary ->
-                    val paidAmount = appDatabase.customerTransactionDao().getKhataBookTotalPaidAmount(summary.khataBookId)
+                    val paidAmount = appDatabase.customerTransactionDao()
+                        .getKhataBookTotalPaidAmount(summary.khataBookId)
                     paidAmount
                 }
-                
+
                 val totalKhataBookRemainingAmount = totalKhataBookMonthlyAmount
-                
+
                 val summary = CustomerSummary(
                     totalCustomers = totalCustomers,
                     activeCustomers = activeCustomers,
@@ -136,11 +148,11 @@ class DashboardViewModel @Inject constructor(
                     totalKhataBookRemainingAmount = totalKhataBookRemainingAmount,
                     customersWithOutstandingBalance = customersWithOutstanding.size
                 )
-                
+
                 customerSummary.value = summary
                 customersWithOutstandingBalance.clear()
                 customersWithOutstandingBalance.addAll(customersWithOutstanding)
-                
+
             } catch (e: Exception) {
                 log("Failed to load customer summary: ${e.message}")
             }

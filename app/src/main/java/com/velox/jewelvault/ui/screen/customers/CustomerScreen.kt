@@ -59,6 +59,8 @@ import com.velox.jewelvault.utils.formatCurrency
 fun CustomerScreen(
      viewModel: CustomerViewModel = hiltViewModel()
 ) {
+
+    viewModel.currentScreenHeadingState.value = "Customers"
     val subNavController = LocalSubNavController.current
     var showAddCustomerDialog by remember { mutableStateOf(false) }
     var showKhataBookPlans by remember { mutableStateOf(false) }

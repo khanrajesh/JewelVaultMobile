@@ -2,7 +2,14 @@ package com.velox.jewelvault.ui.screen.customers
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,9 +19,30 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,8 +65,7 @@ import com.velox.jewelvault.utils.to2FString
 
 @Composable
 fun KhataBookPlansScreen(
-    navController: NavController,
-    viewModel: CustomerViewModel = hiltViewModel()
+    navController: NavController, viewModel: CustomerViewModel = hiltViewModel()
 ) {
     var showAddPlanDialog by remember { mutableStateOf(false) }
     var showCalculatorDialog by remember { mutableStateOf(false) }
@@ -70,7 +97,7 @@ fun KhataBookPlansScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            
+
             Row {
                 IconButton(onClick = { showCalculatorDialog = true }) {
                     Icon(Icons.Default.Calculate, contentDescription = "Calculator")
@@ -111,8 +138,7 @@ fun KhataBookPlansScreen(
                             plan = plan,
                             onClick = { selectedPlan = plan },
                             onEdit = { showEditPlanDialog = plan },
-                            onDelete = { showDeletePlanDialog = plan }
-                        )
+                            onDelete = { showDeletePlanDialog = plan })
                     }
                 }
             }
@@ -129,8 +155,7 @@ fun KhataBookPlansScreen(
             items(viewModel.activeKhataBookCustomers) { customer ->
                 ActiveKhataBookCustomerCard(
                     customer = customer,
-                    onClick = { navController.navigate("${SubScreens.CustomersDetails.route}/${customer.customerMobile}") }
-                )
+                    onClick = { navController.navigate("${SubScreens.CustomersDetails.route}/${customer.customerMobile}") })
             }
         }
 
@@ -141,14 +166,12 @@ fun KhataBookPlansScreen(
                 onConfirm = { name, payMonths, benefitMonths, description ->
                     viewModel.addPlan(name, payMonths, benefitMonths, description)
                     showAddPlanDialog = false
-                }
-            )
+                })
         }
 
         if (showCalculatorDialog) {
             KhataBookCalculatorDialog(
-                onDismiss = { showCalculatorDialog = false },
-                viewModel
+                onDismiss = { showCalculatorDialog = false }, viewModel
             )
         }
 
@@ -159,8 +182,7 @@ fun KhataBookPlansScreen(
                 onApply = { customerMobile ->
                     viewModel.applyKhataBookPlan(customerMobile, plan)
                     selectedPlan = null
-                }
-            )
+                })
         }
 
         // Edit Plan Dialog
@@ -171,8 +193,7 @@ fun KhataBookPlansScreen(
                 onConfirm = { name, payMonths, benefitMonths, description ->
                     viewModel.editPlan(plan, name, payMonths, benefitMonths, description)
                     showEditPlanDialog = null
-                }
-            )
+                })
         }
         // Delete Plan Dialog
         showDeletePlanDialog?.let { plan ->
@@ -182,8 +203,7 @@ fun KhataBookPlansScreen(
                 onConfirm = {
                     viewModel.deletePlan(plan)
                     showDeletePlanDialog = null
-                }
-            )
+                })
         }
     }
 }
@@ -231,10 +251,7 @@ fun KhataBookStatisticsCard(viewModel: CustomerViewModel) {
 
 @Composable
 fun KhataBookStatisticItem(
-    modifier: Modifier,
-    label: String,
-    value: String,
-    icon: ImageVector
+    modifier: Modifier, label: String, value: String, icon: ImageVector
 ) {
     Column(
         modifier = modifier,
@@ -248,9 +265,7 @@ fun KhataBookStatisticItem(
             modifier = Modifier.size(20.dp)
         )
         Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
+            text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
         )
         Text(
             text = label,
@@ -262,10 +277,7 @@ fun KhataBookStatisticItem(
 
 @Composable
 fun KhataBookPlanCard(
-    plan: KhataBookPlan,
-    onClick: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    plan: KhataBookPlan, onClick: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -275,8 +287,7 @@ fun KhataBookPlanCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -290,15 +301,19 @@ fun KhataBookPlanCard(
                     modifier = Modifier.weight(1f)
                 )
                 Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = "Edit Plan" }) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.semantics { contentDescription = "Edit Plan" }) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit Plan")
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.semantics { contentDescription = "Delete Plan" }) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.semantics { contentDescription = "Delete Plan" }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Plan")
                     }
                 }
             }
-            
+
             // Description
             Text(
                 text = plan.description,
@@ -306,7 +321,7 @@ fun KhataBookPlanCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2
             )
-            
+
             // Plan details in compact format
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -327,7 +342,7 @@ fun KhataBookPlanCard(
                         color = LightGreen
                     )
                 }
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -350,8 +365,7 @@ fun KhataBookPlanCard(
 
 @Composable
 fun ActiveKhataBookCustomerCard(
-    customer: CustomerKhataBookEntity,
-    onClick: () -> Unit
+    customer: CustomerKhataBookEntity, onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -361,8 +375,7 @@ fun ActiveKhataBookCustomerCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -377,13 +390,11 @@ fun ActiveKhataBookCustomerCard(
                 FilterChip(
                     selected = false,
                     onClick = { },
-                    label = { Text(customer.status.capitalize()) }
-                )
+                    label = { Text(customer.status.capitalize()) })
             }
-            
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
                     Text(
@@ -395,7 +406,7 @@ fun ActiveKhataBookCustomerCard(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
-                
+
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "Start: ${formatDate(customer.startDate)}",
@@ -409,7 +420,7 @@ fun ActiveKhataBookCustomerCard(
                     )
                 }
             }
-            
+
             customer.notes?.let { notes ->
                 Text(
                     text = "Notes: $notes",
@@ -432,8 +443,7 @@ fun ConfirmDeleteDialog(plan: KhataBookPlan, onDismiss: () -> Unit, onConfirm: (
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
+        })
 }
 
 @Composable
@@ -490,152 +500,138 @@ fun AddKhataBookPlanDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
+        })
 }
 
 @Composable
 fun KhataBookCalculatorDialog(
-    onDismiss: () -> Unit,
-    viewModel: CustomerViewModel
+    onDismiss: () -> Unit, viewModel: CustomerViewModel
 ) {
     var monthlyAmount by remember { mutableStateOf("") }
     var selectedPlan by remember { mutableStateOf<KhataBookPlan?>(null) }
     var calculatedResults by remember { mutableStateOf<CalculatorResults?>(null) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Khata Book Calculator") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .heightIn(max = 600.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Khata Book Calculator") }, text = {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .heightIn(max = 600.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CusOutlinedTextField(
+                state = InputFieldState(monthlyAmount),
+                onTextChange = { monthlyAmount = it },
+                placeholderText = "Monthly Amount",
+                keyboardType = KeyboardType.Number
+            )
+
+            Text(
+                text = "Select Plan",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Grid for plan selection
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.heightIn(max = 200.dp)
             ) {
-                CusOutlinedTextField(
-                    state = InputFieldState(monthlyAmount),
-                    onTextChange = { monthlyAmount = it },
-                    placeholderText = "Monthly Amount",
-                    keyboardType = KeyboardType.Number
-                )
-                
-                Text(
-                    text = "Select Plan",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                // Grid for plan selection
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.heightIn(max = 200.dp)
+                items(viewModel.planList) { plan ->
+                    PlanSelectionCard(
+                        plan = plan,
+                        isSelected = selectedPlan == plan,
+                        onClick = { selectedPlan = plan })
+                }
+            }
+
+            selectedPlan?.let { plan ->
+                Button(
+                    onClick = {
+                        val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
+                        calculatedResults = calculateKhataBook(amount, plan)
+                    }, modifier = Modifier.fillMaxWidth(), enabled = monthlyAmount.isNotEmpty()
                 ) {
-                    items(viewModel.planList) { plan ->
-                        PlanSelectionCard(
-                            plan = plan,
-                            isSelected = selectedPlan == plan,
-                            onClick = { selectedPlan = plan }
+                    Text("Calculate")
+                }
+            }
+
+            calculatedResults?.let { results ->
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Calculation Results",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        InfoRow("Total Pay Amount", formatCurrency(results.totalPayAmount))
+                        InfoRow(
+                            "Total Benefit Amount",
+                            formatCurrency(results.totalBenefitAmount)
+                        )
+                        InfoRow(
+                            "Effective Monthly Amount",
+                            formatCurrency(results.effectiveMonthlyAmount)
+                        )
+                        InfoRow("Total Savings", formatCurrency(results.totalSavings))
+                        InfoRow(
+                            "Savings Percentage",
+                            "${results.savingsPercentage.to2FString()}%"
                         )
                     }
                 }
-                
-                selectedPlan?.let { plan ->
-                    Button(
-                        onClick = {
-                            val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
-                            calculatedResults = calculateKhataBook(amount, plan)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = monthlyAmount.isNotEmpty()
-                    ) {
-                        Text("Calculate")
-                    }
-                }
-                
-                calculatedResults?.let { results ->
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Calculation Results",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            
-                            InfoRow("Total Pay Amount", formatCurrency(results.totalPayAmount))
-                            InfoRow("Total Benefit Amount", formatCurrency(results.totalBenefitAmount))
-                            InfoRow("Effective Monthly Amount", formatCurrency(results.effectiveMonthlyAmount))
-                            InfoRow("Total Savings", formatCurrency(results.totalSavings))
-                            InfoRow("Savings Percentage", "${results.savingsPercentage.to2FString()}%")
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
             }
         }
-    )
+    }, confirmButton = {
+        TextButton(onClick = onDismiss) {
+            Text("Close")
+        }
+    })
 }
 
 @Composable
 fun PlanDetailsDialog(
-    plan: KhataBookPlan,
-    onDismiss: () -> Unit,
-    onApply: (String) -> Unit
+    plan: KhataBookPlan, onDismiss: () -> Unit, onApply: (String) -> Unit
 ) {
     var customerMobile by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Apply ${plan.name}") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = plan.description,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                
-                CusOutlinedTextField(
-                    state = InputFieldState(customerMobile),
-                    onTextChange = { customerMobile = it },
-                    placeholderText = "Customer Mobile Number",
-                    keyboardType = KeyboardType.Phone,
-                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onApply(customerMobile) },
-                enabled = customerMobile.isNotEmpty()
-            ) {
-                Text("Apply Plan")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Apply ${plan.name}") }, text = {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = plan.description, style = MaterialTheme.typography.bodyMedium
+            )
+
+            CusOutlinedTextField(
+                state = InputFieldState(customerMobile),
+                onTextChange = { customerMobile = it },
+                placeholderText = "Customer Mobile Number",
+                keyboardType = KeyboardType.Phone,
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
         }
-    )
+    }, confirmButton = {
+        Button(
+            onClick = { onApply(customerMobile) }, enabled = customerMobile.isNotEmpty()
+        ) {
+            Text("Apply Plan")
+        }
+    }, dismissButton = {
+        TextButton(onClick = onDismiss) {
+            Text("Cancel")
+        }
+    })
 }
 
 @Composable
 fun PlanSelectionCard(
-    plan: KhataBookPlan,
-    isSelected: Boolean,
-    onClick: () -> Unit
+    plan: KhataBookPlan, isSelected: Boolean, onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -658,14 +654,14 @@ fun PlanSelectionCard(
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            
+
             Text(
                 text = "${plan.payMonths} + ${plan.benefitMonths}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
-            
+
             Text(
                 text = "${plan.benefitPercentage}% Benefit",
                 style = MaterialTheme.typography.bodySmall,
@@ -680,8 +676,7 @@ fun PlanSelectionCard(
 @Composable
 fun InfoRow(label: String, value: String) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
             text = label,
@@ -694,7 +689,7 @@ fun InfoRow(label: String, value: String) {
             fontWeight = FontWeight.Medium
         )
     }
-} 
+}
 
 private fun String.capitalize(): String {
     return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }

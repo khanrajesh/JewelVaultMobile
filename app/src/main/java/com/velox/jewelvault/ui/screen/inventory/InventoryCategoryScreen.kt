@@ -57,6 +57,7 @@ sealed class CatType(val type: String) {
 fun InventoryCategoryScreen(inventoryViewModel: InventoryViewModel) {
 
     val subNavController = LocalSubNavController.current
+    inventoryViewModel.currentScreenHeadingState.value = "Inventory"
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route){

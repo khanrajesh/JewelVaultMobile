@@ -77,6 +77,8 @@ fun PurchaseScreenPreview() {
 @Composable
 fun PurchaseScreen(viewModel: PurchaseViewModel) {
 
+    viewModel.currentScreenHeadingState.value = "Purchase Details"
+
     LaunchedEffect(true) {
         viewModel.getCategoryAndSubCategoryDetails()
     }

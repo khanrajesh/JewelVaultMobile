@@ -1,24 +1,22 @@
 package com.velox.jewelvault.ui.screen.inventory
 
-import android.content.Context
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
-import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
+import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
@@ -47,19 +45,24 @@ data class InventorySummary(
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase, private val _dataStoreManager: DataStoreManager,
 //    private val _loadingState: MutableState<Boolean>,
-    @Named("snackMessage") private val _snackBarState: MutableState<String>, context: Context
-) : ViewModel() {
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 
+    ) : ViewModel() {
+
+    val currentScreenHeadingState = _currentScreenHeadingState
     val dataStoreManager = _dataStoreManager
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
     val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+
     /**
      * return Triple of Flow<String> for storeId, upiId, storeName
      * */
-    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
+        _dataStoreManager.getSelectedStoreInfo()
 
     //    val loadingState = _loadingState
     val snackBarState = _snackBarState
@@ -304,8 +307,7 @@ class InventoryViewModel @Inject constructor(
                 val storeId = store.first.first()
                 val s = appDatabase.categoryDao().insertCategory(
                     CategoryEntity(
-                        catId = generateId(),
-                        catName = catName, userId = userId, storeId = storeId
+                        catId = generateId(), catName = catName, userId = userId, storeId = storeId
                     )
                 )
                 if (s != -1L) {
@@ -360,8 +362,7 @@ class InventoryViewModel @Inject constructor(
         ioLaunch {
             try {
                 val catId = catSubCatDto.find { it.catName == categoryFilter.text }?.catId
-                val subCatId = catSubCatDto
-                    .flatMap { it.subCategoryList }
+                val subCatId = catSubCatDto.flatMap { it.subCategoryList }
                     .find { it.subCatName == subCategoryFilter.text }?.subCatId
 
                 val startDate = if (startDateFilter.text.isNotEmpty()) {
@@ -369,7 +370,7 @@ class InventoryViewModel @Inject constructor(
                         val dateFormat =
                             java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
                         val date = dateFormat.parse(startDateFilter.text)
-                        date?.let { java.sql.Timestamp(it.time) }
+                        date?.let { Timestamp(it.time) }
                     } catch (e: Exception) {
                         null
                     }
@@ -386,7 +387,7 @@ class InventoryViewModel @Inject constructor(
                             calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
                             calendar.set(java.util.Calendar.MINUTE, 59)
                             calendar.set(java.util.Calendar.SECOND, 59)
-                            java.sql.Timestamp(calendar.timeInMillis)
+                            Timestamp(calendar.timeInMillis)
                         }
                     } catch (e: Exception) {
                         null
@@ -396,8 +397,7 @@ class InventoryViewModel @Inject constructor(
                 val firmId = firmIdFilter.text.ifBlank { null }
                 val purchaseOrderId = purchaseOrderIdFilter.text.ifBlank { null }
 
-                appDatabase.itemDao()
-                    .filterItems(
+                appDatabase.itemDao().filterItems(
                         catId = catId,
                         subCatId = subCatId,
                         type = entryTypeFilter.text.ifEmpty { null },
@@ -415,8 +415,7 @@ class InventoryViewModel @Inject constructor(
                         maxQuantity = if (maxQuantityFilter.text.isNotEmpty()) maxQuantityFilter.text.toIntOrNull() else null,
                         firmId = firmId,
                         purchaseOrderId = purchaseOrderId
-                    )
-                    .collectLatest { items ->
+                    ).collectLatest { items ->
                         val sortedItems = when (sortBy.value) {
                             "itemId" -> if (sortOrder.value == "ASC") items.sortedBy { it.itemId } else items.sortedByDescending { it.itemId }
                             "gsWt" -> if (sortOrder.value == "ASC") items.sortedBy { it.gsWt } else items.sortedByDescending { it.gsWt }
@@ -691,7 +690,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun updateCatAndSubQtyAndWt(){
+    fun updateCatAndSubQtyAndWt() {
         ioLaunch {
             appDatabase.masterDao().recalcAll()
             getCategoryAndSubCategoryDetails()

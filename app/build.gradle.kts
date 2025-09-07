@@ -25,8 +25,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.0.2-test"
+        versionCode = 3
+        versionName = "0.0.3-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

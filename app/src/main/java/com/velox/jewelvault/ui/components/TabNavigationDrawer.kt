@@ -1,12 +1,10 @@
 package com.velox.jewelvault.ui.components
 
 import androidx.compose.animation.core.TweenSpec
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Inventory
@@ -35,8 +32,6 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,28 +47,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import com.velox.jewelvault.R
 import com.velox.jewelvault.data.MetalRatesTicker
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
-import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -221,6 +209,7 @@ class TabDrawerState(
 fun TabNavigationDrawer(
     modifier: Modifier = Modifier,
     drawerState: TabDrawerState = rememberTabDrawerState(TabDrawerValue.Closed),
+    onProfileClick: () -> Unit={},
     notifierContent: @Composable () -> Unit = {},
     drawerContent: @Composable () -> Unit = {},
     content: @Composable () -> Unit
@@ -249,7 +238,7 @@ fun TabNavigationDrawer(
             ) {
 
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ProfileImage(drawerState)
+                    ProfileImage(drawerState,onProfileClick)
                     drawerContent()
                 }
 
@@ -386,9 +375,10 @@ class InputIconState(
 
 
 @Composable
-fun ProfileImage(drawerState: TabDrawerState) {
+fun ProfileImage(drawerState: TabDrawerState, onProfileClick: () -> Unit) {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
+
     
     LaunchedEffect(Unit) {
         baseViewModel.loadStoreImage()
@@ -397,6 +387,9 @@ fun ProfileImage(drawerState: TabDrawerState) {
     
     Box(
         modifier = Modifier
+            .clickable{
+              onProfileClick()
+            }
             .size(60.dp)
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center

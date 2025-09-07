@@ -52,6 +52,7 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.PdfRendererPreview
 import com.velox.jewelvault.utils.VaultPreview
@@ -84,6 +85,8 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
 
     Column(
         modifier = Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(top = 5.dp, start = 5.dp)
     ) {
         Row(
             modifier = Modifier
@@ -113,15 +116,16 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                     )
                 }
-
             }
 
             viewModel.customer?.let { customer ->
                 Column(modifier = Modifier
-                    .weight(1f)
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                    .padding(8.dp)
                     .bounceClick {
                         mainScope {
-                            subNavigation.navigate("SubScreens.CustomersDetails/${customer.mobileNo}")
+                            subNavigation.navigate("${SubScreens.CustomersDetails}/${customer.mobileNo}")
                         }
                     }) {
                     Text(
@@ -288,13 +292,8 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
 fun OrderDetailsCard(
     viewModel: OrderItemViewModel, modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxHeight(), colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .padding(8.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -397,7 +396,7 @@ fun OrderDetailsCard(
                 }
             }
         }
-    }
+
 }
 
 @Composable
@@ -407,13 +406,8 @@ fun OrderSummaryCard(
     isGenerating: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.fillMaxHeight(), colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .padding(8.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -609,6 +603,6 @@ fun OrderSummaryCard(
                 }
             }
         }
-    }
+
 }
 
