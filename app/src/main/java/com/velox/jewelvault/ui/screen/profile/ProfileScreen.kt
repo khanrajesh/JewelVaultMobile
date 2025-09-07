@@ -54,6 +54,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -70,6 +71,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
+
+    profileViewModel.currentScreenHeadingState.value = "Profile"
     val baseViewModel = LocalBaseViewModel.current
     val isEditable = remember { mutableStateOf(false) }
     val context = LocalContext.current

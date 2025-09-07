@@ -53,9 +53,13 @@ data class KhataBookSummary(
 class CustomerViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    @Named("snackMessage") private val _snackBarState: MutableState<String>
+    private val _loadingState : MutableState<Boolean>,
+
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 ) : ViewModel() {
 
+    val currentScreenHeadingState = _currentScreenHeadingState
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
@@ -154,7 +158,7 @@ class CustomerViewModel @Inject constructor(
     // Loading states
     val isLoadingCustomerDetails = mutableStateOf(false)
     val isLoadingKhataBook = mutableStateOf(false)
-    val isLoadingPayment = mutableStateOf(false)
+    val isLoadingPayment =_loadingState
 
     val planList = mutableStateListOf<KhataBookPlan>()
 

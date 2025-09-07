@@ -65,6 +65,7 @@ fun AuditScreen(
     viewModel: AuditViewModel = hiltViewModel()
 ) {
     val navController = LocalNavController.current
+    viewModel.currentScreenHeadingState.value = "Audit"
 
     Column(
         modifier = Modifier

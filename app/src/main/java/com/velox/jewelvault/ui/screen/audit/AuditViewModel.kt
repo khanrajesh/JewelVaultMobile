@@ -29,9 +29,12 @@ class AuditViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
-) : ViewModel() {
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
+
+    ) : ViewModel() {
 
     val snackBarState = _snackBarState
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo

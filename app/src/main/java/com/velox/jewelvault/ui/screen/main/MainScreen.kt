@@ -121,15 +121,6 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Profile", Icons.Default.Person
-        ) {
-            subNavController.navigate("${SubScreens.Profile.route}/${false}") {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-        },
-        InputIconState(
             "Audit", Icons.Default.QrCodeScanner
         ) {
             subNavController.navigate(SubScreens.Audit.route) {
@@ -218,7 +209,15 @@ private fun LandscapeDashboardScreen(
                 baseViewModel,
                 startDestination = SubScreens.Dashboard.route
             )
-        }, drawerContent = {
+        },
+        onProfileClick = {
+            subNavController.navigate("${SubScreens.Profile.route}/${false}") {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        drawerContent = {
             LazyColumn {
                 items(inputIconStates) { item ->
                     Column {

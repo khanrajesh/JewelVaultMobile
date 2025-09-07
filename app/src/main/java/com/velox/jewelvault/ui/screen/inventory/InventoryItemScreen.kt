@@ -92,6 +92,7 @@ fun InventoryItemScreen(
     subCatId: String,
     subCatName: String
 ) {
+    inventoryViewModel.currentScreenHeadingState.value = "Sub Category Details"
     LandscapeInventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
 }
 

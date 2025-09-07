@@ -161,7 +161,7 @@ fun SubAppNavigation(
             }
             
             composable(
-                route = "customer_detail/{customerMobile}",
+                route = "${SubScreens.CustomersDetails.route}/{customerMobile}",
                 arguments = listOf(
                     navArgument("customerMobile") { type = NavType.StringType }
                 )
@@ -170,7 +170,7 @@ fun SubAppNavigation(
                 CustomerDetailScreen(customerMobile)
             }
             
-            composable("khata_book_plans") {
+            composable(SubScreens.KhataBookPlans.route) {
                 KhataBookPlansScreen(subNavController)
             }
 

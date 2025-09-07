@@ -51,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.formatCurrency
 
@@ -58,6 +59,8 @@ import com.velox.jewelvault.utils.formatCurrency
 fun CustomerScreen(
      viewModel: CustomerViewModel = hiltViewModel()
 ) {
+
+    viewModel.currentScreenHeadingState.value = "Customers"
     val subNavController = LocalSubNavController.current
     var showAddCustomerDialog by remember { mutableStateOf(false) }
     var showKhataBookPlans by remember { mutableStateOf(false) }
@@ -127,7 +130,7 @@ fun CustomerScreen(
             // Customer List
             items(viewModel.customerList) { customer ->
                 CustomerCard(customer = customer,
-                    onClick = { subNavController.navigate("customer_detail/${customer.mobileNo}") })
+                    onClick = { subNavController.navigate("${SubScreens.CustomersDetails.route}/${customer.mobileNo}") })
             }
         }
 
@@ -163,7 +166,7 @@ fun CustomerScreen(
     // Khata Book Plans Navigation
     if (showKhataBookPlans) {
         LaunchedEffect(Unit) {
-            subNavController.navigate("khata_book_plans")
+            subNavController.navigate(SubScreens.KhataBookPlans.route)
             showKhataBookPlans = false
         }
     }

@@ -116,62 +116,63 @@ fun CustomerDetailScreen(
         }
     }
 
-    if (isLoadingDetails) {
-        Box(
-            modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Customer Information Card (Compact)
-            item {
-                CompactCustomerInfoCard(customer)
-            }
+    if (!isLoadingDetails)  {
 
-            // Khata Book Card (Second Position)
-            item {
-                KhataBookCard(
-                    khataBooks = viewModel.selectedCustomerKhataBooks,
-                    transactions = viewModel.selectedCustomerTransactions,
-                    onAddKhataBook = { showAddKhataBookDialog = true },
-                    onAddPayment = { showAddKhataPaymentDialog = true },
-                    onViewDetails = { showKhataBookDetails = true },
-                    onToggleStatus = { status ->
-                        // For now, update the first active khata book
-                        viewModel.selectedCustomerKhataBooks.firstOrNull()?.let { 
-                            viewModel.updateKhataBookStatus(it.khataBookId, status) 
-                        }
-                    },
-                    onMonthClick = { month ->
-                        selectedMonth = month
-                        showMonthPaymentDialog = true
-                    })
-            }
+        viewModel.currentScreenHeadingState.value = "${customer?.name} (${customer?.mobileNo})"
+        Box (  modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(5.dp)){
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            )
+            {
+                // Customer Information Card (Compact)
+                item {
+                    CompactCustomerInfoCard(customer)
+                }
 
-            // Combined Outstanding & Payments Card
-            item {
-                CombinedPaymentsCard(transactions = viewModel.selectedCustomerTransactions,
-                    onAddOutstanding = { showAddOutstandingDialog = true },
-                    onAddPayment = { showAddRegularPaymentDialog = true })
-            }
+                // Khata Book Card (Second Position)
+                item {
+                    KhataBookCard(
+                        khataBooks = viewModel.selectedCustomerKhataBooks,
+                        transactions = viewModel.selectedCustomerTransactions,
+                        onAddKhataBook = { showAddKhataBookDialog = true },
+                        onAddPayment = { showAddKhataPaymentDialog = true },
+                        onViewDetails = { showKhataBookDetails = true },
+                        onToggleStatus = { status ->
+                            // For now, update the first active khata book
+                            viewModel.selectedCustomerKhataBooks.firstOrNull()?.let {
+                                viewModel.updateKhataBookStatus(it.khataBookId, status)
+                            }
+                        },
+                        onMonthClick = { month ->
+                            selectedMonth = month
+                            showMonthPaymentDialog = true
+                        })
+                }
 
-            // Customer Orders Card
-            item {
-                CustomerOrdersCard(
-                    customerMobile = customerMobile, viewModel = viewModel
-                )
-            }
+                // Combined Outstanding & Payments Card
+                item {
+                    CombinedPaymentsCard(transactions = viewModel.selectedCustomerTransactions,
+                        onAddOutstanding = { showAddOutstandingDialog = true },
+                        onAddPayment = { showAddRegularPaymentDialog = true })
+                }
 
-            item {
-                TransactionHistoryCard(
-                    customerMobile = customerMobile, viewModel = viewModel
-                )
+                // Customer Orders Card
+                item {
+                    CustomerOrdersCard(
+                        customerMobile = customerMobile, viewModel = viewModel
+                    )
+                }
+
+                item {
+                    TransactionHistoryCard(
+                        customerMobile = customerMobile, viewModel = viewModel
+                    )
+                }
             }
         }
     }

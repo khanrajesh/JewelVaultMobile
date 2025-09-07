@@ -28,10 +28,12 @@ class ProfileViewModel @Inject constructor(
     private val _dataStoreManager: DataStoreManager,
     private val appDatabase: AppDatabase,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
     private val _firestore: FirebaseFirestore,
     private val _firebaseStorage: FirebaseStorage
 ) : ViewModel() {
 
+    val currentScreenHeadingState = _currentScreenHeadingState
     val snackBarState = _snackBarState
     val dataStoreManager = _dataStoreManager
 
