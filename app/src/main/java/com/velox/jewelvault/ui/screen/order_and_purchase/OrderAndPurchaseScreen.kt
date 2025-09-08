@@ -6,13 +6,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.nav.SubScreens
@@ -29,6 +37,12 @@ import kotlinx.coroutines.async
 fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
     viewModel.currentScreenHeadingState.value = "Order & Purchase"
     val subNavController = LocalSubNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+
+    // State for delete dialog
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedItemId by remember { mutableStateOf("") }
+    var selectedItemType by remember { mutableStateOf("") } // "order" or "purchase"
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route) {
@@ -58,15 +72,86 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
         }
 
         when (viewModel.selectedTabIndex) {
-            0 -> OrderDetail(viewModel)
-            1 -> PurchaseDetails(viewModel)
+            0 -> OrderDetail(
+                viewModel = viewModel,
+                onItemLongClick = { itemId ->
+                    selectedItemId = itemId
+                    selectedItemType = "order"
+                    showDeleteDialog = true
+                }
+            )
+            1 -> PurchaseDetails(
+                viewModel = viewModel,
+                onItemLongClick = { itemId ->
+                    selectedItemId = itemId
+                    selectedItemType = "purchase"
+                    showDeleteDialog = true
+                }
+            )
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        val title = if (selectedItemType == "order") "Delete Order" else "Delete Purchase"
+        val message = if (selectedItemType == "order") 
+            "Are you sure you want to delete this order and all its associated items? This action cannot be undone."
+        else 
+            "Are you sure you want to delete this purchase and all its associated items? This action cannot be undone."
+
+        DeleteConfirmationDialog(
+            title = title,
+            message = message,
+            onDismiss = { 
+                showDeleteDialog = false
+                selectedItemId = ""
+                selectedItemType = ""
+            },
+            onConfirm = {
+                if (selectedItemType == "order") {
+                    viewModel.deleteOrderWithItems(
+                        orderId = selectedItemId,
+                        onSuccess = {
+                            baseViewModel.snackBarState = "Order deleted successfully"
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        },
+                        onFailure = { error ->
+                            baseViewModel.snackBarState = error
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        }
+                    )
+                } else {
+                    viewModel.deletePurchaseWithItems(
+                        purchaseOrderId = selectedItemId,
+                        onSuccess = {
+                            baseViewModel.snackBarState = "Purchase deleted successfully"
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        },
+                        onFailure = { error ->
+                            baseViewModel.snackBarState = error
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        }
+                    )
+                }
+            }
+        )
     }
 }
 
 
 @Composable
-private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
+private fun PurchaseDetails(
+    viewModel: OrderAndReportViewModel,
+    onItemLongClick: (String) -> Unit
+) {
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
 
@@ -117,13 +202,18 @@ private fun PurchaseDetails(viewModel: OrderAndReportViewModel) {
             subNavController.navigate("${SubScreens.PurchaseItemDetail.route}/$purchaseOrderId")
         },
         onItemLongClick = { item ->
-            baseViewModel.snackBarState = "Not yet implemented"
+            // Get the purchase order ID from the second column (index 1)
+            val purchaseOrderId = item[1]
+            onItemLongClick(purchaseOrderId)
         })
 }
 
 
 @Composable
-private fun OrderDetail(viewModel: OrderAndReportViewModel) {
+private fun OrderDetail(
+    viewModel: OrderAndReportViewModel,
+    onItemLongClick: (String) -> Unit
+) {
     val subNavController = LocalSubNavController.current
 
     LaunchedEffect(true) {
@@ -161,6 +251,37 @@ private fun OrderDetail(viewModel: OrderAndReportViewModel) {
             subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
         },
         onItemLongClick = { item ->
-            // Long click functionality can be added here if needed
+            // Get the order ID from the second column (index 1)
+            val orderId = item[1]
+            onItemLongClick(orderId)
         })
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Color.Red
+                )
+            ) {
+                Text("Delete", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

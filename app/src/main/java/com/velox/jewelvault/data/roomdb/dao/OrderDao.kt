@@ -1,6 +1,7 @@
 package com.velox.jewelvault.data.roomdb.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -248,6 +249,19 @@ interface OrderDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExchangeItems(exchangeItems: List<ExchangeItemEntity>): List<Long>
+
+    // Delete methods
+    @Query("DELETE FROM `${TableNames.ORDER}` WHERE orderId = :orderId")
+    suspend fun deleteOrderById(orderId: String)
+
+    @Query("DELETE FROM `${TableNames.ORDER_ITEM}` WHERE orderId = :orderId")
+    suspend fun deleteOrderItemsByOrderId(orderId: String)
+
+    @Delete
+    suspend fun deleteOrderItem(item: OrderItemEntity)
+
+    @Delete
+    suspend fun deleteOrder(order: OrderEntity)
 }
 
 

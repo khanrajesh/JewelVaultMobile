@@ -99,4 +99,55 @@ class OrderAndReportViewModel @Inject constructor(
         }
     }
 
+    fun deleteOrderWithItems(orderId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        ioLaunch {
+            try {
+                // Delete exchange items first
+                appDatabase.orderDao().deleteExchangeItemsByOrderId(orderId)
+                
+                // Delete order items
+                appDatabase.orderDao().deleteOrderItemsByOrderId(orderId)
+                
+                // Delete the order itself
+                appDatabase.orderDao().deleteOrderById(orderId)
+                
+                // Refresh the order list
+                getAllOrdersSorted(SortOrder.DESCENDING)
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Failed to delete order: ${e.message}")
+            }
+        }
+    }
+
+    fun deletePurchaseWithItems(purchaseOrderId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+        ioLaunch {
+            try {
+                // Delete purchase order items
+                val purchaseItems = appDatabase.purchaseDao().getItemsByOrderId(purchaseOrderId)
+                purchaseItems.forEach { item ->
+                    appDatabase.purchaseDao().deleteItem(item)
+                }
+                
+                // Delete metal exchange items for this purchase order
+                val metalExchanges = appDatabase.purchaseDao().getExchangeByOrderId(purchaseOrderId.toLong())
+                metalExchanges.forEach { exchange ->
+                    appDatabase.purchaseDao().deleteExchange(exchange)
+                }
+                
+                // Delete the purchase order itself
+                val purchaseOrder = purchase.find { it.order.purchaseOrderId == purchaseOrderId }
+                purchaseOrder?.let {
+                    appDatabase.purchaseDao().deleteOrder(it.order)
+                }
+                
+                // Refresh the purchase list
+                getAllPurchaseSorted(SortOrder.DESCENDING)
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Failed to delete purchase: ${e.message}")
+            }
+        }
+    }
+
 }

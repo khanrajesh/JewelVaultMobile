@@ -20,8 +20,11 @@ class PurchaseItemViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState: MutableState<Boolean>,
-    @Named("snackMessage") private val _snackBar: MutableState<String>
+    @Named("snackMessage") private val _snackBar: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 ) : ViewModel() {
+
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     val purchaseOrderWithDetails = mutableStateOf<PurchaseOrderWithDetails?>(null)
     val firmEntity = mutableStateOf<FirmEntity?>(null)

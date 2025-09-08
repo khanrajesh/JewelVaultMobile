@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,14 +80,11 @@ fun MainScreen() {
     val context = LocalContext.current
     val subNavController = rememberNavController()
 
-    LaunchedEffect(true) {
-        if (baseViewModel.metalRates.isNotEmpty()) {
-            baseViewModel.refreshMetalRates(context = context)
-        }
-    }
+
     val inputIconStates = listOf(
         InputIconState(
-            "Dashboard", Icons.Default.Dashboard
+            "Dashboard", Icons.Default.Dashboard,
+            selected = true
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -139,6 +138,13 @@ fun MainScreen() {
             }
         },
     )
+
+    LaunchedEffect(true) {
+        if (baseViewModel.metalRates.isNotEmpty()) {
+            baseViewModel.refreshMetalRates(context = context)
+        }
+
+    }
 
     if (isLandscape()) {
         LandscapeDashboardScreen(inputIconStates, subNavController)
@@ -202,7 +208,8 @@ private fun LandscapeDashboardScreen(
     val currentUser = baseViewModel.dataStoreManager.getCurrentLoginUser()
 
     TabNavigationDrawer(
-        drawerState = drawerState, content = {
+        drawerState = drawerState,
+        content = {
             SubAppNavigation(
                 subNavController,
                 navHost,
@@ -218,9 +225,15 @@ private fun LandscapeDashboardScreen(
             }
         },
         drawerContent = {
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 items(inputIconStates) { item ->
-                    Column {
+                    Column(
+                        horizontalAlignment = if (drawerState.isOpen) Alignment.Start else Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             Modifier
                                 .clickable {
@@ -229,52 +242,51 @@ private fun LandscapeDashboardScreen(
                                     item.onClick.invoke()
                                 }
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
+                                .padding( vertical = 4.dp, horizontal = 4.dp ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = if (drawerState.isOpen) Arrangement.Start else Arrangement.Center
+                        ) {
                             item.icon?.let { icon ->
                                 if (icon is androidx.compose.ui.graphics.vector.ImageVector) {
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = item.text,
-                                        Modifier
-                                            .padding(start = 5.dp)
-                                            .size(25.dp),
+                                        Modifier.size(28.dp),
                                         tint = MaterialTheme.colorScheme.onPrimary
                                     )
                                 } else {
                                     Image(
                                         painter = painterResource(icon as Int),
                                         contentDescription = item.text,
-                                        Modifier
-                                            .padding(start = 5.dp)
-                                            .size(30.dp)
+                                        Modifier.size(32.dp)
                                     )
                                 }
                             }
                             if (drawerState.isOpen) {
-                                Spacer(Modifier.width(10.dp))
+                                Spacer(Modifier.width(12.dp))
                                 Text(
                                     item.text,
                                     color = MaterialTheme.colorScheme.onPrimary,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
                                 )
                             }
                         }
 
                         if (item.selected) {
                             baseViewModel.currentScreenHeading = item.text
+
                             Spacer(
                                 Modifier
-                                    .fillMaxWidth()
-                                    .height(5.dp)
-                                    .padding(start = 2.dp, end = 2.dp)
+                                    .fillMaxWidth(0.8f)
+                                    .height(4.dp)
                                     .background(
                                         MaterialTheme.colorScheme.onPrimary,
                                         RoundedCornerShape(2.dp)
                                     )
                             )
                         }
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
@@ -285,27 +297,31 @@ private fun LandscapeDashboardScreen(
             ) {
                 Text(
                     buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        ) {
-                            append(currentUser.role.uppercase())
-                        }
-                        append("\n")
+
                         withStyle(
                             style = SpanStyle(
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 10.sp,
+                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         ) {
                             append(currentUser.name.uppercase())
                         }
+                        append("\n")
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            append(currentUser.role.uppercase())
+                        }
+
+
                     },
-                    style = MaterialTheme.typography.labelSmall
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.End
                 )
             }
         })

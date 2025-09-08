@@ -25,12 +25,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.velox.jewelvault.data.MetalRatesTicker
-import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
@@ -76,65 +75,51 @@ fun TabNavigationDrawerPreview() {
                 3 -> "Ledger"
                 4 -> "Profile"
                 else -> "Settings"
-            },
-            initialIcon = when (index) {
+            }, initialIcon = when (index) {
                 0 -> Icons.Default.Dashboard
                 1 -> Icons.Default.Inventory
                 2 -> Icons.Default.People
                 3 -> Icons.Default.AccountBalance
                 4 -> Icons.Default.Person
                 else -> Icons.Default.Settings
-            },
-            initialOnClick = {
+            }, initialOnClick = {
                 println("Item ${index + 1} clicked")
-            }
-        )
+            })
     }
 
     val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
 
-    TabNavigationDrawer(
-        drawerState = drawerState,
-        content = {
-            Text("Main Content")
-        }, drawerContent = {
-            LazyColumn(
-                modifier = Modifier.padding(vertical = 8.dp)
-            ) {
-                items(inputIconStates) { item ->
-                    DrawerItem(
-                        item = item,
-                        drawerState = drawerState,
-                        onClick = { item.onClick() }
-                    )
-                }
+    TabNavigationDrawer(drawerState = drawerState, content = {
+        Text("Main Content")
+    }, drawerContent = {
+        LazyColumn(
+            modifier = Modifier.padding(vertical = 8.dp)
+        ) {
+            items(inputIconStates) { item ->
+                DrawerItem(
+                    item = item, drawerState = drawerState, onClick = { item.onClick() })
             }
         }
-    )
+    })
 }
 
 @Composable
 fun DrawerItem(
-    item: InputIconState,
-    drawerState: TabDrawerState,
-    onClick: () -> Unit
+    item: InputIconState, drawerState: TabDrawerState, onClick: () -> Unit
 ) {
-    Row(
-        Modifier
-            .clickable { onClick() }
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Row(Modifier
+        .clickable { onClick() }
+        .fillMaxWidth()
+        .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         // Icon with better styling
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .background(
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
-                    shape = androidx.compose.foundation.shape.CircleShape
-                ),
-            contentAlignment = Alignment.Center
+                    shape = CircleShape
+                ), contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = item.icon as ImageVector,
@@ -143,7 +128,7 @@ fun DrawerItem(
                 tint = MaterialTheme.colorScheme.onPrimary
             )
         }
-        
+
         if (drawerState.isOpen) {
             Spacer(modifier = Modifier.width(16.dp))
             Text(
@@ -157,14 +142,12 @@ fun DrawerItem(
 }
 
 enum class TabDrawerValue {
-    Closed,
-    Open
+    Closed, Open
 }
 
 @Composable
 fun rememberTabDrawerState(
-    initialValue: TabDrawerValue,
-    confirmStateChange: (TabDrawerValue) -> Boolean = { true }
+    initialValue: TabDrawerValue, confirmStateChange: (TabDrawerValue) -> Boolean = { true }
 ): TabDrawerState {
     return rememberSaveable(saver = TabDrawerState.Saver(confirmStateChange)) {
         TabDrawerState(initialValue, confirmStateChange)
@@ -178,8 +161,7 @@ private val MinimumDrawerWidth = 240.dp
 @Suppress("NotCloseable")
 @Stable
 class TabDrawerState(
-    initialValue: TabDrawerValue,
-    val confirmStateChange: (TabDrawerValue) -> Boolean = { true }
+    initialValue: TabDrawerValue, val confirmStateChange: (TabDrawerValue) -> Boolean = { true }
 ) {
     var currentValue by mutableStateOf(initialValue)
 
@@ -198,10 +180,7 @@ class TabDrawerState(
 
     companion object {
         fun Saver(confirmStateChange: (TabDrawerValue) -> Boolean): Saver<TabDrawerState, TabDrawerValue> =
-            Saver(
-                save = { it.currentValue },
-                restore = { TabDrawerState(it, confirmStateChange) }
-            )
+            Saver(save = { it.currentValue }, restore = { TabDrawerState(it, confirmStateChange) })
     }
 }
 
@@ -209,13 +188,13 @@ class TabDrawerState(
 fun TabNavigationDrawer(
     modifier: Modifier = Modifier,
     drawerState: TabDrawerState = rememberTabDrawerState(TabDrawerValue.Closed),
-    onProfileClick: () -> Unit={},
+    onProfileClick: () -> Unit = {},
     notifierContent: @Composable () -> Unit = {},
     drawerContent: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
+    rememberCoroutineScope()
+    LocalDensity.current
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
@@ -224,34 +203,37 @@ fun TabNavigationDrawer(
     }
 
 
-    val width = if (drawerState.isOpen) 280.dp else 60.dp
-    Row {
-        Row(modifier.fillMaxSize()) {
+    val width = if (drawerState.isOpen) 200.dp else 60.dp
+
+    Row(modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .width(width)
+                .background(
+                    color = MaterialTheme.colorScheme.primary
+                )
+                .padding(8.dp)
+        ) {
+
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                ProfileImage(onProfileClick)
+                drawerContent()
+            }
+
+
             Column(
-                Modifier
-                    .fillMaxHeight()
-                    .width(width)
-                    .background(
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    .padding(8.dp)
+                modifier = Modifier, horizontalAlignment = Alignment.Start
             ) {
-
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ProfileImage(drawerState,onProfileClick)
-                    drawerContent()
-                }
-
-                Row(
-                    modifier = Modifier
-                        .clickable {
-                            drawerState.currentValue =
-                                if (drawerState.isOpen) TabDrawerValue.Closed else TabDrawerValue.Open
-                        }
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
+                Row(modifier = Modifier
+                    .clickable {
+                        drawerState.currentValue =
+                            if (drawerState.isOpen) TabDrawerValue.Closed else TabDrawerValue.Open
+                    }
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.End) {
+                    // Version info and update notification
                     Icon(
                         if (drawerState.isOpen) Icons.AutoMirrored.Filled.KeyboardArrowLeft
                         else Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -260,107 +242,118 @@ fun TabNavigationDrawer(
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
+
+                Text(
+                    text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = 10.sp
+                )
+
+                // Show update notification if available
+                if (baseViewModel.updateInfo.value != null) {
+                    // Note: We can't call suspend function here, so we'll show based on updateInfo
+                    val currentVersion = baseViewModel.remoteConfigManager.getCurrentAppVersion()
+                    val latestVersion =
+                        baseViewModel.updateInfo.value?.latestVersionCode ?: currentVersion
+                    if (latestVersion > currentVersion) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(bottom = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Update,
+                                contentDescription = "Update Available",
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                            )
+                            Text(
+                                text = "Update",
+                                fontSize = 8.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(
+                                    alpha = 0.8f
+                                ),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+
             }
 
-            Column(Modifier.fillMaxSize()) {
-                Column(
+
+        }
+
+        Column(Modifier.fillMaxSize()) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .background(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+            ) {
+                Row(
                     Modifier
                         .fillMaxWidth()
-                        .wrapContentHeight()
-                        .background(
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        .wrapContentHeight(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth().wrapContentHeight(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Spacer(Modifier.width(20.dp))
-                        Column {
-                            Text(
-                                text = baseViewModel.storeName.value ?:"Jewel Vault",
-                                fontSize = 22.sp,
-                                fontFamily = ZenFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.bounceClick {
+                    Spacer(Modifier.width(20.dp))
+                    Column {
+                        Text(
+                            text = baseViewModel.storeName.value ?: "Jewel Vault",
+                            fontSize = 22.sp,
+                            fontFamily = ZenFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier
+                                .bounceClick {
                                     ioScope.launch {
                                         baseViewModel.refreshMetalRates(context = context)
                                     }
-                                }.padding(top = 5.dp)
-                            )
-                            
-                            // Current Screen Heading
-                            if (baseViewModel.currentScreenHeading.isNotEmpty()) {
-                                Text(
-                                    text = baseViewModel.currentScreenHeading,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(start = 10.dp,).offset(y= (-7).dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(20.dp))
-                        MetalRatesTicker(Modifier.height(50.dp).weight(1f), backgroundColor = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.width(20.dp))
-                        notifierContent()
-                        Spacer(Modifier.width(10.dp))
-                        
-                        // Version info and update notification
-                        Column(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            horizontalAlignment = Alignment.End
-                        ) {
-                            Text(
-                                text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                fontWeight = FontWeight.Normal
-                            )
-                            
-                            // Show update notification if available
-                            if (baseViewModel.updateInfo.value != null) {
-                                // Note: We can't call suspend function here, so we'll show based on updateInfo
-                                val currentVersion = baseViewModel.remoteConfigManager.getCurrentAppVersion()
-                                val latestVersion = baseViewModel.updateInfo.value?.latestVersionCode ?: currentVersion
-                                if (latestVersion > currentVersion) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Update,
-                                        contentDescription = "Update Available",
-                                        modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                                    )
-                                    Text(
-                                        text = "Update",
-                                        fontSize = 8.sp,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
-                                        fontWeight = FontWeight.Medium
-                                    )
                                 }
-                            }
-                        }
+                                .padding(top = 5.dp))
+
+                        // Current Screen Heading
+                        if (baseViewModel.currentScreenHeading.isNotEmpty()) {
+                            Text(
+                                text = baseViewModel.currentScreenHeading,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                modifier = Modifier
+                                    .padding(start = 10.dp)
+                                    .offset(y = (-7).dp)
+                            )
                         }
                     }
-                    Box(Modifier.fillMaxSize()) {
-                        content()
-                    }
+                    Spacer(Modifier.width(20.dp))
+                    MetalRatesTicker(
+                        Modifier
+                            .height(30.dp)
+                            .weight(1f),
+                        backgroundColor = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    notifierContent()
+                    Spacer(Modifier.width(10.dp))
+                }
+                Box(Modifier.fillMaxSize()) {
+                    content()
                 }
             }
         }
     }
+
 }
 
 class InputIconState(
-    initialText: String = "",
-    initialIcon: Any? = null, // Can be ImageVector or Int resource
-    selected: Boolean = false,
-    initialOnClick: () -> Unit = {}
+    initialText: String = "", initialIcon: Any? = null, // Can be ImageVector or Int resource
+    selected: Boolean = false, initialOnClick: () -> Unit = {}
 ) {
     var text by mutableStateOf(initialText)
     var icon by mutableStateOf(initialIcon)
@@ -373,36 +366,30 @@ class InputIconState(
 }
 
 
-
 @Composable
-fun ProfileImage(drawerState: TabDrawerState, onProfileClick: () -> Unit) {
+fun ProfileImage( onProfileClick: () -> Unit) {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 
-    
+
     LaunchedEffect(Unit) {
         baseViewModel.loadStoreImage()
     }
 
-    
-    Box(
-        modifier = Modifier
-            .clickable{
-              onProfileClick()
-            }
-            .size(60.dp)
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
+
+    Box(modifier = Modifier
+        .clickable {
+            onProfileClick()
+        }
+        .size(60.dp)
+        .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
         val imageUri = baseViewModel.storeImage.value
-        
+
         if (!imageUri.isNullOrBlank()) {
             // Show profile image if available
             Image(
                 painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(context)
-                        .data(imageUri)
-                        .build()
+                    ImageRequest.Builder(context).data(imageUri).build()
                 ),
                 contentDescription = "Profile Image",
                 modifier = Modifier
@@ -428,8 +415,7 @@ fun ProfileImage(drawerState: TabDrawerState, onProfileClick: () -> Unit) {
                         width = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
                         shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+                    ), contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
