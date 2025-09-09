@@ -435,12 +435,11 @@ fun createDraftInvoiceData(
         ),
         declarationPoints = listOf(
             "We declare that this invoice shows the actual price of the goods described.",
-            "All particulars are true and correct.",
+            "All disputes are subject to the courts at the store's location.",
             "This is a draft invoice for estimation purposes.",
             if (!isPaidInFull) "Outstanding Amount: ₹${outstandingAmount.to2FString()}" else "",
             "Payment Method: ${paymentMethod.uppercase()}",
             if (paymentInfo.value?.notes?.isNotEmpty() == true) "Notes: ${paymentInfo.value?.notes}" else "",
-            "All disputes shall be subject to the jurisdiction of the courts at the place where the store is located."
 
         ).filter { it.isNotEmpty() },
         termsAndConditions = "Terms and conditions apply as per company policy.",

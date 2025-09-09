@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
@@ -123,6 +124,15 @@ fun MainScreen() {
             "Audit", Icons.Default.QrCodeScanner
         ) {
             subNavController.navigate(SubScreens.Audit.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "Files", Icons.Default.Folder
+        ) {
+            subNavController.navigate(SubScreens.Folder.route) {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }
