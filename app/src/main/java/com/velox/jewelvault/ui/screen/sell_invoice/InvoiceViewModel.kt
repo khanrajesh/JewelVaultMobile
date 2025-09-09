@@ -5,7 +5,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -27,7 +26,6 @@ import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateDraftInvoicePdf
 import com.velox.jewelvault.utils.generateId
-import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
@@ -559,7 +557,8 @@ class InvoiceViewModel @Inject constructor(
                         discount = discount.text,
                         cardCharges= "0.00",
                         oldExchange = oldExchange.to2FString(),
-                        roundOff = "0.00"
+                        roundOff = "0.00",
+                        dataStoreManager = _dataStoreManager
                     )
 
 
@@ -974,7 +973,8 @@ class InvoiceViewModel @Inject constructor(
                         discount = discount.text,
                         cardCharges= "0.00",
                         oldExchange = "0.00",
-                        roundOff = "0.00"
+                        roundOff = "0.00",
+                        dataStoreManager = _dataStoreManager
                     )
 
                     generateDraftInvoicePdf(

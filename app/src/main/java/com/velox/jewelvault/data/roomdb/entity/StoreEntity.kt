@@ -11,7 +11,7 @@ data class StoreEntity (
     val userId: String,
     val proprietor: String,
     val name: String,
-    val email: String, // <-- fixed typo here
+    val email: String,
     val phone: String,
     val address: String,
     val registrationNo:String,

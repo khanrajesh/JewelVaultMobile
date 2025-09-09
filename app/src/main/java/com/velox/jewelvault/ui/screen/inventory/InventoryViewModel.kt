@@ -22,9 +22,13 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
@@ -358,64 +362,101 @@ class InventoryViewModel @Inject constructor(
     }
 
     // Enhanced filter function with all parameters
+    private var filterJob: Job? = null
     fun filterItems() {
-        ioLaunch {
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch(Dispatchers.IO) {
+            // Immediately clear current list so UI shows "no items" while loading/filtering.
+            // This ensures we always return a value to UI even if something fails later.
+            itemList.clear()
+
+            // Parse inputs safely outside the flow collection to avoid throwing inside the Flow
+            val catId = runCatching {
+                catSubCatDto.asSequence()
+                    .find { it.catName == categoryFilter.text }
+                    ?.catId
+            }.getOrNull()
+
+            val subCatId = runCatching {
+                catSubCatDto.asSequence()
+                    .flatMap { it.subCategoryList.asSequence() }
+                    .find { it.subCatName == subCategoryFilter.text }
+                    ?.subCatId
+            }.getOrNull()
+
+            val startDate = runCatching {
+                if (startDateFilter.text.isNotBlank()) {
+                    val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                    dateFormat.parse(startDateFilter.text)?.let { java.sql.Timestamp(it.time) }
+                } else null
+            }.getOrNull()
+
+            val endDate = runCatching {
+                if (endDateFilter.text.isNotBlank()) {
+                    val dateFormat = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+                    dateFormat.parse(endDateFilter.text)?.let {
+                        val calendar = java.util.Calendar.getInstance()
+                        calendar.time = it
+                        calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                        calendar.set(java.util.Calendar.MINUTE, 59)
+                        calendar.set(java.util.Calendar.SECOND, 59)
+                        java.sql.Timestamp(calendar.timeInMillis)
+                    }
+                } else null
+            }.getOrNull()
+
+            // Numeric parsing (null on invalid)
+            fun String.toDoubleOrNullSafe() = this.takeIf { it.isNotBlank() }?.toDoubleOrNull()
+            fun String.toIntOrNullSafe() = this.takeIf { it.isNotBlank() }?.toIntOrNull()
+
+            val minGsWt = minGsWtFilter.text.toDoubleOrNullSafe()
+            val maxGsWt = maxGsWtFilter.text.toDoubleOrNullSafe()
+            val minNtWt = minNtWtFilter.text.toDoubleOrNullSafe()
+            val maxNtWt = maxNtWtFilter.text.toDoubleOrNullSafe()
+            val minFnWt = minFnWtFilter.text.toDoubleOrNullSafe()
+            val maxFnWt = maxFnWtFilter.text.toDoubleOrNullSafe()
+            val minQuantity = minQuantityFilter.text.toIntOrNullSafe()
+            val maxQuantity = maxQuantityFilter.text.toIntOrNullSafe()
+
+            val firmId = firmIdFilter.text.ifBlank { null }
+            val purchaseOrderId = purchaseOrderIdFilter.text.ifBlank { null }
+            val type = entryTypeFilter.text.ifEmpty { null }
+            val purity = purityFilter.text.ifEmpty { null }
+            val crgType = chargeTypeFilter.text.ifEmpty { null }
+
+            // Now subscribe to the DAO flow with defensive flow operators.
             try {
-                val catId = catSubCatDto.find { it.catName == categoryFilter.text }?.catId
-                val subCatId = catSubCatDto.flatMap { it.subCategoryList }
-                    .find { it.subCatName == subCategoryFilter.text }?.subCatId
-
-                val startDate = if (startDateFilter.text.isNotEmpty()) {
-                    try {
-                        val dateFormat =
-                            java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
-                        val date = dateFormat.parse(startDateFilter.text)
-                        date?.let { Timestamp(it.time) }
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else null
-
-                val endDate = if (endDateFilter.text.isNotEmpty()) {
-                    try {
-                        val dateFormat =
-                            java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
-                        val date = dateFormat.parse(endDateFilter.text)
-                        date?.let {
-                            val calendar = java.util.Calendar.getInstance()
-                            calendar.time = it
-                            calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
-                            calendar.set(java.util.Calendar.MINUTE, 59)
-                            calendar.set(java.util.Calendar.SECOND, 59)
-                            Timestamp(calendar.timeInMillis)
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else null
-
-                val firmId = firmIdFilter.text.ifBlank { null }
-                val purchaseOrderId = purchaseOrderIdFilter.text.ifBlank { null }
-
-                appDatabase.itemDao().filterItems(
+                appDatabase.itemDao()
+                    .filterItems(
                         catId = catId,
                         subCatId = subCatId,
-                        type = entryTypeFilter.text.ifEmpty { null },
-                        purity = purityFilter.text.ifEmpty { null },
-                        crgType = chargeTypeFilter.text.ifEmpty { null },
+                        type = type,
+                        purity = purity,
+                        crgType = crgType,
                         startDate = startDate,
                         endDate = endDate,
-                        minGsWt = if (minGsWtFilter.text.isNotEmpty()) minGsWtFilter.text.toDoubleOrNull() else null,
-                        maxGsWt = if (maxGsWtFilter.text.isNotEmpty()) maxGsWtFilter.text.toDoubleOrNull() else null,
-                        minNtWt = if (minNtWtFilter.text.isNotEmpty()) minNtWtFilter.text.toDoubleOrNull() else null,
-                        maxNtWt = if (maxNtWtFilter.text.isNotEmpty()) maxNtWtFilter.text.toDoubleOrNull() else null,
-                        minFnWt = if (minFnWtFilter.text.isNotEmpty()) minFnWtFilter.text.toDoubleOrNull() else null,
-                        maxFnWt = if (maxFnWtFilter.text.isNotEmpty()) maxFnWtFilter.text.toDoubleOrNull() else null,
-                        minQuantity = if (minQuantityFilter.text.isNotEmpty()) minQuantityFilter.text.toIntOrNull() else null,
-                        maxQuantity = if (maxQuantityFilter.text.isNotEmpty()) maxQuantityFilter.text.toIntOrNull() else null,
+                        minGsWt = minGsWt,
+                        maxGsWt = maxGsWt,
+                        minNtWt = minNtWt,
+                        maxNtWt = maxNtWt,
+                        minFnWt = minFnWt,
+                        maxFnWt = maxFnWt,
+                        minQuantity = minQuantity,
+                        maxQuantity = maxQuantity,
                         firmId = firmId,
                         purchaseOrderId = purchaseOrderId
-                    ).collectLatest { items ->
+                    )
+                    .onStart {
+                        // optional: show loading state (if you have one)
+                    }
+                    .catch { e ->
+                        // Flow-level error handling (e.g., DB errors)
+                        this@InventoryViewModel.log("filterItems flow error: ${e.message}")
+                        _snackBarState.value = "Failed to filter items: ${e.message ?: "Unknown error"}"
+                        // Ensure itemList stays empty or previous value (we already cleared above)
+                    }
+                    .collectLatest { items ->
+                        // Sort on the collected list, then update UI list once.
                         val sortedItems = when (sortBy.value) {
                             "itemId" -> if (sortOrder.value == "ASC") items.sortedBy { it.itemId } else items.sortedByDescending { it.itemId }
                             "gsWt" -> if (sortOrder.value == "ASC") items.sortedBy { it.gsWt } else items.sortedByDescending { it.gsWt }
@@ -428,15 +469,20 @@ class InventoryViewModel @Inject constructor(
                             "entryType" -> if (sortOrder.value == "ASC") items.sortedBy { it.entryType } else items.sortedByDescending { it.entryType }
                             else -> if (sortOrder.value == "ASC") items.sortedBy { it.addDate } else items.sortedByDescending { it.addDate }
                         }
+
+                        // Update UI state on the main thread (we're already in coroutine context started by ioLaunch).
                         itemList.clear()
                         itemList.addAll(sortedItems)
                     }
             } catch (e: Exception) {
-                this@InventoryViewModel.log("failed to filter item list: ${e.message}")
+                // This try/catch defends against unexpected errors constructing the Flow or subscribing,
+                // but most errors should be handled in .catch above.
+                this@InventoryViewModel.log("failed to filter item list (outer): ${e.message}")
                 _snackBarState.value = "Failed to filter items: ${e.message}"
             }
         }
     }
+
 
     fun clearAllFilters() {
         categoryFilter.text = ""

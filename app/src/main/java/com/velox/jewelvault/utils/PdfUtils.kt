@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.createBitmap
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
@@ -318,13 +319,14 @@ fun sharePdf(context: Context, pdfUri: Uri) {
 
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-suspend fun createDraftInvoiceData(
+fun createDraftInvoiceData(
+    appDatabase: AppDatabase,
+    dataStoreManager: DataStoreManager,
     store: StoreEntity,
     customer: CustomerEntity,
     items: List<ItemSelectedModel>,
     metalRates: List<MetalRate>,
     paymentInfo: MutableState<PaymentInfo?>,
-    appDatabase: AppDatabase,
     customerSign: MutableState<ImageBitmap?>,
     ownerSign: MutableState<ImageBitmap?>,
     gstLabel: String,
@@ -332,6 +334,7 @@ suspend fun createDraftInvoiceData(
     cardCharges: String,
     oldExchange: String,
     roundOff: String = "0.00",
+
 ): InvoiceData {
 
     val tag = "createDraftInvoiceData"
@@ -340,7 +343,6 @@ suspend fun createDraftInvoiceData(
 
     // Convert ItemSelectedModel to DraftItemModel
     val draftItems = items.mapIndexed { index, item ->
-
         val price = item.price+item.chargeAmount
         InvoiceData.DraftItemModel(
             serialNumber = "${index + 1}",
@@ -388,22 +390,18 @@ suspend fun createDraftInvoiceData(
     val paidAmount = paymentInfo.value?.paidAmount ?: itemGrandTotalAmount
     val outstandingAmount = paymentInfo.value?.outstandingAmount ?: 0.0
 
-    // Get firm and seller info from items
-    val firmIds = items.map { it.sellerFirmId }.distinct()
-    log("Found firm IDs: $firmIds", tag)
-
-    val firmInfos = firmIds.mapNotNull { firmId ->
-        try {
-            appDatabase.firmDao().getFirmById(firmId)
-        } catch (e: Exception) {
-            log("Error getting firm info for ID $firmId: ${e.message}", tag)
-            null
-        }
-    }
-    val firmNames = firmInfos.joinToString(", ") { it.firmName }
-    log("Retrieved firm names: $firmNames", tag)
 
     val netAmountPayable = itemGrandTotalAmount- (discount.toDoubleOrNull() ?:0.0)+(cardCharges.toDoubleOrNull() ?:0.0)-(oldExchange.toDoubleOrNull() ?:0.0)
+
+    val currentLoginUserName = dataStoreManager.getCurrentLoginUser().let {
+        if (it.role.lowercase()=="admin"){
+            store.proprietor
+        }else{
+            it.name
+        }
+    }
+
+
 
     return InvoiceData(
         storeInfo = store,
@@ -412,7 +410,7 @@ suspend fun createDraftInvoiceData(
             invoiceNumber = "${System.currentTimeMillis() % 10000}",
             date = currentDate,
             time = currentTime,
-            salesMan = "Counter 1", //todo add current user name
+            salesMan = "$currentLoginUserName",
             documentType = "INVOICE"
         ),
         items = draftItems,
@@ -439,10 +437,11 @@ suspend fun createDraftInvoiceData(
             "We declare that this invoice shows the actual price of the goods described.",
             "All particulars are true and correct.",
             "This is a draft invoice for estimation purposes.",
-            // if (firmNames.isNotEmpty()) "Supplier(s): $firmNames" else "",
             if (!isPaidInFull) "Outstanding Amount: ₹${outstandingAmount.to2FString()}" else "",
             "Payment Method: ${paymentMethod.uppercase()}",
-            if (paymentInfo.value?.notes?.isNotEmpty() == true) "Notes: ${paymentInfo.value?.notes}" else ""
+            if (paymentInfo.value?.notes?.isNotEmpty() == true) "Notes: ${paymentInfo.value?.notes}" else "",
+            "All disputes shall be subject to the jurisdiction of the courts at the place where the store is located."
+
         ).filter { it.isNotEmpty() },
         termsAndConditions = "Terms and conditions apply as per company policy.",
         customerSignature = customerSign.value,
@@ -528,6 +527,134 @@ fun generateDraftInvoicePdf(
     //outer box
     // Draw the outer box with stroke width s3f
     canvas.apply {
+
+        val headingStartX = startX
+        val headingStartY = startY
+        val headingEndX = endX
+        val headingEndY = startY + s100f - s15f
+        
+        // Calculate heading area dimensions
+        val headingWidth = headingEndX - headingStartX
+        val headingHeight = 80f // Fixed height for header section
+        val headingCenterX = headingStartX + (headingWidth / 2)
+
+        // Create paint objects for different text styles
+        val storeNamePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 54f // Increased by 6 more from 38f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        
+        val storeAddressPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 20f // Increased by 4 more from 16f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.CENTER
+        }
+        
+        val contactInfoPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 14f // Increased by 4 from 10f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        
+        val rightAlignPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 14f // Increased by 4 from 10f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.RIGHT
+        }
+        
+        // Draw store name centered
+        val storeNameY = headingStartY + 35f // Increased spacing for larger text
+        canvas.drawText(
+            data.storeInfo.name ?: "Store Name",
+            headingCenterX,
+            storeNameY,
+            storeNamePaint
+        )
+        
+        // Draw store address centered below name
+        val addressY = storeNameY + 30f // Increased spacing for larger text
+        val addressLines = (data.storeInfo.address ?: "Store Address").split('\n')
+        addressLines.forEachIndexed { index, line ->
+            canvas.drawText(
+                line.trim(),
+                headingCenterX,
+                addressY + (index * 22f), // Increased line spacing for larger text
+                storeAddressPaint
+            )
+        }
+        
+        // Draw contact information on the left side
+        val leftInfoX = headingStartX + 15f
+        val leftInfoY = addressY + (addressLines.size * 22f) + 25f // Increased spacing for larger address text
+        
+        canvas.drawText(
+            "Proprietor: ${data.storeInfo.proprietor ?: "N/A"}",
+            leftInfoX,
+            leftInfoY,
+            contactInfoPaint
+        )
+        
+        canvas.drawText(
+            "Phone: ${data.storeInfo.phone ?: "N/A"}",
+            leftInfoX,
+            leftInfoY + 18f, // Increased line spacing
+            contactInfoPaint
+        )
+        
+        canvas.drawText(
+            "Email: ${data.storeInfo.email ?: "N/A"}",
+            leftInfoX,
+            leftInfoY + 36f, // Increased line spacing
+            contactInfoPaint
+        )
+        
+        // Draw registration details on the right side
+        val rightInfoX = headingEndX - 15f
+        val rightInfoY = leftInfoY
+        
+        canvas.drawText(
+            "Reg. No: ${data.storeInfo.registrationNo ?: "N/A"}",
+            rightInfoX,
+            rightInfoY,
+            rightAlignPaint
+        )
+        
+        canvas.drawText(
+            "GSTIN: ${data.storeInfo.gstinNo ?: "N/A"}",
+            rightInfoX,
+            rightInfoY + 18f, // Increased line spacing
+            rightAlignPaint
+        )
+        
+        canvas.drawText(
+            "PAN: ${data.storeInfo.panNo ?: "N/A"}",
+            rightInfoX,
+            rightInfoY + 36f, // Increased line spacing
+            rightAlignPaint
+        )
+        
+        // Draw a horizontal line below the header
+        val lineY = leftInfoY + 50f // Increased spacing for larger text
+        canvas.drawLine(
+            headingStartX + 5f,
+            lineY,
+            headingEndX - 5f,
+            lineY,
+            Paint().apply {
+                color = Color.BLACK
+                strokeWidth = 1f
+            }
+        )
+
+
+
+
+
 
         val outerBoxPaint = Paint().apply {
             color = Color.BLACK
@@ -1017,7 +1144,7 @@ fun generateDraftInvoicePdf(
 }
 
 
-@Suppress("RemoveSingleExpressionStringTemplate")
+/*@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateTaxInvoicePdf(
     context: Context,
     store: StoreEntity,
@@ -1486,9 +1613,9 @@ fun generateTaxInvoicePdf(
         Log.e("PDF_GENERATION", "Failed to create file in MediaStore")
         pdfDocument.close()
     }
-}
+}*/
 
-@Suppress("RemoveSingleExpressionStringTemplate")
+/*@Suppress("RemoveSingleExpressionStringTemplate")
 fun generateEstimatePdf(
     context: Context,
     store: StoreEntity,
@@ -2160,7 +2287,7 @@ fun generateEstimatePdf(
         "5. Payment: 50% advance to confirm order, balance on delivery.",
         "6. Delivery timeline will be communicated upon order confirmation.",
         "7. This is an estimate and not a tax invoice. Tax invoice will be provided upon sale.",
-        "8. All disputes subject to Malkangiri Jurisdiction only."
+        "8. All disputes shall be subject to the jurisdiction of the courts at the place where the store is located."
     )
     estimateTerms.forEach { term ->
         // Basic line wrapping for terms
@@ -2185,7 +2312,7 @@ fun generateEstimatePdf(
 
     // --- SIGNATURE AREA ---
     val signatureY = pageHeight - margin - 50f // Position from bottom
-    val forStoreText = "For ${store.name ?: "Raj jewellers"}"
+    val forStoreText = "For ${store.name}"
     val authorisedSignatoryText = "Authorised Signatory"
 
     boldPaint.textSize = 9f
@@ -2261,7 +2388,7 @@ fun generateEstimatePdf(
 
 private fun extractCategoryFromDescription(description: String): String {
     return description.trim().split(" ").firstOrNull() ?: ""
-}
+}*/
 
 // Represents the overall information needed for the draft invoice
 data class InvoiceData(

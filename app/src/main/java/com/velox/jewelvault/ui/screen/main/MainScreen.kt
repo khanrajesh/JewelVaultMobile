@@ -146,11 +146,11 @@ fun MainScreen() {
 
     }
 
-    if (isLandscape()) {
+//    if (isLandscape()) {
         LandscapeDashboardScreen(inputIconStates, subNavController)
-    } else {
-        PortraitDashboardScreen(inputIconStates)
-    }
+//    } else {
+//        PortraitDashboardScreen(inputIconStates)
+//    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
