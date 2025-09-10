@@ -40,7 +40,6 @@ import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.ui.components.PaymentInfo
-import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -450,7 +449,7 @@ fun createDraftInvoiceData(
 }
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-fun generateDraftInvoicePdf(
+fun generateInvoicePdf(
     context: Context,
     data: InvoiceData,
     scale: Float = 2f,
@@ -1102,13 +1101,13 @@ fun generateDraftInvoicePdf(
     //--------------------------------------------------------- PDF DESIGN END ---------------------------------------------------------//
     pdfDocument.finishPage(page)
 
-    val fileName = "draft_invoice_${System.currentTimeMillis()}.pdf"
+    val fileName = "${data.customerInfo.name}_${data.customerInfo.mobileNo}_${System.currentTimeMillis()}.pdf"
     val contentValues = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, fileName)
         put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
         put(
             MediaStore.Downloads.RELATIVE_PATH,
-            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/DraftInvoice"
+            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Invoice"
         )
     }
 

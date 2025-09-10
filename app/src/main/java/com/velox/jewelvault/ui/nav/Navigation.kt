@@ -31,7 +31,6 @@ import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
 import com.velox.jewelvault.ui.screen.purchase.PurchaseScreen
 import com.velox.jewelvault.ui.screen.purchase.PurchaseViewModel
-import com.velox.jewelvault.ui.screen.folder.FolderScreen
 import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerScreen
 import com.velox.jewelvault.ui.screen.qr_bar_scanner.QrBarScannerViewModel
 import com.velox.jewelvault.ui.screen.sell_invoice.SellInvoiceScreen
@@ -200,9 +199,6 @@ fun SubAppNavigation(
                 AuditScreen(hiltViewModel<AuditViewModel>())
             }
             
-            composable(SubScreens.Folder.route) {
-                FolderScreen()
-            }
         }
     }
 }

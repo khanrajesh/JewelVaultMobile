@@ -3,7 +3,9 @@ package com.velox.jewelvault.utils
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
+import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
@@ -17,238 +19,283 @@ object FileManager {
     private const val JEWEL_VAULT_FOLDER = "JewelVault"
     
     /**
-     * Get all JewelVault files from MediaStore
+     * Get the JewelVault folder path in Downloads directory
      */
-    suspend fun getAllJewelVaultFiles(context: Context): Result<List<FileItem>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val files = mutableListOf<FileItem>()
+    fun getJewelVaultFolderPath(context: Context): File {
+        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), JEWEL_VAULT_FOLDER)
+    }
+    
+    /**
+     * Get list of folders in JewelVault directory
+     * This function scans both file system and MediaStore for JewelVault files
+     */
+    suspend fun getFoldersInJewelVault(context: Context): List<FileItem> = withContext(Dispatchers.IO) {
+        // Get folders from MediaStore (where most files are actually stored)
+        val mediaStoreFolders = getFoldersFromMediaStore(context)
+        
+        // Get folders from file system (fallback)
+        val fileSystemFolders = getFoldersFromFileSystem(context)
+        
+        // Combine and deduplicate folders
+        val allFolders = (mediaStoreFolders + fileSystemFolders)
+            .distinctBy { it.name }
+            .sortedBy { it.name }
+        
+        allFolders
+    }
+    
+    /**
+     * Get folders from MediaStore (where files are actually stored)
+     */
+    private suspend fun getFoldersFromMediaStore(context: Context): List<FileItem> = withContext(Dispatchers.IO) {
+        val folders = mutableSetOf<String>()
+        
+        try {
+            val projection = arrayOf(
+                MediaStore.Downloads.RELATIVE_PATH
+            )
+            
+            val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
+            val selectionArgs = arrayOf("%JewelVault%")
+            
+            val cursor: Cursor? = context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                null
+            )
+            
+            cursor?.use { c ->
+                val relativePathIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
                 
-                val projection = arrayOf(
-                    MediaStore.Downloads._ID,
-                    MediaStore.Downloads.DISPLAY_NAME,
-                    MediaStore.Downloads.SIZE,
-                    MediaStore.Downloads.DATE_MODIFIED,
-                    MediaStore.Downloads.MIME_TYPE,
-                    MediaStore.Downloads.RELATIVE_PATH
-                )
-                
-                // Try multiple search strategies
-                val searchStrategies = listOf(
-                    // Strategy 1: Look for JewelVault in path
-                    Pair("${MediaStore.Downloads.RELATIVE_PATH} LIKE ?", arrayOf("%$JEWEL_VAULT_FOLDER%")),
-                    // Strategy 2: Look for JewelVault in filename
-                    Pair("${MediaStore.Downloads.DISPLAY_NAME} LIKE ?", arrayOf("%jewelvault%")),
-                    // Strategy 3: Look for common JewelVault file patterns
-                    Pair("${MediaStore.Downloads.DISPLAY_NAME} LIKE ? OR ${MediaStore.Downloads.DISPLAY_NAME} LIKE ? OR ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?", 
-                         arrayOf("%invoice%", "%backup%", "%estimate%")),
-                    // Strategy 4: Look for PDF and Excel files that might be from JewelVault
-                    Pair("${MediaStore.Downloads.MIME_TYPE} IN (?, ?)", arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                )
-                
-                for ((selection, selectionArgs) in searchStrategies) {
-                    log("Trying search strategy: $selection")
-                    
-                    val cursor = context.contentResolver.query(
-                        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        projection,
-                        selection,
-                        selectionArgs,
-                        "${MediaStore.Downloads.DATE_MODIFIED} DESC"
-                    )
-                    
-                    cursor?.use { c ->
-                        val idColumn = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
-                        val nameColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
-                        val sizeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
-                        val dateColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DATE_MODIFIED)
-                        val mimeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
-                        val pathColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
-                        
-                        while (c.moveToNext()) {
-                            val id = c.getLong(idColumn)
-                            val name = c.getString(nameColumn)
-                            val size = c.getLong(sizeColumn)
-                            val dateModified = c.getLong(dateColumn) * 1000 // Convert to milliseconds
-                            val mimeType = c.getString(mimeColumn)
-                            val relativePath = c.getString(pathColumn)
-                            
-                            // Check if this file is actually from JewelVault
-                            val isJewelVaultFile = relativePath?.contains("JewelVault", ignoreCase = true) == true ||
-                                                  name.contains("jewelvault", ignoreCase = true) ||
-                                                  name.contains("invoice", ignoreCase = true) ||
-                                                  name.contains("backup", ignoreCase = true) ||
-                                                  name.contains("estimate", ignoreCase = true) ||
-                                                  name.contains("draft", ignoreCase = true)
-                            
-                            if (isJewelVaultFile) {
-                                val uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
-                                
-                                val fileItem = FileItem(
-                                    name = name,
-                                    path = relativePath ?: "",
-                                    size = size,
-                                    lastModified = dateModified,
-                                    isDirectory = false,
-                                    mimeType = mimeType,
-                                    uri = uri
-                                )
-                                
-                                // Avoid duplicates
-                                if (files.none { it.uri == fileItem.uri }) {
-                                    files.add(fileItem)
-                                    log("Added file: ${fileItem.name}, Path: ${fileItem.path}")
-                                }
-                            }
-                        }
+                while (c.moveToNext()) {
+                    val relativePath = c.getString(relativePathIndex)
+                    // Extract folder name from path like "Download/JewelVault/Invoice"
+                    val pathParts = relativePath.split("/")
+                    if (pathParts.size >= 3 && pathParts[1] == "JewelVault") {
+                        folders.add(pathParts[2]) // Get the folder name (Invoice, DraftInvoice, etc.)
                     }
                 }
-                
-                log("Total JewelVault files found: ${files.size}")
-                Result.success(files)
-                
-            } catch (e: Exception) {
-                log("Error loading JewelVault files: ${e.message}")
-                Result.failure(e)
             }
+        } catch (e: Exception) {
+            log("FileManager: Error reading from MediaStore: ${e.message}")
+        }
+        
+        // Convert folder names to FileItem objects
+        folders.map { folderName ->
+            FileItem(
+                name = folderName,
+                path = "MediaStore: $folderName", // Indicate this is from MediaStore
+                size = 0L, // We don't have folder size from MediaStore
+                lastModified = System.currentTimeMillis(),
+                isDirectory = true,
+                mimeType = null,
+                uri = null
+            )
         }
     }
     
     /**
-     * Search files by name
+     * Get folders from file system (fallback method)
      */
-    suspend fun searchFiles(context: Context, query: String): Result<List<FileItem>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val files = mutableListOf<FileItem>()
+    private suspend fun getFoldersFromFileSystem(context: Context): List<FileItem> = withContext(Dispatchers.IO) {
+        val jewelVaultFolder = getJewelVaultFolderPath(context)
+        
+        if (!jewelVaultFolder.exists()) {
+            return@withContext emptyList()
+        }
+        
+        jewelVaultFolder.listFiles()?.filter { it.isDirectory }?.map { folder ->
+            FileItem(
+                name = folder.name,
+                path = folder.absolutePath,
+                size = folder.length(),
+                lastModified = folder.lastModified(),
+                isDirectory = true,
+                mimeType = null,
+                uri = null
+            )
+        } ?: emptyList()
+    }
+    
+    /**
+     * Get list of files in a specific folder within JewelVault directory
+     * This function scans both MediaStore and file system for files
+     */
+    suspend fun getFilesInFolder(context: Context, folderName: String): List<FileItem> = withContext(Dispatchers.IO) {
+        // Get files from MediaStore (where most files are actually stored)
+        val mediaStoreFiles = getFilesFromMediaStore(context, folderName)
+        
+        // Get files from file system (fallback)
+        val fileSystemFiles = getFilesFromFileSystem(context, folderName)
+        
+        // Combine and deduplicate files
+        val allFiles = (mediaStoreFiles + fileSystemFiles)
+            .distinctBy { it.name }
+            .sortedBy { it.name }
+        
+        allFiles
+    }
+    
+    /**
+     * Get files from MediaStore for a specific folder
+     */
+    private suspend fun getFilesFromMediaStore(context: Context, folderName: String): List<FileItem> = withContext(Dispatchers.IO) {
+        val files = mutableListOf<FileItem>()
+        
+        try {
+            val projection = arrayOf(
+                MediaStore.Downloads._ID,
+                MediaStore.Downloads.DISPLAY_NAME,
+                MediaStore.Downloads.SIZE,
+                MediaStore.Downloads.DATE_MODIFIED,
+                MediaStore.Downloads.MIME_TYPE,
+                MediaStore.Downloads.RELATIVE_PATH
+            )
+            
+            val selection = "${MediaStore.Downloads.RELATIVE_PATH} = ?"
+            val selectionArgs = arrayOf("${Environment.DIRECTORY_DOWNLOADS}/JewelVault/$folderName")
+            
+            val cursor: Cursor? = context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                "${MediaStore.Downloads.DATE_MODIFIED} DESC"
+            )
+            
+            cursor?.use { c ->
+                val idIndex = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                val nameIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+                val sizeIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
+                val dateIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.DATE_MODIFIED)
+                val mimeTypeIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
+                val pathIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
                 
-                val projection = arrayOf(
-                    MediaStore.Downloads._ID,
-                    MediaStore.Downloads.DISPLAY_NAME,
-                    MediaStore.Downloads.SIZE,
-                    MediaStore.Downloads.DATE_MODIFIED,
-                    MediaStore.Downloads.MIME_TYPE,
-                    MediaStore.Downloads.RELATIVE_PATH
-                )
-                
-                val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ? AND ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?"
-                val selectionArgs = arrayOf("%$JEWEL_VAULT_FOLDER%", "%$query%")
-                
-                val cursor = context.contentResolver.query(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    selectionArgs,
-                    "${MediaStore.Downloads.DATE_MODIFIED} DESC"
-                )
-                
-                cursor?.use { c ->
-                    val idColumn = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
-                    val nameColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
-                    val sizeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
-                    val dateColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DATE_MODIFIED)
-                    val mimeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
-                    val pathColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idIndex)
+                    val name = c.getString(nameIndex)
+                    val size = c.getLong(sizeIndex)
+                    val dateModified = c.getLong(dateIndex) * 1000 // Convert to milliseconds
+                    val mimeType = c.getString(mimeTypeIndex)
+                    val relativePath = c.getString(pathIndex)
                     
-                    while (c.moveToNext()) {
-                        val id = c.getLong(idColumn)
-                        val name = c.getString(nameColumn)
-                        val size = c.getLong(sizeColumn)
-                        val dateModified = c.getLong(dateColumn) * 1000
-                        val mimeType = c.getString(mimeColumn)
-                        val relativePath = c.getString(pathColumn)
-                        
-                        val uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
-                        
-                        files.add(
-                            FileItem(
-                                name = name,
-                                path = relativePath ?: "",
-                                size = size,
-                                lastModified = dateModified,
-                                isDirectory = false,
-                                mimeType = mimeType,
-                                uri = uri
-                            )
+                    val uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
+                    
+                    files.add(
+                        FileItem(
+                            name = name,
+                            path = relativePath ?: "MediaStore: $name",
+                            size = size,
+                            lastModified = dateModified,
+                            isDirectory = false,
+                            mimeType = mimeType,
+                            uri = uri
                         )
-                    }
+                    )
                 }
-                
-                Result.success(files)
-                
-            } catch (e: Exception) {
-                log("Error searching files: ${e.message}")
-                Result.failure(e)
             }
+        } catch (e: Exception) {
+            log("FileManager: Error reading files from MediaStore for folder $folderName: ${e.message}")
+        }
+        
+        files
+    }
+    
+    /**
+     * Get files from file system for a specific folder (fallback method)
+     */
+    private suspend fun getFilesFromFileSystem(context: Context, folderName: String): List<FileItem> = withContext(Dispatchers.IO) {
+        val jewelVaultFolder = getJewelVaultFolderPath(context)
+        val targetFolder = File(jewelVaultFolder, folderName)
+        
+        if (!targetFolder.exists() || !targetFolder.isDirectory) {
+            return@withContext emptyList()
+        }
+        
+        targetFolder.listFiles()?.map { file ->
+            FileItem(
+                name = file.name,
+                path = file.absolutePath,
+                size = file.length(),
+                lastModified = file.lastModified(),
+                isDirectory = file.isDirectory,
+                mimeType = getMimeType(file.name),
+                uri = null
+            )
+        } ?: emptyList()
+    }
+    
+    /**
+     * Get MIME type based on file extension
+     */
+    private fun getMimeType(fileName: String): String? {
+        return when {
+            fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            fileName.endsWith(".xlsx", ignoreCase = true) -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            fileName.endsWith(".xls", ignoreCase = true) -> "application/vnd.ms-excel"
+            fileName.endsWith(".csv", ignoreCase = true) -> "text/csv"
+            fileName.endsWith(".txt", ignoreCase = true) -> "text/plain"
+            fileName.endsWith(".jpg", ignoreCase = true) || fileName.endsWith(".jpeg", ignoreCase = true) -> "image/jpeg"
+            fileName.endsWith(".png", ignoreCase = true) -> "image/png"
+            else -> null
         }
     }
     
     /**
-     * Delete a file
+     * Debug function to log all JewelVault files from MediaStore
      */
-    suspend fun deleteFile(context: Context, file: FileItem): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                file.uri?.let { uri ->
-                    val deleted = context.contentResolver.delete(uri, null, null)
-                    Result.success(deleted > 0)
-                } ?: Result.success(false)
-            } catch (e: Exception) {
-                log("Error deleting file: ${e.message}")
-                Result.failure(e)
+    suspend fun debugMediaStoreFiles(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            val projection = arrayOf(
+                MediaStore.Downloads._ID,
+                MediaStore.Downloads.DISPLAY_NAME,
+                MediaStore.Downloads.SIZE,
+                MediaStore.Downloads.DATE_MODIFIED,
+                MediaStore.Downloads.MIME_TYPE,
+                MediaStore.Downloads.RELATIVE_PATH
+            )
+            
+            val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
+            val selectionArgs = arrayOf("%JewelVault%")
+            
+            val cursor: Cursor? = context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                "${MediaStore.Downloads.DATE_MODIFIED} DESC"
+            )
+            
+            log("FileManager: DEBUG - Scanning MediaStore for JewelVault files...")
+            var fileCount = 0
+            
+            cursor?.use { c ->
+                val idIndex = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                val nameIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+                val sizeIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
+                val dateIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.DATE_MODIFIED)
+                val mimeTypeIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
+                val pathIndex = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
+                
+                while (c.moveToNext()) {
+                    val id = c.getLong(idIndex)
+                    val name = c.getString(nameIndex)
+                    val size = c.getLong(sizeIndex)
+                    val dateModified = c.getLong(dateIndex)
+                    val mimeType = c.getString(mimeTypeIndex)
+                    val relativePath = c.getString(pathIndex)
+                    
+                    log("FileManager: DEBUG - Found file: $name, Path: $relativePath, Size: $size, MimeType: $mimeType")
+                    fileCount++
+                }
             }
-        }
-    }
-    
-    /**
-     * Open file with external app
-     */
-    fun openFile(context: Context, file: FileItem): Result<Boolean> {
-        return try {
-            file.uri?.let { uri ->
-                val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, file.mimeType ?: "*/*")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                
-                if (intent.resolveActivity(context.packageManager) != null) {
-                    context.startActivity(intent)
-                    Result.success(true)
-                } else {
-                    // Fallback: try to open with any app
-                    val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
-                        setData(uri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(fallbackIntent)
-                    Result.success(true)
-                }
-            } ?: Result.success(false)
+            
+            log("FileManager: DEBUG - Total files found in MediaStore: $fileCount")
+            
         } catch (e: Exception) {
-            log("Error opening file: ${e.message}")
-            Result.failure(e)
-        }
-    }
-    
-    /**
-     * Share file with other apps
-     */
-    fun shareFile(context: Context, file: FileItem): Result<Boolean> {
-        return try {
-            file.uri?.let { uri ->
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = file.mimeType ?: "*/*"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                
-                val chooser = Intent.createChooser(intent, "Share ${file.name}")
-                context.startActivity(chooser)
-                Result.success(true)
-            } ?: Result.success(false)
-        } catch (e: Exception) {
-            log("Error sharing file: ${e.message}")
-            Result.failure(e)
+            log("FileManager: DEBUG - Error scanning MediaStore: ${e.message}")
         }
     }
     
@@ -282,188 +329,6 @@ object FileManager {
         }
     }
     
-    /**
-     * Check if file management permissions are granted
-     */
-    fun hasFileManagementPermission(context: Context): Boolean {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            android.os.Environment.isExternalStorageManager()
-        } else {
-            true // For older versions, assume permission is granted
-        }
-    }
-    
-    /**
-     * Request file management permission
-     */
-    fun requestFileManagementPermission(context: Context) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                data = Uri.parse("package:${context.packageName}")
-            }
-            context.startActivity(intent)
-        }
-    }
-    
-    /**
-     * Get folder structure for JewelVault files
-     */
-    suspend fun getFolderStructure(context: Context): Result<Map<String, List<FileItem>>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val allFilesResult = getAllJewelVaultFiles(context)
-                if (allFilesResult.isFailure) {
-                    return@withContext Result.failure(allFilesResult.exceptionOrNull() ?: Exception("Failed to load files"))
-                }
-                
-                val allFiles = allFilesResult.getOrNull() ?: emptyList()
-                val folderMap = mutableMapOf<String, MutableList<FileItem>>()
-                
-                log("Total files found: ${allFiles.size}")
-                
-                allFiles.forEach { file ->
-                    log("File: ${file.name}, Path: ${file.path}")
-                    
-                    val folderPath = if (file.path.contains("/")) {
-                        val pathParts = file.path.split("/")
-                        log("Path parts: $pathParts")
-                        
-                        // Find the JewelVault part and get the subfolder
-                        val jewelVaultIndex = pathParts.indexOfFirst { it.contains("JewelVault", ignoreCase = true) }
-                        log("JewelVault index: $jewelVaultIndex")
-                        
-                        if (jewelVaultIndex >= 0 && jewelVaultIndex < pathParts.size - 1) {
-                            // Get the subfolder after JewelVault
-                            val subPath = pathParts.subList(jewelVaultIndex + 1, pathParts.size - 1)
-                            log("Sub path: $subPath")
-                            
-                            if (subPath.isNotEmpty()) {
-                                val folderName = subPath.joinToString("/")
-                                log("Final folder name: $folderName")
-                                folderName
-                            } else {
-                                "Root"
-                            }
-                        } else {
-                            "Root"
-                        }
-                    } else {
-                        "Root"
-                    }
-                    
-                    log("Assigned to folder: $folderPath")
-                    folderMap.getOrPut(folderPath) { mutableListOf() }.add(file)
-                }
-                
-                log("All folders found: ${folderMap.keys}")
-                log("Folder structure: ${folderMap.mapValues { it.value.size }}")
-                
-                // If we found very few folders, try alternative approach
-                if (folderMap.size <= 1) {
-                    log("Few folders found, trying alternative approach...")
-                    return@withContext getFolderStructureAlternative(context)
-                }
-                
-                Result.success(folderMap)
-                
-            } catch (e: Exception) {
-                log("Error getting folder structure: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
-    
-    /**
-     * Alternative method to get folder structure by scanning file system
-     */
-    private suspend fun getFolderStructureAlternative(context: Context): Result<Map<String, List<FileItem>>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val folderMap = mutableMapOf<String, MutableList<FileItem>>()
-                
-                // Try to get all files with broader search
-                val projection = arrayOf(
-                    MediaStore.Downloads._ID,
-                    MediaStore.Downloads.DISPLAY_NAME,
-                    MediaStore.Downloads.SIZE,
-                    MediaStore.Downloads.DATE_MODIFIED,
-                    MediaStore.Downloads.MIME_TYPE,
-                    MediaStore.Downloads.RELATIVE_PATH
-                )
-                
-                // Search for any file that might be related to JewelVault
-                val selection = "${MediaStore.Downloads.DISPLAY_NAME} LIKE ? OR ${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
-                val selectionArgs = arrayOf("%jewelvault%", "%JewelVault%")
-                
-                val cursor = context.contentResolver.query(
-                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                    projection,
-                    selection,
-                    selectionArgs,
-                    "${MediaStore.Downloads.DATE_MODIFIED} DESC"
-                )
-                
-                cursor?.use { c ->
-                    val idColumn = c.getColumnIndexOrThrow(MediaStore.Downloads._ID)
-                    val nameColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
-                    val sizeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.SIZE)
-                    val dateColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.DATE_MODIFIED)
-                    val mimeColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.MIME_TYPE)
-                    val pathColumn = c.getColumnIndexOrThrow(MediaStore.Downloads.RELATIVE_PATH)
-                    
-                    while (c.moveToNext()) {
-                        val id = c.getLong(idColumn)
-                        val name = c.getString(nameColumn)
-                        val size = c.getLong(sizeColumn)
-                        val dateModified = c.getLong(dateColumn) * 1000
-                        val mimeType = c.getString(mimeColumn)
-                        val relativePath = c.getString(pathColumn)
-                        
-                        val uri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
-                        
-                        val file = FileItem(
-                            name = name,
-                            path = relativePath ?: "",
-                            size = size,
-                            lastModified = dateModified,
-                            isDirectory = false,
-                            mimeType = mimeType,
-                            uri = uri
-                        )
-                        
-                        log("Alternative file: ${file.name}, Path: ${file.path}")
-                        
-                        val folderPath = if (file.path.contains("/")) {
-                            val pathParts = file.path.split("/")
-                            val jewelVaultIndex = pathParts.indexOfFirst { it.contains("JewelVault", ignoreCase = true) }
-                            if (jewelVaultIndex >= 0 && jewelVaultIndex < pathParts.size - 1) {
-                                val subPath = pathParts.subList(jewelVaultIndex + 1, pathParts.size - 1)
-                                if (subPath.isNotEmpty()) {
-                                    subPath.joinToString("/")
-                                } else {
-                                    "Root"
-                                }
-                            } else {
-                                "Root"
-                            }
-                        } else {
-                            "Root"
-                        }
-                        
-                        folderMap.getOrPut(folderPath) { mutableListOf() }.add(file)
-                    }
-                }
-                
-                log("Alternative approach - All folders found: ${folderMap.keys}")
-                log("Alternative approach - Folder structure: ${folderMap.mapValues { it.value.size }}")
-                Result.success(folderMap)
-                
-            } catch (e: Exception) {
-                log("Error in alternative folder structure: ${e.message}")
-                Result.failure(e)
-            }
-        }
-    }
 }
 
 data class FileItem(

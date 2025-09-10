@@ -24,7 +24,7 @@ import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.generateDraftInvoicePdf
+import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -562,7 +562,7 @@ class InvoiceViewModel @Inject constructor(
                     )
 
 
-                    generateDraftInvoicePdf(
+                    generateInvoicePdf(
                         context = context,
                         data = invoiceData,
                         scale = 2f
@@ -977,7 +977,7 @@ class InvoiceViewModel @Inject constructor(
                         dataStoreManager = _dataStoreManager
                     )
 
-                    generateDraftInvoicePdf(
+                    generateInvoicePdf(
                         context = context,
                         data = invoiceData,
                         scale = 2f

@@ -23,10 +23,10 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -55,6 +55,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import java.io.File
 import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
@@ -75,6 +79,189 @@ fun MainScreenPreview() {
     MainScreen()
 }
 
+// Function to show file manager dialog with options
+fun showFileManagerDialog(context: android.content.Context, navController: androidx.navigation.NavHostController, inputIconStates: List<com.velox.jewelvault.ui.components.InputIconState>) {
+    try {
+        val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
+        
+        // Create the folder if it doesn't exist
+        if (!jewelVaultFolder.exists()) {
+            jewelVaultFolder.mkdirs()
+        }
+        
+        val folderPath = jewelVaultFolder.absolutePath
+        android.util.Log.d("FileManager", "JewelVault folder path: $folderPath")
+        
+        // Show a simple dialog with the path and options
+        val alertDialog = android.app.AlertDialog.Builder(context)
+        alertDialog.setTitle("JewelVault Files")
+        alertDialog.setMessage("JewelVault folder location:\n$folderPath\n\nChoose an option:")
+        
+        alertDialog.setPositiveButton("Open File Manager") { _, _ ->
+            openFileManager(context, navController, inputIconStates)
+        }
+        
+        alertDialog.setNeutralButton("Copy Path") { _, _ ->
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("JewelVault Path", folderPath)
+            clipboard.setPrimaryClip(clip)
+            android.widget.Toast.makeText(context, "Path copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        
+        alertDialog.setNegativeButton("Cancel") { dialog, _ ->
+            dialog.dismiss()
+        }
+        
+        alertDialog.show()
+        
+    } catch (e: Exception) {
+        android.util.Log.e("FileManager", "Error showing file manager dialog: ${e.message}")
+    }
+}
+
+// Function to open file manager and navigate to JewelVault folder
+fun openFileManager(context: android.content.Context, navController: androidx.navigation.NavHostController, inputIconStates: List<com.velox.jewelvault.ui.components.InputIconState>) {
+    try {
+        val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
+        
+        // Create the folder if it doesn't exist
+        if (!jewelVaultFolder.exists()) {
+            jewelVaultFolder.mkdirs()
+        }
+        
+        android.util.Log.d("FileManager", "JewelVault folder path: ${jewelVaultFolder.absolutePath}")
+        android.util.Log.d("FileManager", "JewelVault folder exists: ${jewelVaultFolder.exists()}")
+        
+        // Method 1: Try to open specific folder with file:// URI
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            val uri = Uri.fromFile(jewelVaultFolder)
+            intent.setDataAndType(uri, "resource/folder")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            android.util.Log.d("FileManager", "Trying file URI: $uri")
+            context.startActivity(intent)
+            
+            // Update selection state to dashboard
+            inputIconStates.forEach { it.selected = false }
+            inputIconStates.find { it.text == "Dashboard" }?.selected = true
+            
+            // Ensure user returns to dashboard when they come back
+            navController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("FileManager", "File URI method failed: ${e.message}")
+        }
+        
+        // Method 2: Try with content:// URI for DocumentsUI
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            // Try different URI formats
+            val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload%2FJewelVault")
+            intent.setData(uri)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            android.util.Log.d("FileManager", "Trying content URI: $uri")
+            context.startActivity(intent)
+            
+            // Update selection state to dashboard
+            inputIconStates.forEach { it.selected = false }
+            inputIconStates.find { it.text == "Dashboard" }?.selected = true
+            
+            // Ensure user returns to dashboard when they come back
+            navController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("FileManager", "Content URI method failed: ${e.message}")
+        }
+        
+        // Method 3: Try with different content URI format
+        try {
+            val intent = Intent(Intent.ACTION_VIEW)
+            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADownload%2FJewelVault")
+            intent.setData(uri)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            android.util.Log.d("FileManager", "Trying tree URI: $uri")
+            context.startActivity(intent)
+            
+            // Update selection state to dashboard
+            inputIconStates.forEach { it.selected = false }
+            inputIconStates.find { it.text == "Dashboard" }?.selected = true
+            
+            // Ensure user returns to dashboard when they come back
+            navController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("FileManager", "Tree URI method failed: ${e.message}")
+        }
+        
+        // Method 4: Try to open Downloads folder as fallback
+        try {
+            val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val intent = Intent(Intent.ACTION_VIEW)
+            val uri = Uri.fromFile(downloadsFolder)
+            intent.setDataAndType(uri, "resource/folder")
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            android.util.Log.d("FileManager", "Trying Downloads folder: $uri")
+            context.startActivity(intent)
+            
+            // Update selection state to dashboard
+            inputIconStates.forEach { it.selected = false }
+            inputIconStates.find { it.text == "Dashboard" }?.selected = true
+            
+            // Ensure user returns to dashboard when they come back
+            navController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("FileManager", "Downloads folder method failed: ${e.message}")
+        }
+        
+        // Method 5: Try with generic file manager
+        try {
+            val intent = Intent(Intent.ACTION_GET_CONTENT)
+            intent.type = "*/*"
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            android.util.Log.d("FileManager", "Trying generic file manager")
+            context.startActivity(Intent.createChooser(intent, "Open File Manager"))
+            
+            // Update selection state to dashboard
+            inputIconStates.forEach { it.selected = false }
+            inputIconStates.find { it.text == "Dashboard" }?.selected = true
+            
+            // Ensure user returns to dashboard when they come back
+            navController.navigate(SubScreens.Dashboard.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+            return
+        } catch (e: Exception) {
+            android.util.Log.d("FileManager", "Generic file manager method failed: ${e.message}")
+        }
+        
+        // If all methods fail, show error
+        android.util.Log.e("FileManager", "All file manager methods failed")
+        
+    } catch (e: Exception) {
+        android.util.Log.e("FileManager", "Error opening file manager: ${e.message}")
+    }
+}
+
 @Composable
 fun MainScreen() {
     val baseViewModel = LocalBaseViewModel.current
@@ -82,7 +269,7 @@ fun MainScreen() {
     val subNavController = rememberNavController()
 
 
-    val inputIconStates = listOf(
+    val inputIconStates = mutableListOf(
         InputIconState(
             "Dashboard", Icons.Default.Dashboard,
             selected = true
@@ -130,13 +317,9 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Files", Icons.Default.Folder
+            "File Manager", Icons.Default.Folder
         ) {
-            subNavController.navigate(SubScreens.Folder.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
+            // This will be handled after inputIconStates is created
         },
         InputIconState(
             "Setting", Icons.Default.Settings
@@ -148,6 +331,14 @@ fun MainScreen() {
             }
         },
     )
+
+    // Update the File Manager click handler after inputIconStates is created
+    val fileManagerIndex = inputIconStates.indexOfFirst { it.text == "File Manager" }
+    if (fileManagerIndex != -1) {
+        inputIconStates[fileManagerIndex].onClick = {
+            showFileManagerDialog(context, subNavController, inputIconStates)
+        }
+    }
 
     LaunchedEffect(true) {
         if (baseViewModel.metalRates.isNotEmpty()) {
