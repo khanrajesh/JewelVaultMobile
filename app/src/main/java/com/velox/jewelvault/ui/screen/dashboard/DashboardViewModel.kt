@@ -161,8 +161,13 @@ class DashboardViewModel @Inject constructor(
 
     fun getSubCategoryCount(onComplete: (Int) -> Unit) {
         ioLaunch {
-            val count = appDatabase.subCategoryDao().getSubCategoryCount()
-            onComplete(count)
+            try {
+                val count = appDatabase.subCategoryDao().getSubCategoryCount()
+                onComplete(count)
+            } catch (e: Exception) {
+                log("Failed to get subcategory count: ${e.message}")
+                onComplete(0) // Return 0 on error to prevent UI hanging
+            }
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CatSubCatDto
@@ -18,7 +19,6 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.getCurrentDate
 import com.velox.jewelvault.utils.getCurrentTimestamp
@@ -28,9 +28,11 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
 import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.withMain
-import com.velox.jewelvault.utils.CalculationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -288,21 +290,20 @@ class PurchaseViewModel @Inject constructor(
 
             savePurchaseOrderAndDetails(sellerId) {
 
-                val mergeList = purchaseItemList
-                    .filter { it.subCatName.equals("Fine", ignoreCase = true) }
-                    .groupBy { it.catId to it.catName }
-                    .map { (catPair, items) ->
-                        val totalFnWt = items.sumOf { it.fnWt }
-                        val firstItem = items.firstOrNull()
-                        PurchaseItemInputDto(
-                            catId = catPair.first,
-                            catName = catPair.second,
-                            subCatId = firstItem?.subCatId ?: "",
-                            subCatName = firstItem?.subCatName ?: "Fine",
-                            fnWt = totalFnWt,
-                            toAdd = true
-                        )
-                    }
+                val mergeList =
+                    purchaseItemList.filter { it.subCatName.equals("Fine", ignoreCase = true) }
+                        .groupBy { it.catId to it.catName }.map { (catPair, items) ->
+                            val totalFnWt = items.sumOf { it.fnWt }
+                            val firstItem = items.firstOrNull()
+                            PurchaseItemInputDto(
+                                catId = catPair.first,
+                                catName = catPair.second,
+                                subCatId = firstItem?.subCatId ?: "",
+                                subCatName = firstItem?.subCatName ?: "Fine",
+                                fnWt = totalFnWt,
+                                toAdd = true
+                            )
+                        }
 
                 val exchangeList = exchangeMetalRateDto.map {
                     PurchaseItemInputDto(
@@ -325,30 +326,40 @@ class PurchaseViewModel @Inject constructor(
 
                 ioLaunch {
                     try {
-                        allUpdates.forEach { item ->
-                            suspendCancellableCoroutine { continuation ->
-                                safeUpdateFineItem(
-                                    catId = item.catId,
-                                    catName = item.catName,
-                                    subCatId = item.subCatId,
-                                    subCatName = item.subCatName,
-                                    fnWt = item.fnWt,
-                                    add = item.toAdd,
-                                    onSuccess = { updatedItem ->
-                                        if (updatedItem != null)
-                                            updateCatAndSubCat(
-                                                item.subCatId,
-                                                updatedItem,
-                                                item.toAdd
-                                            ) {
+                        // Process all items in parallel using async within coroutineScope
+                        coroutineScope {
+                            val deferredResults = allUpdates.map { item ->
+                                async {
+                                    suspendCancellableCoroutine { continuation ->
+                                        safeUpdateFineItem(
+                                            catId = item.catId,
+                                            catName = item.catName,
+                                            subCatId = item.subCatId,
+                                            subCatName = item.subCatName,
+                                            fnWt = item.fnWt,
+                                            add = item.toAdd,
+                                            onSuccess = { updatedItem ->
+                                                if (updatedItem != null) {
+                                                    updateCatAndSubCat(
+                                                        item.subCatId, updatedItem, item.toAdd
+                                                    ) {
+                                                        continuation.resume(Unit) { cause, _, _ -> }
+                                                    }
+                                                } else {
+                                                    // Resume even when no item was updated
+                                                    continuation.resume(Unit) { cause, _, _ -> }
+                                                }
+                                            },
+                                            onFailure = {
+                                                // Resume on failure as well
                                                 continuation.resume(Unit) { cause, _, _ -> }
-                                            }
-                                    },
-                                    onFailure = {
-                                        continuation.resume(Unit) { cause, _, _ -> }
+                                            })
                                     }
-                                )
+                                }
                             }
+                            
+                            // Wait for all operations to complete
+                            deferredResults.awaitAll()
                         }
 
                         _loadingState.value = false
@@ -357,6 +368,7 @@ class PurchaseViewModel @Inject constructor(
                     } catch (e: Exception) {
                         _loadingState.value = false
                         _snackBarState.value = "Error finalizing registration: ${e.message}"
+                        onComplete() // Call onComplete even on error to prevent UI hanging
                     }
 
                 }
@@ -395,8 +407,8 @@ class PurchaseViewModel @Inject constructor(
 
                     if (upSub != -1) {
                         this@PurchaseViewModel.log("Sub Cat id: ${insertedItem.subCatId} update with weight")
-                        val cat = appDatabase.categoryDao()
-                            .getCategoryById(catId = insertedItem.catId)
+                        val cat =
+                            appDatabase.categoryDao().getCategoryById(catId = insertedItem.catId)
                         cat?.let { catEntity ->
 
                             val subCatItem = appDatabase.subCategoryDao()
@@ -415,13 +427,21 @@ class PurchaseViewModel @Inject constructor(
                                 _snackBarState.value = "Item Added and categories updated."
                                 _loadingState.value = false
                                 onSuccess(insertedItem)
+                            } else {
+                                _snackBarState.value = "Failed to update Category Weight"
+                                _loadingState.value = false
+                                onSuccess(insertedItem) // Still call onSuccess to resume continuation
                             }
                         }
                     } else {
-
                         _snackBarState.value = "Failed to update Sub Category Weight"
                         _loadingState.value = false
+                        onSuccess(insertedItem) // Still call onSuccess to resume continuation
                     }
+                } ?: run {
+                    _snackBarState.value = "Sub Category not found"
+                    _loadingState.value = false
+                    onSuccess(insertedItem) // Still call onSuccess to resume continuation
                 }
             }
 
@@ -445,7 +465,8 @@ class PurchaseViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                withIo {
+                // Do all database work on IO dispatcher
+                val finalItem = withIo {
                     val userId = admin.first.first()
                     val storeId = store.first.first()
 
@@ -457,7 +478,7 @@ class PurchaseViewModel @Inject constructor(
                         (existingItem?.fnWt ?: 0.0) - fnWt
                     }
 
-                    val finalItem = if (existingItem != null) {
+                    if (existingItem != null) {
                         val updated = existingItem.copy(
                             quantity = 1,
                             gsWt = modifiedFnWt,
@@ -466,11 +487,9 @@ class PurchaseViewModel @Inject constructor(
                         )
                         val rowsUpdated = appDatabase.itemDao().updateItem(updated)
                         if (rowsUpdated > 0) {
-                            _snackBarState.value = "Fine item updated successfully"
                             updated
                         } else {
-                            _loadingState.value = false
-                            throw Exception("Failed to update Fine item")
+                            null
                         }
                     } else {
                         if (modifiedFnWt > 0) {
@@ -508,20 +527,33 @@ class PurchaseViewModel @Inject constructor(
                             )
                             val insertId = appDatabase.itemDao().insert(newItem)
                             if (insertId != -1L) {
-                                _snackBarState.value = "Fine item added successfully"
                                 newItem
                             } else {
-                                throw Exception("Failed to insert Fine item")
+                                null
                             }
                         } else {
                             null
                         }
                     }
+                }
 
+                // Update UI state and call onSuccess on Main dispatcher
+                withMain {
+                    if (finalItem != null) {
+                        _snackBarState.value = "Fine item updated successfully"
+                    } else {
+                        _loadingState.value = false
+                        _snackBarState.value = "No fine item change"
+                    }
+                    
+                    log("final Item: ${finalItem?.itemAddName}")
+                    // Always call onSuccess (even if finalItem == null)
                     onSuccess(finalItem)
                 }
             } catch (e: Exception) {
-                _snackBarState.value = "Error: ${e.message}"
+                withMain {
+                    _snackBarState.value = "Error: ${e.message}"
+                }
                 onFailure(e)
             }
         }
@@ -529,8 +561,7 @@ class PurchaseViewModel @Inject constructor(
 
 
     private fun verifyAddFirmAndSeller(
-        onSuccess: (sellerId: String) -> Unit,
-        onFailure: () -> Unit
+        onSuccess: (sellerId: String) -> Unit, onFailure: () -> Unit
     ) {
         if (firmName.text.isNotBlank() && firmMobile.text.isNotBlank() && firmAddress.text.isNotBlank() && firmGstin.text.isNotBlank() && sellerName.text.isNotBlank() && sellerMobile.text.isNotBlank() && addBillNo.text.isNotBlank() && addBillDate.text.isNotBlank()) {
             ioLaunch {

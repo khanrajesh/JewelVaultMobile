@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -28,9 +30,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -56,6 +61,7 @@ import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.sql.Timestamp
 
 // Helper function to convert ItemEntity to List<String>
@@ -275,6 +281,9 @@ private fun AddItemSection(
                     Button(
                         onClick = {
                             viewModel.isSelf.value = !viewModel.isSelf.value
+                            // Clear validation errors when switching modes
+                            viewModel.purity.error = ""
+                            viewModel.fnWt.error = ""
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (viewModel.isSelf.value) LightGreen else LightRed
@@ -312,11 +321,108 @@ private fun AddItemSection(
 
                         if (viewModel.billItemDetails.value.isNotBlank()) {
                             Spacer(Modifier.width(5.dp))
+                            var showDetailsDialog by remember { mutableStateOf(false) }
+                            
                             Text(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { showDetailsDialog = true },
                                 text = "${viewModel.billItemDetails.value} ",
-                                fontSize = 10.sp
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                lineHeight = 12.sp
                             )
+                            
+                            // Detailed Purchase Order Dialog
+                            if (showDetailsDialog) {
+                                val selectedPurchase = viewModel.purchaseOrdersByDate.find { 
+                                    viewModel.billItemDetails.value.contains(it.billNo) 
+                                }
+                                
+                                if (selectedPurchase != null) {
+                                    var detailedReport by remember { mutableStateOf("Loading...") }
+                                    
+                                    LaunchedEffect(selectedPurchase, subCatName) {
+                                        detailedReport = viewModel.getDetailedPurchaseOrderReport(
+                                            selectedPurchase, 
+                                            subCatName
+                                        )
+                                    }
+                                    
+                                    AlertDialog(
+                                        onDismissRequest = { showDetailsDialog = false },
+                                        title = {
+                                            Text(
+                                                text = "Purchase Order Details",
+                                                style = MaterialTheme.typography.headlineSmall
+                                            )
+                                        },
+                                        text = {
+                                            LazyColumn(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .heightIn(max = 400.dp)
+                                            ) {
+                                                item {
+                                                    Text(
+                                                        text = detailedReport,
+                                                        fontSize = 12.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        lineHeight = 16.sp
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        confirmButton = {
+                                            TextButton(
+                                                onClick = { showDetailsDialog = false }
+                                            ) {
+                                                Text("Close")
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Show remaining weight guidance for fine weight input
+                        if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.purity.text.isNotBlank()) {
+                            Spacer(Modifier.width(5.dp))
+                            
+                            var remainingWeight by remember { mutableStateOf(0.0) }
+                            
+                            LaunchedEffect(viewModel.purity.text, viewModel.purchaseItems.size) {
+                                remainingWeight = viewModel.getRemainingFineWeightForPurity(viewModel.purity.text, subCatName)
+                            }
+                            
+                            if (remainingWeight > 0) {
+                                val inputWeight = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0
+                                val difference = remainingWeight - inputWeight
+                                
+                                val guidanceText = if (viewModel.fnWt.text.isBlank()) {
+                                    "Remaining: ${String.format("%.2f", remainingWeight)}g"
+                                } else if (difference > 0) {
+                                    "Still need: ${String.format("%.2f", difference)}g (Remaining: ${String.format("%.2f", remainingWeight)}g)"
+                                } else if (difference < -0.01) {
+                                    "Exceeds by: ${String.format("%.2f", -difference)}g (Remaining: ${String.format("%.2f", remainingWeight)}g)"
+                                } else {
+                                    "✅ Complete (${String.format("%.2f", remainingWeight)}g)"
+                                }
+                                
+                                val guidanceColor = when {
+                                    difference > 0 -> MaterialTheme.colorScheme.primary
+                                    difference < -0.01 -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
+                                
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    text = guidanceText,
+                                    fontSize = 11.sp,
+                                    color = guidanceColor,
+                                    lineHeight = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -375,8 +481,26 @@ private fun AddItemSection(
                             state = viewModel.grWt,
                             placeholderText = "Gs.Wt/gm",
                             keyboardType = KeyboardType.Number,
-                            onTextChange = {
-                                viewModel.ntWt.text = it
+                            validation = { text ->
+                                if (text.isNotBlank()) {
+                                    val grWtValue = text.toDoubleOrNull() ?: 0.0
+                                    val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+                                    
+                                    if (ntWtValue > 0 && grWtValue < ntWtValue) {
+                                        "Gross weight cannot be less than net weight"
+                                    } else null
+                                } else null
+                            },
+                            onTextChange = { text ->
+                                viewModel.grWt.text = text
+                                viewModel.ntWt.text = text
+                                
+                                // Recalculate fine weight if purity is already selected
+                                if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                                    val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                    val multiplier = Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                }
                             })
                         Spacer(Modifier.width(5.dp))
 
@@ -385,6 +509,26 @@ private fun AddItemSection(
                             state = viewModel.ntWt,
                             placeholderText = "Nt.Wt/gm",
                             keyboardType = KeyboardType.Number,
+                            validation = { text ->
+                                if (text.isNotBlank()) {
+                                    val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                    val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
+                                    
+                                    if (grWtValue > 0 && ntWtValue > grWtValue) {
+                                        "Net weight cannot be greater than gross weight"
+                                    } else null
+                                } else null
+                            },
+                            onTextChange = { text ->
+                                viewModel.ntWt.text = text
+                                
+                                // Recalculate fine weight if purity is already selected
+                                if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                                    val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                    val multiplier = Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                }
+                            }
                         )
 
                         Spacer(Modifier.width(5.dp))
@@ -401,6 +545,16 @@ private fun AddItemSection(
                                         String.format("%.2f", ntWtValue * multiplier)
                                 }
                                 viewModel.purity.text = selected
+                                
+                                // Validate fine weight when purity changes
+                                if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                        val error = viewModel.validateFineWeightInput(viewModel.fnWt.text, selected, subCatName)
+                                        viewModel.fnWt.error = error ?: ""
+                                    }
+                                } else {
+                                    viewModel.fnWt.error = ""
+                                }
                             })
 
                         Spacer(Modifier.width(5.dp))
@@ -409,9 +563,20 @@ private fun AddItemSection(
                             modifier = Modifier.weight(1f),
                             state = viewModel.fnWt,
                             placeholderText = "Fn.Wt/gm",
-                            keyboardType = KeyboardType.Number,
+                            keyboardType = KeyboardType.Number
                         )
                     }
+                    
+                    // Validate fine weight when it changes
+                    LaunchedEffect(viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value) {
+                        if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
+                            val error = viewModel.validateFineWeightInput(viewModel.fnWt.text, viewModel.purity.text, subCatName)
+                            viewModel.fnWt.error = error ?: ""
+                        } else {
+                            viewModel.fnWt.error = ""
+                        }
+                    }
+                    
                     Spacer(Modifier.height(5.dp))
 
                     Row {
@@ -529,20 +694,7 @@ private fun AddItemSection(
                         Spacer(Modifier.width(5.dp))
                         Text("Cancel", Modifier
                             .bounceClick {
-                                viewModel.addToName.clear()
-                                viewModel.entryType.clear()
-                                viewModel.qty.clear()
-                                viewModel.grWt.clear()
-                                viewModel.ntWt.clear()
-                                viewModel.purity.clear()
-                                viewModel.fnWt.clear()
-                                viewModel.chargeType.clear()
-                                viewModel.charge.clear()
-                                viewModel.otherChargeDes.clear()
-                                viewModel.othCharge.clear()
-                                viewModel.huid.clear()
-                                viewModel.desValue.clear()
-
+                                viewModel.clearAddItemFields()
                                 addItem.value = false
                             }
                             .background(
@@ -588,6 +740,17 @@ private fun AddItemSection(
 
                                     if (!InputValidator.isValidHUID(viewModel.huid.text)) {
                                         viewModel.snackBarState.value = "Invalid HUID format"
+                                        return@ioScope
+                                    }
+
+                                    // Check validation errors for purchase order items
+                                    if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty()) {
+                                        val fnWtError = viewModel.validateFineWeightInput(viewModel.fnWt.text, viewModel.purity.text, subCatName)
+                                        if (fnWtError != null) {
+                                            viewModel.fnWt.error = fnWtError
+                                            viewModel.snackBarState.value = fnWtError
+                                            return@ioScope
+                                        }
                                     }
 
                                     val userId = viewModel.dataStoreManager.getAdminInfo().first.first()
@@ -632,21 +795,10 @@ private fun AddItemSection(
                                         viewModel.snackBarState.value = "Add Item Failed"
                                     }, onSuccess = { itemEntity, l ->
 
-                                        viewModel.filterItems()
+                                        // Refresh category data and filter items
+                                        viewModel.refreshAndFilterItems()
 
-                                        viewModel.addToName.text = ""
-                                        viewModel.entryType.text = ""
-                                        viewModel.qty.text = ""
-                                        viewModel.grWt.text = ""
-                                        viewModel.ntWt.text = ""
-                                        viewModel.purity.text = ""
-                                        viewModel.fnWt.text = ""
-                                        viewModel.chargeType.text = ""
-                                        viewModel.charge.text = ""
-                                        viewModel.otherChargeDes.text = ""
-                                        viewModel.othCharge.text = ""
-                                        viewModel.desValue.text = ""
-                                        viewModel.huid.text = ""
+                                        viewModel.clearAddItemFields()
 
 //                                    inventoryViewModel.loadingState.value = false
                                     })

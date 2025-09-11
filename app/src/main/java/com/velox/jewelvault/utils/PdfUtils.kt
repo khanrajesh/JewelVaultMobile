@@ -585,6 +585,7 @@ fun generateInvoicePdf(
                 storeAddressPaint
             )
         }
+
         
         // Draw contact information on the left side
         val leftInfoX = headingStartX + 15f

@@ -64,6 +64,8 @@ import com.velox.jewelvault.utils.rememberCurrentDateTime
 import com.velox.jewelvault.utils.to2FString
 import com.velox.jewelvault.utils.CalculationUtils
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
 
@@ -156,6 +158,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
     Row(
         modifier
             .fillMaxWidth()
+            .height(60.dp)
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(5.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -181,14 +184,43 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
         val goldFnWtRate = try{ viewModel.purchaseItemList.filter { it.catName == "Gold" }[0].fnRatePerGm}catch (_:Exception){1.0}
         val silverFnWtRate = try{viewModel.purchaseItemList.filter { it.catName == "Silver" }[0].fnRatePerGm}catch (_:Exception){1.0}
 
-        Text(
-            """
-           Gold Pur Fn.Wt: $purGoldFnWt g, Exc Fn.Wt: ${exchangeGoldFnWt.to2FString()} g, Wastage: ${purGoldFnWtWastage.to2FString()} g, Extra: $purGoldExtraCharge Settling Fn.Wt: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to2FString()} g, Amt to: ${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*goldFnWtRate).to2FString()}
-           Silver Pur Fn.Wt: $purSilverFnWt g, Exc Fn.Wt: ${exchangeSilverFnWt.to2FString()} g, Wastage: ${purSilverFnWtWastage.to2FString()} g, Extra: $purSilverExtraCharge Settling Fn.Wt: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to2FString()}g, Amt to: ${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*silverFnWtRate).to2FString()}
-        """.trimIndent(), modifier = Modifier.weight(1f)
-        )
+        val goldGsWt = goldItems.sumOf { it.gsWt }
+        val silverGsWt = silverItems.sumOf { it.gsWt }
 
-        Text("ADD TO REG", Modifier
+        Row(Modifier.weight(1f)){
+            Text(
+                """
+           GOLD: Gs:${goldGsWt}g | Fn:${purGoldFnWt}g | Exc:${exchangeGoldFnWt.to2FString()}g | Wastage:${purGoldFnWtWastage.to2FString()}g | Extra:${purGoldExtraCharge.to2FString()}
+           Settling: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to2FString()}g | Amount: ₹${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*goldFnWtRate).to2FString()}
+        """.trimIndent(),
+                modifier = Modifier.weight(1f),
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 16.sp
+                )
+            )
+            Spacer(Modifier.weight(0.2f))
+            Text(
+                """
+                    SILVER: Gs:${silverGsWt}g | Fn:${purSilverFnWt}g | Exc:${exchangeSilverFnWt.to2FString()}g | Wastage:${purSilverFnWtWastage.to2FString()}g | Extra:${purSilverExtraCharge.to2FString()}
+                    Settling: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to2FString()}g | Amount: ₹${(((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt)*silverFnWtRate).to2FString()}
+        """.trimIndent(),
+                modifier = Modifier.weight(1f),
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    lineHeight = 16.sp
+                )
+            )
+            Spacer(Modifier.weight(0.2f))
+
+        }
+
+        Text("ADD TO REG",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+            .weight(0.2f)
             .bounceClick {
                 if (viewModel.purchaseItemList.isNotEmpty() && viewModel.addBillNo.text.isNotBlank() &&
                     viewModel.addBillDate.text.isNotBlank() && viewModel.firmName.text.isNotBlank() &&
@@ -232,6 +264,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
                 RoundedCornerShape(16.dp),
             )
             .padding(10.dp), fontWeight = FontWeight.Bold)
+
 
     }
 
@@ -641,7 +674,7 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
                         viewModel.addItemWastage.text.isNotBlank() &&
                         viewModel.addItemFineRatePerGm.text.isNotBlank()
 
-                        ) {
+                    ) {
 
                         viewModel.addPurchaseItem()
                     } else {

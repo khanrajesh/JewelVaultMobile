@@ -441,6 +441,9 @@ class InvoiceViewModel @Inject constructor(
         ioLaunch {
             _loadingState.value = true
             try {
+                var successCount = 0
+                var failureCount = 0
+                
                 selectedItemList.forEach { item ->
                     try {
                         val itemId = item.itemId
@@ -466,12 +469,13 @@ class InvoiceViewModel @Inject constructor(
                                     )
                                 }
                             } else {
-                                onFailure("Item with lot failed to delete from DB")
+                                this@InvoiceViewModel.log("Item with lot failed to delete from DB")
                                 -1
                             }
                         } else {
                             appDatabase.itemDao().deleteById(itemId, catId, subCatId)
                         }
+                        
                         if (result > 0) {
                             try {
                                 val subCategory =
@@ -489,6 +493,10 @@ class InvoiceViewModel @Inject constructor(
                                         fnWt = updatedSubCatFnWt,
                                         quantity = updatedSubCatQty
                                     )
+                                } ?: run {
+                                    this@InvoiceViewModel.log("Sub Category not found for item removal")
+                                    failureCount++
+                                    return@forEach
                                 }
 
                                 val category = appDatabase.categoryDao().getCategoryById(catId)
@@ -501,28 +509,40 @@ class InvoiceViewModel @Inject constructor(
                                     appDatabase.categoryDao().updateWeights(
                                         catId = catId, gsWt = updatedCatGsWt, fnWt = updatedCatFnWt
                                     )
+                                } ?: run {
+                                    this@InvoiceViewModel.log("Category not found for item removal")
+                                    failureCount++
+                                    return@forEach
                                 }
 
-                                onSuccess()
+                                successCount++
                             } catch (e: Exception) {
-                                _loadingState.value = false
-                                onFailure("Error updating Cat and SubCat Weight error: ${e.message}")
                                 this@InvoiceViewModel.log("Error updating Cat and SubCat Weight error: ${e.message}")
-
+                                failureCount++
                             }
                         } else {
-                            _loadingState.value = false
-                            onFailure("No rows deleted. Check itemId, catId, and subCatId.")
                             this@InvoiceViewModel.log("No rows deleted. Check itemId, catId, and subCatId.")
+                            failureCount++
                         }
 
                     } catch (e: Exception) {
-                        _loadingState.value = false
-                        onFailure("Error removing the item from DB, error: ${e.message}")
                         this@InvoiceViewModel.log("Error removing the item from DB, error: ${e.message}")
-
+                        failureCount++
                     }
                 }
+                
+                // Call callbacks based on results
+                if (successCount > 0 && failureCount == 0) {
+                    _loadingState.value = false
+                    onSuccess()
+                } else if (successCount > 0 && failureCount > 0) {
+                    _loadingState.value = false
+                    onFailure("Some items were removed successfully, but ${failureCount} items failed to remove")
+                } else {
+                    _loadingState.value = false
+                    onFailure("Failed to remove all items")
+                }
+                
             } catch (e: Exception) {
                 _loadingState.value = false
                 onFailure("Error removing the item safely DB, error: ${e.message}")
