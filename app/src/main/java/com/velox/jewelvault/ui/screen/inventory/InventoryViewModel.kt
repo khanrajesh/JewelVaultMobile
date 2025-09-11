@@ -20,6 +20,7 @@ import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.roundTo3Decimal
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.withIo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -655,7 +656,7 @@ class InventoryViewModel @Inject constructor(
         
         // Check if input is significantly above remaining weight (beyond tolerance)
         return if (inputFnWt > (remainingFnWt + tolerance)) {
-            "Cannot add ${String.format("%.2f", inputFnWt)}g. Remaining: ${String.format("%.2f", remainingFnWt)}g for purity $purity"
+            "Cannot add ${inputFnWt.to3FString()}g. Remaining: ${remainingFnWt.to3FString()}g for purity $purity"
         } else null
     }
 
@@ -901,7 +902,7 @@ class InventoryViewModel @Inject constructor(
                     val totalInventoryFnWt = inventoryItems.sumOf { it.fnWt }
                     val totalRemainingFnWt = (totalPurchaseFnWt - totalInventoryFnWt).coerceAtLeast(0.0)
                     
-                    summary.appendLine("Total FnWt: ${String.format("%.2f", totalPurchaseFnWt)}g | Added: ${String.format("%.2f", totalInventoryFnWt)}g | Remaining: ${String.format("%.2f", totalRemainingFnWt)}g")
+                    summary.appendLine("Total FnWt: ${totalPurchaseFnWt.to3FString()}g | Added: ${totalInventoryFnWt.to3FString()}g | Remaining: ${totalRemainingFnWt.to3FString()}g")
                     
                     // Show remaining items by purity (max 1 line)
                     val remainingByPurity = purchaseItemsByPurity.mapNotNull { (purity, items) ->
@@ -911,7 +912,7 @@ class InventoryViewModel @Inject constructor(
                         val remainingFnWt = (totalFnWt - inventoryFnWt).coerceAtLeast(0.0)
                         
                         if (remainingFnWt > 0) {
-                            "${purity}: ${String.format("%.2f", remainingFnWt)}g"
+                            "${purity}: ${remainingFnWt.to3FString()}g"
                         } else null
                     }
                     
@@ -990,14 +991,14 @@ class InventoryViewModel @Inject constructor(
             report.appendLine("🔸 PURITY: $purity")
             report.appendLine("   ┌─ PURCHASE ORDER:")
             report.appendLine("   │  • Items: $itemCount pieces")
-            report.appendLine("   │  • Gross Weight: ${String.format("%.3f", totalGsWt)} gm")
-            report.appendLine("   │  • Fine Weight: ${String.format("%.3f", totalFnWt)} gm")
+            report.appendLine("   │  • Gross Weight: ${totalGsWt.to3FString()} gm")
+            report.appendLine("   │  • Fine Weight: ${totalFnWt.to3FString()} gm")
             report.appendLine("   ├─ ADDED TO INVENTORY:")
-            report.appendLine("   │  • Gross Weight: ${String.format("%.3f", inventoryGsWt)} gm")
-            report.appendLine("   │  • Fine Weight: ${String.format("%.3f", inventoryFnWt)} gm")
+            report.appendLine("   │  • Gross Weight: ${inventoryGsWt.to3FString()} gm")
+            report.appendLine("   │  • Fine Weight: ${inventoryFnWt.to3FString()} gm")
             report.appendLine("   └─ REMAINING TO ADD:")
-            report.appendLine("      • Gross Weight: ${String.format("%.3f", remainingGsWt)} gm")
-            report.appendLine("      • Fine Weight: ${String.format("%.3f", remainingFnWt)} gm")
+            report.appendLine("      • Gross Weight: ${remainingGsWt.to3FString()} gm")
+            report.appendLine("      • Fine Weight: ${remainingFnWt.to3FString()} gm")
             
             if (remainingGsWt > 0 || remainingFnWt > 0) {
                 report.appendLine("      ⚠️  PENDING ITEMS TO ADD")
@@ -1018,14 +1019,14 @@ class InventoryViewModel @Inject constructor(
         report.appendLine("📊 OVERALL SUMMARY")
         report.appendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         report.appendLine("🛒 Total Purchased:")
-        report.appendLine("   • Gross Weight: ${String.format("%.3f", totalPurchaseGsWt)} gm")
-        report.appendLine("   • Fine Weight: ${String.format("%.3f", totalPurchaseFnWt)} gm")
+        report.appendLine("   • Gross Weight: ${totalPurchaseGsWt.to3FString()} gm")
+        report.appendLine("   • Fine Weight: ${totalPurchaseFnWt.to3FString()} gm")
         report.appendLine("📦 Total Added to Inventory:")
-        report.appendLine("   • Gross Weight: ${String.format("%.3f", totalInventoryGsWt)} gm")
-        report.appendLine("   • Fine Weight: ${String.format("%.3f", totalInventoryFnWt)} gm")
+        report.appendLine("   • Gross Weight: ${totalInventoryGsWt.to3FString()} gm")
+        report.appendLine("   • Fine Weight: ${totalInventoryFnWt.to3FString()} gm")
         report.appendLine("⏳ Total Remaining:")
-        report.appendLine("   • Gross Weight: ${String.format("%.3f", totalRemainingGsWt)} gm")
-        report.appendLine("   • Fine Weight: ${String.format("%.3f", totalRemainingFnWt)} gm")
+        report.appendLine("   • Gross Weight: ${totalRemainingGsWt.to3FString()} gm")
+        report.appendLine("   • Fine Weight: ${totalRemainingFnWt.to3FString()} gm")
         
         if (totalRemainingGsWt > 0 || totalRemainingFnWt > 0) {
             report.appendLine()

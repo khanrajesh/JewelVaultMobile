@@ -61,12 +61,9 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.rememberCurrentDateTime
-import com.velox.jewelvault.utils.to2FString
-import com.velox.jewelvault.utils.CalculationUtils
-import androidx.compose.runtime.rememberCoroutineScope
+import com.velox.jewelvault.utils.to3FString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 
 
 @Composable
@@ -190,8 +187,8 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
         Row(Modifier.weight(1f)){
             Text(
                 """
-           GOLD: Gs:${goldGsWt}g | Fn:${purGoldFnWt}g | Exc:${exchangeGoldFnWt.to2FString()}g | Wastage:${purGoldFnWtWastage.to2FString()}g | Extra:${purGoldExtraCharge.to2FString()}
-           Settling: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to2FString()}g | Amount: ₹${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*goldFnWtRate).to2FString()}
+           GOLD: Gs:${goldGsWt}g | Fn:${purGoldFnWt}g | Exc:${exchangeGoldFnWt.to3FString()}g | Wastage:${purGoldFnWtWastage.to3FString()}g | Extra:${purGoldExtraCharge.to3FString()}
+           Settling: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to3FString()}g | Amount: ₹${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt)*goldFnWtRate).to3FString()}
         """.trimIndent(),
                 modifier = Modifier.weight(1f),
                 style = TextStyle(
@@ -203,8 +200,8 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
             Spacer(Modifier.weight(0.2f))
             Text(
                 """
-                    SILVER: Gs:${silverGsWt}g | Fn:${purSilverFnWt}g | Exc:${exchangeSilverFnWt.to2FString()}g | Wastage:${purSilverFnWtWastage.to2FString()}g | Extra:${purSilverExtraCharge.to2FString()}
-                    Settling: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to2FString()}g | Amount: ₹${(((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt)*silverFnWtRate).to2FString()}
+                    SILVER: Gs:${silverGsWt}g | Fn:${purSilverFnWt}g | Exc:${exchangeSilverFnWt.to3FString()}g | Wastage:${purSilverFnWtWastage.to3FString()}g | Extra:${purSilverExtraCharge.to3FString()}
+                    Settling: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to3FString()}g | Amount: ₹${(((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt)*silverFnWtRate).to3FString()}
         """.trimIndent(),
                 modifier = Modifier.weight(1f),
                 style = TextStyle(
@@ -609,7 +606,7 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
                     if (viewModel.addItemGsWt.text.isNotBlank()) {
                         val ntWtValue = viewModel.addItemGsWt.text.toDoubleOrNull() ?: 0.0
                         val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                        viewModel.addItemFnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                        viewModel.addItemFnWt.text = (ntWtValue * multiplier).to3FString()
                     }
                     viewModel.addItemPurity.text = selected
                 })

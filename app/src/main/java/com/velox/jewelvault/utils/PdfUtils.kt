@@ -45,6 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.velox.jewelvault.utils.to3FString
 
 // PdfUtils.kt
 
@@ -347,14 +348,14 @@ fun createDraftInvoiceData(
             serialNumber = "${index + 1}",
             productDescription = "${item.catName} ${item.subCatName} ${item.itemAddName}",
             quantitySet = "${item.quantity}",
-            grossWeightGms = item.gsWt.to2FString(),
-            netWeightGms = item.ntWt.to2FString(),
-            ratePerGm = item.fnMetalPrice.to2FString(),
-            makingAmount = item.chargeAmount.to2FString(),
+            grossWeightGms = item.gsWt.to3FString(),
+            netWeightGms = item.ntWt.to3FString(),
+            ratePerGm = item.fnMetalPrice.to3FString(),
+            makingAmount = item.chargeAmount.to3FString(),
             purityPercent = item.purity,
-            totalAmount = price.to2FString(),
+            totalAmount = price.to3FString(),
             metalType = item.catName,
-            metalPrice = (item.fnWt*item.fnMetalPrice).to2FString(),
+            metalPrice = (item.fnWt*item.fnMetalPrice).to3FString(),
         )
     }
 
@@ -375,10 +376,10 @@ fun createDraftInvoiceData(
 
     // Use CalculationUtils for metal rate validation
     val goldRate =
-        CalculationUtils.metalUnitPrice("Gold", metalRates)?.let { "₹${it.to2FString()}/gm" }
+        CalculationUtils.metalUnitPrice("Gold", metalRates)?.let { "₹${it.to3FString()}/gm" }
             ?: "NA"
     val silverRate =
-        CalculationUtils.metalUnitPrice("Silver", metalRates)?.let { "₹${it.to2FString()}/gm" }
+        CalculationUtils.metalUnitPrice("Silver", metalRates)?.let { "₹${it.to3FString()}/gm" }
             ?: "NA"
 
     log("Selected gold rate: $goldRate, silver rate: $silverRate", tag)
@@ -417,26 +418,26 @@ fun createDraftInvoiceData(
         goldRate = goldRate,
         silverRate = silverRate,
         paymentSummary = InvoiceData.PaymentSummary(
-            subTotal = "₹${subTotalAmount.to2FString()}",
-            gstAmount = "₹${totalTaxAmount.to2FString()}",
+            subTotal = "₹${subTotalAmount.to3FString()}",
+            gstAmount = "₹${totalTaxAmount.to3FString()}",
             gstLabel = gstLabel,
             discount = discount,
             cardCharges = cardCharges,
-            totalAmountBeforeOldExchange = "${itemGrandTotalAmount.to2FString()}",
+            totalAmountBeforeOldExchange = "${itemGrandTotalAmount.to3FString()}",
             oldExchange = oldExchange,
             roundOff = roundOff,
-            netAmountPayable = "₹${netAmountPayable.to2FString()}",
+            netAmountPayable = "₹${netAmountPayable.to3FString()}",
             amountInWords = "Indian Rupee ${numberToWords(netAmountPayable.roundToInt())} Only"
         ),
         paymentReceived = InvoiceData.PaymentReceivedDetails(
             cashLabel1 = paymentMethod.uppercase(),
-            cashAmount1 = "${paidAmount.to2FString()}"
+            cashAmount1 = "${paidAmount.to3FString()}"
         ),
         declarationPoints = listOf(
             "We declare that this invoice shows the actual price of the goods described.",
             "All disputes are subject to the courts at the store's location.",
             "This is a draft invoice for estimation purposes.",
-            if (!isPaidInFull) "Outstanding Amount: ₹${outstandingAmount.to2FString()}" else "",
+            if (!isPaidInFull) "Outstanding Amount: ₹${outstandingAmount.to3FString()}" else "",
             "Payment Method: ${paymentMethod.uppercase()}",
             if (paymentInfo.value?.notes?.isNotEmpty() == true) "Notes: ${paymentInfo.value?.notes}" else "",
 
@@ -866,10 +867,10 @@ fun generateInvoicePdf(
         // Display gold data
         val goldData = listOf(
             goldPcs.toString(),
-            goldWeight.to2FString(),
-            goldTotalVal.to2FString(),
-            goldTotMc.to2FString(),
-            goldTotalAmount.to2FString()
+            goldWeight.to3FString(),
+            goldTotalVal.to3FString(),
+            goldTotMc.to3FString(),
+            goldTotalAmount.to3FString()
         )
 
         for (i in headings.indices) {
@@ -913,10 +914,10 @@ fun generateInvoicePdf(
         // Display silver data
         val silverData = listOf(
             silverPcs.toString(),
-            silverWeight.to2FString(),
-            silverTotalVal.to2FString(),
-            silverTotMc.to2FString(),
-            silverTotalAmount.to2FString()
+            silverWeight.to3FString(),
+            silverTotalVal.to3FString(),
+            silverTotMc.to3FString(),
+            silverTotalAmount.to3FString()
         )
 
         for (i in headings.indices) {
@@ -1451,15 +1452,15 @@ fun generateTaxInvoicePdf(
         colX += colWidths[3]
         canvas.drawText("${rate}", colX, rowY, paint)
         colX += colWidths[4]
-        canvas.drawText("${String.format("%.2f", taxableValue)}", colX, rowY, paint)
+        canvas.drawText("${taxableValue.to3FString()}", colX, rowY, paint)
         colX += colWidths[5]
         canvas.drawText("${cgstPercent}", colX, rowY, paint)
         colX += colWidths[6]
-        canvas.drawText("${String.format("%.2f", cgstAmount)}", colX, rowY, paint)
+        canvas.drawText("${cgstAmount.to3FString()}", colX, rowY, paint)
         colX += colWidths[7]
         canvas.drawText("${sgstPercent}", colX, rowY, paint)
         colX += colWidths[8]
-        canvas.drawText("${String.format("%.2f", sgstAmount)}", colX, rowY, paint)
+        canvas.drawText("${sgstAmount.to3FString()}", colX, rowY, paint)
 
         totalTaxableValue += taxableValue
         totalCgst += cgstAmount
@@ -1474,16 +1475,16 @@ fun generateTaxInvoicePdf(
     canvas.drawText("Total", colX, totalRowY2, headerPaint)
     colX += colWidths[1]
     colX += colWidths[2]
-    canvas.drawText("${String.format("%.2f", totalQuantity)} Gms", colX, totalRowY2, paint)
+    canvas.drawText("${totalQuantity.to3FString()} Gms", colX, totalRowY2, paint)
     colX += colWidths[3]
     colX += colWidths[4]
-    canvas.drawText("${String.format("%.2f", totalTaxableValue)}", colX, totalRowY2, paint)
+    canvas.drawText("${totalTaxableValue.to3FString()}", colX, totalRowY2, paint)
     colX += colWidths[5]
     colX += colWidths[6]
-    canvas.drawText("${String.format("%.2f", totalCgst)}", colX, totalRowY2, paint)
+    canvas.drawText("${totalCgst.to3FString()}", colX, totalRowY2, paint)
     colX += colWidths[7]
     colX += colWidths[8]
-    canvas.drawText("${String.format("%.2f", totalSgst)}", colX, totalRowY2, paint)
+    canvas.drawText("${totalSgst.to3FString()}", colX, totalRowY2, paint)
 
     // Calculate grand total
     val totalTax = totalCgst + totalSgst
@@ -1505,23 +1506,23 @@ fun generateTaxInvoicePdf(
     y += gapY
     paint.textSize = 9f
     canvas.drawText(
-        "Taxable Amount: ${String.format("%.2f", totalTaxableValue)}",
+        "Taxable Amount: ${totalTaxableValue.to3FString()}",
         summaryX + 5f,
         y,
         paint
     )
     y += gapY
-    canvas.drawText("Add: CGST: ${String.format("%.2f", totalCgst)}", summaryX + 5f, y, paint)
+    canvas.drawText("Add: CGST: ${totalCgst.to3FString()}", summaryX + 5f, y, paint)
     y += gapY
-    canvas.drawText("Add: SGST: ${String.format("%.2f", totalSgst)}", summaryX + 5f, y, paint)
+    canvas.drawText("Add: SGST: ${totalSgst.to3FString()}", summaryX + 5f, y, paint)
     y += gapY
-    canvas.drawText("Total Tax: ${String.format("%.2f", totalTax)}", summaryX + 5f, y, paint)
+    canvas.drawText("Total Tax: ${totalTax.to3FString()}", summaryX + 5f, y, paint)
     y += gapY
     canvas.drawText("Discount: 0.00", summaryX + 5f, y, paint)
     y += gapY
     headerPaint.textSize = 11f
     canvas.drawText(
-        "Total Amount After Tax: ₹${String.format("%.2f", grandTotal)} (E & O.E.)",
+        "Total Amount After Tax: ₹${grandTotal.to3FString()} (E & O.E.)",
         summaryX + 5f,
         y,
         headerPaint
@@ -1978,7 +1979,7 @@ fun generateEstimatePdf(
         currentX += colWidths[2]
         // Qty
         canvas.drawText(
-            String.format("%.2f Gms", item.gsWt),
+            "${item.gsWt.to3FString()} Gms",
             currentX + colWidths[3] / 2,
             textY,
             tableCellRightAlignPaint
@@ -1986,7 +1987,7 @@ fun generateEstimatePdf(
         currentX += colWidths[3]
         // Rate
         canvas.drawText(
-            String.format("%.2f", item.fnMetalPrice),
+            item.fnMetalPrice.to3FString(),
             currentX + colWidths[4] - 3f,
             textY,
             tableCellRightAlignPaint
@@ -1995,7 +1996,7 @@ fun generateEstimatePdf(
         // Taxable Value
         val taxableValue = item.price // Assuming item.price is taxable value before tax
         canvas.drawText(
-            String.format("%.2f", taxableValue),
+            taxableValue.to3FString(),
             currentX + colWidths[5] - 3f,
             textY,
             tableCellRightAlignPaint
@@ -2006,14 +2007,14 @@ fun generateEstimatePdf(
         val cgstRate = item.cgst // Example: item.cgstPct = 1.5
         val cgstAmount = item.cgst // Example: item.cgst = taxableValue * (cgstRate / 100.0)
         canvas.drawText(
-            String.format("%.2f", cgstRate),
+            cgstRate.to3FString(),
             currentX + colWidths[6] - 3f,
             textY,
             tableCellRightAlignPaint
         )
         currentX += colWidths[6]
         canvas.drawText(
-            String.format("%.2f", cgstAmount),
+            cgstAmount.to3FString(),
             currentX + colWidths[7] - 3f,
             textY,
             tableCellRightAlignPaint
@@ -2023,14 +2024,14 @@ fun generateEstimatePdf(
         val sgstRate = item.sgst // Example: item.sgstPct = 1.5
         val sgstAmount = item.sgst // Example: item.sgst = taxableValue * (sgstRate / 100.0)
         canvas.drawText(
-            String.format("%.2f", sgstRate),
+            sgstRate.to3FString(),
             currentX + colWidths[8] - 3f,
             textY,
             tableCellRightAlignPaint
         )
         currentX += colWidths[8]
         canvas.drawText(
-            String.format("%.2f", sgstAmount),
+            sgstAmount.to3FString(),
             currentX + colWidths[9] - 3f,
             textY,
             tableCellRightAlignPaint
@@ -2040,7 +2041,7 @@ fun generateEstimatePdf(
         val itemTotal =
             taxableValue + cgstAmount + sgstAmount // item.price already includes this usually
         canvas.drawText(
-            String.format("%.2f", item.price),
+            item.price.to3FString(),
             currentX + colWidths[10] - 3f,
             textY,
             tableCellRightAlignPaint
@@ -2127,7 +2128,7 @@ fun generateEstimatePdf(
 
     currentX += colWidths[3] // Skip Qty for text label, draw value under Qty col
     canvas.drawText(
-        String.format("%.2f Gms", totalQty),
+        "${totalQty.to3FString()} Gms",
         currentX - colWidths[3] / 2,
         totalTextY,
         tableCellRightAlignPaint
@@ -2136,7 +2137,7 @@ fun generateEstimatePdf(
     currentX += colWidths[4] // Skip Rate column
     currentX += colWidths[5]
     canvas.drawText(
-        String.format("%.2f", totalTaxableValue),
+        totalTaxableValue.to3FString(),
         currentX - 3f,
         totalTextY,
         tableCellRightAlignPaint
@@ -2145,7 +2146,7 @@ fun generateEstimatePdf(
     currentX += colWidths[6] // Skip CGST %
     currentX += colWidths[7]
     canvas.drawText(
-        String.format("%.2f", totalCGST),
+        totalCGST.to3FString(),
         currentX - 3f,
         totalTextY,
         tableCellRightAlignPaint
@@ -2154,7 +2155,7 @@ fun generateEstimatePdf(
     currentX += colWidths[8] // Skip SGST %
     currentX += colWidths[9]
     canvas.drawText(
-        String.format("%.2f", totalSGST),
+        totalSGST.to3FString(),
         currentX - 3f,
         totalTextY,
         tableCellRightAlignPaint
@@ -2162,7 +2163,7 @@ fun generateEstimatePdf(
 
     currentX += colWidths[10]
     canvas.drawText(
-        String.format("%.2f", grandTotal),
+        grandTotal.to3FString(),
         currentX - 3f,
         totalTextY,
         tableCellRightAlignPaint
@@ -2218,26 +2219,26 @@ fun generateEstimatePdf(
 
     canvas.drawText("Taxable Amount", summaryLabelX, summaryY, regularPaint)
     regularPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(String.format("%.2f", totalTaxableValue), summaryValueX, summaryY, regularPaint)
+    canvas.drawText(totalTaxableValue.to3FString(), summaryValueX, summaryY, regularPaint)
     summaryY += summaryLineHeight
     regularPaint.textAlign = Paint.Align.LEFT
 
     canvas.drawText("Add: CGST", summaryLabelX, summaryY, regularPaint)
     regularPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(String.format("%.2f", totalCGST), summaryValueX, summaryY, regularPaint)
+    canvas.drawText(totalCGST.to3FString(), summaryValueX, summaryY, regularPaint)
     summaryY += summaryLineHeight
     regularPaint.textAlign = Paint.Align.LEFT
 
     canvas.drawText("Add: SGST", summaryLabelX, summaryY, regularPaint)
     regularPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(String.format("%.2f", totalSGST), summaryValueX, summaryY, regularPaint)
+    canvas.drawText(totalSGST.to3FString(), summaryValueX, summaryY, regularPaint)
     summaryY += summaryLineHeight
     regularPaint.textAlign = Paint.Align.LEFT
 
     val totalTax = totalCGST + totalSGST
     canvas.drawText("Total Tax", summaryLabelX, summaryY, regularPaint) // Label bold if needed
     regularPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(String.format("%.2f", totalTax), summaryValueX, summaryY, regularPaint)
+    canvas.drawText(totalTax.to3FString(), summaryValueX, summaryY, regularPaint)
     summaryY += summaryLineHeight
     regularPaint.textAlign = Paint.Align.LEFT
 
@@ -2245,7 +2246,7 @@ fun generateEstimatePdf(
     val discount = 0.00
     canvas.drawText("Discount", summaryLabelX, summaryY, regularPaint)
     regularPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(String.format("%.2f", discount), summaryValueX, summaryY, regularPaint)
+    canvas.drawText(discount.to3FString(), summaryValueX, summaryY, regularPaint)
     summaryY += summaryLineHeight + 2f // Extra space before total
     regularPaint.textAlign = Paint.Align.LEFT
 
@@ -2257,7 +2258,7 @@ fun generateEstimatePdf(
     canvas.drawText("ESTIMATED TOTAL", summaryLabelX, summaryY, boldPaint)
     boldPaint.textAlign = Paint.Align.RIGHT
     canvas.drawText(
-        String.format("₹%.2f", grandTotal - discount),
+        "₹${(grandTotal - discount).to3FString()}",
         summaryValueX,
         summaryY,
         boldPaint

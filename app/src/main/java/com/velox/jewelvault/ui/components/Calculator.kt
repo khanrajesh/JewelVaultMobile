@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import net.objecthunter.exp4j.ExpressionBuilder
+import com.velox.jewelvault.utils.to3FString
 
 @Composable
 fun CalculatorScreen(modifier: Modifier) {
@@ -116,8 +117,8 @@ fun CalculatorScreen(modifier: Modifier) {
 // Evaluate arithmetic expression and return float result with 2 decimal places
 fun evaluateExpression(expr: String): String {
     return try {
-        val result = ExpressionBuilder(expr).build().evaluate().toFloat()
-        String.format("%.2f", result)
+        val result = ExpressionBuilder(expr).build().evaluate()
+        result.to3FString()
     } catch (e: Exception) {
         "Error"
     }

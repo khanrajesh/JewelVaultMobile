@@ -9,7 +9,7 @@ import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.CalculationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,7 +43,7 @@ class QrBarScannerViewModel @Inject constructor(
                 existing.othCrg, 
                 existing.tax
             )
-            return@withIo "Id: $id\nWt: ${existing.gsWt.to2FString()} (${existing.fnWt.to2FString()})\n(${existing.purity}) P: $${existingTotal.to2FString()}"
+            return@withIo "Id: $id\nWt: ${existing.gsWt.to3FString()} (${existing.fnWt.to3FString()})\n(${existing.purity}) P: $${existingTotal.to3FString()}"
         }
 
         val item = getItemByIdSync(id)
@@ -72,7 +72,7 @@ class QrBarScannerViewModel @Inject constructor(
         selectedItemList.add(id to updatedItem)
 
         val total = CalculationUtils.totalPrice(price, charge, 0.0, tax)
-        return@withIo "Id: $id\nWt: ${item.gsWt.to2FString()} (${item.fnWt.to2FString()})\n(${item.purity}) P: $${total.to2FString()}"
+        return@withIo "Id: $id\nWt: ${item.gsWt.to3FString()} (${item.fnWt.to3FString()})\n(${item.purity}) P: $${total.to3FString()}"
     }
 
     private suspend fun getItemByIdSync(itemId: String): ItemSelectedModel? = withIo {

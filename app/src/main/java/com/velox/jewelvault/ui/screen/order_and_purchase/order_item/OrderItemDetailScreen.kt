@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,8 +24,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -59,7 +56,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.formatDate
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.sharePdf
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 @Composable
 @VaultPreview
@@ -329,10 +326,10 @@ fun OrderDetailsCard(
                             "${item.catName} ${item.subCatName}",
                             "${item.quantity} P",
                             "${item.gsWt}/${item.ntWt}gm\n${item.fnWt}g",
-                            "₹${item.price.to2FString()}",
-                            "₹${item.charge.to2FString()}",
-                            "₹${item.tax.to2FString()}",
-                            "₹${itemTotal.to2FString()}"
+                            "₹${item.price.to3FString()}",
+                            "₹${item.charge.to3FString()}",
+                            "₹${item.tax.to3FString()}",
+                            "₹${itemTotal.to3FString()}"
                         )
                     }
 
@@ -365,7 +362,7 @@ fun OrderDetailsCard(
                                     exchange.metalType,
                                     exchange.purity,
                                     "${exchange.fineWeight}g",
-                                    "₹${exchange.exchangeValue.to2FString()}"
+                                    "₹${exchange.exchangeValue.to3FString()}"
                                 )
                             }
 
@@ -386,7 +383,7 @@ fun OrderDetailsCard(
                             )
                             Text(
                                 "₹${
-                                orderDetails.exchangeItems.sumOf { it.exchangeValue }.to2FString()
+                                orderDetails.exchangeItems.sumOf { it.exchangeValue }.to3FString()
                             }",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -446,7 +443,7 @@ fun OrderSummaryCard(
                                 fontSize = 10.sp
                             )
                             Text(
-                                "${totalGrossWeight.to2FString()}/${totalFineWeight.to2FString()} gm",
+                                "${totalGrossWeight.to3FString()}/${totalFineWeight.to3FString()} gm",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End
@@ -463,7 +460,7 @@ fun OrderSummaryCard(
                             "Subtotal", modifier = Modifier.weight(1f), fontSize = 10.sp
                         )
                         Text(
-                            "₹${order.totalAmount.to2FString()}",
+                            "₹${order.totalAmount.to3FString()}",
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp,
                             textAlign = TextAlign.End
@@ -479,7 +476,7 @@ fun OrderSummaryCard(
                                 color = MaterialTheme.colorScheme.error
                             )
                             Text(
-                                "-₹${order.discount.to2FString()}",
+                                "-₹${order.discount.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End,
@@ -494,7 +491,7 @@ fun OrderSummaryCard(
                                 "Making Charges", modifier = Modifier.weight(1f), fontSize = 10.sp
                             )
                             Text(
-                                "₹${order.totalCharge.to2FString()}",
+                                "₹${order.totalCharge.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End
@@ -508,7 +505,7 @@ fun OrderSummaryCard(
                                 "Tax", modifier = Modifier.weight(1f), fontSize = 10.sp
                             )
                             Text(
-                                "₹${order.totalTax.to2FString()}",
+                                "₹${order.totalTax.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End
@@ -530,7 +527,7 @@ fun OrderSummaryCard(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                "-₹${totalExchangeValue.to2FString()}",
+                                "-₹${totalExchangeValue.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End,
@@ -553,7 +550,7 @@ fun OrderSummaryCard(
                         val grandTotal =
                             order.totalAmount - order.discount + order.totalCharge + order.totalTax - totalExchangeValue
                         Text(
-                            "₹${grandTotal.to2FString()}",
+                            "₹${grandTotal.to3FString()}",
                             modifier = Modifier.weight(1f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,

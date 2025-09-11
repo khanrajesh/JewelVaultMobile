@@ -287,7 +287,7 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     quantity = item.quantity,
                     weight = item.ntWt ?: 0.0
                 )
-                val char = charge.to2FString()
+                val char = charge.to3FString()
 
                 listOf(
                     "${index + 1}.",
@@ -295,7 +295,7 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     "${item.subCatName} ${item.itemAddName}",
                     "${item.quantity} P",
                     "${item.gsWt}/${item.ntWt}gm",
-                    "${item.fnWt}/gm\n${oneUnitPrice.to2FString()}",
+                    "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                     "${item.catName} (${item.purity})",
                     "${item.crg} ${item.crgType}",
                     "${char}\n+ ${item.othCrg}",
@@ -425,7 +425,7 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
                     // M.Amt
                     Text(
-                        CalculationUtils.displayPrice(item, viewModel.showSeparateCharges.value).to2FString(),
+                        CalculationUtils.displayPrice(item, viewModel.showSeparateCharges.value).to3FString(),
                         fontSize = 10.sp, 
                         textAlign = TextAlign.End
                     )
@@ -434,14 +434,14 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     if (viewModel.showSeparateCharges.value) {
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            item.chargeAmount.to2FString(),
+                            item.chargeAmount.to3FString(),
                             fontSize = 10.sp, 
                             textAlign = TextAlign.End
                         )
                         // O.Charge
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            item.othCrg.to2FString(),
+                            item.othCrg.to3FString(),
                             fontSize = 10.sp, 
                             textAlign = TextAlign.End
                         )
@@ -450,7 +450,7 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     // Tax
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        item.tax.to2FString(),
+                        item.tax.to3FString(),
                         fontSize = 10.sp, 
                         textAlign = TextAlign.End
                     )
@@ -459,7 +459,7 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     val itemTotals = CalculationUtils.totalPrice(item.price,item.crg,item.othCrg,item.tax)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        itemTotals.to2FString(),
+                        itemTotals.to3FString(),
                         fontSize = 10.sp, 
                         textAlign = TextAlign.End
                     )
@@ -487,7 +487,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
             Text("$metalType Gs/Fn Wt", fontSize = 10.sp)
             Spacer(Modifier.weight(1f))
             Text(
-                "${totalGsWt.to2FString()}/${totalFnWt.to2FString()} gm",
+                "${totalGsWt.to3FString()}/${totalFnWt.to3FString()} gm",
                 fontSize = 10.sp, 
                 textAlign = TextAlign.End
             )
@@ -508,7 +508,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
             Text("Price (before tax)", fontSize = 10.sp)
             Spacer(Modifier.weight(1f))
             Text(
-                "₹${"%.2f".format(totalPrice)}",
+                "₹${totalPrice.to3FString()}",
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
@@ -517,7 +517,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
             Text("Total Tax", fontSize = 10.sp)
             Spacer(Modifier.weight(1f))
             Text(
-                "₹${"%.2f".format(totalTax)}",
+                "₹${totalTax.to3FString()}",
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
@@ -530,7 +530,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
             )
             Spacer(Modifier.weight(1f))
             Text(
-                "₹${"%.2f".format(grandTotal)}",
+                "₹${grandTotal.to3FString()}",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold, 
                 textAlign = TextAlign.End
@@ -644,7 +644,7 @@ fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
                                 if (viewModel.draftDialogNetWeight.text.isNotBlank()) {
                                     val ntWtValue = viewModel.draftDialogNetWeight.text.toDoubleOrNull() ?: 0.0
                                     val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                    viewModel.draftDialogFineWeight.text = String.format("%.2f", ntWtValue * multiplier)
+                                    viewModel.draftDialogFineWeight.text = (ntWtValue * multiplier).to3FString()
                                 }
                                 viewModel.draftDialogPurity.text = selected
                             }

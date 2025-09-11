@@ -15,7 +15,7 @@ import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.createDraftInvoiceData
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -137,9 +137,9 @@ class OrderItemViewModel @Inject constructor(
                     customerSign = mutableStateOf(null), // No signatures for order details
                     ownerSign = mutableStateOf(null),
                     gstLabel = "GST @3%",
-                    discount = orderDetailsEntity!!.order.discount.to2FString(),
+                    discount = orderDetailsEntity!!.order.discount.to3FString(),
                     cardCharges = "0.00",
-                    oldExchange = orderDetailsEntity!!.exchangeItems.sumOf { it.exchangeValue }.to2FString(),
+                    oldExchange = orderDetailsEntity!!.exchangeItems.sumOf { it.exchangeValue }.to3FString(),
                     roundOff = "0.00",
                     dataStoreManager = _dataStoreManager
                 )

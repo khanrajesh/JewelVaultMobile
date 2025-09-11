@@ -63,6 +63,7 @@ import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.formatCurrency
+import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.formatDate
 import kotlinx.coroutines.delay
 import kotlin.collections.isNotEmpty
@@ -695,7 +696,7 @@ fun KhataBookCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "${String.format("%.1f", progressPercentage)}%",
+                            text = "${progressPercentage.to1FString()}%",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -1222,7 +1223,7 @@ fun KhataBookDetailsDialog(
                                 ) {
                                     Text("Progress", style = MaterialTheme.typography.bodySmall)
                                     Text(
-                                        "${String.format("%.1f", progressPercentage)}%",
+                                        "${progressPercentage.to1FString()}%",
                                         style = MaterialTheme.typography.bodySmall,
                                         fontWeight = FontWeight.Bold
                                     )

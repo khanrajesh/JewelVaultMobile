@@ -1,7 +1,6 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -54,12 +54,12 @@ import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
-import com.velox.jewelvault.utils.to2FString
-import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.sql.Timestamp
@@ -73,16 +73,16 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     itemAddName,
     entryType,
     quantity.toString(),
-    gsWt.to2FString(),
-    ntWt.to2FString(),
+    gsWt.to3FString(),
+    ntWt.to3FString(),
     unit,
     purity,
-    fnWt.to2FString(),
+    fnWt.to3FString(),
     crgType,
-    crg.to2FString(),
+    crg.to3FString(),
     othCrgDes,
-    othCrg.to2FString(),
-    (cgst + sgst + igst).to2FString(),
+    othCrg.to3FString(),
+    (cgst + sgst + igst).to3FString(),
     huid,
     addDate.toString(),
     addDesKey,
@@ -110,8 +110,6 @@ fun LandscapeInventoryItemScreen(
     subCatId: String,
     subCatName: String
 ) {
-
-
     LaunchedEffect(true) {
         inventoryViewModel.categoryFilter.text = catName
         inventoryViewModel.subCategoryFilter.text = subCatName
@@ -119,6 +117,7 @@ fun LandscapeInventoryItemScreen(
         inventoryViewModel.endDateFilter.text = ""
         inventoryViewModel.filterItems()
     }
+    val clipboardManager = LocalClipboardManager.current
 
     val showOption = remember { mutableStateOf(false) }
 
@@ -166,10 +165,19 @@ fun LandscapeInventoryItemScreen(
                 inventoryViewModel,
             )
 
+
+
             TextListView(
                 headerList = inventoryViewModel.itemHeaderList,
-                items = inventoryViewModel.itemList.mapIndexed { index, item -> item.toListString(index + 1) },
-                onItemClick = { _ -> },
+                items = inventoryViewModel.itemList.mapIndexed { index, item ->
+                    item.toListString(index + 1)
+                },
+                onItemClick = { item ->
+                    item[0]
+                    clipboardManager.setText(AnnotatedString(item[3]))
+//                    inventoryViewModel.snackBarState.value = "Item ID copied: ${item[3]}"
+
+                },
                 onItemLongClick = { itemData ->
                     val itemId = itemData[3] // itemId is at index 3
                     val item = inventoryViewModel.itemList.find { it.itemId == itemId }
@@ -178,8 +186,7 @@ fun LandscapeInventoryItemScreen(
                         selectedItem.value = it
                         showDialog.value = true
                     }
-                }
-            )
+                })
         }
 
         if (showOption.value) Box(
@@ -191,7 +198,8 @@ fun LandscapeInventoryItemScreen(
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
                 .padding(8.dp)
         ) {
-            Text("Options",
+            Text(
+                "Options",
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.clickable {
@@ -200,7 +208,8 @@ fun LandscapeInventoryItemScreen(
         }
 
         if (showDialog.value && selectedItem.value != null) {
-            AlertDialog(onDismissRequest = { showDialog.value = false },
+            AlertDialog(
+                onDismissRequest = { showDialog.value = false },
                 title = { Text("Item Details") },
                 text = {
                     Column {
@@ -215,7 +224,8 @@ fun LandscapeInventoryItemScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         if (selectedItem.value != null) {
-                            inventoryViewModel.safeDeleteItem(itemId = selectedItem.value!!.itemId,
+                            inventoryViewModel.safeDeleteItem(
+                                itemId = selectedItem.value!!.itemId,
                                 catId = selectedItem.value!!.catId,
                                 subCatId = selectedItem.value!!.subCatId,
                                 onSuccess = {
@@ -284,16 +294,16 @@ private fun AddItemSection(
                             // Clear validation errors when switching modes
                             viewModel.purity.error = ""
                             viewModel.fnWt.error = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(
+                        }, colors = ButtonDefaults.buttonColors(
                             containerColor = if (viewModel.isSelf.value) LightGreen else LightRed
                         )
                     ) {
                         Text("SELF", fontWeight = FontWeight.SemiBold)
                     }
-                    if (!viewModel.isSelf.value){
-                    Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(viewModel.billDate,
+                    if (!viewModel.isSelf.value) {
+                        Spacer(Modifier.width(5.dp))
+                        CusOutlinedTextField(
+                            viewModel.billDate,
                             placeholderText = "Bill Date",
                             modifier = Modifier.weight(1f),
                             isDatePicker = true,
@@ -303,13 +313,15 @@ private fun AddItemSection(
 
                         if (viewModel.purchaseOrdersByDate.isNotEmpty()) {
                             Spacer(Modifier.width(5.dp))
-                            CusOutlinedTextField(modifier = Modifier.weight(1f),
+                            CusOutlinedTextField(
+                                modifier = Modifier.weight(1f),
                                 state = viewModel.billNo,
                                 placeholderText = "Bill No",
                                 readOnly = true,
                                 dropdownItems = viewModel.purchaseOrdersByDate.map { it.billNo },
                                 onDropdownItemSelected = { sel ->
-                                    val item = viewModel.purchaseOrdersByDate.find { it.billNo == sel }
+                                    val item =
+                                        viewModel.purchaseOrdersByDate.find { it.billNo == sel }
                                     if (item != null) {
                                         viewModel.getPurchaseOrderItemDetails(item, subCatName)
                                     } else {
@@ -322,7 +334,7 @@ private fun AddItemSection(
                         if (viewModel.billItemDetails.value.isNotBlank()) {
                             Spacer(Modifier.width(5.dp))
                             var showDetailsDialog by remember { mutableStateOf(false) }
-                            
+
                             Text(
                                 modifier = Modifier
                                     .weight(1f)
@@ -332,23 +344,22 @@ private fun AddItemSection(
                                 color = MaterialTheme.colorScheme.primary,
                                 lineHeight = 12.sp
                             )
-                            
+
                             // Detailed Purchase Order Dialog
                             if (showDetailsDialog) {
-                                val selectedPurchase = viewModel.purchaseOrdersByDate.find { 
-                                    viewModel.billItemDetails.value.contains(it.billNo) 
+                                val selectedPurchase = viewModel.purchaseOrdersByDate.find {
+                                    viewModel.billItemDetails.value.contains(it.billNo)
                                 }
-                                
+
                                 if (selectedPurchase != null) {
                                     var detailedReport by remember { mutableStateOf("Loading...") }
-                                    
+
                                     LaunchedEffect(selectedPurchase, subCatName) {
                                         detailedReport = viewModel.getDetailedPurchaseOrderReport(
-                                            selectedPurchase, 
-                                            subCatName
+                                            selectedPurchase, subCatName
                                         )
                                     }
-                                    
+
                                     AlertDialog(
                                         onDismissRequest = { showDetailsDialog = false },
                                         title = {
@@ -375,46 +386,47 @@ private fun AddItemSection(
                                         },
                                         confirmButton = {
                                             TextButton(
-                                                onClick = { showDetailsDialog = false }
-                                            ) {
+                                                onClick = { showDetailsDialog = false }) {
                                                 Text("Close")
                                             }
-                                        }
-                                    )
+                                        })
                                 }
                             }
                         }
-                        
+
                         // Show remaining weight guidance for fine weight input
                         if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.purity.text.isNotBlank()) {
                             Spacer(Modifier.width(5.dp))
-                            
+
                             var remainingWeight by remember { mutableStateOf(0.0) }
-                            
+
                             LaunchedEffect(viewModel.purity.text, viewModel.purchaseItems.size) {
-                                remainingWeight = viewModel.getRemainingFineWeightForPurity(viewModel.purity.text, subCatName)
+                                remainingWeight = viewModel.getRemainingFineWeightForPurity(
+                                    viewModel.purity.text,
+                                    subCatName
+                                )
                             }
-                            
+
                             if (remainingWeight > 0) {
                                 val inputWeight = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0
                                 val difference = remainingWeight - inputWeight
-                                
+
                                 val guidanceText = if (viewModel.fnWt.text.isBlank()) {
-                                    "Remaining: ${String.format("%.2f", remainingWeight)}g"
+                                    "Remaining:  ${remainingWeight.to3FString()} g"
                                 } else if (difference > 0) {
-                                    "Still need: ${String.format("%.2f", difference)}g (Remaining: ${String.format("%.2f", remainingWeight)}g)"
+                                    "Still need: ${difference.to3FString()}g (Remaining: ${remainingWeight.to3FString()}g)"
                                 } else if (difference < -0.01) {
-                                    "Exceeds by: ${String.format("%.2f", -difference)}g (Remaining: ${String.format("%.2f", remainingWeight)}g)"
+                                    "Exceeds by: ${(-difference).to3FString()}g (Remaining: ${remainingWeight.to3FString()}g)"
                                 } else {
-                                    "✅ Complete (${String.format("%.2f", remainingWeight)}g)"
+                                    "✅ Complete (${remainingWeight.to3FString()}g)"
                                 }
-                                
+
                                 val guidanceColor = when {
                                     difference > 0 -> MaterialTheme.colorScheme.primary
                                     difference < -0.01 -> MaterialTheme.colorScheme.error
                                     else -> MaterialTheme.colorScheme.primary
                                 }
-                                
+
                                 Text(
                                     modifier = Modifier.weight(1f),
                                     text = guidanceText,
@@ -442,7 +454,8 @@ private fun AddItemSection(
 
                         Spacer(Modifier.width(5.dp))
 
-                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
                             state = viewModel.entryType,
                             placeholderText = "Entry Type",
                             dropdownItems = EntryType.list(),
@@ -477,7 +490,8 @@ private fun AddItemSection(
                     Spacer(Modifier.height(5.dp))
 
                     Row {
-                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
                             state = viewModel.grWt,
                             placeholderText = "Gs.Wt/gm",
                             keyboardType = KeyboardType.Number,
@@ -485,7 +499,7 @@ private fun AddItemSection(
                                 if (text.isNotBlank()) {
                                     val grWtValue = text.toDoubleOrNull() ?: 0.0
                                     val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
-                                    
+
                                     if (ntWtValue > 0 && grWtValue < ntWtValue) {
                                         "Gross weight cannot be less than net weight"
                                     } else null
@@ -494,12 +508,13 @@ private fun AddItemSection(
                             onTextChange = { text ->
                                 viewModel.grWt.text = text
                                 viewModel.ntWt.text = text
-                                
+
                                 // Recalculate fine weight if purity is already selected
                                 if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
                                     val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                    val multiplier = Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                    val multiplier =
+                                        Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                    viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
                                 }
                             })
                         Spacer(Modifier.width(5.dp))
@@ -513,7 +528,7 @@ private fun AddItemSection(
                                 if (text.isNotBlank()) {
                                     val ntWtValue = text.toDoubleOrNull() ?: 0.0
                                     val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
-                                    
+
                                     if (grWtValue > 0 && ntWtValue > grWtValue) {
                                         "Net weight cannot be greater than gross weight"
                                     } else null
@@ -521,19 +536,20 @@ private fun AddItemSection(
                             },
                             onTextChange = { text ->
                                 viewModel.ntWt.text = text
-                                
+
                                 // Recalculate fine weight if purity is already selected
                                 if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
                                     val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                    val multiplier = Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                    viewModel.fnWt.text = String.format("%.2f", ntWtValue * multiplier)
+                                    val multiplier =
+                                        Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                    viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
                                 }
-                            }
-                        )
+                            })
 
                         Spacer(Modifier.width(5.dp))
 
-                        CusOutlinedTextField(modifier = Modifier.weight(1f),
+                        CusOutlinedTextField(
+                            modifier = Modifier.weight(1f),
                             state = viewModel.purity,
                             placeholderText = "Purity",
                             dropdownItems = Purity.list(),
@@ -541,17 +557,21 @@ private fun AddItemSection(
                                 if (viewModel.ntWt.text.isNotBlank()) {
                                     val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
                                     val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                    viewModel.fnWt.text =
-                                        String.format("%.2f", ntWtValue * multiplier)
+                                    viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
                                 }
                                 viewModel.purity.text = selected
-                                
+
                                 // Validate fine weight when purity changes
                                 if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                                        val error = viewModel.validateFineWeightInput(viewModel.fnWt.text, selected, subCatName)
-                                        viewModel.fnWt.error = error ?: ""
-                                    }
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                        .launch {
+                                            val error = viewModel.validateFineWeightInput(
+                                                viewModel.fnWt.text,
+                                                selected,
+                                                subCatName
+                                            )
+                                            viewModel.fnWt.error = error ?: ""
+                                        }
                                 } else {
                                     viewModel.fnWt.error = ""
                                 }
@@ -566,17 +586,25 @@ private fun AddItemSection(
                             keyboardType = KeyboardType.Number
                         )
                     }
-                    
+
                     // Validate fine weight when it changes
-                    LaunchedEffect(viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value) {
+                    LaunchedEffect(
+                        viewModel.fnWt.text,
+                        viewModel.purity.text,
+                        viewModel.isSelf.value
+                    ) {
                         if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                            val error = viewModel.validateFineWeightInput(viewModel.fnWt.text, viewModel.purity.text, subCatName)
+                            val error = viewModel.validateFineWeightInput(
+                                viewModel.fnWt.text,
+                                viewModel.purity.text,
+                                subCatName
+                            )
                             viewModel.fnWt.error = error ?: ""
                         } else {
                             viewModel.fnWt.error = ""
                         }
                     }
-                    
+
                     Spacer(Modifier.height(5.dp))
 
                     Row {
@@ -681,11 +709,10 @@ private fun AddItemSection(
                             Text(
                                 text, modifier = Modifier
                                     .weight(1f)
-                                    .padding(5.dp),
-                                fontSize = 16.sp
+                                    .padding(5.dp), fontSize = 16.sp
                             )
 
-                        }else{
+                        } else {
                             Spacer(Modifier.weight(1f))
                         }
 
@@ -706,7 +733,7 @@ private fun AddItemSection(
                         Text("Add", Modifier
                             .bounceClick {
 
-                               return@bounceClick ioScope {
+                                return@bounceClick ioScope {
                                     if (purItem.isEmpty() && !viewModel.isSelf.value) {
                                         viewModel.snackBarState.value =
                                             "No corresponding item found in purchase order"
@@ -745,7 +772,9 @@ private fun AddItemSection(
 
                                     // Check validation errors for purchase order items
                                     if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty()) {
-                                        val fnWtError = viewModel.validateFineWeightInput(viewModel.fnWt.text, viewModel.purity.text, subCatName)
+                                        val fnWtError = viewModel.validateFineWeightInput(
+                                            viewModel.fnWt.text, viewModel.purity.text, subCatName
+                                        )
                                         if (fnWtError != null) {
                                             viewModel.fnWt.error = fnWtError
                                             viewModel.snackBarState.value = fnWtError
@@ -753,13 +782,15 @@ private fun AddItemSection(
                                         }
                                     }
 
-                                    val userId = viewModel.dataStoreManager.getAdminInfo().first.first()
-                                    val storeId = viewModel.dataStoreManager.getSelectedStoreInfo().first.first()
+                                    val userId =
+                                        viewModel.dataStoreManager.getAdminInfo().first.first()
+                                    val storeId =
+                                        viewModel.dataStoreManager.getSelectedStoreInfo().first.first()
 
                                     val newItem = ItemEntity(
                                         itemId = generateId(),
                                         itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
-                                        userId =userId,
+                                        userId = userId,
                                         storeId = storeId,
                                         catId = catId,
                                         subCatId = subCatId,

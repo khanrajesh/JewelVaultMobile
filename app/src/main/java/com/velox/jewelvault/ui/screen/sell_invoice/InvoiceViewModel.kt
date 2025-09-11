@@ -42,7 +42,7 @@ import javax.inject.Inject
 import javax.inject.Named
 import com.velox.jewelvault.utils.createDraftInvoiceData
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 @HiltViewModel
 class InvoiceViewModel @Inject constructor(
@@ -576,7 +576,7 @@ class InvoiceViewModel @Inject constructor(
                         gstLabel = "GST @3 ",
                         discount = discount.text,
                         cardCharges= "0.00",
-                        oldExchange = oldExchange.to2FString(),
+                        oldExchange = oldExchange.to3FString(),
                         roundOff = "0.00",
                         dataStoreManager = _dataStoreManager
                     )

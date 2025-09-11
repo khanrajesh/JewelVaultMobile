@@ -3,7 +3,6 @@ package com.velox.jewelvault.ui.screen.qr_bar_scanner
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,8 +24,7 @@ import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.canBeInt
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 
 @Composable
@@ -81,7 +79,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel) {
                                 if (existing != null) {
                                     val res =
                                         "Id: ${existing.itemId} ${existing.catName} ${existing.subCatName} ${existing.itemAddName}" +
-                                                "\nWt: ${existing.gsWt.to2FString()}(${existing.fnWt.to2FString()}) gm, ${existing.purity}, E.P: ₹${CalculationUtils.totalPrice(existing.price, existing.chargeAmount, existing.othCrg,existing.tax).to2FString()}"
+                                                "\nWt: ${existing.gsWt.to3FString()}(${existing.fnWt.to3FString()}) gm, ${existing.purity}, E.P: ₹${CalculationUtils.totalPrice(existing.price, existing.chargeAmount, existing.othCrg,existing.tax).to3FString()}"
                                     Text(text = res, color = Color.Yellow, fontSize = 14.sp)
 
                                 }

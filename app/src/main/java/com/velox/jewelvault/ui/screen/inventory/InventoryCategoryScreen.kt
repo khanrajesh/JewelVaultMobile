@@ -45,7 +45,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 
 sealed class CatType(val type: String) {
@@ -180,7 +180,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                         Row {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "${inventoryViewModel.inventorySummary.value.totalGrossWeight.to2FString()}",
+                                    "${inventoryViewModel.inventorySummary.value.totalGrossWeight.to3FString()}",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurface

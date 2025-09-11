@@ -9,7 +9,7 @@ import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
@@ -117,16 +117,16 @@ class PurchaseItemViewModel @Inject constructor(
                         item.itemAddName,
                         item.entryType,
                         item.quantity.toString(),
-                        item.gsWt.to2FString(),
-                        item.ntWt.to2FString(),
+                        item.gsWt.to3FString(),
+                        item.ntWt.to3FString(),
                         item.unit,
                         item.purity,
-                        item.fnWt.to2FString(),
+                        item.fnWt.to3FString(),
                         item.crgType,
-                        item.crg.to2FString(),
+                        item.crg.to3FString(),
                         item.othCrgDes,
-                        item.othCrg.to2FString(),
-                        (item.cgst + item.sgst + item.igst).to2FString(),
+                        item.othCrg.to3FString(),
+                        (item.cgst + item.sgst + item.igst).to3FString(),
                         item.huid,
                         item.addDate.toString(),
                         item.addDesKey,
@@ -158,15 +158,15 @@ class PurchaseItemViewModel @Inject constructor(
                             item.itemAddName,
                             item.entryType,
                             item.quantity.toString(),
-                            item.gsWt.to2FString(),
-                            item.ntWt.to2FString(),
+                            item.gsWt.to3FString(),
+                            item.ntWt.to3FString(),
                             item.purity,
-                            item.fnWt.to2FString(),
+                            item.fnWt.to3FString(),
                             item.crgType,
-                            item.crg.to2FString(),
+                            item.crg.to3FString(),
                             item.othCrgDes,
-                            item.othCrg.to2FString(),
-                            (item.cgst + item.sgst + item.igst).to2FString(),
+                            item.othCrg.to3FString(),
+                            (item.cgst + item.sgst + item.igst).to3FString(),
                             item.huid,
                             item.addDesKey,
                             item.addDesValue,

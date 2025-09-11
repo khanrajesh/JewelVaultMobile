@@ -69,7 +69,7 @@ import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to1FString
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import kotlinx.coroutines.Dispatchers
@@ -405,7 +405,7 @@ fun CategorySales(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            "₹${(it.totalPrice).to2FString()}, ",
+                            "₹${(it.totalPrice).to3FString()}, ",
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .weight(3f)
@@ -413,7 +413,7 @@ fun CategorySales(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            "${it.totalFnWt.to2FString()}g",
+                            "${it.totalFnWt.to3FString()}g",
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .weight(1f)
@@ -594,7 +594,7 @@ fun FlowOverView(
                 Spacer(Modifier.weight(1f))
                 Column {
                     Text(
-                        "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to2FString()}",
+                        "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to3FString()}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -985,18 +985,18 @@ fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
                     item.gstin_pan ?: "",
                     "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
                     item.quantity.toString(),
-                    "${item.gsWt.to2FString()}g",
-                    "${item.ntWt.to2FString()}g",
-                    "${item.fnWt.to2FString()}g",
+                    "${item.gsWt.to3FString()}g",
+                    "${item.ntWt.to3FString()}g",
+                    "${item.fnWt.to3FString()}g",
                     item.purity,
-                    "₹${item.fnMetalPrice.to2FString()}",
-                    "₹${item.price.to2FString()}",
+                    "₹${item.fnMetalPrice.to3FString()}",
+                    "₹${item.price.to3FString()}",
                     "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
-                    "₹${item.tax.to2FString()}",
-                    "${item.crg.to2FString()} ${item.crgType}",
-                    "₹${item.charge.to2FString()}",
-                    "${item.othCrgDes}: ₹${item.othCrg.to2FString()}",
-                    "₹${CalculationUtils.totalPrice(item.price, item.charge, item.othCrg,item.tax).to2FString()}",
+                    "₹${item.tax.to3FString()}",
+                    "${item.crg.to3FString()} ${item.crgType}",
+                    "₹${item.charge.to3FString()}",
+                    "${item.othCrgDes}: ₹${item.othCrg.to3FString()}",
+                    "₹${CalculationUtils.totalPrice(item.price, item.charge, item.othCrg,item.tax).to3FString()}",
                     item.huid,
                     "${item.addDesKey}: ${item.addDesValue}"
                 )

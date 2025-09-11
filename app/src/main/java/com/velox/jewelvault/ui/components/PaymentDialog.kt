@@ -1,30 +1,18 @@
 package com.velox.jewelvault.ui.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import android.graphics.Bitmap
 import android.graphics.Color
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 // Function to generate UPI QR code
 fun generateUpiQrCode(upiId: String, amount: Double, name: String = "Merchant"): ImageBitmap? {
@@ -71,7 +59,7 @@ fun PaymentDialog(
 ) {
     var selectedPaymentMethod by remember { mutableStateOf("Cash") }
     var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
-    var paidAmountText by remember { mutableStateOf(totalAmount.to2FString()) }
+    var paidAmountText by remember { mutableStateOf(totalAmount.to3FString()) }
     var discount by remember { mutableStateOf("0.0") }
     var notes by remember { mutableStateOf("") }
     var paymentMethodExpanded by remember { mutableStateOf(false) }
@@ -95,7 +83,7 @@ fun PaymentDialog(
     // Update paid amount when payment type changes
     LaunchedEffect(selectedPaymentType) {
         if (selectedPaymentType == "Paid in Full") {
-            paidAmountText = totalAmount.to2FString()
+            paidAmountText = totalAmount.to3FString()
         }
     }
 

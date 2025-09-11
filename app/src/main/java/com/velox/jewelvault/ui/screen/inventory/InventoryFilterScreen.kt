@@ -60,7 +60,7 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -74,16 +74,16 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     itemAddName,
     entryType,
     quantity.toString(),
-    gsWt.to2FString(),
-    ntWt.to2FString(),
+    gsWt.to3FString(),
+    ntWt.to3FString(),
     unit,
     purity,
-    fnWt.to2FString(),
+    fnWt.to3FString(),
     crgType,
-    crg.to2FString(),
+    crg.to3FString(),
     othCrgDes,
-    othCrg.to2FString(),
-    (cgst + sgst + igst).to2FString(),
+    othCrg.to3FString(),
+    (cgst + sgst + igst).to3FString(),
     huid,
     addDate.toString(),
     addDesKey,

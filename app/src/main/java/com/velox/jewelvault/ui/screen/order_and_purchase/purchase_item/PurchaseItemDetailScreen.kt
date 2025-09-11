@@ -35,7 +35,7 @@ import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.export.enqueueExportWorker
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 @Composable
 @VaultPreview
@@ -103,14 +103,14 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Total Final Weight: ${pur.order.totalFinalWeight?.to2FString() ?: "0.00"} gm, Total Final Amount: ₹${pur.order.totalFinalAmount?.to2FString() ?: "0.00"}",
+                            text = "Total Final Weight: ${pur.order.totalFinalWeight?.to3FString() ?: "0.00"} gm, Total Final Amount: ₹${pur.order.totalFinalAmount?.to3FString() ?: "0.00"}",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
 
                         if (pur.order.extraCharge != null && pur.order.extraCharge > 0) {
                             Text(
-                                text = "Extra Charge: ₹${pur.order.extraCharge.to2FString()}",
+                                text = "Extra Charge: ₹${pur.order.extraCharge.to3FString()}",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -273,7 +273,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                             RoundedCornerShape(8.dp)
                                         )
                                         .padding(12.dp),
-                                    text = "${index + 1}. ${exchange.catName} | Fine Weight: ${exchange.fnWeight.to2FString()} gm",
+                                    text = "${index + 1}. ${exchange.catName} | Fine Weight: ${exchange.fnWeight.to3FString()} gm",
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 14.sp
                                 )
