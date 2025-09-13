@@ -21,13 +21,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Pentagon
-import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Pentagon
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -57,21 +61,22 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
+import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to1FString
-import com.velox.jewelvault.utils.to2FString
-import com.velox.jewelvault.utils.CalculationUtils
-import com.velox.jewelvault.ui.components.OptionalUpdateDialog
+import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -89,6 +94,7 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
     if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun LandscapeMainScreen(
     dashboardViewModel: DashboardViewModel
@@ -98,16 +104,26 @@ fun LandscapeMainScreen(
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = false, onRefresh = {
+            ioScope {
+                dashboardViewModel.getRecentSellItem()
+                dashboardViewModel.getSalesSummary()
+                dashboardViewModel.getTopSellingItems()
+                dashboardViewModel.getTopSellingSubCategories()
+                dashboardViewModel.getCustomerSummary()
+            }
+        }
+    )
 
     // Double back press to exit state
     var backPressCount by remember { mutableStateOf(0) }
-    
+
     // Check for updates on dashboard load
     LaunchedEffect(Unit) {
         baseViewModel.checkForUpdates(context)
     }
-    
+
     // Dialog state for time range selection
     var showTimeRangeDialog by remember { mutableStateOf(false) }
 
@@ -164,7 +180,7 @@ fun LandscapeMainScreen(
 
     }
 
-    if (!isFirstLogin.value){
+    if (!isFirstLogin.value) {
         PermissionRequester(
             permissions = listOf(
                 Manifest.permission.CAMERA,
@@ -178,6 +194,7 @@ fun LandscapeMainScreen(
 
     Box(
         Modifier
+            .pullRefresh(pullRefreshState)
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(5.dp)
@@ -192,11 +209,11 @@ fun LandscapeMainScreen(
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                FlowOverView(dashboardViewModel, ) { showDialog ->
+                FlowOverView(dashboardViewModel) { showDialog ->
                     showTimeRangeDialog = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                TopFiveSales(Modifier.weight(1f), dashboardViewModel, ) { showDialog ->
+                TopFiveSales(Modifier.weight(1f), dashboardViewModel) { showDialog ->
                     showTimeRangeDialog = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
@@ -220,26 +237,24 @@ fun LandscapeMainScreen(
                         modifier = Modifier
 
                             .weight(2f)
-                            .fillMaxWidth()
-                           ,
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth(), contentAlignment = Alignment.Center
                     ) {
 
-                        Box ( modifier = Modifier
+                        Box(modifier = Modifier
                             .bounceClick {
                                 navHost.navigate(Screens.SellInvoice.route)
                             }
                             .fillMaxSize()
                             .background(
                                 MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center){
+                            ), contentAlignment = Alignment.Center) {
                             Text(
                                 "Create Invoice",
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.surface,
 
-                            )
+                                )
                         }
 
                         Icon(
@@ -253,8 +268,7 @@ fun LandscapeMainScreen(
                                 .padding(2.dp)
                                 .size(30.dp)
                                 .background(Color.White, RoundedCornerShape(8.dp))
-                                .padding(7.dp)
-                        )
+                                .padding(7.dp))
 
 
                     }
@@ -265,39 +279,37 @@ fun LandscapeMainScreen(
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-                                    navHost.navigate(Screens.QrScanScreen.route)
-                                }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                                ), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier
+                            .bounceClick {
+                                navHost.navigate(Screens.QrScanScreen.route)
+                            }
+                            .weight(1f)
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center) {
                             Text("Cam", textAlign = TextAlign.Center)
                         }
                         Spacer(Modifier.width(5.dp))
-                        Box(
-                            modifier = Modifier
-                                .bounceClick {
-                                    dashboardViewModel.getSubCategoryCount {
-                                        if (it > 2) {
-                                            mainScope {
-                                                navHost.navigate(Screens.Purchase.route)
-                                            }
-                                        } else {
-                                            baseViewModel.snackBarState =
-                                                "Please add more sub categories."
+                        Box(modifier = Modifier
+                            .bounceClick {
+                                dashboardViewModel.getSubCategoryCount {
+                                    if (it > 2) {
+                                        mainScope {
+                                            navHost.navigate(Screens.Purchase.route)
                                         }
+                                    } else {
+                                        baseViewModel.snackBarState =
+                                            "Please add more sub categories."
                                     }
-
                                 }
-                                .weight(1f)
-                                .fillMaxSize()
-                                .background(
-                                    MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                                ), contentAlignment = Alignment.Center) {
+
+                            }
+                            .weight(1f)
+                            .fillMaxSize()
+                            .background(
+                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                            ), contentAlignment = Alignment.Center) {
                             Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -306,9 +318,16 @@ fun LandscapeMainScreen(
 
             Spacer(Modifier.height(5.dp))
             //Recent Item Sold
-            RecentItemSold(dashboardViewModel.recentSellsItem)
+            RecentItemSold(Modifier, dashboardViewModel.recentSellsItem)
         }
         
+        // Pull to refresh indicator
+        PullRefreshIndicator(
+            refreshing = false,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
         // Time Range Selection Dialog
         if (showTimeRangeDialog) {
             TimeRangeSelectionDialog(
@@ -319,10 +338,9 @@ fun LandscapeMainScreen(
                 },
                 onDismiss = {
                     showTimeRangeDialog = false
-                }
-            )
+                })
         }
-        
+
         // Show update dialogs if needed
         if (baseViewModel.showUpdateDialog.value) {
             baseViewModel.updateInfo.value?.let { updateInfo ->
@@ -330,8 +348,7 @@ fun LandscapeMainScreen(
                     updateInfo = updateInfo,
                     onUpdateClick = { baseViewModel.onUpdateClick(context) },
                     onDismiss = { baseViewModel.dismissUpdateDialog() },
-                    onBackupClick = { baseViewModel.onUpdateClick(context) }
-                )
+                    onBackupClick = { baseViewModel.onUpdateClick(context) })
             }
         }
 
@@ -339,8 +356,7 @@ fun LandscapeMainScreen(
             baseViewModel.updateInfo.value?.let { updateInfo ->
                 com.velox.jewelvault.ui.components.ForceUpdateDialog(
                     updateInfo = updateInfo,
-                    onUpdateClick = { baseViewModel.onUpdateClick(context) }
-                )
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) })
             }
         }
     }
@@ -353,8 +369,7 @@ fun PortraitMainScreen() {
 
 @Composable
 fun CategorySales(
-    dashboardViewModel: DashboardViewModel,
-    onShowTimeRangeDialog: (Boolean) -> Unit
+    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
         Modifier
@@ -375,12 +390,11 @@ fun CategorySales(
             Spacer(Modifier.weight(1f))
             Text(
                 text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
-                fontSize = 9.sp, 
+                fontSize = 9.sp,
                 color = Color.Gray,
                 modifier = Modifier.clickable {
                     onShowTimeRangeDialog(true)
-                }
-            )
+                })
         }
 
         if (dashboardViewModel.topSubCategories.isNotEmpty()) {
@@ -405,7 +419,7 @@ fun CategorySales(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            "₹${(it.totalPrice).to2FString()}, ",
+                            "₹${(it.totalPrice).to3FString()}, ",
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .weight(3f)
@@ -413,7 +427,7 @@ fun CategorySales(
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            "${it.totalFnWt.to2FString()}g",
+                            "${it.totalFnWt.to3FString()}g",
                             fontSize = 10.sp,
                             modifier = Modifier
                                 .weight(1f)
@@ -432,9 +446,7 @@ fun CategorySales(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "No Bill Found",
-                    fontSize = 9.sp,
-                    color = Color.Gray
+                    "No Bill Found", fontSize = 9.sp, color = Color.Gray
                 )
             }
         }
@@ -443,7 +455,7 @@ fun CategorySales(
 
 @Composable
 fun TopFiveSales(
-    modifier: Modifier, 
+    modifier: Modifier,
     dashboardViewModel: DashboardViewModel,
     onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
@@ -465,12 +477,11 @@ fun TopFiveSales(
             Spacer(Modifier.weight(1f))
             Text(
                 text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
-                fontSize = 9.sp, 
+                fontSize = 9.sp,
                 color = Color.Gray,
                 modifier = Modifier.clickable {
                     onShowTimeRangeDialog(true)
-                }
-            )
+                })
         }
 
         if (dashboardViewModel.topSellingItemsMap.isNotEmpty()) {
@@ -505,9 +516,7 @@ fun TopFiveSales(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "No Bill Found",
-                    fontSize = 9.sp,
-                    color = Color.Gray
+                    "No Bill Found", fontSize = 9.sp, color = Color.Gray
                 )
             }
         }
@@ -553,8 +562,7 @@ fun ItemViewItem(
 
 @Composable
 fun FlowOverView(
-    dashboardViewModel: DashboardViewModel,
-    onShowTimeRangeDialog: (Boolean) -> Unit
+    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
         Modifier
@@ -563,7 +571,7 @@ fun FlowOverView(
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp),
 
-    ) {
+        ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Default.Analytics,
@@ -576,12 +584,11 @@ fun FlowOverView(
             Spacer(Modifier.weight(1f))
             Text(
                 text = getTimeRangeDisplayText(dashboardViewModel.selectedRange.value),
-                fontSize = 10.sp, 
+                fontSize = 10.sp,
                 color = Color.Gray,
                 modifier = Modifier.clickable {
                     onShowTimeRangeDialog(true)
-                }
-            )
+                })
         }
 
         if (dashboardViewModel.salesSummary.value != null) {
@@ -594,7 +601,7 @@ fun FlowOverView(
                 Spacer(Modifier.weight(1f))
                 Column {
                     Text(
-                        "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to2FString()}",
+                        "₹${(dashboardViewModel.salesSummary.value?.totalAmount ?: 0.0).to3FString()}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -620,9 +627,7 @@ fun FlowOverView(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Loading...",
-                    fontSize = 9.sp,
-                    color = Color.Gray
+                    "Loading...", fontSize = 9.sp, color = Color.Gray
                 )
             }
         }
@@ -661,8 +666,7 @@ fun CustomerOverview(
             // Customer Statistics
             dashboardViewModel.customerSummary.value?.let { summary ->
                 // Grid Layout
-                Column(
-                ) {
+                Column {
                     // Row 1: Total Customers (Large Card)
                     Card(
                         modifier = Modifier
@@ -686,27 +690,28 @@ fun CustomerOverview(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.weight(1f))
-                                Text(
-                                    "${summary.totalCustomers}",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            Text(
+                                "${summary.totalCustomers}",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
 
                         }
                     }
                     Spacer(Modifier.height(5.dp))
 
                     // Row 2: Khata Books and Outstanding (Two Small Cards)
-                    Row(
-                    ) {
+                    Row {
                         // Khata Book Card
                         Card(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(
+                                    alpha = 0.3f
+                                )
                             ),
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -716,11 +721,14 @@ fun CustomerOverview(
                                     .padding(6.dp),
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                Row(  Modifier.fillMaxWidth(),
+                                Row(
+                                    Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier =  Modifier.weight(1f)) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
                                         Text(
                                             "${summary.activeKhataBooks}",
                                             fontWeight = FontWeight.Bold,
@@ -751,7 +759,7 @@ fun CustomerOverview(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
-                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                            colors = CardDefaults.cardColors(
                                 containerColor = Color.Red.copy(alpha = 0.1f)
                             ),
                             shape = RoundedCornerShape(8.dp)
@@ -766,9 +774,10 @@ fun CustomerOverview(
                                     Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally,
-                                       modifier =  Modifier.weight(1f)
-                                        ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
                                         Text(
                                             "${summary.customersWithOutstandingBalance}",
                                             fontWeight = FontWeight.Bold,
@@ -801,9 +810,7 @@ fun CustomerOverview(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Loading...",
-                        fontSize = 9.sp,
-                        color = Color.Gray
+                        "Loading...", fontSize = 9.sp, color = Color.Gray
                     )
                 }
             }
@@ -813,25 +820,21 @@ fun CustomerOverview(
 
 @Composable
 fun TimeRangeSelectionDialog(
-    currentRange: TimeRange,
-    onRangeSelected: (TimeRange) -> Unit,
-    onDismiss: () -> Unit
+    currentRange: TimeRange, onRangeSelected: (TimeRange) -> Unit, onDismiss: () -> Unit
 ) {
     val timeRangeOptions = listOf(
         TimeRange.WEEKLY to "Weekly",
-        TimeRange.MONTHLY to "Monthly", 
+        TimeRange.MONTHLY to "Monthly",
         TimeRange.THREE_MONTHS to "3 Months",
         TimeRange.SIX_MONTHS to "6 Months",
         TimeRange.YEARLY to "Yearly"
     )
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Select Time Range", 
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                "Select Time Range", fontWeight = FontWeight.Bold, fontSize = 16.sp
             )
         },
         text = {
@@ -841,31 +844,24 @@ fun TimeRangeSelectionDialog(
             ) {
                 timeRangeOptions.forEach { (range, displayText) ->
                     val isSelected = currentRange == range
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                onRangeSelected(range)
-                            }
-                            .background(
-                                color = if (isSelected)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    Color.Transparent,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onRangeSelected(range)
+                        }
+                        .background(
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                            else Color.Transparent, shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = displayText,
                             modifier = Modifier.weight(1f),
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isSelected) 
-                                MaterialTheme.colorScheme.onPrimaryContainer 
-                            else 
-                                MaterialTheme.colorScheme.onSurface
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurface
                         )
                         if (isSelected) {
                             Icon(
@@ -881,13 +877,10 @@ fun TimeRangeSelectionDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                onClick = onDismiss, modifier = Modifier.padding(horizontal = 8.dp)
             ) {
                 Text(
-                    "Cancel",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    "Cancel", fontSize = 14.sp, fontWeight = FontWeight.Medium
                 )
             }
         },
@@ -909,114 +902,119 @@ fun getTimeRangeDisplayText(timeRange: TimeRange): String {
 
 
 @Composable
-fun RecentItemSold(recentSellsItem: SnapshotStateList<IndividualSellItem>) {
+fun RecentItemSold(
+    modifier: Modifier,
+    recentSellsItem: SnapshotStateList<IndividualSellItem>
+) {
     val subNavController = LocalSubNavController.current
+
     Column(
-        Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
     ) {
-        // Colored header with icon
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary
-                        )
-                    ),
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            // Colored header with icon
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary
+                            )
+                        ), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    )
+                    .padding(vertical = 10.dp, horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Recent Sells",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 16.sp
                 )
-                .padding(vertical = 10.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Recent Sells",
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                fontSize = 16.sp
-            )
-            Spacer(Modifier.weight(1f))
-        }
-
-        // Card for table
-        Card(
-            modifier = Modifier
-                .fillMaxSize()
-        ) {
-            // Define headers for all essential fields
-            val headers = listOf(
-                "Date",
-                "Order ID",
-                "Customer Name", 
-                "Mobile No",
-                "Address",
-                "GSTIN/PAN",
-                "Name",
-                "Quantity",
-                "Gross Wt",
-                "Net Wt", 
-                "Fine Wt",
-                "Purity",
-                "Metal Price",
-                "Price",
-                "Tax",
-                "Tax Amount",
-                "Charge",
-                "M.Charge",
-                "Other Charge",
-                "Total Amount",
-                "HUID",
-                "Add. Description"
-            )
-            
-            // Convert IndividualSellItem to List<String> for each row
-            val tableData = recentSellsItem.map { item ->
-                listOf(
-                    item.orderDate.toString(),
-                    item.orderId,
-                    item.name,
-                    item.mobileNo,
-                    item.address ?: "",
-                    item.gstin_pan ?: "",
-                    "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
-                    item.quantity.toString(),
-                    "${item.gsWt.to2FString()}g",
-                    "${item.ntWt.to2FString()}g",
-                    "${item.fnWt.to2FString()}g",
-                    item.purity,
-                    "₹${item.fnMetalPrice.to2FString()}",
-                    "₹${item.price.to2FString()}",
-                    "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
-                    "₹${item.tax.to2FString()}",
-                    "${item.crg.to2FString()} ${item.crgType}",
-                    "₹${item.charge.to2FString()}",
-                    "${item.othCrgDes}: ₹${item.othCrg.to2FString()}",
-                    "₹${CalculationUtils.totalPrice(item.price, item.charge, item.othCrg,item.tax).to2FString()}",
-                    item.huid,
-                    "${item.addDesKey}: ${item.addDesValue}"
-                )
+                Spacer(Modifier.weight(1f))
             }
-            
-            TextListView(
-                modifier = Modifier.fillMaxSize(),
-                headerList = headers,
-                items = tableData,
-                onItemClick = { clickedItem ->
-                    val orderId = clickedItem[1]
-                    if (orderId.isNotEmpty()) {
-                        subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
-                    }
-                },
-                onItemLongClick = { longClickedItem ->
-                    // Handle item long click if needed
+
+            // Card for table
+            Card(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Define headers for all essential fields
+                val headers = listOf(
+                    "Date",
+                    "Order ID",
+                    "Customer Name",
+                    "Mobile No",
+                    "Address",
+                    "GSTIN/PAN",
+                    "Name",
+                    "Quantity",
+                    "Gross Wt",
+                    "Net Wt",
+                    "Fine Wt",
+                    "Purity",
+                    "Metal Price",
+                    "Price",
+                    "Tax",
+                    "Tax Amount",
+                    "Charge",
+                    "M.Charge",
+                    "Other Charge",
+                    "Total Amount",
+                    "HUID",
+                    "Add. Description"
+                )
+
+                // Convert IndividualSellItem to List<String> for each row
+                val tableData = recentSellsItem.map { item ->
+                    listOf(
+                        item.orderDate.toString(),
+                        item.orderId,
+                        item.name,
+                        item.mobileNo,
+                        item.address ?: "",
+                        item.gstin_pan ?: "",
+                        "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
+                        item.quantity.toString(),
+                        "${item.gsWt.to3FString()}g",
+                        "${item.ntWt.to3FString()}g",
+                        "${item.fnWt.to3FString()}g",
+                        item.purity,
+                        "₹${item.fnMetalPrice.to3FString()}",
+                        "₹${item.price.to3FString()}",
+                        "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
+                        "₹${item.tax.to3FString()}",
+                        "${item.crg.to3FString()} ${item.crgType}",
+                        "₹${item.charge.to3FString()}",
+                        "${item.othCrgDes}: ₹${item.othCrg.to3FString()}",
+                        "₹${
+                            CalculationUtils.totalPrice(
+                                item.price, item.charge, item.othCrg, item.tax
+                            ).to3FString()
+                        }",
+                        item.huid,
+                        "${item.addDesKey}: ${item.addDesValue}"
+                    )
                 }
-            )
-        }
+
+                 TextListView(
+                     modifier = Modifier.fillMaxSize(),
+                     headerList = headers,
+                     items = tableData,
+                     onItemClick = { clickedItem ->
+                         val orderId = clickedItem[1]
+                         if (orderId.isNotEmpty()) {
+                             subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
+                         }
+                     },
+                     onItemLongClick = { longClickedItem ->
+                         // Handle item long click if needed
+                     })
+             }
     }
 }
 

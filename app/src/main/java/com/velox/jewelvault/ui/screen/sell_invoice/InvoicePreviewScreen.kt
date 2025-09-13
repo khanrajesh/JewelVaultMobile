@@ -57,13 +57,14 @@ import androidx.compose.ui.zIndex
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.PaymentInfo
 import com.velox.jewelvault.ui.components.SignatureBox
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.generateUpiQrCode
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.sharePdf
 import com.velox.jewelvault.utils.PdfRendererPreview
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 
@@ -150,7 +151,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                     var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
                     var paidAmountText by remember {
                         mutableStateOf(
-                            invoiceViewModel.getTotalOrderAmount().to2FString()
+                            invoiceViewModel.getTotalOrderAmount().to3FString()
                         )
                     }
                     var paymentMethodExpanded by remember { mutableStateOf(false) }
@@ -181,7 +182,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                     // Update paid amount when payment type changes
                     LaunchedEffect(selectedPaymentType) {
                         if (selectedPaymentType == "Paid in Full") {
-                            paidAmountText = invoiceViewModel.getTotalOrderAmount().to2FString()
+                            paidAmountText = invoiceViewModel.getTotalOrderAmount().to3FString()
                         }
                     }
 
@@ -199,44 +200,53 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             fontWeight = FontWeight.Bold
                         )
 
+
                         // Total Amount Display
-                        Card(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp)
-                            ) {
-                                Text(
-                                    text = "Net Amount: ₹${String.format("%.2f", totalAmount)}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                            Row {
+                                CusOutlinedTextField(
+                                    state = invoiceViewModel.invoiceNo,
+                                    placeholderText = "Invoice number",
+                                    modifier = Modifier.weight(1f),
+                                    keyboardType = KeyboardType.Number
                                 )
-                                if (selectedPaymentType == "Partial Payment") {
+
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
                                     Text(
-                                        text = "Outstanding: ₹${
-                                            String.format(
-                                                "%.2f",
-                                                outstandingAmount
-                                            )
-                                        }",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error
+                                        text = "Net Amount",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 10.sp
                                     )
+                                    Text(
+                                        text = "Net Amount: \n₹${totalAmount.to3FString()}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+                                    )
+                                    if (selectedPaymentType == "Partial Payment") {
+                                        Text(
+                                            text = "Outstanding: ₹${outstandingAmount.to3FString()}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
+                                CusOutlinedTextField(
+                                    state = invoiceViewModel.discount,
+//                             onTextChange = { invoiceViewModel.discount.text = it },
+                                    placeholderText = "Discount Amount",
+                                    modifier = Modifier.weight(1f),
+                                    keyboardType = KeyboardType.Number
+                                )
                             }
                         }
 
                         // Discount
-                        CusOutlinedTextField(
-                            state = invoiceViewModel.discount,
-//                             onTextChange = { invoiceViewModel.discount.text = it },
-                            placeholderText = "Discount Amount",
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardType = KeyboardType.Number
-                        )
 
                         // Payment Method Selection
                         Text(
@@ -366,12 +376,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Amount: ₹${
-                                            String.format(
-                                                "%.2f",
-                                                if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
-                                            )
-                                        }",
+                                        text = "Amount: ₹${(if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount).to3FString()}",
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -401,6 +406,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             .weight(1f)
                             .fillMaxWidth()
                     ) {
+
 
                         // Customer Signature
                         SignatureBox(
@@ -448,6 +454,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                     if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
                                         invoiceViewModel.draftCompleteOrder(
                                             context = context,
+                                            invoiceNo = invoiceViewModel.invoiceNo.text,
                                             onSuccess = {
                                                 invoiceViewModel.snackBarState.value =
                                                     "Draft Invoice Generated"
@@ -469,36 +476,42 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             // Regular mode: Payment and order completion
                             Button(
                                 onClick = {
-                                    if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
-                                        val finalPaidAmount =
-                                            if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
-                                        val finalOutstandingAmount = totalAmount - finalPaidAmount
-                                        val isPaidInFullValue =
-                                            selectedPaymentType == "Paid in Full"
+                                    if (invoiceViewModel.invoiceNo.text.isNotEmpty() && invoiceViewModel.invoiceNo.text.isNotBlank()){
+                                        if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
+                                            val finalPaidAmount =
+                                                if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
+                                            val finalOutstandingAmount = totalAmount - finalPaidAmount
+                                            val isPaidInFullValue =
+                                                selectedPaymentType == "Paid in Full"
 
-                                        val paymentInfo = PaymentInfo(
-                                            paymentMethod = selectedPaymentMethod,
-                                            totalAmount = totalAmount,
-                                            paidAmount = finalPaidAmount,
-                                            outstandingAmount = finalOutstandingAmount,
-                                            isPaidInFull = isPaidInFullValue,
-                                            notes = ""
-                                        )
-                                        invoiceViewModel.paymentInfo.value = paymentInfo
+                                            val paymentInfo = PaymentInfo(
+                                                paymentMethod = selectedPaymentMethod,
+                                                totalAmount = totalAmount,
+                                                paidAmount = finalPaidAmount,
+                                                outstandingAmount = finalOutstandingAmount,
+                                                isPaidInFull = isPaidInFullValue,
+                                                notes = ""
+                                            )
+                                            invoiceViewModel.paymentInfo.value = paymentInfo
 
-                                        invoiceViewModel.completeOrder(
-                                            onSuccess = {
+                                            invoiceViewModel.completeOrder(
+                                                invoiceNo = invoiceViewModel.invoiceNo.text,
+                                                onSuccess = {
 
-                                                orderCompleted.value = true
-                                                invoiceViewModel.snackBarState.value =
-                                                    "Order Completed"
-                                            },
-                                            onFailure = {
-                                                invoiceViewModel.snackBarState.value = it
-                                            }
-                                        )
-                                    } else {
-                                        invoiceViewModel.snackBarState.value = "Please Sign"
+                                                    orderCompleted.value = true
+                                                    invoiceViewModel.snackBarState.value =
+                                                        "Order Completed"
+                                                },
+                                                onFailure = {
+                                                    invoiceViewModel.snackBarState.value = it
+                                                }
+                                            )
+                                        } else {
+                                            invoiceViewModel.snackBarState.value = "Please Sign"
+                                        }
+
+                                    }else{
+                                        invoiceViewModel.snackBarState.value = "invoice number can't be blank"
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()
@@ -699,7 +712,7 @@ fun ItemSummaryCard(
                                 quantity = item.quantity,
                                 weight = item.ntWt ?: 0.0
                             )
-                            val char = charge.to2FString()
+                            val char = charge.to3FString()
 
                             listOf(
                                 "${index + 1}.",
@@ -707,7 +720,7 @@ fun ItemSummaryCard(
                                 "${item.subCatName} ${item.itemAddName}",
                                 "${item.quantity} P",
                                 "${item.gsWt}/${item.ntWt}gm",
-                                "${item.fnWt}/gm\n${oneUnitPrice.to2FString()}",
+                                "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                                 "${item.catName} (${item.purity})",
                                 "${item.crg} ${item.crgType}",
                                 "${char}\n+ ${item.othCrg}",
@@ -751,9 +764,9 @@ fun ItemSummaryCard(
                                 listOf(
                                     exchangeItem.metalType,
                                     exchangeItem.purity,
-                                    "${exchangeItem.grossWeight.to2FString()}/${exchangeItem.fineWeight.to2FString()}gm",
+                                    "${exchangeItem.grossWeight.to3FString()}/${exchangeItem.fineWeight.to3FString()}gm",
                                     if (exchangeItem.isExchangedByMetal) "Metal Rate" else "Price",
-                                    "₹${exchangeItem.exchangeValue.to2FString()}"
+                                    "₹${exchangeItem.exchangeValue.to3FString()}"
                                 )
                             }
 
@@ -778,7 +791,7 @@ fun ItemSummaryCard(
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                "₹${invoiceViewModel.getTotalExchangeValue().to2FString()}",
+                                "₹${invoiceViewModel.getTotalExchangeValue().to3FString()}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.End
@@ -812,7 +825,7 @@ fun ItemSummaryCard(
                                     fontSize = 10.sp
                                 )
                                 Text(
-                                    "${totalGsWt.to2FString()}/${totalFnWt.to2FString()} gm",
+                                    "${totalGsWt.to3FString()}/${totalFnWt.to3FString()} gm",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 10.sp,
                                     textAlign = TextAlign.End
@@ -847,7 +860,7 @@ fun ItemSummaryCard(
                                     )
                                 )
                                 Text(
-                                    "₹${"%.2f".format(totalMakingCharges)}",
+                                    "₹${totalMakingCharges.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 9.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -872,7 +885,7 @@ fun ItemSummaryCard(
                                     )
                                 )
                                 Text(
-                                    "₹${"%.2f".format(totalOtherCharges)}",
+                                    "₹${totalOtherCharges.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 9.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.End,
@@ -926,7 +939,7 @@ fun ItemSummaryCard(
                                 fontSize = 10.sp
                             )
                             Text(
-                                "₹${"%.2f".format(totalPrice)}",
+                                "₹${totalPrice.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End
@@ -939,7 +952,7 @@ fun ItemSummaryCard(
                                 fontSize = 10.sp
                             )
                             Text(
-                                "₹${"%.2f".format(totalTax)}",
+                                "₹${totalTax.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 10.sp,
                                 textAlign = TextAlign.End
@@ -953,7 +966,7 @@ fun ItemSummaryCard(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "₹${"%.2f".format(grandTotal)}",
+                                "₹${grandTotal.to3FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -1007,7 +1020,7 @@ fun ItemSummaryCard(
                                     color = MaterialTheme.colorScheme.error
                                 )
                                 Text(
-                                    "-₹${"%.2f".format(totalExchangeValue)}",
+                                    "-₹${totalExchangeValue.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
@@ -1029,7 +1042,7 @@ fun ItemSummaryCard(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    "₹${"%.2f".format(netPayableAmount)}",
+                                    "₹${netPayableAmount.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,

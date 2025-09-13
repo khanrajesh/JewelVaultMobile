@@ -73,7 +73,6 @@ fun CustomerScreen(
 
     Column (
         modifier = Modifier
-
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(5.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -84,12 +83,12 @@ fun CustomerScreen(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Customer Details", fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.padding(start = 10.dp))
-            Spacer(Modifier.weight(1f))
+            CustomerStatisticsCard(Modifier.weight(1f),viewModel)
+            Spacer(Modifier.width(10.dp))
             CusOutlinedTextField(
                 state = searchQuery,
-                placeholderText = "Search mobile number",
-                modifier = Modifier.width(400.dp),
+                placeholderText = "Search By No",
+                modifier = Modifier.width(300.dp),
                 keyboardType = KeyboardType.Phone,
                 trailingIcon = Icons.Default.Search,
                 onTrailingIconClick = {
@@ -114,10 +113,6 @@ fun CustomerScreen(
             Modifier.fillMaxWidth()
         ) {
 
-            // Statistics Cards
-            item {
-                CustomerStatisticsCard(viewModel)
-            }
 
             // Filter Chips
             item {
@@ -174,9 +169,9 @@ fun CustomerScreen(
 
 
 @Composable
-fun CustomerStatisticsCard(viewModel: CustomerViewModel) {
+fun CustomerStatisticsCard(modifier: Modifier,viewModel: CustomerViewModel) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {

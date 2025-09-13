@@ -28,7 +28,7 @@ import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.SortOrder
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -230,12 +230,12 @@ private fun OrderDetail(
             "${item.orderDate}",
             "${item.customerMobile} ",
             "${item.customerMobile}",
-            "₹${item.totalAmount.to2FString()} ",
-            "₹${item.totalCharge.to2FString()} ",
-            "₹${item.totalTax.to2FString()} ",
+            "₹${item.totalAmount.to3FString()} ",
+            "₹${item.totalCharge.to3FString()} ",
+            "₹${item.totalTax.to3FString()} ",
             "₹${
                 CalculationUtils.totalPrice(item.totalAmount, item.totalCharge, 0.0, item.totalTax)
-                    .to2FString()
+                    .to3FString()
             }"
         )
     }

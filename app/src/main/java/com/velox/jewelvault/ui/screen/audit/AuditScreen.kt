@@ -3,16 +3,11 @@
 package com.velox.jewelvault.ui.screen.audit
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,9 +18,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
-import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -33,14 +27,10 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -52,8 +42,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.room.util.TableInfo
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.theme.LightGreen
@@ -285,7 +273,7 @@ private fun ItemCard(
 
         Text(
             modifier = Modifier.padding(5.dp),
-            text = "${item.itemAddName} (${item.itemId}), Wt: ${item.gsWt.to2FString()}g (${item.fnWt.to2FString()}g), Purity: ${item.purity}",
+            text = "${item.itemAddName} (${item.itemId}), Wt: ${item.gsWt.to3FString()}g (${item.fnWt.to3FString()}g), Purity: ${item.purity}",
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
             maxLines = 1,
@@ -310,7 +298,7 @@ private fun ScannedItemCard(
     ) {
         Text(
             modifier = Modifier.padding(5.dp),
-            text = "${item.itemAddName} (${item.itemId}), Wt: ${item.gsWt.to2FString()}g (${item.fnWt.to2FString()}g), Purity: ${item.purity}",
+            text = "${item.itemAddName} (${item.itemId}), Wt: ${item.gsWt.to3FString()}g (${item.fnWt.to3FString()}g), Purity: ${item.purity}",
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
             maxLines = 1,

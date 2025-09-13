@@ -80,7 +80,7 @@ fun MainScreenPreview() {
 }
 
 // Function to show file manager dialog with options
-fun showFileManagerDialog(context: android.content.Context, navController: androidx.navigation.NavHostController, inputIconStates: List<com.velox.jewelvault.ui.components.InputIconState>) {
+fun showFileManagerDialog(context: android.content.Context, navController: NavHostController, inputIconStates: List<InputIconState>) {
     try {
         val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
         
@@ -120,7 +120,7 @@ fun showFileManagerDialog(context: android.content.Context, navController: andro
 }
 
 // Function to open file manager and navigate to JewelVault folder
-fun openFileManager(context: android.content.Context, navController: androidx.navigation.NavHostController, inputIconStates: List<com.velox.jewelvault.ui.components.InputIconState>) {
+fun openFileManager(context: android.content.Context, navController: NavHostController, inputIconStates: List<InputIconState>) {
     try {
         val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
         

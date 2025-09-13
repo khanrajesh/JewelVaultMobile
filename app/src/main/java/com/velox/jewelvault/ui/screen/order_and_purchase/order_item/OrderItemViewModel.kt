@@ -13,9 +13,11 @@ import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderDetailsEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.createDraftInvoiceData
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.SecurityUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,9 +28,12 @@ class OrderItemViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
     private val _loading : MutableState<Boolean>,
+    @Named("snackMessage") private val _snackBar: MutableState<String>,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 
 ) : ViewModel() {
+    val snackBar = _snackBar
+
     val currentScreenHeadingState = _currentScreenHeadingState
     var orderDetailsEntity by mutableStateOf<OrderDetailsEntity?>(null)
         private set
@@ -40,21 +45,20 @@ class OrderItemViewModel @Inject constructor(
         private set
     
     var isLoading by _loading
-    
-    var errorMessage by mutableStateOf<String?>(null)
-        private set
-        
+
     var generatedPdfUri by mutableStateOf<Uri?>(null)
         private set
         
     var isPdfGenerating by mutableStateOf(false)
         private set
 
+    val invoiceNo = InputFieldState(initValue = "${System.currentTimeMillis() % 10000}")
+
+
     fun loadOrderDetails(orderId: String) {
         viewModelScope.launch {
             try {
                 isLoading = true
-                errorMessage = null
 
                 
                 // Get order with items
@@ -70,7 +74,7 @@ class OrderItemViewModel @Inject constructor(
                 store = storeData
                 
             } catch (e: Exception) {
-                errorMessage = "Failed to load order details: ${e.message}"
+                snackBar.value = "Failed to load order details: ${e.message}"
             } finally {
                 isLoading = false
             }
@@ -79,15 +83,14 @@ class OrderItemViewModel @Inject constructor(
     
     fun generateOrderPdf(context: Context) {
         if (orderDetailsEntity == null || customer == null || store == null) {
-            errorMessage = "Cannot generate PDF: Missing order data"
+            snackBar.value = "Cannot generate PDF: Missing order data"
             return
         }
         
         viewModelScope.launch {
             try {
                 isPdfGenerating = true
-                errorMessage = null
-                
+
                 // Convert order items to ItemSelectedModel for PDF generation
                 val items = orderDetailsEntity!!.items.map { orderItem ->
                     com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel(
@@ -137,11 +140,12 @@ class OrderItemViewModel @Inject constructor(
                     customerSign = mutableStateOf(null), // No signatures for order details
                     ownerSign = mutableStateOf(null),
                     gstLabel = "GST @3%",
-                    discount = orderDetailsEntity!!.order.discount.to2FString(),
+                    discount = orderDetailsEntity!!.order.discount.to3FString(),
                     cardCharges = "0.00",
-                    oldExchange = orderDetailsEntity!!.exchangeItems.sumOf { it.exchangeValue }.to2FString(),
+                    oldExchange = orderDetailsEntity!!.exchangeItems.sumOf { it.exchangeValue }.to3FString(),
                     roundOff = "0.00",
-                    dataStoreManager = _dataStoreManager
+                    dataStoreManager = _dataStoreManager,
+                    invoiceNo = invoiceNo.text
                 )
                 
                 generateInvoicePdf(
@@ -154,7 +158,7 @@ class OrderItemViewModel @Inject constructor(
                 }
                 
             } catch (e: Exception) {
-                errorMessage = "Failed to generate PDF: ${e.message}"
+                snackBar.value = "Failed to generate PDF: ${e.message}"
                 isPdfGenerating = false
             }
         }
@@ -164,7 +168,51 @@ class OrderItemViewModel @Inject constructor(
         generatedPdfUri = null
     }
     
-    fun clearError() {
-        errorMessage = null
+    
+    fun deleteOrderWithItems(
+        orderId: String,
+        adminPin: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                
+                // Verify admin pin first
+                if (!verifyAdminPin(adminPin)) {
+                    onFailure("Invalid Admin PIN")
+                    return@launch
+                }
+                
+                // Delete exchange items first
+                appDatabase.orderDao().deleteExchangeItemsByOrderId(orderId)
+                
+                // Delete order items
+                appDatabase.orderDao().deleteOrderItemsByOrderId(orderId)
+                
+                // Delete the order itself
+                appDatabase.orderDao().deleteOrderById(orderId)
+                
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Failed to delete order: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+    
+    private suspend fun verifyAdminPin(adminPin: String): Boolean {
+        return try {
+            val adminUser = appDatabase.userDao().getAdminUser()
+            if (adminUser != null && adminUser.pin != null) {
+                SecurityUtils.verifyPin(adminPin, adminUser.pin)
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
     }
 }

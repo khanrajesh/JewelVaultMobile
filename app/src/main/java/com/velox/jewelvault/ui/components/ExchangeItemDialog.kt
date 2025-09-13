@@ -22,7 +22,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.generateId
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 @Composable
 fun ExchangeItemDialog(
@@ -139,11 +139,11 @@ fun ExchangeItemDialog(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        "Gs: ${item.grossWeight.to2FString()}gm, Fn: ${item.fineWeight.to2FString()}gm",
+                                        "Gs: ${item.grossWeight.to3FString()}gm, Fn: ${item.fineWeight.to3FString()}gm",
                                         fontSize = 12.sp
                                     )
                                     Text(
-                                        "Value: ₹${item.exchangeValue.to2FString()}",
+                                        "Value: ₹${item.exchangeValue.to3FString()}",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -310,7 +310,7 @@ fun ExchangeItemDialog(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "₹ ${String.format("%.2f", exchangeValue)}",
+                            text = "₹ ${exchangeValue.to3FString()}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary

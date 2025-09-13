@@ -52,6 +52,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.runtime.MutableState
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -60,7 +61,7 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -74,16 +75,16 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     itemAddName,
     entryType,
     quantity.toString(),
-    gsWt.to2FString(),
-    ntWt.to2FString(),
+    gsWt.to3FString(),
+    ntWt.to3FString(),
     unit,
     purity,
-    fnWt.to2FString(),
+    fnWt.to3FString(),
     crgType,
-    crg.to2FString(),
+    crg.to3FString(),
     othCrgDes,
-    othCrg.to2FString(),
-    (cgst + sgst + igst).to2FString(),
+    othCrg.to3FString(),
+    (cgst + sgst + igst).to3FString(),
     huid,
     addDate.toString(),
     addDesKey,
@@ -101,12 +102,15 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     // Keep track of subcategories for selected category
     val subCategories = remember { mutableStateListOf<SubCategoryEntity>() }
     var showSortMenu by remember { mutableStateOf(false) }
-    var isFilterPanelExpanded by remember { mutableStateOf(true) }
+    val isFilterPanelExpanded = remember { mutableStateOf(true) }
 
 
     LaunchedEffect(true) {
+        viewModel.categoryFilter.clear()
+        viewModel.subCategoryFilter.clear()
         viewModel.getCategoryAndSubCategoryDetails()
         viewModel.loadFirmAndOrderLists()
+        viewModel.filterItems()
     }
 
     Column(
@@ -161,46 +165,15 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 }
                 val fileName = "ItemExport_${System.currentTimeMillis()}.xlsx"
                 enqueueExportWorker(context, lifecycleOwner, fileName, viewModel.itemHeaderList, rows)
-            }
+            },
+            isFilterPanelExpanded
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Filter panel header with expand/collapse
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { isFilterPanelExpanded = !isFilterPanelExpanded }
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Filters",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "${viewModel.itemList.size} items found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = if (isFilterPanelExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (isFilterPanelExpanded) "Collapse filters" else "Expand filters",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
         // Animated filter panel
         AnimatedVisibility(
-            visible = isFilterPanelExpanded,
+            visible = isFilterPanelExpanded.value,
             enter = slideInVertically(
                 animationSpec = tween(300),
                 initialOffsetY = { -it }
@@ -214,6 +187,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
             ) {
+
                 Column(modifier = Modifier.padding(12.dp)) {
                     // Row 1: Category, Subcategory, Entry Type, Purity
                     Row {
@@ -337,7 +311,9 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             singleLine = true
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { viewModel.filterItems() }) {
+                        Button(onClick = { viewModel.filterItems()
+                            isFilterPanelExpanded.value = !isFilterPanelExpanded.value
+                        }) {
                             Text("Apply")
                         }
                     }
@@ -375,6 +351,8 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             keyboardType = KeyboardType.Decimal,
                             singleLine = true
                         )
+
+
                     }
                 }
             }
@@ -402,7 +380,8 @@ private fun HeaderSection(
     onSortMenuToggle: () -> Unit,
     onSortOptionSelected: (String, String) -> Unit,
     onClearFilters: () -> Unit,
-    onExport: () -> Unit
+    onExport: () -> Unit,
+    isFilterPanelExpanded: MutableState<Boolean>
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -460,6 +439,28 @@ private fun HeaderSection(
                     )
                 }else{
                     Spacer(Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .clickable { isFilterPanelExpanded.value = !isFilterPanelExpanded.value }
+                    ,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${viewModel.itemList.size} items found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(20.dp))
+                    Icon(
+                        imageVector = if (isFilterPanelExpanded.value) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isFilterPanelExpanded.value) "Collapse filters" else "Expand filters",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))

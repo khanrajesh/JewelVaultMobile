@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.backup.*
+import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.ui.components.RestoreSourceDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
 
@@ -707,8 +708,8 @@ private fun formatFileSize(bytes: Long): String {
     val kb = bytes / 1024.0
     val mb = kb / 1024.0
     return when {
-        mb >= 1 -> String.format("%.1f MB", mb)
-        kb >= 1 -> String.format("%.1f KB", kb)
+        mb >= 1 -> "${mb.to1FString()} MB"
+        kb >= 1 -> "${kb.to1FString()} KB"
         else -> "$bytes B"
     }
 }

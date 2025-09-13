@@ -72,7 +72,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
-import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ExchangeItemDialog
 import com.velox.jewelvault.ui.components.InputFieldState
@@ -81,12 +80,13 @@ import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 import kotlinx.coroutines.launch
 
@@ -595,7 +595,7 @@ fun ViewAddItemDialog(
                                             val multiplier =
                                                 Purity.fromLabel(item.purity)?.multiplier ?: 1.0
                                             takeFnWt.text =
-                                                String.format("%.2f", ntWtValue * multiplier)
+                                                (ntWtValue * multiplier).to3FString()
                                         }
                                     }
                                 }
@@ -618,17 +618,17 @@ fun ViewAddItemDialog(
 
                     Row(Modifier.height(50.dp)) {
                         Text(
-                            "Price: ${String.format("%.2f", price)}",
+                            "Price: ${price.to3FString()}",
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            "Charge: ${String.format("%.2f", charge)}",
+                            "Charge: ${charge.to3FString()}",
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            "Tax: ${String.format("%.2f", tax)}",
+                            "Tax: ${tax.to3FString()}",
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f)
                         )
@@ -736,7 +736,7 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                         CalculationUtils.displayPrice(
                             it,
                             viewModel.showSeparateCharges.value
-                        ).to2FString(),
+                        ).to3FString(),
                         modifier = Modifier.weight(1f),
                         fontSize = 10.sp, textAlign = TextAlign.End
                     )
@@ -745,13 +745,13 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     if (viewModel.showSeparateCharges.value) {
 
                         Text(
-                            it.chargeAmount.to2FString(),
+                            it.chargeAmount.to3FString(),
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp, textAlign = TextAlign.End
                         )
                         // O.Charge
                         Text(
-                            it.othCrg.to2FString(),
+                            it.othCrg.to3FString(),
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp, textAlign = TextAlign.End
                         )
@@ -760,7 +760,7 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
                     // Tax
                     Text(
-                        it.tax.to2FString(),
+                        it.tax.to3FString(),
                         modifier = Modifier.weight(1f),
                         fontSize = 10.sp, textAlign = TextAlign.End
                     )
@@ -771,7 +771,7 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                         it.chargeAmount, it.othCrg, it.tax
                     )
                     Text(
-                        itemTotals.to2FString(),
+                        itemTotals.to3FString(),
                         modifier = Modifier.weight(1.5f),
                         fontSize = 10.sp, textAlign = TextAlign.End
                     )
@@ -805,7 +805,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                     fontSize = 10.sp
                 )
                 Text(
-                    "${metalSummary.totalGrossWeight.to2FString()}/${metalSummary.totalFineWeight.to2FString()} gm",
+                    "${metalSummary.totalGrossWeight.to3FString()}/${metalSummary.totalFineWeight.to3FString()} gm",
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp, textAlign = TextAlign.End
                 )
@@ -820,7 +820,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
         Row(Modifier.fillMaxWidth()) {
             Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "₹${summary.totalPriceBeforeTax.to2FString()}",
+                "₹${summary.totalPriceBeforeTax.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
@@ -829,7 +829,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
         Row(Modifier.fillMaxWidth()) {
             Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "₹${summary.totalTax.to2FString()}",
+                "₹${summary.totalTax.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
@@ -843,7 +843,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                 fontWeight = FontWeight.Medium
             )
             Text(
-                "₹${summary.grandTotal.to2FString()}",
+                "₹${summary.grandTotal.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium, textAlign = TextAlign.End
@@ -877,14 +877,14 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "${index + 1}. ${exchangeItem.metalType} ${exchangeItem.purity}, Gs: ${exchangeItem.grossWeight.to2FString()}gm, Fn: ${exchangeItem.fineWeight.to2FString()}gm",
+                            "${index + 1}. ${exchangeItem.metalType} ${exchangeItem.purity}, Gs: ${exchangeItem.grossWeight.to3FString()}gm, Fn: ${exchangeItem.fineWeight.to3FString()}gm",
                             modifier = Modifier.weight(2f),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium
                         )
 
                         Text(
-                            "₹${exchangeItem.exchangeValue.to2FString()}",
+                            "₹${exchangeItem.exchangeValue.to3FString()}",
                             modifier = Modifier,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -904,7 +904,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "-₹${totalExchangeValue.to2FString()}",
+                    "-₹${totalExchangeValue.to3FString()}",
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
@@ -926,7 +926,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "₹${netPayableAmount.to2FString()}",
+                    "₹${netPayableAmount.to3FString()}",
                     modifier = Modifier.weight(1f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
@@ -985,7 +985,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     quantity = item.quantity,
                     weight = item.ntWt ?: 0.0
                 )
-                val char = charge.to2FString()
+                val char = charge.to3FString()
 
                 listOf(
                     "${index + 1}.",
@@ -993,7 +993,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     "${item.subCatName} ${item.itemAddName}",
                     "${item.quantity} P",
                     "${item.gsWt}/${item.ntWt}gm",
-                    "${item.fnWt}/gm\n${oneUnitPrice.to2FString()}",
+                    "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                     "${item.catName} (${item.purity})",
                     "${item.crg} ${item.crgType}",
                     "${char}\n+ ${item.othCrg}",
@@ -1045,9 +1045,9 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                         listOf(
                             exchangeItem.metalType,
                             exchangeItem.purity,
-                            "${exchangeItem.grossWeight.to2FString()}/${exchangeItem.fineWeight.to2FString()}gm",
+                            "${exchangeItem.grossWeight.to3FString()}/${exchangeItem.fineWeight.to3FString()}gm",
                             if (exchangeItem.isExchangedByMetal) "Metal Rate" else "Price",
-                            "₹${exchangeItem.exchangeValue.to2FString()}",
+                            "₹${exchangeItem.exchangeValue.to3FString()}",
                             "Edit/Del"
                         )
                     }
@@ -1084,7 +1084,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        "₹${viewModel.getTotalExchangeValue().to2FString()}",
+                        "₹${viewModel.getTotalExchangeValue().to3FString()}",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.End
@@ -1131,6 +1131,7 @@ private fun AddItemSection(
 
         Row(
             Modifier
+                .weight(1f)
                 .fillMaxHeight()
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)

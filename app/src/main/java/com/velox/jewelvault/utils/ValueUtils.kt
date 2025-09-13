@@ -103,13 +103,23 @@ fun Double.roundTo3Decimal(): Double {
 }
 
 @SuppressLint("DefaultLocale")
-fun Double.to2FString(): String{
+fun Double.to3FString(): String{
    return try {
+        String.format(Locale.US, "%.3f", this)
+    }catch (_:Exception){
+        "NULL"
+    }
+}
+
+@SuppressLint("DefaultLocale")
+fun Double.to2FString(): String{
+    return try {
         String.format(Locale.US, "%.2f", this)
     }catch (_:Exception){
         "NULL"
     }
 }
+
 fun Double.to1FString() = String.format(Locale.US, "%.1f", this)
 
 fun numberToWords(number: Int): String {
@@ -196,7 +206,7 @@ fun String.canBeInt(): Boolean {
  * @return Formatted currency string (e.g., "₹1,234.56")
  */
 fun formatCurrency(amount: Double): String {
-    return "₹${amount.to2FString()}"
+    return "₹${amount.to3FString()}"
 }
 
 /**

@@ -60,7 +60,7 @@ import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.formatDate
-import com.velox.jewelvault.utils.to2FString
+import com.velox.jewelvault.utils.to3FString
 
 
 @Composable
@@ -584,7 +584,7 @@ fun KhataBookCalculatorDialog(
                         InfoRow("Total Savings", formatCurrency(results.totalSavings))
                         InfoRow(
                             "Savings Percentage",
-                            "${results.savingsPercentage.to2FString()}%"
+                            "${results.savingsPercentage.to3FString()}%"
                         )
                     }
                 }
