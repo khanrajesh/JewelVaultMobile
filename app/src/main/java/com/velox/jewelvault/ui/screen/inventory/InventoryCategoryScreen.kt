@@ -1,8 +1,10 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,6 +85,15 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val addCatType = remember { mutableStateOf("") }
     val selectedCatName = remember { mutableStateOf<String?>(null) }
     val selectedCatId = remember { mutableStateOf<String?>(null) }
+    val showDeleteCatDialog = remember { mutableStateOf(false) }
+    val categoryToDelete = remember { mutableStateOf<CatSubCatDto?>(null) }
+    val adminPin = remember { InputFieldState("") }
+    val showSubCatInfoDialog = remember { mutableStateOf(false) }
+    val selectedSubCategory = remember { mutableStateOf<SubCategoryEntity?>(null) }
+    val showEditSubCatDialog = remember { mutableStateOf(false) }
+    val showDeleteSubCatDialog = remember { mutableStateOf(false) }
+    val subCatName = remember { InputFieldState("") }
+    val subCatAdminPin = remember { InputFieldState("") }
 
     val subNavController = LocalSubNavController.current
 
@@ -95,15 +106,25 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
         LazyVerticalGrid(modifier = Modifier.fillMaxSize(), columns = GridCells.Fixed(2)) {
 
             items(inventoryViewModel.catSubCatDto) {
-                CategoryItem(height, it, addSubCatClick = { showOption ->
-
-                    addCatType.value = CatType.SubCategory.type
-                    selectedCatName.value = it.catName
-                    selectedCatId.value = it.catId
-                    showOption.value = false
-                    showAddCatDialog.value = true
-
-                })
+                CategoryItem(
+                    height = height, 
+                    catSubCatDto = it, 
+                    addSubCatClick = { showOption ->
+                        addCatType.value = CatType.SubCategory.type
+                        selectedCatName.value = it.catName
+                        selectedCatId.value = it.catId
+                        showOption.value = false
+                        showAddCatDialog.value = true
+                    },
+                    deleteCategoryClick = { category ->
+                        categoryToDelete.value = category
+                        showDeleteCatDialog.value = true
+                    },
+                    subCategoryLongClick = { subCategory ->
+                        selectedSubCategory.value = subCategory
+                        showSubCatInfoDialog.value = true
+                    }
+                )
             }
 
             item {
@@ -325,6 +346,390 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                 }
             }
         }
+
+        // Delete Category Confirmation Dialog
+        if (showDeleteCatDialog.value && categoryToDelete.value != null) {
+            Dialog(onDismissRequest = {
+                showDeleteCatDialog.value = false
+                categoryToDelete.value = null
+                adminPin.clear()
+            }) {
+                Column(
+                    Modifier
+                        .width(500.dp)
+                        .wrapContentHeight()
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(18.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Delete Category",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        "Are you sure you want to delete the category '${categoryToDelete.value?.catName}'?",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    
+                    Text(
+                        "This will also delete all subcategories and items in this category. This action cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        "Enter Admin PIN to confirm:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    CusOutlinedTextField(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .fillMaxWidth(),
+                        state = adminPin,
+                        placeholderText = "Enter Admin PIN",
+                        keyboardType = KeyboardType.NumberPassword,
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row {
+                        Text(
+                            "Cancel", 
+                            Modifier
+                                .clickable {
+                                    adminPin.clear()
+                                    categoryToDelete.value = null
+                                    showDeleteCatDialog.value = false
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        Text(
+                            "Delete", 
+                            Modifier
+                                .clickable {
+                                    val category = categoryToDelete.value
+                                    if (category != null && adminPin.text.isNotEmpty()) {
+                                        inventoryViewModel.deleteCategoryWithPin(
+                                            category = category,
+                                            adminPin = adminPin.text,
+                                            onSuccess = {
+                                                adminPin.clear()
+                                                categoryToDelete.value = null
+                                                showDeleteCatDialog.value = false
+                                            },
+                                            onFailure = { error ->
+                                                // Error message will be shown via snackbar
+                                            }
+                                        )
+                                    }
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.error,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    }
+                }
+            }
+        }
+
+        // SubCategory Info Dialog
+        if (showSubCatInfoDialog.value && selectedSubCategory.value != null) {
+            Dialog(onDismissRequest = {
+                showSubCatInfoDialog.value = false
+                selectedSubCategory.value = null
+            }) {
+                Column(
+                    Modifier
+                        .width(500.dp)
+                        .wrapContentHeight()
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(18.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "SubCategory Information",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val subCategory = selectedSubCategory.value!!
+                    Text("Name: ${subCategory.subCatName}")
+                    Text("Category: ${subCategory.catName}")
+                    Text("Quantity: ${subCategory.quantity}")
+                    Text("Gross Weight: ${subCategory.gsWt}gm")
+                    Text("Fine Weight: ${subCategory.fnWt}gm")
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row {
+                        Text(
+                            "Edit", 
+                            Modifier
+                                .clickable {
+                                    subCatName.text = subCategory.subCatName
+                                    showSubCatInfoDialog.value = false
+                                    showEditSubCatDialog.value = true
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        Text(
+                            "Delete", 
+                            Modifier
+                                .clickable {
+                                    showSubCatInfoDialog.value = false
+                                    showDeleteSubCatDialog.value = true
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.error,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    }
+                }
+            }
+        }
+
+        // Edit SubCategory Dialog
+        if (showEditSubCatDialog.value && selectedSubCategory.value != null) {
+            Dialog(onDismissRequest = {
+                showEditSubCatDialog.value = false
+                selectedSubCategory.value = null
+                subCatName.clear()
+            }) {
+                Column(
+                    Modifier
+                        .width(500.dp)
+                        .wrapContentHeight()
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(18.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Edit SubCategory Name",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    CusOutlinedTextField(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .fillMaxWidth(),
+                        state = subCatName,
+                        placeholderText = "Enter new subcategory name",
+                        keyboardType = KeyboardType.Text,
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row {
+                        Text(
+                            "Cancel", 
+                            Modifier
+                                .clickable {
+                                    subCatName.clear()
+                                    selectedSubCategory.value = null
+                                    showEditSubCatDialog.value = false
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        Text(
+                            "Update", 
+                            Modifier
+                                .clickable {
+                                    val subCategory = selectedSubCategory.value
+                                    val newName = subCatName.text.trim()
+                                    if (subCategory != null && newName.isNotEmpty()) {
+                                        inventoryViewModel.updateSubCategoryName(
+                                            subCategory = subCategory,
+                                            newName = newName,
+                                            onSuccess = {
+                                                subCatName.clear()
+                                                selectedSubCategory.value = null
+                                                showEditSubCatDialog.value = false
+                                            },
+                                            onFailure = { error ->
+                                                // Error message will be shown via snackbar
+                                            }
+                                        )
+                                    }
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Delete SubCategory Dialog
+        if (showDeleteSubCatDialog.value && selectedSubCategory.value != null) {
+            Dialog(onDismissRequest = {
+                showDeleteSubCatDialog.value = false
+                selectedSubCategory.value = null
+                subCatAdminPin.clear()
+            }) {
+                Column(
+                    Modifier
+                        .width(500.dp)
+                        .wrapContentHeight()
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(18.dp)
+                        )
+                        .padding(20.dp)
+                ) {
+                    Text(
+                        "Delete SubCategory",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    val subCategory = selectedSubCategory.value!!
+                    Text(
+                        "Are you sure you want to delete the subcategory '${subCategory.subCatName}'?",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    
+                    Text(
+                        "This will also delete all items in this subcategory. This action cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        "Enter Admin PIN to confirm:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    
+                    CusOutlinedTextField(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .fillMaxWidth(),
+                        state = subCatAdminPin,
+                        placeholderText = "Enter Admin PIN",
+                        keyboardType = KeyboardType.NumberPassword,
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row {
+                        Text(
+                            "Cancel", 
+                            Modifier
+                                .clickable {
+                                    subCatAdminPin.clear()
+                                    selectedSubCategory.value = null
+                                    showDeleteSubCatDialog.value = false
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        Text(
+                            "Delete", 
+                            Modifier
+                                .clickable {
+                                    val subCategory = selectedSubCategory.value
+                                    if (subCategory != null && subCatAdminPin.text.isNotEmpty()) {
+                                        inventoryViewModel.deleteSubCategoryWithPin(
+                                            subCategory = subCategory,
+                                            adminPin = subCatAdminPin.text,
+                                            onSuccess = {
+                                                subCatAdminPin.clear()
+                                                selectedSubCategory.value = null
+                                                showDeleteSubCatDialog.value = false
+                                            },
+                                            onFailure = { error ->
+                                                // Error message will be shown via snackbar
+                                            }
+                                        )
+                                    }
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.error,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onError
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -333,6 +738,8 @@ fun CategoryItem(
     height: Int,
     catSubCatDto: CatSubCatDto,
     addSubCatClick: (MutableState<Boolean>) -> Unit,
+    deleteCategoryClick: (CatSubCatDto) -> Unit,
+    subCategoryLongClick: (SubCategoryEntity) -> Unit,
 ) {
 
     val showOption = remember { mutableStateOf(false) }
@@ -379,7 +786,10 @@ fun CategoryItem(
                 columns = GridCells.Fixed(3)
             ) {
                 items(catSubCatDto.subCategoryList) {
-                    SubCategoryItem(it)
+                    SubCategoryItem(
+                        subCategoryEntity = it,
+                        onLongClick = { subCategoryLongClick(it) }
+                    )
                 }
             }
         }
@@ -393,25 +803,42 @@ fun CategoryItem(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
                     .padding(8.dp)
             ) {
-                Text("Add Sub Category",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable {
-                        addSubCatClick(showOption)
-                    })
+                Column {
+                    Text("Add Sub Category",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable {
+                            addSubCatClick(showOption)
+                        })
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Delete Category",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clickable {
+                            showOption.value = false
+                            deleteCategoryClick(catSubCatDto)
+                        })
+                }
             }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SubCategoryItem(subCategoryEntity: SubCategoryEntity) {
+fun SubCategoryItem(
+    subCategoryEntity: SubCategoryEntity,
+    onLongClick: () -> Unit
+) {
     val subNav = LocalSubNavController.current
     Column(
         Modifier
-            .bounceClick {
-                ///{catId}/{catName}/{subCatId}/{subCatName}
-                subNav.navigate("${SubScreens.InventoryItem.route}/${subCategoryEntity.catId}/${subCategoryEntity.catName}/${subCategoryEntity.subCatId}/${subCategoryEntity.subCatName}")
-            }
+            .combinedClickable(
+                onClick = {
+                    ///{catId}/{catName}/{subCatId}/{subCatName}
+                    subNav.navigate("${SubScreens.InventoryItem.route}/${subCategoryEntity.catId}/${subCategoryEntity.catName}/${subCategoryEntity.subCatId}/${subCategoryEntity.subCatName}")
+                },
+                onLongClick = onLongClick
+            )
             .padding(3.dp)
             .wrapContentHeight()
             .background(

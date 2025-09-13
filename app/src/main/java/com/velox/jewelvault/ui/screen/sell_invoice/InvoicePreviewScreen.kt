@@ -200,39 +200,53 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             fontWeight = FontWeight.Bold
                         )
 
+
                         // Total Amount Display
-                        Card(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            )
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp)
-                            ) {
-                                Text(
-                                    text = "Net Amount: ₹${totalAmount.to3FString()}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
+                            Row {
+                                CusOutlinedTextField(
+                                    state = invoiceViewModel.invoiceNo,
+                                    placeholderText = "Invoice number",
+                                    modifier = Modifier.weight(1f),
+                                    keyboardType = KeyboardType.Number
                                 )
-                                if (selectedPaymentType == "Partial Payment") {
+
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
                                     Text(
-                                        text = "Outstanding: ₹${outstandingAmount.to3FString()}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error
+                                        text = "Net Amount",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 10.sp
                                     )
+                                    Text(
+                                        text = "Net Amount: \n₹${totalAmount.to3FString()}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
+                                    )
+                                    if (selectedPaymentType == "Partial Payment") {
+                                        Text(
+                                            text = "Outstanding: ₹${outstandingAmount.to3FString()}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
+                                CusOutlinedTextField(
+                                    state = invoiceViewModel.discount,
+//                             onTextChange = { invoiceViewModel.discount.text = it },
+                                    placeholderText = "Discount Amount",
+                                    modifier = Modifier.weight(1f),
+                                    keyboardType = KeyboardType.Number
+                                )
                             }
                         }
 
                         // Discount
-                        CusOutlinedTextField(
-                            state = invoiceViewModel.discount,
-//                             onTextChange = { invoiceViewModel.discount.text = it },
-                            placeholderText = "Discount Amount",
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardType = KeyboardType.Number
-                        )
 
                         // Payment Method Selection
                         Text(
@@ -393,6 +407,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             .fillMaxWidth()
                     ) {
 
+
                         // Customer Signature
                         SignatureBox(
                             modifier = Modifier
@@ -439,6 +454,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                     if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
                                         invoiceViewModel.draftCompleteOrder(
                                             context = context,
+                                            invoiceNo = invoiceViewModel.invoiceNo.text,
                                             onSuccess = {
                                                 invoiceViewModel.snackBarState.value =
                                                     "Draft Invoice Generated"
@@ -460,36 +476,42 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                             // Regular mode: Payment and order completion
                             Button(
                                 onClick = {
-                                    if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
-                                        val finalPaidAmount =
-                                            if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
-                                        val finalOutstandingAmount = totalAmount - finalPaidAmount
-                                        val isPaidInFullValue =
-                                            selectedPaymentType == "Paid in Full"
+                                    if (invoiceViewModel.invoiceNo.text.isNotEmpty() && invoiceViewModel.invoiceNo.text.isNotBlank()){
+                                        if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
+                                            val finalPaidAmount =
+                                                if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
+                                            val finalOutstandingAmount = totalAmount - finalPaidAmount
+                                            val isPaidInFullValue =
+                                                selectedPaymentType == "Paid in Full"
 
-                                        val paymentInfo = PaymentInfo(
-                                            paymentMethod = selectedPaymentMethod,
-                                            totalAmount = totalAmount,
-                                            paidAmount = finalPaidAmount,
-                                            outstandingAmount = finalOutstandingAmount,
-                                            isPaidInFull = isPaidInFullValue,
-                                            notes = ""
-                                        )
-                                        invoiceViewModel.paymentInfo.value = paymentInfo
+                                            val paymentInfo = PaymentInfo(
+                                                paymentMethod = selectedPaymentMethod,
+                                                totalAmount = totalAmount,
+                                                paidAmount = finalPaidAmount,
+                                                outstandingAmount = finalOutstandingAmount,
+                                                isPaidInFull = isPaidInFullValue,
+                                                notes = ""
+                                            )
+                                            invoiceViewModel.paymentInfo.value = paymentInfo
 
-                                        invoiceViewModel.completeOrder(
-                                            onSuccess = {
+                                            invoiceViewModel.completeOrder(
+                                                invoiceNo = invoiceViewModel.invoiceNo.text,
+                                                onSuccess = {
 
-                                                orderCompleted.value = true
-                                                invoiceViewModel.snackBarState.value =
-                                                    "Order Completed"
-                                            },
-                                            onFailure = {
-                                                invoiceViewModel.snackBarState.value = it
-                                            }
-                                        )
-                                    } else {
-                                        invoiceViewModel.snackBarState.value = "Please Sign"
+                                                    orderCompleted.value = true
+                                                    invoiceViewModel.snackBarState.value =
+                                                        "Order Completed"
+                                                },
+                                                onFailure = {
+                                                    invoiceViewModel.snackBarState.value = it
+                                                }
+                                            )
+                                        } else {
+                                            invoiceViewModel.snackBarState.value = "Please Sign"
+                                        }
+
+                                    }else{
+                                        invoiceViewModel.snackBarState.value = "invoice number can't be blank"
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth()

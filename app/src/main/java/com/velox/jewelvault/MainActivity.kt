@@ -154,6 +154,7 @@ class MainActivity : FragmentActivity() {
                             navController, baseViewModel, startDestination = Screens.Splash.route
                         )
 
+
                         if (baseViewModel.loading) {
                             Dialog(properties = DialogProperties(
                                 dismissOnBackPress = false, dismissOnClickOutside = false

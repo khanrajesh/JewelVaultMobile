@@ -50,7 +50,6 @@ data class InventorySummary(
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val appDatabase: AppDatabase, private val _dataStoreManager: DataStoreManager,
-//    private val _loadingState: MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 
@@ -58,7 +57,6 @@ class InventoryViewModel @Inject constructor(
 
     val currentScreenHeadingState = _currentScreenHeadingState
     val dataStoreManager = _dataStoreManager
-
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
@@ -70,7 +68,6 @@ class InventoryViewModel @Inject constructor(
     val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
         _dataStoreManager.getSelectedStoreInfo()
 
-    //    val loadingState = _loadingState
     val snackBarState = _snackBarState
     val itemList: SnapshotStateList<ItemEntity> = SnapshotStateList()
     val catSubCatDto: SnapshotStateList<CatSubCatDto> = SnapshotStateList()
@@ -363,6 +360,175 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    fun deleteCategoryWithPin(
+        category: CatSubCatDto,
+        adminPin: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        ioLaunch {
+            try {
+                // Verify admin pin first
+                withIo {
+                    if (!verifyAdminPin(adminPin)) {
+                        _snackBarState.value = "Invalid Admin PIN"
+                        onFailure("Invalid Admin PIN")
+                        return@withIo
+                    }
+                }
+
+                // Delete category and all related data
+                deleteCategoryAndRelatedData(category.catId)
+                
+                _snackBarState.value = "Category '${category.catName}' and all related data deleted successfully"
+                this@InventoryViewModel.log("Category '${category.catName}' deleted successfully")
+                
+                // Refresh data
+                getCategoryAndSubCategoryDetails()
+                loadInventorySummary()
+                filterItems()
+                
+                onSuccess()
+            } catch (e: Exception) {
+                _snackBarState.value = "Failed to delete category: ${e.message}"
+                this@InventoryViewModel.log("Failed to delete category: ${e.message}")
+                onFailure(e.message ?: "Unknown error")
+            } finally {
+            }
+        }
+    }
+
+    fun deleteSubCategoryWithPin(
+        subCategory: SubCategoryEntity,
+        adminPin: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        ioLaunch {
+            try {
+                // Verify admin pin first
+                withIo {
+                    if (!verifyAdminPin(adminPin)) {
+                        _snackBarState.value = "Invalid Admin PIN"
+                        onFailure("Invalid Admin PIN")
+                        return@withIo
+                    }
+                }
+
+                // Delete subcategory and all related data
+                deleteSubCategoryAndRelatedData(subCategory.subCatId)
+                
+                _snackBarState.value = "Subcategory '${subCategory.subCatName}' and all related data deleted successfully"
+                this@InventoryViewModel.log("Subcategory '${subCategory.subCatName}' deleted successfully")
+                
+                // Refresh data
+                getCategoryAndSubCategoryDetails()
+                loadInventorySummary()
+                filterItems()
+                
+                onSuccess()
+            } catch (e: Exception) {
+                _snackBarState.value = "Failed to delete subcategory: ${e.message}"
+                this@InventoryViewModel.log("Failed to delete subcategory: ${e.message}")
+                onFailure(e.message ?: "Unknown error")
+            } finally {
+            }
+        }
+    }
+
+    fun updateSubCategoryName(
+        subCategory: SubCategoryEntity,
+        newName: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        ioLaunch {
+            try {
+                val updatedSubCategory = subCategory.copy(subCatName = newName)
+                val rowsUpdated = appDatabase.subCategoryDao().updateSubCategory(updatedSubCategory)
+                
+                if (rowsUpdated > 0) {
+                    _snackBarState.value = "Subcategory name updated successfully"
+                    this@InventoryViewModel.log("Subcategory name updated successfully")
+                    
+                    // Refresh data
+                    getCategoryAndSubCategoryDetails()
+                    loadInventorySummary()
+                    filterItems()
+                    
+                    onSuccess()
+                } else {
+                    _snackBarState.value = "Failed to update subcategory name"
+                    onFailure("Failed to update subcategory name")
+                }
+            } catch (e: Exception) {
+                _snackBarState.value = "Failed to update subcategory: ${e.message}"
+                this@InventoryViewModel.log("Failed to update subcategory: ${e.message}")
+                onFailure(e.message ?: "Unknown error")
+            } finally {
+            }
+        }
+    }
+
+    private suspend fun verifyAdminPin(adminPin: String): Boolean {
+        return try {
+            val userId = admin.first.first()
+            val currentUser = appDatabase.userDao().getUserById(userId)
+            
+            if (currentUser != null && currentUser.pin != null) {
+                com.velox.jewelvault.utils.SecurityUtils.verifyPin(adminPin, currentUser.pin)
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            this@InventoryViewModel.log("Error verifying admin pin: ${e.message}")
+            false
+        }
+    }
+
+    private suspend fun deleteCategoryAndRelatedData(catId: String) {
+        withIo {
+            try {
+                // Delete all items in this category
+                appDatabase.masterDao().deleteItemsByCategory(catId)
+                
+                // Delete all subcategories in this category
+                appDatabase.masterDao().deleteSubCategoriesByCategory(catId)
+                
+                // Finally delete the category itself
+                val category = appDatabase.categoryDao().getCategoryById(catId)
+                if (category != null) {
+                    appDatabase.categoryDao().deleteCategory(category)
+                }
+                
+                this@InventoryViewModel.log("Successfully deleted category $catId and all related data")
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("Error deleting category $catId: ${e.message}")
+                throw e
+            }
+        }
+    }
+
+    private suspend fun deleteSubCategoryAndRelatedData(subCatId: String) {
+        withIo {
+            try {
+                // Delete all items in this subcategory
+                appDatabase.masterDao().deleteItemsBySubCategory(subCatId)
+                
+                // Delete the subcategory itself
+                val subCategory = appDatabase.subCategoryDao().getSubCategoryById(subCatId)
+                if (subCategory != null) {
+                    appDatabase.subCategoryDao().deleteSubCategory(subCategory)
+                }
+                
+                this@InventoryViewModel.log("Successfully deleted subcategory $subCatId and all related data")
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("Error deleting subcategory $subCatId: ${e.message}")
+                throw e
+            }
+        }
+    }
+
     // Enhanced filter function with all parameters
     private var filterJob: Job? = null
     fun filterItems() {
@@ -464,12 +630,9 @@ class InventoryViewModel @Inject constructor(
                         // optional: show loading state (if you have one)
                     }
                     .catch { e ->
-                        // If cancelled, restart the function automatically
+                        // If cancelled, don't restart automatically to avoid endless loops
                         if (e is kotlinx.coroutines.CancellationException) {
-                            this@InventoryViewModel.log("filterItems flow was cancelled, restarting...")
-                            // Restart the function after a short delay
-                            kotlinx.coroutines.delay(100)
-                            filterItems()
+                            this@InventoryViewModel.log("filterItems flow was cancelled")
                             return@catch
                         } else {
                             this@InventoryViewModel.log("filterItems flow error: ${e.message}")
@@ -480,10 +643,7 @@ class InventoryViewModel @Inject constructor(
                     .collectLatest { items ->
                         // Check if coroutine is still active before processing results
                         if (!isActive) {
-                            this@InventoryViewModel.log("filterItems coroutine was cancelled during processing, restarting...")
-                            // Restart the function after a short delay
-                            kotlinx.coroutines.delay(100)
-                            filterItems()
+                            this@InventoryViewModel.log("filterItems coroutine was cancelled during processing")
                             return@collectLatest
                         }
 
@@ -506,15 +666,14 @@ class InventoryViewModel @Inject constructor(
                         itemList.addAll(sortedItems)
                     }
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // Handle cancellation by restarting the function
-                this@InventoryViewModel.log("filterItems coroutine was cancelled, restarting...")
-                kotlinx.coroutines.delay(100)
-                filterItems()
+                // Handle cancellation gracefully without restarting
+                this@InventoryViewModel.log("filterItems coroutine was cancelled")
             } catch (e: Exception) {
                 // This try/catch defends against unexpected errors constructing the Flow or subscribing,
                 // but most errors should be handled in .catch above.
                 this@InventoryViewModel.log("failed to filter item list (outer): ${e.message}")
                 _snackBarState.value = "Failed to filter items: ${e.message}"
+            } finally {
             }
         }
     }
@@ -607,6 +766,7 @@ class InventoryViewModel @Inject constructor(
                 this@InventoryViewModel.log("failed to refresh and filter items: ${e.message}")
                 // Fallback to just filtering
                 filterItems()
+            } finally {
             }
         }
     }
@@ -670,6 +830,7 @@ class InventoryViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     this@InventoryViewModel.log("failed to search by HUID: ${e.message}")
+                } finally {
                 }
             }
         } else {
@@ -687,6 +848,7 @@ class InventoryViewModel @Inject constructor(
                     }
                 } catch (e: Exception) {
                     this@InventoryViewModel.log("failed to search by name: ${e.message}")
+                } finally {
                 }
             }
         } else {
@@ -698,7 +860,6 @@ class InventoryViewModel @Inject constructor(
         item: ItemEntity, onSuccess: (ItemEntity, Long) -> Unit, onFailure: (Throwable) -> Unit
     ) {
         viewModelScope.launch {
-//            _loadingState.value = true
             try {
                 withIo {
                     val userId = admin.first.first()
@@ -745,40 +906,34 @@ class InventoryViewModel @Inject constructor(
                                             this@InventoryViewModel.log("Cat id: ${insertedItem.catId} update with weight")
                                             _snackBarState.value =
                                                 "Item Added and categories updated."
-//                                            _loadingState.value = false
                                             onSuccess(insertedItem, newItemId)
                                             // Item list will be refreshed by the calling UI
                                         }
                                     }
                                 } else {
                                     _snackBarState.value = "Failed to update Sub Category Weight"
-//                                    _loadingState.value = false
                                     onFailure(Exception("Failed to update Sub Category Weight"))
                                 }
                             } ?: run {
                                 _snackBarState.value = "Sub Category not found"
-//                                _loadingState.value = false
                                 onFailure(Exception("Sub Category not found"))
                             }
                         } catch (e: Exception) {
-//                            _loadingState.value = false
                             _snackBarState.value =
                                 ("Error updating cat and sub cat weight: ${e.message}")
                             this@InventoryViewModel.log("Error updating cat and sub cat weight: ${e.message}")
                             onFailure(e)
                         }
-//                        _loadingState.value = true
                     } else {
-//                        _loadingState.value = false
                         _snackBarState.value = ("Failed to insert item")
                         this@InventoryViewModel.log("Failed to insert item")
                         onFailure(Exception("Failed to insert item"))
                     }
                 }
             } catch (e: Exception) {
-//                _loadingState.value = false
                 _snackBarState.value = "Error inserting item error: ${e.message}"
                 onFailure(e)
+            } finally {
             }
         }
     }
@@ -853,80 +1008,91 @@ class InventoryViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 onFailure(e)
+            } finally {
             }
         }
     }
 
     fun getBillsFromDate() {
         ioLaunch {
-            billItemDetails.value = ""
-            purchaseOrdersByDate.clear()
-            billNo.clear()
-            val data = appDatabase.purchaseDao().getOrdersByBillDate(billDate.text)
-            purchaseOrdersByDate.addAll(data)
+            try {
+                billItemDetails.value = ""
+                purchaseOrdersByDate.clear()
+                billNo.clear()
+                val data = appDatabase.purchaseDao().getOrdersByBillDate(billDate.text)
+                purchaseOrdersByDate.addAll(data)
 
-            if (purchaseOrdersByDate.isEmpty()) {
-                _snackBarState.value = "No purchase bill found"
+                if (purchaseOrdersByDate.isEmpty()) {
+                    _snackBarState.value = "No purchase bill found"
+                }
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to get bills from date: ${e.message}")
+            } finally {
             }
         }
     }
 
     fun getPurchaseOrderItemDetails(purchase: PurchaseOrderEntity, subCatName: String) {
         ioLaunch {
-            val purchaseItemList = appDatabase.purchaseDao()
-                .getItemsByOrderIdAndSubCatName(purchase.purchaseOrderId, subCatName)
-            purchaseItems.clear()
-            billItemDetails.value = ""
-            if (purchaseItemList.isNotEmpty()) {
-                val sellerInfo = appDatabase.purchaseDao().getSellerById(purchase.sellerId)
+            try {
+                val purchaseItemList = appDatabase.purchaseDao()
+                    .getItemsByOrderIdAndSubCatName(purchase.purchaseOrderId, subCatName)
+                purchaseItems.clear()
+                billItemDetails.value = ""
+                if (purchaseItemList.isNotEmpty()) {
+                    val sellerInfo = appDatabase.purchaseDao().getSellerById(purchase.sellerId)
 
-                if (sellerInfo != null) {
-                    val firInfo = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
-                    
-                    // Get items from inventory for this subcategory and purchase order to calculate remaining
-                    val userId = admin.first.first()
-                    val storeId = store.first.first()
-                    val inventoryItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
-                        .filter { it.subCatName == subCatName && it.purchaseOrderId == purchase.purchaseOrderId }
-                    
-                    // Group purchase items by purity
-                    val purchaseItemsByPurity = purchaseItemList.groupBy { it.purity }
-                    val inventoryItemsByPurity = inventoryItems.groupBy { it.purity }
-                    
-                    // Build concise 4-line summary
-                    val summary = StringBuilder()
-                    summary.appendLine("${firInfo?.firmName ?: "Unknown"} - ${sellerInfo.name}, Bill: ${purchase.billNo} | ${purchase.billDate}")
-                    
-                    // Calculate total fine weight
-                    val totalPurchaseFnWt = purchaseItemList.sumOf { it.fnWt }
-                    val totalInventoryFnWt = inventoryItems.sumOf { it.fnWt }
-                    val totalRemainingFnWt = (totalPurchaseFnWt - totalInventoryFnWt).coerceAtLeast(0.0)
-                    
-                    summary.appendLine("Total FnWt: ${totalPurchaseFnWt.to3FString()}g | Added: ${totalInventoryFnWt.to3FString()}g | Remaining: ${totalRemainingFnWt.to3FString()}g")
-                    
-                    // Show remaining items by purity (max 1 line)
-                    val remainingByPurity = purchaseItemsByPurity.mapNotNull { (purity, items) ->
-                        val totalFnWt = items.sumOf { it.fnWt }
-                        val inventoryItemsForPurity = inventoryItemsByPurity[purity] ?: emptyList()
-                        val inventoryFnWt = inventoryItemsForPurity.sumOf { it.fnWt }
-                        val remainingFnWt = (totalFnWt - inventoryFnWt).coerceAtLeast(0.0)
+                    if (sellerInfo != null) {
+                        val firInfo = appDatabase.purchaseDao().getFirmById(sellerInfo.firmId)
                         
-                        if (remainingFnWt > 0) {
-                            "${purity}: ${remainingFnWt.to3FString()}g"
-                        } else null
+                        // Get items from inventory for this subcategory and purchase order to calculate remaining
+                        val userId = admin.first.first()
+                        val storeId = store.first.first()
+                        val inventoryItems = appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
+                            .filter { it.subCatName == subCatName && it.purchaseOrderId == purchase.purchaseOrderId }
+                        
+                        // Group purchase items by purity
+                        val purchaseItemsByPurity = purchaseItemList.groupBy { it.purity }
+                        val inventoryItemsByPurity = inventoryItems.groupBy { it.purity }
+                        
+                        // Build concise 4-line summary
+                        val summary = StringBuilder()
+                        summary.appendLine("${firInfo?.firmName ?: "Unknown"} - ${sellerInfo.name}, Bill: ${purchase.billNo} | ${purchase.billDate}")
+                        
+                        // Calculate total fine weight
+                        val totalPurchaseFnWt = purchaseItemList.sumOf { it.fnWt }
+                        val totalInventoryFnWt = inventoryItems.sumOf { it.fnWt }
+                        val totalRemainingFnWt = (totalPurchaseFnWt - totalInventoryFnWt).coerceAtLeast(0.0)
+                        
+                        summary.appendLine("Total FnWt: ${totalPurchaseFnWt.to3FString()}g | Added: ${totalInventoryFnWt.to3FString()}g | Remaining: ${totalRemainingFnWt.to3FString()}g")
+                        
+                        // Show remaining items by purity (max 1 line)
+                        val remainingByPurity = purchaseItemsByPurity.mapNotNull { (purity, items) ->
+                            val totalFnWt = items.sumOf { it.fnWt }
+                            val inventoryItemsForPurity = inventoryItemsByPurity[purity] ?: emptyList()
+                            val inventoryFnWt = inventoryItemsForPurity.sumOf { it.fnWt }
+                            val remainingFnWt = (totalFnWt - inventoryFnWt).coerceAtLeast(0.0)
+                            
+                            if (remainingFnWt > 0) {
+                                "${purity}: ${remainingFnWt.to3FString()}g"
+                            } else null
+                        }
+                        
+                        if (remainingByPurity.isNotEmpty()) {
+                            summary.appendLine("Remaining by purity: ${remainingByPurity.joinToString(", ")} ⚠️")
+                        } else {
+                            summary.appendLine("✅ All items added to inventory")
+                        }
+                        
+                        billItemDetails.value = summary.toString()
+                        purchaseItems.addAll(purchaseItemList)
                     }
-                    
-                    if (remainingByPurity.isNotEmpty()) {
-                        summary.appendLine("Remaining by purity: ${remainingByPurity.joinToString(", ")} ⚠️")
-                    } else {
-                        summary.appendLine("✅ All items added to inventory")
-                    }
-                    
-                    billItemDetails.value = summary.toString()
-                    purchaseItems.addAll(purchaseItemList)
+                } else {
+                    billItemDetails.value = "No items found for this purchase order and sub-category."
                 }
-            } else {
-                billItemDetails.value = "No items found for this purchase order and sub-category."
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to get purchase order item details: ${e.message}")
+            } finally {
             }
         }
     }
@@ -1041,9 +1207,14 @@ class InventoryViewModel @Inject constructor(
 
     fun updateCatAndSubQtyAndWt() {
         ioLaunch {
-            appDatabase.masterDao().recalcAll()
-            getCategoryAndSubCategoryDetails()
-            loadInventorySummary()
+            try {
+                appDatabase.masterDao().recalcAll()
+                getCategoryAndSubCategoryDetails()
+                loadInventorySummary()
+            } catch (e: Exception) {
+                this@InventoryViewModel.log("failed to update category and subcategory quantities and weights: ${e.message}")
+            } finally {
+            }
         }
     }
 }

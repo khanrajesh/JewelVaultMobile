@@ -334,6 +334,7 @@ fun createDraftInvoiceData(
     cardCharges: String,
     oldExchange: String,
     roundOff: String = "0.00",
+    invoiceNo: String,
 
 ): InvoiceData {
 
@@ -407,7 +408,7 @@ fun createDraftInvoiceData(
         storeInfo = store,
         customerInfo = customer,
         invoiceMeta = InvoiceData.InvoiceMetadata(
-            invoiceNumber = "${System.currentTimeMillis() % 10000}",
+            invoiceNumber = invoiceNo,
             date = currentDate,
             time = currentTime,
             salesMan = "$currentLoginUserName",
@@ -453,7 +454,7 @@ fun createDraftInvoiceData(
 fun generateInvoicePdf(
     context: Context,
     data: InvoiceData,
-    scale: Float = 2f,
+    scale: Float = 1f,
     onFileReady: (Uri) -> Unit
 ) {
     val pdfDocument = PdfDocument()

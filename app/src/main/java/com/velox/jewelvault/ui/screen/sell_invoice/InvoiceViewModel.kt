@@ -49,7 +49,6 @@ class InvoiceViewModel @Inject constructor(
     private val context: Context,
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    private val _loadingState: MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _metalRates: SnapshotStateList<MetalRate>
 ) : ViewModel() {
@@ -89,6 +88,7 @@ class InvoiceViewModel @Inject constructor(
     val showPaymentDialog = mutableStateOf(false)
     val paymentInfo = mutableStateOf<PaymentInfo?>(null)
     val discount = InputFieldState()
+    val invoiceNo = InputFieldState(initValue = "${System.currentTimeMillis() % 10000}")
     val upiId = mutableStateOf("")
     val storeName = mutableStateOf("Merchant")
 
@@ -173,7 +173,6 @@ class InvoiceViewModel @Inject constructor(
     fun getCustomerByMobile(onFound: (CustomerEntity?) -> Unit = {}) {
         ioLaunch {
             try {
-                _loadingState.value = true
                 val mobile = customerMobile.text.trim()
                 if (mobile.isNotEmpty()) {
                     val customer = appDatabase.customerDao().getCustomerByMobile(mobile)
@@ -182,25 +181,21 @@ class InvoiceViewModel @Inject constructor(
                         customerName.text = it.name
                         customerAddress.text = it.address ?: ""
                         customerGstin.text = it.gstin_pan ?: ""
-                        _loadingState.value = false
                         _snackBarState.value = "Customer Found"
                         onFound(customer)
                     } ?: run {
                         customerExists.value = false
-                        _loadingState.value = false
                         _snackBarState.value = "No Customer Found"
                         onFound(null)
                     }
 
                 } else {
                     customerExists.value = false
-                    _loadingState.value = false
                     _snackBarState.value = "No Customer Found"
                     onFound(null)
                 }
 
             } catch (e: Exception) {
-                _loadingState.value = false
                 _snackBarState.value = "Error fetching customer details"
             }
         }
@@ -214,10 +209,10 @@ class InvoiceViewModel @Inject constructor(
     }
 
     fun completeOrder(
+        invoiceNo: String,
         onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         ioLaunch {
-            _loadingState.value = true
             try {
                 //1. check if customer exist
                 val mobile = customerMobile.text.trim()
@@ -307,6 +302,7 @@ class InvoiceViewModel @Inject constructor(
                                     removeItemSafely(onSuccess = {
                                         //7. generate the pdf
                                         generateInvoice(
+                                            invoiceNo=invoiceNo,
                                             storeId,
                                             cus,
                                             onSuccess = onSuccess,
@@ -315,7 +311,6 @@ class InvoiceViewModel @Inject constructor(
                                     }, onFailure)
                                 } else {
                                     //failed to update the customer details
-                                    _loadingState.value = false
                                     onFailure("Failed to update customer details")
                                 }
                             }
@@ -324,7 +319,6 @@ class InvoiceViewModel @Inject constructor(
                     onFailure = onFailure
                 )
             } catch (e: Exception) {
-                _loadingState.value = false
                 onFailure("")
             }
         }
@@ -343,7 +337,6 @@ class InvoiceViewModel @Inject constructor(
         onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            _loadingState.value = true
             try {
                 withIo {
 
@@ -419,16 +412,13 @@ class InvoiceViewModel @Inject constructor(
                             }
                             onSuccess()
                         } else {
-                            _loadingState.value = false
                             onFailure("Failed to insert all the items to DB")
                         }
                     } else {
-                        _loadingState.value = false
                         onFailure("Failed to insert order to DB")
                     }
                 }
             } catch (e: Exception) {
-                _loadingState.value = false
                 onFailure("Error inserting order and items error: ${e.message}")
             }
         }
@@ -439,7 +429,6 @@ class InvoiceViewModel @Inject constructor(
         onSuccess: () -> Unit = {}, onFailure: (String) -> Unit = {}
     ) {
         ioLaunch {
-            _loadingState.value = true
             try {
                 var successCount = 0
                 var failureCount = 0
@@ -533,18 +522,14 @@ class InvoiceViewModel @Inject constructor(
                 
                 // Call callbacks based on results
                 if (successCount > 0 && failureCount == 0) {
-                    _loadingState.value = false
                     onSuccess()
                 } else if (successCount > 0 && failureCount > 0) {
-                    _loadingState.value = false
                     onFailure("Some items were removed successfully, but ${failureCount} items failed to remove")
                 } else {
-                    _loadingState.value = false
                     onFailure("Failed to remove all items")
                 }
                 
             } catch (e: Exception) {
-                _loadingState.value = false
                 onFailure("Error removing the item safely DB, error: ${e.message}")
                 this@InvoiceViewModel.log("Error removing the item safely DB, error: ${e.message}")
             }
@@ -553,10 +538,10 @@ class InvoiceViewModel @Inject constructor(
 
 
     private fun generateInvoice(
+        invoiceNo: String,
         storeId: String, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         ioLaunch {
-            _loadingState.value = true
             try {
                 val store = appDatabase.storeDao().getStoreById(storeId)
                 if (store != null && customerSign.value != null && ownerSign.value != null) {
@@ -578,7 +563,8 @@ class InvoiceViewModel @Inject constructor(
                         cardCharges= "0.00",
                         oldExchange = oldExchange.to3FString(),
                         roundOff = "0.00",
-                        dataStoreManager = _dataStoreManager
+                        dataStoreManager = _dataStoreManager,
+                        invoiceNo =invoiceNo
                     )
 
 
@@ -588,15 +574,12 @@ class InvoiceViewModel @Inject constructor(
                         scale = 2f
                     ) { file ->
                         generatedPdfFile = file
-                        _loadingState.value = false
                         onSuccess()
                     }
                 } else {
-                    _loadingState.value = false
                     onFailure("Store Details Not Found")
                 }
             } catch (e: Exception) {
-                _loadingState.value = false
                 onFailure("Unable to Generate Invoice PDF")
             }
         }
@@ -948,7 +931,7 @@ class InvoiceViewModel @Inject constructor(
     }
 
 
-    fun draftCompleteOrder(context: Context, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+    fun draftCompleteOrder(context: Context, invoiceNo: String,onSuccess: () -> Unit, onFailure: (String) -> Unit) {
         ioLaunch {
             try {
                 if (selectedItemList.isNotEmpty()) {
@@ -994,7 +977,8 @@ class InvoiceViewModel @Inject constructor(
                         cardCharges= "0.00",
                         oldExchange = "0.00",
                         roundOff = "0.00",
-                        dataStoreManager = _dataStoreManager
+                        dataStoreManager = _dataStoreManager,
+                        invoiceNo = invoiceNo
                     )
 
                     generateInvoicePdf(

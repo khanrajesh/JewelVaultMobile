@@ -1,9 +1,12 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item
 
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
 import com.velox.jewelvault.data.roomdb.entity.purchase.FirmEntity
@@ -12,6 +15,7 @@ import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.to3FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -29,6 +33,8 @@ class PurchaseItemViewModel @Inject constructor(
     val purchaseOrderWithDetails = mutableStateOf<PurchaseOrderWithDetails?>(null)
     val firmEntity = mutableStateOf<FirmEntity?>(null)
     val snackBar = _snackBar
+    
+
 
     val orderHeaderList = listOf(
         "S.No",
@@ -182,5 +188,41 @@ class PurchaseItemViewModel @Inject constructor(
         }
     }
 
+    fun deletePurchaseWithItems(
+        purchaseOrderId: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                _loadingState.value = true
+                
+                // Delete purchase order items
+                val purchaseItems = appDatabase.purchaseDao().getItemsByOrderId(purchaseOrderId)
+                purchaseItems.forEach { item ->
+                    appDatabase.purchaseDao().deleteItem(item)
+                }
+                
+                // Delete metal exchange items for this purchase order
+                val metalExchanges = appDatabase.purchaseDao().getExchangeByOrderId(purchaseOrderId.toLong())
+                metalExchanges.forEach { exchange ->
+                    appDatabase.purchaseDao().deleteExchange(exchange)
+                }
+                
+                // Delete the purchase order itself
+                val purchaseOrder = purchaseOrderWithDetails.value?.order
+                purchaseOrder?.let {
+                    appDatabase.purchaseDao().deleteOrder(it)
+                }
+                
+                onSuccess()
+            } catch (e: Exception) {
+                onFailure("Failed to delete purchase: ${e.message}")
+            } finally {
+                _loadingState.value = false
+            }
+        }
+    }
+    
 
 }
