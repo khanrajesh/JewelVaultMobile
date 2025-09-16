@@ -16,18 +16,18 @@ data class ImportedItemRow(
     var itemName: String,
     var entryType: String,
     var quantity: Int,
-    var gsWt: Double?,
-    var ntWt: Double?,
+    var gsWt: Double?, // Required field - will be validated as non-null
+    var ntWt: Double?, // Required field - will be validated as non-null
     var unit: String,
-    var purity: String?,
-    var fnWt: Double?,
-    var mcType: String?,
-    var mcChr: Double?,
+    var purity: String?, // Required field - will be validated as non-null
+    var fnWt: Double?, // Auto-calculated from ntWt and purity
+    var mcType: String?, // Required field - will be validated as non-null
+    var mcChr: Double?, // Required field - will be validated as non-null
     var othChr: String?,
     var chr: Double?,
-    var cgst: Double?,
-    var sgst: Double?,
-    var igst: Double?,
+    var cgst: Double?, // At least one tax field required
+    var sgst: Double?, // At least one tax field required
+    var igst: Double?, // At least one tax field required
     var huid: String?,
     var addDate: String?,
     var addDesKey: String?,
@@ -68,12 +68,13 @@ fun ImportedItemRow.toItemEntity(
         subCatName = subCategory.trim(),
         entryType = entryType.trim(),
         quantity = quantity,
-        gsWt = gsWt ?: 0.0,
-        ntWt = ntWt ?: 0.0,
-        fnWt = fnWt ?: 0.0,
-        purity = purity?.trim() ?: "",
-        crgType = mcType?.trim() ?: "none",
-        crg = mcChr ?: 0.0,
+        // Required fields - these should not be null after validation
+        gsWt = gsWt ?: throw IllegalStateException("Gross weight is required but was null"),
+        ntWt = ntWt ?: throw IllegalStateException("Net weight is required but was null"),
+        fnWt = fnWt ?: 0.0, // Auto-calculated, can be 0.0 if not calculated
+        purity = purity?.trim() ?: throw IllegalStateException("Purity is required but was null"),
+        crgType = mcType?.trim() ?: throw IllegalStateException("Making charge type is required but was null"),
+        crg = mcChr ?: throw IllegalStateException("Making charge is required but was null"),
         othCrgDes = othChr?.trim() ?: "",
         othCrg = chr ?: 0.0,
         cgst = cgst ?: 0.0, // GST percentages from import
@@ -83,15 +84,7 @@ fun ImportedItemRow.toItemEntity(
         unit = unit.trim(),
         addDesKey = addDesKey?.trim() ?: "imported",
         addDesValue = addDesValue?.trim() ?: "excel_import",
-        addDate = if (addDate != null) {
-            try {
-                Timestamp(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(addDate)?.time ?: System.currentTimeMillis())
-            } catch (e: Exception) {
-                Timestamp(System.currentTimeMillis())
-            }
-        } else {
-            Timestamp(System.currentTimeMillis())
-        },
+        addDate = Timestamp(System.currentTimeMillis()), // Always use current date for imports
         modifiedDate = Timestamp(System.currentTimeMillis()),
         sellerFirmId = "", // Empty for imported items
         purchaseOrderId = "", // Empty for imported items

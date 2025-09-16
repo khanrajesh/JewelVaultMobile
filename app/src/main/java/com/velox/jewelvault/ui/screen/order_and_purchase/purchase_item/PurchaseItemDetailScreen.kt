@@ -1,9 +1,12 @@
 package com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,6 +52,7 @@ import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.export.enqueueExportWorker
+import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.to3FString
 
@@ -67,6 +72,9 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
     // State for dropdown menu
     var showDropdownMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    
+    // State to track exported file URI for print functionality
+    var exportedFileUri by remember { mutableStateOf<String?>(null) }
 
     viewModel.currentScreenHeadingState.value = "Purchase Order Details"
 
@@ -372,27 +380,56 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                Text(
-                    text = "Export", modifier = Modifier.clickable {
-                        mainScope {
-                            if (viewModel.itemList.isNotEmpty()) {
-                                val billNo = viewModel.purchaseOrderWithDetails.value?.order?.billNo
-                                    ?: "Bill_No"
-                                val fileName =
-                                    "ItemExport_${billNo}_${System.currentTimeMillis()}.xlsx"
-                                enqueueExportWorker(
-                                    context,
-                                    lifecycleOwner,
-                                    fileName,
-                                    viewModel.itemHeaderList,
-                                    viewModel.itemList.toList()
-                                )
-                            } else {
-                                viewModel.snackBar.value = "No Item Found."
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Export", modifier = Modifier.clickable {
+                            mainScope {
+                                if (viewModel.itemList.isNotEmpty()) {
+                                    val billNo = viewModel.purchaseOrderWithDetails.value?.order?.billNo
+                                        ?: "Bill_No"
+                                    val fileName =
+                                        "ItemExport_${billNo}_${System.currentTimeMillis()}.xlsx"
+                                    enqueueExportWorker(
+                                        context,
+                                        lifecycleOwner,
+                                        fileName,
+                                        viewModel.itemHeaderList,
+                                        viewModel.itemList.toList(),
+                                        onExportComplete = { fileUri ->
+                                            fileUri?.let { uri ->
+                                                // Store the file URI for print functionality
+                                                exportedFileUri = uri
+                                                log("Export completed. File URI: $uri")
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    viewModel.snackBar.value = "No Item Found."
+                                }
                             }
-                        }
-                    }, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
-                )
+                        }, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
+                    )
+                    
+                    // Show print button only when file is exported
+                    if (exportedFileUri != null) {
+                        Text(
+                            text = "Print", 
+                            modifier = Modifier.clickable {
+                                // Print the exported file
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(Uri.parse(exportedFileUri!!), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Print with"))
+                            },
+                            color = MaterialTheme.colorScheme.primary, 
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(16.dp))
 

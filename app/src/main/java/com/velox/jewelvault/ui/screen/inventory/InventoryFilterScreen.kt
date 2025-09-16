@@ -1,8 +1,8 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-
-
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +62,7 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
+import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.to3FString
 
 import java.text.SimpleDateFormat
@@ -103,6 +105,9 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val subCategories = remember { mutableStateListOf<SubCategoryEntity>() }
     var showSortMenu by remember { mutableStateOf(false) }
     val isFilterPanelExpanded = remember { mutableStateOf(true) }
+    
+    // State to track exported file URI for print functionality
+    var exportedFileUri by remember { mutableStateOf<String?>(null) }
 
 
     LaunchedEffect(true) {
@@ -164,9 +169,31 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                     )
                 }
                 val fileName = "ItemExport_${System.currentTimeMillis()}.xlsx"
-                enqueueExportWorker(context, lifecycleOwner, fileName, viewModel.itemHeaderList, rows)
+                enqueueExportWorker(
+                    context, 
+                    lifecycleOwner, 
+                    fileName, 
+                    viewModel.itemHeaderList, 
+                    rows,
+                    onExportComplete = { fileUri ->
+                        fileUri?.let { uri ->
+                            // Store the file URI for print functionality
+                            exportedFileUri = uri
+                            log("Export completed. File URI: $uri")
+                        }
+                    }
+                )
             },
-            isFilterPanelExpanded
+            isFilterPanelExpanded,
+            exportedFileUri = exportedFileUri,
+            onPrint = { fileUri ->
+                // Print the exported file
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.parse(fileUri), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(intent, "Print with"))
+            }
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -381,7 +408,9 @@ private fun HeaderSection(
     onSortOptionSelected: (String, String) -> Unit,
     onClearFilters: () -> Unit,
     onExport: () -> Unit,
-    isFilterPanelExpanded: MutableState<Boolean>
+    isFilterPanelExpanded: MutableState<Boolean>,
+    exportedFileUri: String?,
+    onPrint: (String) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -472,6 +501,22 @@ private fun HeaderSection(
 
                 Button(onClick = onExport) {
                     Text("Export")
+                }
+
+                // Show print button only when file is exported
+                if (exportedFileUri != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Button(
+                        onClick = { onPrint(exportedFileUri!!) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Print,
+                            contentDescription = "Print",
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("Print")
+                    }
                 }
             }
 

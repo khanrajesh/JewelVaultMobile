@@ -29,7 +29,8 @@ fun enqueueExportWorker(
     fileName: String,
     headers: List<String>,
     rows: List<List<String>>,
-    format: ExportFormat = ExportFormat.XLSX
+    format: ExportFormat = ExportFormat.XLSX,
+    onExportComplete: ((String?) -> Unit)? = null
 ) {
     // Create notification channel for export operations
     createExportNotificationChannel(context)
@@ -52,8 +53,11 @@ fun enqueueExportWorker(
         workerManager.enqueue(request)
         workerManager.getWorkInfoByIdLiveData(request.id).observe(lifecycleOwner) { workInfo ->
             if (workInfo?.state == WorkInfo.State.SUCCEEDED) {
+                val fileUri = workInfo.outputData.getString("fileUri")
+                onExportComplete?.invoke(fileUri)
                 Toast.makeText(context, "Export successful", Toast.LENGTH_SHORT).show()
             } else if (workInfo?.state == WorkInfo.State.FAILED) {
+                onExportComplete?.invoke(null)
                 Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
             }
         }
@@ -81,6 +85,81 @@ private fun createExportNotificationChannel(context: Context) {
     }
 }
 
+
+fun exportItemListAndGetUri(
+    context: Context,
+    fileName: String,
+    dataRows: List<List<String>>,
+    headers: List<String>,
+    format: ExportFormat
+): String? {
+    return try {
+        // Validate column sizes
+        if (dataRows.any { it.size != headers.size }) {
+            throw IllegalArgumentException("Row size must match headers size")
+        }
+
+        val mimeType = when (format) {
+            ExportFormat.CSV -> "text/csv"
+            ExportFormat.XLS -> "application/vnd.ms-excel"
+            ExportFormat.XLSX -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, mimeType)
+            put(
+                MediaStore.Downloads.RELATIVE_PATH,
+                Environment.DIRECTORY_DOWNLOADS + "/JewelVault/ItemExport"
+            )
+        }
+
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw IOException("Unable to create file in MediaStore")
+
+        resolver.openOutputStream(uri)?.use { outputStream ->
+            when (format) {
+                ExportFormat.CSV -> {
+                    val writer = BufferedWriter(OutputStreamWriter(outputStream))
+                    writer.write(headers.joinToString(","))
+                    writer.newLine()
+                    dataRows.forEach { row ->
+                        writer.write(row.joinToString(","))
+                        writer.newLine()
+                    }
+                    writer.flush()
+                }
+
+                ExportFormat.XLS, ExportFormat.XLSX -> {
+                    val workbook =
+                        if (format == ExportFormat.XLS) HSSFWorkbook() else XSSFWorkbook()
+                    val sheet = workbook.createSheet("Inventory")
+
+                    val headerRow = sheet.createRow(0)
+                    headers.forEachIndexed { col, title ->
+                        headerRow.createCell(col).setCellValue(title)
+                    }
+
+                    dataRows.forEachIndexed { rowIndex, rowData ->
+                        val row = sheet.createRow(rowIndex + 1)
+                        rowData.forEachIndexed { colIndex, value ->
+                            row.createCell(colIndex).setCellValue(value)
+                        }
+                    }
+
+                    workbook.write(outputStream)
+                    workbook.close()
+                }
+            }
+        }
+
+        uri.toString()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
 
 fun exportItemListInBackground(
     context: Context,
