@@ -126,7 +126,7 @@ object RoomMigration {
             // Create customer_transaction table (unified transaction entity)
             db.execSQL("""
                 CREATE TABLE IF NOT EXISTS customer_transaction (
-                    transactionId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    transactionId TEXT PRIMARY KEY NOT NULL,
                     customerMobile TEXT NOT NULL,
                     transactionDate INTEGER NOT NULL,
                     amount REAL NOT NULL,
@@ -135,29 +135,26 @@ object RoomMigration {
                     description TEXT,
                     referenceNumber TEXT,
                     paymentMethod TEXT,
-                    khataBookId INTEGER,
+                    khataBookId TEXT,
                     monthNumber INTEGER,
                     notes TEXT,
-                    userId INTEGER NOT NULL,
-                    storeId INTEGER NOT NULL,
-                    FOREIGN KEY (customerMobile) REFERENCES CustomerEntity (mobileNo) ON DELETE CASCADE,
+                    userId TEXT NOT NULL,
+                    storeId TEXT NOT NULL,
+                    FOREIGN KEY (customerMobile) REFERENCES customer (mobileNo) ON DELETE CASCADE,
                     FOREIGN KEY (khataBookId) REFERENCES customer_khata_book (khataBookId) ON DELETE CASCADE
                 )
             """)
             
-            // Create indexes for customer_transaction
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_customerMobile ON customer_transaction (customerMobile)")
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_khataBookId ON customer_transaction (khataBookId)")
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_category ON customer_transaction (category)")
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_type ON customer_transaction (transactionType)")
+            // Let Room handle index creation automatically
             
             // Migrate existing outstanding transactions to the new unified table
             db.execSQL("""
                 INSERT INTO customer_transaction (
-                    customerMobile, transactionDate, amount, transactionType, category, 
+                    transactionId, customerMobile, transactionDate, amount, transactionType, category, 
                     description, notes, userId, storeId
                 )
                 SELECT 
+                    'outstanding_' || outstandingId as transactionId,
                     customerMobile, transactionDate, 
                     CASE 
                         WHEN transactionType = 'payment' THEN amount
@@ -176,10 +173,11 @@ object RoomMigration {
             // Migrate existing khata payments to the new unified table
             db.execSQL("""
                 INSERT INTO customer_transaction (
-                    customerMobile, transactionDate, amount, transactionType, category,
+                    transactionId, customerMobile, transactionDate, amount, transactionType, category,
                     khataBookId, monthNumber, notes, userId, storeId
                 )
                 SELECT 
+                    'khata_payment_' || paymentId as transactionId,
                     ckp.customerMobile, ckp.paymentDate, ckp.amount, 'khata_payment' as transactionType,
                     'khata_book' as category, ckp.khataBookId, ckp.monthNumber, ckp.notes, 
                     ckp.userId, ckp.storeId
@@ -189,10 +187,11 @@ object RoomMigration {
             // Migrate existing regular payments to the new unified table
             db.execSQL("""
                 INSERT INTO customer_transaction (
-                    customerMobile, transactionDate, amount, transactionType, category,
+                    transactionId, customerMobile, transactionDate, amount, transactionType, category,
                     paymentMethod, referenceNumber, notes, userId, storeId
                 )
                 SELECT 
+                    'regular_payment_' || paymentId as transactionId,
                     customerMobile, paymentDate, amount, 'credit' as transactionType,
                     'regular_payment' as category, paymentMethod, referenceNumber, notes, 
                     userId, storeId
@@ -249,6 +248,107 @@ object RoomMigration {
             // Create index for exchange_item foreign key
             db.execSQL("CREATE INDEX IF NOT EXISTS index_exchange_item_orderId ON exchange_item (orderId)")
             db.execSQL("CREATE INDEX IF NOT EXISTS index_exchange_item_customerMobile ON exchange_item (customerMobile)")
+        }
+    }
+
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Remove isActive column from customer table
+            // Since SQLite doesn't support DROP COLUMN directly, we need to:
+            // 1. Create a new table without the isActive column
+            // 2. Copy data from old table to new table
+            // 3. Drop the old table
+            // 4. Rename the new table
+            
+            // Check if isActive column exists before attempting migration
+            val cursor = db.query("PRAGMA table_info(customer)")
+            var hasIsActiveColumn = false
+            while (cursor.moveToNext()) {
+                val columnName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                if (columnName == "isActive") {
+                    hasIsActiveColumn = true
+                    break
+                }
+            }
+            cursor.close()
+            
+            if (hasIsActiveColumn) {
+                // Create new customer table without isActive column
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS customer_new (
+                        mobileNo TEXT PRIMARY KEY NOT NULL,
+                        name TEXT NOT NULL,
+                        address TEXT,
+                        gstin_pan TEXT,
+                        addDate INTEGER NOT NULL,
+                        lastModifiedDate INTEGER NOT NULL,
+                        totalItemBought INTEGER NOT NULL DEFAULT 0,
+                        totalAmount REAL NOT NULL DEFAULT 0.0,
+                        notes TEXT,
+                        userId TEXT NOT NULL DEFAULT '',
+                        storeId TEXT NOT NULL DEFAULT ''
+                    )
+                """)
+                
+                // Copy data from old table to new table (excluding isActive column)
+                db.execSQL("""
+                    INSERT INTO customer_new (
+                        mobileNo, name, address, gstin_pan, addDate, lastModifiedDate,
+                        totalItemBought, totalAmount, notes, userId, storeId
+                    )
+                    SELECT 
+                        mobileNo, name, address, gstin_pan, addDate, lastModifiedDate,
+                        totalItemBought, totalAmount, notes, userId, storeId
+                    FROM customer
+                """)
+                
+                // Drop the old table
+                db.execSQL("DROP TABLE customer")
+                
+                // Rename the new table to the original name
+                db.execSQL("ALTER TABLE customer_new RENAME TO customer")
+            }
+        }
+    }
+
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Fix transactionId type mismatch - convert INTEGER to TEXT
+            // Simple approach: drop and recreate the table
+            
+            // Check if customer_transaction table exists
+            val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_transaction'")
+            val tableExists = cursor.count > 0
+            cursor.close()
+            
+            if (tableExists) {
+                // Drop the old table completely
+                db.execSQL("DROP TABLE customer_transaction")
+            }
+            
+            // Create new customer_transaction table with TEXT transactionId
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS customer_transaction (
+                    transactionId TEXT PRIMARY KEY NOT NULL,
+                    customerMobile TEXT NOT NULL,
+                    transactionDate INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    transactionType TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    description TEXT,
+                    referenceNumber TEXT,
+                    paymentMethod TEXT,
+                    khataBookId TEXT,
+                    monthNumber INTEGER,
+                    notes TEXT,
+                    userId TEXT NOT NULL,
+                    storeId TEXT NOT NULL,
+                    FOREIGN KEY (customerMobile) REFERENCES customer (mobileNo) ON DELETE CASCADE,
+                    FOREIGN KEY (khataBookId) REFERENCES customer_khata_book (khataBookId) ON DELETE CASCADE
+                )
+            """)
+            
+            // Let Room handle index creation automatically
         }
     }
 }

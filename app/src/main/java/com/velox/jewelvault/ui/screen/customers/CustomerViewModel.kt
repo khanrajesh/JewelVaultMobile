@@ -6,21 +6,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
+import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.utils.TransactionUtils
+import com.velox.jewelvault.utils.formatCurrency
+import com.velox.jewelvault.utils.formatDate
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -29,45 +33,29 @@ import java.sql.Timestamp
 import javax.inject.Inject
 import javax.inject.Named
 
-// Import the data classes from CustomerModels
-
-/*// Data classes for Khata Book functionality
-data class KhataBookProgress(
-    val paidMonths: Int,
-    val remainingMonths: Int,
-    val paidAmount: Double,
-    val remainingAmount: Double
-)
-
-data class KhataBookSummary(
-    val totalAmount: Double = 0.0,
-    val paidAmount: Double = 0.0,
-    val remainingAmount: Double = 0.0,
-    val paidMonths: Int = 0,
-    val remainingMonths: Int = 0,
-    val progressPercentage: Double = 0.0,
-    val status: String = "none"
-)*/
 
 @HiltViewModel
 class CustomerViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
     private val _dataStoreManager: DataStoreManager,
-    private val _loadingState : MutableState<Boolean>,
+    private val _loadingState: MutableState<Boolean>,
 
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
 ) : ViewModel() {
 
     val currentScreenHeadingState = _currentScreenHeadingState
+
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
      * */
     val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getAdminInfo()
+
     /**
      * return Triple of Flow<String> for storeId, upiId, storeName
      * */
-    val store: Triple<Flow<String>, Flow<String>, Flow<String>> = _dataStoreManager.getSelectedStoreInfo()
+    val store: Triple<Flow<String>, Flow<String>, Flow<String>> =
+        _dataStoreManager.getSelectedStoreInfo()
 
     val snackBarState = _snackBarState
     val dataStoreManager = _dataStoreManager
@@ -90,9 +78,9 @@ class CustomerViewModel @Inject constructor(
         }
         val searched = if (query.isNotEmpty()) {
             filtered.filter {
-                it.name.lowercase().contains(query) ||
-                it.mobileNo.contains(query) ||
-                (it.address?.lowercase()?.contains(query) == true)
+                it.name.lowercase()
+                    .contains(query) || it.mobileNo.contains(query) || (it.address?.lowercase()
+                    ?.contains(query) == true)
             }
         } else filtered
         customerList.clear()
@@ -140,78 +128,187 @@ class CustomerViewModel @Inject constructor(
     val totalCustomers = mutableStateOf(0)
     val totalOutstandingAmount = mutableStateOf(0.0)
     val totalKhataBookAmount = mutableStateOf(0.0)
+    val totalKhataBookMonthlyPaid = mutableStateOf(0.0)
+    val totalKhataBookMonthlyPending = mutableStateOf(0.0)
+    val activeCustomersCount = mutableStateOf(0)
+
+    // New statistics for updated summary
+    val currentMonthKhataBookPayments = mutableStateOf(0.0)
+    val totalKhataBookPaidAmount = mutableStateOf(0.0)
+    val activeKhataBookCustomersCount = mutableStateOf(0)
 
     // Selected customer for detail view
     val selectedCustomer = mutableStateOf<CustomerEntity?>(null)
     val selectedCustomerTransactions = mutableStateListOf<CustomerTransactionEntity>()
     val selectedCustomerKhataBooks = mutableStateListOf<CustomerKhataBookEntity>()
+    val selectedCustomerCompletedKhataBooks = mutableStateListOf<CustomerKhataBookEntity>()
+
+    // Force recomposition when transactions are updated
+    val transactionsUpdated = mutableStateOf(0)
 
     // Khata book plans data
     val activeKhataBookCustomers = mutableStateListOf<CustomerKhataBookEntity>()
     val maturedKhataBookPlans = mutableStateListOf<CustomerKhataBookEntity>()
     val pendingKhataBookAmount = mutableStateOf(0.0)
-    
+
     // Customer orders and transactions
-    val customerOrders = mutableStateOf<List<com.velox.jewelvault.data.roomdb.entity.order.OrderEntity>>(emptyList())
+    val customerOrders =
+        mutableStateOf<List<com.velox.jewelvault.data.roomdb.entity.order.OrderEntity>>(emptyList())
     val transactionHistory = mutableStateOf<List<TransactionItem>>(emptyList())
-    
+
     // Loading states
     val isLoadingCustomerDetails = mutableStateOf(false)
     val isLoadingKhataBook = mutableStateOf(false)
-    val isLoadingPayment =_loadingState
+    val isLoadingPayment = _loadingState
 
     val planList = mutableStateListOf<KhataBookPlan>()
 
+    init {
+        // Load predefined plans
+        planList.addAll(getPredefinedPlans())
+    }
+
     fun addPlan(name: String, payMonths: Int, benefitMonths: Int, description: String) {
-        val benefitPercentage = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
+        val benefitPercentage =
+            if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
         planList.add(KhataBookPlan(name, payMonths, benefitMonths, description, benefitPercentage))
     }
-    fun editPlan(plan: KhataBookPlan, name: String, payMonths: Int, benefitMonths: Int, description: String) {
+
+    fun editPlan(
+        plan: KhataBookPlan,
+        name: String,
+        payMonths: Int,
+        benefitMonths: Int,
+        description: String
+    ) {
         val idx = planList.indexOf(plan)
-        val benefitPercentage = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
-        if (idx >= 0) planList[idx] = plan.copy(name = name, payMonths = payMonths, benefitMonths = benefitMonths, description = description, benefitPercentage = benefitPercentage)
+        val benefitPercentage =
+            if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
+        if (idx >= 0) planList[idx] = plan.copy(
+            name = name,
+            payMonths = payMonths,
+            benefitMonths = benefitMonths,
+            description = description,
+            benefitPercentage = benefitPercentage
+        )
     }
+
     fun deletePlan(plan: KhataBookPlan) {
         planList.remove(plan)
     }
 
-//    init {
-//        loadCustomerData()
-//    }
+
 
     fun loadCustomerData() {
-        ioLaunch {
+        viewModelScope.launch {
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
 
-                // Load customers
-                appDatabase.customerDao().getAllCustomers()
-                    .collectLatest { customers ->
-                        ioScope {
-                            // Convert to CustomerSummaryDto with outstanding and khata book data
-                            val customerSummaries = customers.map { customer ->
-                                createCustomerSummary(customer)
-                            }
-                            allCustomers.clear()
-                            allCustomers.addAll(customerSummaries)
-                            // Default: show all
-                            applyFilterAndSearch()
+                log("Starting customer data load for userId: $userId, storeId: $storeId")
+
+                // Load customers and statistics in a single coroutine
+                ioLaunch {
+                    try {
+                        // Load customers first
+                        val customers = appDatabase.customerDao().getAllCustomers().first()
+                        log("Loaded ${customers.size} customers from database")
+
+                        // Convert to CustomerSummaryDto with outstanding and khata book data
+                        val customerSummaries = customers.map { customer ->
+                            createCustomerSummary(customer)
+                        }
+                        
+                        allCustomers.clear()
+                        allCustomers.addAll(customerSummaries)
+                        applyFilterAndSearch()
+                        
+                        // Load outstanding balance statistics using new unified system
+                        val totalOutstanding =
+                            appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
+
+                        // Load khata book statistics - calculate monthly payments and pending
+                        val activeKhataBooks =
+                            appDatabase.customerKhataBookDao().getActiveKhataBooks(userId, storeId)
+
+                        // Calculate current month's total payments and pending amounts
+                        val currentMonth =
+                            java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1
+                        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+
+                        var totalMonthlyPaid = 0.0
+                        var totalMonthlyPending = 0.0
+                        var totalKhataAmount = 0.0
+
+                        for (khataBook in activeKhataBooks) {
+                            // Get payments for current month
+                            val currentMonthPayments = appDatabase.customerTransactionDao()
+                                .getKhataBookPayments(khataBook.khataBookId).first().filter {
+                                    val cal = java.util.Calendar.getInstance()
+                                    cal.timeInMillis = it.transactionDate.time
+                                    cal.get(java.util.Calendar.MONTH) + 1 == currentMonth && cal.get(java.util.Calendar.YEAR) == currentYear
+                                }
+
+                            val monthlyPaid = currentMonthPayments.sumOf { it.amount }
+                            val monthlyPending = khataBook.monthlyAmount - monthlyPaid
+
+                            totalMonthlyPaid += monthlyPaid
+                            totalMonthlyPending += maxOf(0.0, monthlyPending)
+                            totalKhataAmount += khataBook.totalAmount
+                        }
+
+                        // Get new metrics using DAO queries
+                        val currentMonthKhataPayments = appDatabase.customerTransactionDao()
+                            .getCurrentMonthKhataBookExpected(userId, storeId)
+                        val totalKhataPaidAmount =
+                            appDatabase.customerTransactionDao().getTotalKhataBookPayments(userId, storeId)
+                        val activeKhataBookCustomers =
+                            activeKhataBooks.map { it.customerMobile }.distinct().size
+
+                        log("=== CUSTOMER DATA LOADING DEBUG ===")
+                        log("Total customers loaded: ${customers.size}")
+                        log("Total outstanding amount: $totalOutstanding")
+                        log("Active khata books count: ${activeKhataBooks.size}")
+                        log("Current month paid: $totalMonthlyPaid")
+                        log("Current month pending: $totalMonthlyPending")
+                        log("Total khata amount: $totalKhataAmount")
+                        log("Current month khata payments (DAO): $currentMonthKhataPayments")
+                        log("Total khata paid amount (DAO): $totalKhataPaidAmount")
+                        log("Active khata book customers: $activeKhataBookCustomers")
+                        log("=== END DEBUG ===")
+
+                        mainScope {
+                            // Update customer statistics
                             totalCustomers.value = customers.size
+                            activeCustomersCount.value = customerSummaries.count { it.isActive }
+                            
+                            // Update outstanding balance
+                            totalOutstandingAmount.value = totalOutstanding
+                            
+                            // Update khata book statistics
+                            totalKhataBookAmount.value = totalKhataAmount
+                            totalKhataBookMonthlyPaid.value = totalMonthlyPaid
+                            totalKhataBookMonthlyPending.value = totalMonthlyPending
+
+                            // Update new metrics
+                            currentMonthKhataBookPayments.value = currentMonthKhataPayments
+                            totalKhataBookPaidAmount.value = totalKhataPaidAmount
+                            activeKhataBookCustomersCount.value = activeKhataBookCustomers
+                            
+                            log("=== VALUES UPDATED IN UI ===")
+                            log("totalCustomers.value: ${totalCustomers.value}")
+                            log("totalOutstandingAmount.value: ${totalOutstandingAmount.value}")
+                            log("currentMonthKhataBookPayments.value: ${currentMonthKhataBookPayments.value}")
+                            log("totalKhataBookPaidAmount.value: ${totalKhataBookPaidAmount.value}")
+                            log("activeKhataBookCustomersCount.value: ${activeKhataBookCustomersCount.value}")
+                            log("=== END VALUES UPDATE ===")
+                        }
+                    } catch (e: Exception) {
+                        log("Error in ioLaunch: ${e.message}")
+                        mainScope {
+                            _snackBarState.value = "Failed to load customer data: ${e.message}"
                         }
                     }
-
-                // Load outstanding balance statistics using new unified system
-                val totalOutstanding = appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
-                ioScope {
-                    totalOutstandingAmount.value = totalOutstanding
-                }
-
-                // Load khata book statistics
-                val khataSummaries = appDatabase.customerKhataBookDao().getKhataBookSummaries(userId, storeId)
-                val totalKhataRemaining = khataSummaries.sumOf { it.remainingAmount }
-                mainScope {
-                    totalKhataBookAmount.value = totalKhataRemaining
                 }
 
             } catch (e: Exception) {
@@ -221,6 +318,12 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
+    // Add a retry mechanism for data loading
+    fun retryLoadCustomerData() {
+        log("Retrying customer data load...")
+        loadCustomerData()
+    }
+
     fun loadKhataBookPlans() {
         ioLaunch {
             try {
@@ -228,14 +331,16 @@ class CustomerViewModel @Inject constructor(
                 val storeId = store.first.first()
 
                 // Load active khata book customers
-                val activeKhataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(userId, storeId)
+                val activeKhataBooks =
+                    appDatabase.customerKhataBookDao().getActiveKhataBooks(userId, storeId)
                 mainScope {
                     activeKhataBookCustomers.clear()
                     activeKhataBookCustomers.addAll(activeKhataBooks)
                 }
 
                 // Load matured khata book plans
-                val maturedKhataBooks = appDatabase.customerKhataBookDao().getMaturedKhataBooks(userId, storeId)
+                val maturedKhataBooks =
+                    appDatabase.customerKhataBookDao().getMaturedKhataBooks(userId, storeId)
                 mainScope {
                     maturedKhataBookPlans.clear()
                     maturedKhataBookPlans.addAll(maturedKhataBooks)
@@ -243,9 +348,14 @@ class CustomerViewModel @Inject constructor(
 
                 // Calculate pending amount using new transaction system
                 val pendingAmount = activeKhataBooks.sumOf { khataBook ->
-                    val paidAmount = appDatabase.customerTransactionDao().getKhataBookTotalPaidAmount(khataBook.khataBookId)
-                    (khataBook.totalMonths * khataBook.monthlyAmount) - paidAmount
+                    val paidAmount = appDatabase.customerTransactionDao()
+                        .getKhataBookTotalPaidAmount(khataBook.khataBookId)
+                    val totalAmount = khataBook.totalAmount
+                    val remaining = totalAmount - paidAmount
+                    log("Khata book ${khataBook.khataBookId}: total=$totalAmount, paid=$paidAmount, remaining=$remaining")
+                    remaining
                 }
+                log("Total pending amount: $pendingAmount")
                 mainScope {
                     pendingKhataBookAmount.value = pendingAmount
                 }
@@ -257,20 +367,19 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
-    fun addKhataBookPlan(name: String, payMonths: Int, benefitMonths: Int, description: String) {
-        // This would typically save to a separate plans table
-        // For now, we'll just show a success message
-        _snackBarState.value = "Khata book plan '$name' added successfully"
-    }
 
-    fun applyKhataBookPlan(customerMobile: String, plan: KhataBookPlan) {
+    fun applyKhataBookPlan(
+        customerMobile: String,
+        plan: KhataBookPlan,
+        monthlyAmount: Double = 1000.0
+    ) {
         ioLaunch {
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
                 val currentTime = Timestamp(System.currentTimeMillis())
 
-                val monthlyAmount = 0.0 // This would be calculated based on the plan
+                // Use the provided monthly amount
                 val totalMonths = plan.payMonths + plan.benefitMonths
 
                 val khataBook = CustomerKhataBookEntity(
@@ -307,11 +416,13 @@ class CustomerViewModel @Inject constructor(
         customer: CustomerEntity,
     ): CustomerSummaryDto {
         // Get outstanding balance using new unified system
-        val outstandingBalance = appDatabase.customerTransactionDao().getCustomerOutstandingBalance(customer.mobileNo)
-        
+        val outstandingBalance =
+            appDatabase.customerTransactionDao().getCustomerOutstandingBalance(customer.mobileNo)
+
         // Get active khata books (now supports multiple)
-        val activeKhataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(customer.mobileNo)
-        
+        val activeKhataBooks =
+            appDatabase.customerKhataBookDao().getActiveKhataBooks(customer.mobileNo)
+
         // Get last order date and total orders
         val orders = appDatabase.orderDao().getAllOrdersDesc().first()
         val customerOrders = orders.filter { it.customerMobile == customer.mobileNo }
@@ -325,6 +436,10 @@ class CustomerViewModel @Inject constructor(
         }
         val totalKhataRemainingAmount = totalKhataAmount - totalKhataPaidAmount
 
+        // Check if customer has any completed plans
+        val completedKhataBooks =
+            appDatabase.customerKhataBookDao().getCompletedKhataBooks(customer.mobileNo)
+
         return CustomerSummaryDto(
             mobileNo = customer.mobileNo,
             name = customer.name,
@@ -335,13 +450,17 @@ class CustomerViewModel @Inject constructor(
             totalAmount = customer.totalAmount,
             lastOrderDate = lastOrderDate,
             totalOrders = totalOrders,
-            isActive = customer.isActive,
+            isActive = activeKhataBooks.isNotEmpty(), // Customer is active only if they have active khata books
             outstandingBalance = outstandingBalance,
             activeKhataBookCount = activeKhataBooks.size,
             totalKhataBookAmount = totalKhataAmount,
             totalKhataBookPaidAmount = totalKhataPaidAmount,
             totalKhataBookRemainingAmount = totalKhataRemainingAmount,
-            khataBookStatus = if (activeKhataBooks.isNotEmpty()) "active" else "none"
+            khataBookStatus = when {
+                activeKhataBooks.isNotEmpty() -> "active"
+                completedKhataBooks.isNotEmpty() -> "completed"
+                else -> "none"
+            }
         )
     }
 
@@ -349,27 +468,42 @@ class CustomerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 isLoadingCustomerDetails.value = true
-                val userId = admin.first.first()
-                val storeId = store.first.first()
 
                 // Load customer
                 val customer = appDatabase.customerDao().getCustomerByMobile(customerMobile)
                 selectedCustomer.value = customer
 
                 // Load all transactions using new unified system
-                val transactions = appDatabase.customerTransactionDao()
-                    .getCustomerTransactions(customerMobile).first()
+                val transactions =
+                    appDatabase.customerTransactionDao().getCustomerTransactions(customerMobile)
+                        .first()
                 selectedCustomerTransactions.clear()
                 selectedCustomerTransactions.addAll(transactions)
 
+                // Debug logging for transactions
+                log("DEBUG: Loaded ${transactions.size} transactions for customer $customerMobile")
+                transactions.forEach { transaction ->
+                    log("DEBUG: Transaction: ${transaction.transactionId} - ${transaction.transactionType} - ${transaction.category} - ${transaction.amount}")
+                }
+
+                // Force recomposition
+                transactionsUpdated.value++
+
                 // Load active khata books (now supports multiple)
-                val khataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(customerMobile)
+                val khataBooks =
+                    appDatabase.customerKhataBookDao().getActiveKhataBooks(customerMobile)
                 selectedCustomerKhataBooks.clear()
                 selectedCustomerKhataBooks.addAll(khataBooks)
 
+                // Load completed khata books
+                val completedKhataBooks =
+                    appDatabase.customerKhataBookDao().getCompletedKhataBooks(customerMobile)
+                selectedCustomerCompletedKhataBooks.clear()
+                selectedCustomerCompletedKhataBooks.addAll(completedKhataBooks)
+
                 // Load customer orders
                 loadCustomerOrders(customerMobile)
-                
+
                 // Load transaction history
                 loadTransactionHistory(customerMobile)
 
@@ -381,31 +515,32 @@ class CustomerViewModel @Inject constructor(
             }
         }
     }
-    
+
     private fun loadCustomerOrders(customerMobile: String) {
         viewModelScope.launch {
             try {
                 val orders = appDatabase.orderDao().getAllOrdersDesc().first()
                 val customerOrdersList = orders.filter { it.customerMobile == customerMobile }
                     .sortedByDescending { it.orderDate }
-                
+
                 customerOrders.value = customerOrdersList
             } catch (e: Exception) {
                 log("Failed to load customer orders: ${e.message}")
             }
         }
     }
-    
+
     private fun loadTransactionHistory(customerMobile: String) {
         viewModelScope.launch {
             try {
-                val transactions = appDatabase.customerTransactionDao()
-                    .getCustomerTransactions(customerMobile).first()
-                
+                val transactions =
+                    appDatabase.customerTransactionDao().getCustomerTransactions(customerMobile)
+                        .first()
+
                 val transactionItems = transactions.map { transaction ->
                     TransactionItem.fromTransaction(transaction)
                 }.sortedByDescending { it.date }
-                
+
                 transactionHistory.value = transactionItems
             } catch (e: Exception) {
                 log("Failed to load transaction history: ${e.message}")
@@ -478,6 +613,7 @@ class CustomerViewModel @Inject constructor(
                         userId = userId,
                         storeId = storeId
                     )
+
                     else -> TransactionUtils.createOutstandingDebt(
                         customerMobile = customerMobile,
                         amount = amount,
@@ -492,6 +628,7 @@ class CustomerViewModel @Inject constructor(
                 if (result != -1L) {
                     _snackBarState.value = "Transaction added successfully"
                     clearOutstandingForm()
+                    // Reload customer details and data to update outstanding balance
                     loadCustomerDetails(customerMobile)
                     loadCustomerData()
                 } else {
@@ -522,7 +659,8 @@ class CustomerViewModel @Inject constructor(
                 val monthlyAmount = khataBookMonthlyAmount.text.toDoubleOrNull() ?: 0.0
                 val totalMonths = khataBookTotalMonths.text.toIntOrNull() ?: 12
                 val totalAmount = monthlyAmount * totalMonths
-                val planName = khataBookPlanName.text.trim().takeIf { it.isNotEmpty() } ?: "Standard Plan"
+                val planName =
+                    khataBookPlanName.text.trim().takeIf { it.isNotEmpty() } ?: "Standard Plan"
 
                 val khataBookId = generateId()
                 val khataBook = CustomerKhataBookEntity(
@@ -552,7 +690,7 @@ class CustomerViewModel @Inject constructor(
                         storeId = storeId
                     )
                     appDatabase.customerTransactionDao().insertTransaction(khataDebit)
-                    
+
                     _snackBarState.value = "Khata book created successfully"
                     clearKhataBookForm()
                     loadCustomerDetails(customerMobile)
@@ -583,11 +721,12 @@ class CustomerViewModel @Inject constructor(
 
                 val amount = khataPaymentAmount.text.toDoubleOrNull() ?: 0.0
                 val monthNumber = khataPaymentMonth.text.toIntOrNull() ?: 1
-                val paymentType = khataPaymentType.text
+                khataPaymentType.text
                 val notes = khataPaymentNotes.text.trim().takeIf { it.isNotEmpty() }
 
                 // Get active khata books for this customer
-                val khataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(customerMobile)
+                val khataBooks =
+                    appDatabase.customerKhataBookDao().getActiveKhataBooks(customerMobile)
                 if (khataBooks.isEmpty()) {
                     _snackBarState.value = "No active khata book found for this customer"
                     return@launch
@@ -595,7 +734,7 @@ class CustomerViewModel @Inject constructor(
 
                 // For now, use the first active khata book (you can add UI to select specific plan)
                 val khataBook = khataBooks.first()
-                
+
                 val payment = TransactionUtils.createKhataPayment(
                     customerMobile = customerMobile,
                     khataBookId = khataBook.khataBookId,
@@ -610,6 +749,7 @@ class CustomerViewModel @Inject constructor(
                 if (result != -1L) {
                     _snackBarState.value = "Khata payment added successfully"
                     clearKhataPaymentForm()
+                    // Reload customer details and data to update outstanding balance
                     loadCustomerDetails(customerMobile)
                     loadCustomerData()
                 } else {
@@ -637,7 +777,7 @@ class CustomerViewModel @Inject constructor(
                 val storeId = store.first.first()
 
                 val amount = regularPaymentAmount.text.toDoubleOrNull() ?: 0.0
-                val paymentType = regularPaymentType.text
+                regularPaymentType.text
                 val paymentMethod = regularPaymentMethod.text
                 val referenceNumber = regularPaymentReference.text.trim().takeIf { it.isNotEmpty() }
                 val notes = regularPaymentNotes.text.trim().takeIf { it.isNotEmpty() }
@@ -656,6 +796,7 @@ class CustomerViewModel @Inject constructor(
                 if (result != -1L) {
                     _snackBarState.value = "Payment added successfully"
                     clearRegularPaymentForm()
+                    // Reload customer details and data to update outstanding balance
                     loadCustomerDetails(customerMobile)
                     loadCustomerData()
                 } else {
@@ -676,7 +817,8 @@ class CustomerViewModel @Inject constructor(
                 val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId }
                 khataBook?.let { kb ->
                     val updatedKhataBook = kb.copy(status = status)
-                    val result = appDatabase.customerKhataBookDao().updateKhataBook(updatedKhataBook)
+                    val result =
+                        appDatabase.customerKhataBookDao().updateKhataBook(updatedKhataBook)
                     if (result > 0) {
                         _snackBarState.value = "Khata book status updated successfully"
                         loadCustomerDetails(kb.customerMobile)
@@ -729,183 +871,170 @@ class CustomerViewModel @Inject constructor(
         regularPaymentReference.text = ""
         regularPaymentNotes.text = ""
     }
-    
+
     fun clearSelectedCustomerData() {
         selectedCustomer.value = null
         selectedCustomerTransactions.clear()
         selectedCustomerKhataBooks.clear()
+        selectedCustomerCompletedKhataBooks.clear()
         customerOrders.value = emptyList()
         transactionHistory.value = emptyList()
     }
-    
-    // Enhanced Khata Book Functions
-    
-   /* fun getKhataBookProgress(khataBookId: Int): KhataBookProgress {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId }
-        val khataTransactions = selectedCustomerTransactions.filter {
-            it.khataBookId == khataBookId && it.transactionType == "khata_payment"
-        }
 
-        if (khataBook == null) return KhataBookProgress(0, 0, 0.0, 0.0)
-
-        val paidMonths = khataTransactions.size
-        val remainingMonths = khataBook.totalMonths - paidMonths
-        val paidAmount = khataTransactions.sumOf { it.amount }
-        val remainingAmount = remainingMonths * khataBook.monthlyAmount
-
-        return KhataBookProgress(
-            paidMonths = paidMonths,
-            remainingMonths = remainingMonths,
-            paidAmount = paidAmount,
-            remainingAmount = remainingAmount
-        )
-    }*/
-    
-    fun isMonthPaid(khataBookId: String, monthNumber: Int): Boolean {
-        return selectedCustomerTransactions.any { 
-            it.khataBookId == khataBookId && 
-            it.transactionType == "khata_payment" && 
-            it.monthNumber == monthNumber 
-        }
-    }
-    
-    fun getNextUnpaidMonth(khataBookId: String): Int {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return 1
-        val paidMonths = selectedCustomerTransactions
-            .filter { it.khataBookId == khataBookId && it.transactionType == "khata_payment" }
-            .map { it.monthNumber }
-            .toSet()
-        
-        for (month in 1..khataBook.totalMonths) {
-            if (!paidMonths.contains(month)) {
-                return month
-            }
-        }
-        return khataBook.totalMonths + 1
-    }
-    
-   /* fun calculateKhataBookSummary(): KhataBookSummary {
-        val khataBooks = selectedCustomerKhataBooks.toList()
-
-        if (khataBooks.isEmpty()) return KhataBookSummary()
-
-        val totalAmount = khataBooks.sumOf { it.totalAmount }
-        val paidAmount = selectedCustomerTransactions
-            .filter { it.transactionType == "khata_payment" }
-            .sumOf { it.amount }
-        val remainingAmount = totalAmount - paidAmount
-        val paidMonths = selectedCustomerTransactions
-            .filter { it.transactionType == "khata_payment" }
-            .size
-        val totalMonths = khataBooks.sumOf { it.totalMonths }
-        val remainingMonths = totalMonths - paidMonths
-        val progressPercentage = if (totalAmount > 0) (paidAmount / totalAmount) * 100 else 0.0
-
-        return KhataBookSummary(
-            totalAmount = totalAmount,
-            paidAmount = paidAmount,
-            remainingAmount = remainingAmount,
-            paidMonths = paidMonths,
-            remainingMonths = remainingMonths,
-            progressPercentage = progressPercentage,
-            status = if (khataBooks.any { it.status == "active" }) "active" else "none"
-        )
-    }
-    
-    fun validateKhataPayment(monthNumber: Int, amount: Double): Boolean {
-        val khataBooks = selectedCustomerKhataBooks.toList()
-        if (khataBooks.isEmpty()) return false
-        
-        // For now, validate against the first khata book (you can add UI to select specific plan)
-        val khataBook = khataBooks.first()
-        
-        // Check if month is already paid
-        if (isMonthPaid(khataBook.khataBookId, monthNumber)) {
-            _snackBarState.value = "Month $monthNumber is already paid"
-            return false
-        }
-        
-        // Check if month number is valid
-        if (monthNumber < 1 || monthNumber > khataBook.totalMonths) {
-            _snackBarState.value = "Invalid month number. Must be between 1 and ${khataBook.totalMonths}"
-            return false
-        }
-        
-        // Check if amount is valid
-        if (amount <= 0) {
-            _snackBarState.value = "Amount must be greater than 0"
-            return false
-        }
-        
-        // Check if amount exceeds monthly amount (for full payments)
-        if (khataPaymentType.text == "full" && amount > khataBook.monthlyAmount) {
-            _snackBarState.value = "Amount cannot exceed monthly amount of ${khataBook.monthlyAmount}"
-            return false
-        }
-        
-        return true
-    }
-    
-    fun getKhataBookPaymentHistory(khataBookId: Int): List<CustomerTransactionEntity> {
-        return selectedCustomerTransactions
-            .filter { it.khataBookId == khataBookId && it.transactionType == "khata_payment" }
-            .sortedBy { it.monthNumber }
-    }*/
-    
-    fun getKhataBookDueDate(khataBookId: String, monthNumber: Int): java.sql.Timestamp {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } 
-            ?: return java.sql.Timestamp(System.currentTimeMillis())
-        val monthInMillis = (monthNumber - 1) * 30L * 24 * 60 * 60 * 1000
-        return java.sql.Timestamp(khataBook.startDate.time + monthInMillis)
-    }
-   /*
-    fun isKhataBookOverdue(khataBookId: Int): Boolean {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return false
-        val currentTime = System.currentTimeMillis()
-        val nextUnpaidMonth = getNextUnpaidMonth(khataBookId)
-        val dueDate = getKhataBookDueDate(khataBookId, nextUnpaidMonth)
-        
-        return currentTime > dueDate.time && khataBook.status == "active"
-    }
-    
-    fun getOverdueMonths(khataBookId: Int): List<Int> {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return emptyList()
-        val currentTime = System.currentTimeMillis()
-        val overdueMonths = mutableListOf<Int>()
-        
-        for (month in 1..khataBook.totalMonths) {
-            if (!isMonthPaid(khataBookId, month)) {
-                val dueDate = getKhataBookDueDate(khataBookId, month)
-                if (currentTime > dueDate.time) {
-                    overdueMonths.add(month)
-                }
-            }
-        }
-        
-        return overdueMonths
-    }
-    
-    fun calculateLateFees(khataBookId: Int, overdueMonths: List<Int>): Double {
-        val khataBook = selectedCustomerKhataBooks.find { it.khataBookId == khataBookId } ?: return 0.0
-        val lateFeeRate = 0.05 // 5% late fee per month
-        var totalLateFees = 0.0
-        
-        for (month in overdueMonths) {
-            val dueDate = getKhataBookDueDate(khataBookId, month)
-            val monthsOverdue = ((System.currentTimeMillis() - dueDate.time) / (30L * 24 * 60 * 60 * 1000)).toInt()
-            val lateFee = khataBook.monthlyAmount * lateFeeRate * monthsOverdue
-            totalLateFees += lateFee
-        }
-        
-        return totalLateFees
-    }*/
 
     fun searchCustomers(query: String) {
         lastSearchQuery = query
         applyFilterAndSearch()
     }
+
     fun filterCustomers(filterType: String) {
         this.filterType.value = filterType
         applyFilterAndSearch()
+    }
+
+    // Clear monthly payment for a specific month
+    fun clearMonthlyPayment(khataBookId: String, monthNumber: Int) {
+        ioLaunch {
+            try {
+
+                // Find and delete the payment transaction for this month
+                val paymentTransactions =
+                    appDatabase.customerTransactionDao().getKhataBookPayments(khataBookId).first()
+                val monthPayment = paymentTransactions.find { it.monthNumber == monthNumber }
+
+                if (monthPayment != null) {
+                    appDatabase.customerTransactionDao().deleteTransaction(monthPayment)
+
+                    mainScope {
+                        _snackBarState.value = "Payment cleared for month $monthNumber"
+                    }
+
+                    // Reload customer details
+                    loadCustomerDetails(selectedCustomer.value?.mobileNo ?: "")
+                } else {
+                    mainScope {
+                        _snackBarState.value = "No payment found for month $monthNumber"
+                    }
+                }
+
+            } catch (e: Exception) {
+                log("Failed to clear monthly payment: ${e.message}")
+                mainScope {
+                    _snackBarState.value = "Failed to clear monthly payment: ${e.message}"
+                }
+            }
+        }
+    }
+
+    // Complete a khata book plan
+    fun completeKhataBookPlan(khataBookId: String) {
+        ioLaunch {
+            try {
+                // Get the khata book
+                val khataBook = appDatabase.customerKhataBookDao().getKhataBookById(khataBookId)
+                if (khataBook == null) {
+                    mainScope {
+                        _snackBarState.value = "Khata book plan not found"
+                    }
+                    return@ioLaunch
+                }
+
+                // Check if all pay months are completed
+                val paidMonths = appDatabase.customerKhataBookDao().getPaidMonths(khataBookId)
+                val paidMonthNumbers = paidMonths.mapNotNull { it.monthNumber }.toSet()
+
+                // Get plan info to determine pay months
+                val planInfo = getPredefinedPlans().find { it.name == khataBook.planName }
+                val requiredPayMonths = planInfo?.payMonths ?: khataBook.totalMonths
+
+                val completedPayMonths = paidMonthNumbers.count { it <= requiredPayMonths }
+
+                if (completedPayMonths < requiredPayMonths) {
+                    mainScope {
+                        _snackBarState.value =
+                            "Cannot complete plan. Only $completedPayMonths out of $requiredPayMonths pay months completed"
+                    }
+                    return@ioLaunch
+                }
+
+                // Update khata book status to completed
+                val updatedKhataBook = khataBook.copy(status = "completed")
+                val result = appDatabase.customerKhataBookDao().updateKhataBook(updatedKhataBook)
+
+                if (result > 0) {
+                    mainScope {
+                        _snackBarState.value =
+                            "Khata book plan completed successfully! Customer is now eligible for reward months."
+                    }
+
+                    // Reload data
+                    loadCustomerData()
+                    loadKhataBookPlans()
+                    loadCustomerDetails(khataBook.customerMobile)
+                } else {
+                    mainScope {
+                        _snackBarState.value = "Failed to complete khata book plan"
+                    }
+                }
+
+            } catch (e: Exception) {
+                log("Failed to complete khata book plan: ${e.message}")
+                mainScope {
+                    _snackBarState.value = "Failed to complete khata book plan: ${e.message}"
+                }
+            }
+        }
+    }
+
+    // Delete a transaction
+    fun deleteTransaction(transaction: CustomerTransactionEntity) {
+        viewModelScope.launch {
+            try {
+                appDatabase.customerTransactionDao().deleteTransaction(transaction)
+                _snackBarState.value = "Transaction deleted successfully"
+
+                // Reload customer data to update the UI
+                loadCustomerDetails(transaction.customerMobile)
+                loadCustomerData()
+
+                // Force recomposition
+                transactionsUpdated.value++
+            } catch (e: Exception) {
+                log("Failed to delete transaction: ${e.message}")
+                _snackBarState.value = "Failed to delete transaction: ${e.message}"
+            }
+        }
+    }
+
+    fun deleteTransactionHistoryItem(transactionItem: TransactionItem) {
+        viewModelScope.launch {
+            try {
+                // Find the corresponding CustomerTransactionEntity from current customer's transactions
+                val transactions = selectedCustomerTransactions.toList()
+
+                val transactionToDelete = transactions.find { transaction ->
+                    formatDate(transaction.transactionDate) == formatDate(transactionItem.date) && formatCurrency(
+                        transaction.amount
+                    ) == formatCurrency(transactionItem.amount) && transaction.transactionType == transactionItem.transactionType
+                }
+
+                if (transactionToDelete != null) {
+                    appDatabase.customerTransactionDao().deleteTransaction(transactionToDelete)
+                    _snackBarState.value = "Transaction deleted successfully"
+
+                    // Reload customer data to update the UI
+                    loadCustomerDetails(transactionToDelete.customerMobile)
+                    loadCustomerData()
+
+                    // Force recomposition
+                    transactionsUpdated.value++
+                } else {
+                    _snackBarState.value = "Transaction not found"
+                }
+            } catch (e: Exception) {
+                log("Failed to delete transaction: ${e.message}")
+                _snackBarState.value = "Failed to delete transaction: ${e.message}"
+            }
+        }
     }
 } 

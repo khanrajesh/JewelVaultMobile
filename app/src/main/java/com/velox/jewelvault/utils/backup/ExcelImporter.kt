@@ -33,7 +33,7 @@ class ExcelImporter(
     private object CategoryCols { const val CATID = 0; const val CATNAME = 1; const val GSWt = 2; const val FNWt = 3; const val USERID = 4; const val STOREID = 5 }
     private object SubCategoryCols { const val SUBCATID = 0; const val CATID = 1; const val USERID = 2; const val STOREID = 3; const val CATNAME = 4; const val SUBCATNAME = 5; const val QUANTITY = 6; const val GSWt = 7; const val FNWt = 8 }
     private object ItemCols { const val ITEMID = 0; const val ITEMADDNAME = 1; const val CATID = 2; const val USERID = 3; const val STOREID = 4; const val CATNAME = 5; const val SUBCATID = 6; const val SUBCATNAME = 7; const val ENTRYTYPE = 8; const val QUANTITY = 9; const val GSWt = 10; const val NTWt = 11; const val FNWt = 12; const val PURITY = 13; const val CRGTYPE = 14; const val CRG = 15; const val OTHCRGDES = 16; const val OTHCRG = 17; const val CGST = 18; const val SGST = 19; const val IGST = 20; const val HUID = 21; const val UNIT = 22; const val ADDDESKEY = 23; const val ADDDESVALUE = 24; const val ADDDATE = 25; const val MODIFIEDDATE = 26; const val SELLERFIRMID = 27; const val PURCHASEORDERID = 28; const val PURCHASEITEMID = 29 }
-    private object CustomerCols { const val MOBILENO = 0; const val NAME = 1; const val ADDRESS = 2; const val GSTINPAN = 3; const val ADDDATE = 4; const val LASTMODIFIED = 5; const val TOTALITEMBOUGHT = 6; const val TOTALAMOUNT = 7; const val NOTES = 8; const val ISACTIVE = 9; const val USERID = 10; const val STOREID = 11 }
+    private object CustomerCols { const val MOBILENO = 0; const val NAME = 1; const val ADDRESS = 2; const val GSTINPAN = 3; const val ADDDATE = 4; const val LASTMODIFIED = 5; const val TOTALITEMBOUGHT = 6; const val TOTALAMOUNT = 7; const val NOTES = 8;  const val USERID = 9; const val STOREID = 10 }
     private object KhataBookCols { const val KHATABOOKID = 0; const val CUSTOMERMOBILE = 1; const val PLANNAME = 2; const val STARTDATE = 3; const val ENDDATE = 4; const val MONTHLYAMOUNT = 5; const val TOTALMONTHS = 6; const val TOTALAMOUNT = 7; const val STATUS = 8; const val NOTES = 9; const val USERID = 10; const val STOREID = 11 }
     private object TransactionCols { const val TRANSACTIONID = 0; const val CUSTOMERMOBILE = 1; const val TRANSACTIONDATE = 2; const val AMOUNT = 3; const val TRANSACTIONTYPE = 4; const val CATEGORY = 5; const val DESCRIPTION = 6; const val REFERENCENUMBER = 7; const val PAYMENTMETHOD = 8; const val KHATABOOKID = 9; const val MONTHNUMBER = 10; const val NOTES = 11; const val USERID = 12; const val STOREID = 13 }
     private object OrderCols { const val ORDERID = 0; const val CUSTOMERMOBILE = 1; const val STOREID = 2; const val USERID = 3; const val ORDERDATE = 4; const val TOTALAMOUNT = 5; const val TOTALTAX = 6; const val TOTALCHARGE = 7; const val DISCOUNT = 8 ; const val NOTE = 9 }
@@ -482,7 +482,6 @@ class ExcelImporter(
                                 totalItemBought = getCellValueAsInt(row.getCell(CustomerCols.TOTALITEMBOUGHT)),
                                 totalAmount = getCellValueAsDouble(row.getCell(CustomerCols.TOTALAMOUNT)),
                                 notes = getCellValueAsString(row.getCell(CustomerCols.NOTES)),
-                                isActive = getCellValueAsBoolean(row.getCell(CustomerCols.ISACTIVE)),
                                 userId = currentUserId,
                                 storeId = currentStoreId
                             )
@@ -503,7 +502,6 @@ class ExcelImporter(
                             totalItemBought = getCellValueAsInt(row.getCell(CustomerCols.TOTALITEMBOUGHT)),
                             totalAmount = getCellValueAsDouble(row.getCell(CustomerCols.TOTALAMOUNT)),
                             notes = getCellValueAsString(row.getCell(CustomerCols.NOTES)),
-                            isActive = getCellValueAsBoolean(row.getCell(CustomerCols.ISACTIVE)),
                             userId = currentUserId,
                             storeId = currentStoreId
                         )

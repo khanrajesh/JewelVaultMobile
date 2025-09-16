@@ -26,12 +26,10 @@ import javax.inject.Named
 data class CustomerSummary(
     val totalCustomers: Int = 0,
     val activeCustomers: Int = 0,
-    val activeKhataBooks: Int = 0,
     val totalOutstandingBalance: Double = 0.0,
-    val totalKhataBookAmount: Double = 0.0,
+    val currentMonthKhataBookPayments: Double = 0.0,
     val totalKhataBookPaidAmount: Double = 0.0,
-    val totalKhataBookRemainingAmount: Double = 0.0,
-    val customersWithOutstandingBalance: Int = 0
+    val activeKhataBookCustomers: Int = 0
 )
 
 @HiltViewModel
@@ -112,46 +110,51 @@ class DashboardViewModel @Inject constructor(
                 val userId = admin.first.first()
                 val storeId = store.first.first()
 
-                // Get total customers
+                // 1. Total number of customers
                 val allCustomers = appDatabase.customerDao().getAllCustomers().first()
                 val totalCustomers = allCustomers.size
-                val activeCustomers = allCustomers.count { it.isActive }
+                val activeCustomers = allCustomers.count { it.mobileNo.isNotBlank() }
 
-                // Get outstanding balance statistics
-                val totalOutstandingBalance =
-                    appDatabase.customerTransactionDao().getTotalOutstandingAmount(userId, storeId)
-                val customersWithOutstanding = appDatabase.customerTransactionDao()
-                    .getCustomersWithOutstandingBalance(userId, storeId)
+                // 2. Remaining outstanding balance of all customers
+                val totalOutstandingBalance = appDatabase.customerTransactionDao()
+                    .getTotalOutstandingAmount(userId, storeId)
 
-                // Get khata book statistics
-                val khataBookSummaries =
-                    appDatabase.customerKhataBookDao().getKhataBookSummaries(userId, storeId)
-                val activeKhataBooks = khataBookSummaries.count { it.status == "active" }
-                val totalKhataBookMonthlyAmount = khataBookSummaries.sumOf { it.monthlyAmount }
+                // 3. Current month total khata book incoming payments from customers
+                val currentMonthKhataBookPayments = appDatabase.customerTransactionDao()
+                    .getCurrentMonthKhataBookPayments(userId, storeId)
 
-                // Calculate paid amounts for active khata books
-                val totalKhataBookPaidAmount = khataBookSummaries.sumOf { summary ->
-                    val paidAmount = appDatabase.customerTransactionDao()
-                        .getKhataBookTotalPaidAmount(summary.khataBookId)
-                    paidAmount
-                }
+                // 4. Total paid amount of khata book plans by customers (all time)
+                val totalKhataBookPaidAmount = appDatabase.customerTransactionDao()
+                    .getTotalKhataBookPayments(userId, storeId)
 
-                val totalKhataBookRemainingAmount = totalKhataBookMonthlyAmount
+                // 5. Total active khata book customers
+                val activeKhataBooks = appDatabase.customerKhataBookDao().getActiveKhataBooks(userId, storeId)
+                val activeKhataBookCustomers = activeKhataBooks.map { it.customerMobile }.distinct().size
 
                 val summary = CustomerSummary(
                     totalCustomers = totalCustomers,
                     activeCustomers = activeCustomers,
-                    activeKhataBooks = activeKhataBooks,
                     totalOutstandingBalance = totalOutstandingBalance,
-                    totalKhataBookAmount = totalKhataBookMonthlyAmount,
+                    currentMonthKhataBookPayments = currentMonthKhataBookPayments,
                     totalKhataBookPaidAmount = totalKhataBookPaidAmount,
-                    totalKhataBookRemainingAmount = totalKhataBookRemainingAmount,
-                    customersWithOutstandingBalance = customersWithOutstanding.size
+                    activeKhataBookCustomers = activeKhataBookCustomers
                 )
 
                 customerSummary.value = summary
+
+                // Also update the customers with outstanding balance list
+                val customersWithOutstanding = appDatabase.customerTransactionDao()
+                    .getCustomersWithOutstandingBalance(userId, storeId)
                 customersWithOutstandingBalance.clear()
                 customersWithOutstandingBalance.addAll(customersWithOutstanding)
+
+                log("Customer Summary Loaded:")
+                log("  Total Customers: $totalCustomers")
+                log("  Active Customers: $activeCustomers")
+                log("  Total Outstanding Balance: $totalOutstandingBalance")
+                log("  Current Month Khata Payments: $currentMonthKhataBookPayments")
+                log("  Total Khata Book Paid: $totalKhataBookPaidAmount")
+                log("  Active Khata Book Customers: $activeKhataBookCustomers")
 
             } catch (e: Exception) {
                 log("Failed to load customer summary: ${e.message}")

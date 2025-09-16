@@ -16,7 +16,6 @@ data class CustomerEntity(
     val totalItemBought: Int = 0,
     val totalAmount: Double = 0.0,
     val notes: String? = null,
-    val isActive: Boolean = true,
     val userId: String = "" ,
     val storeId: String= ""
 )

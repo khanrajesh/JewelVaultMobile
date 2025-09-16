@@ -104,17 +104,20 @@ fun LandscapeMainScreen(
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val isRefreshing = remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullRefreshState(
-        refreshing = false, onRefresh = {
+        refreshing = isRefreshing.value, onRefresh = {
             ioScope {
+                isRefreshing.value = true
+                dashboardViewModel.snackBarState.value = "Refreshing the values"
                 dashboardViewModel.getRecentSellItem()
                 dashboardViewModel.getSalesSummary()
                 dashboardViewModel.getTopSellingItems()
                 dashboardViewModel.getTopSellingSubCategories()
                 dashboardViewModel.getCustomerSummary()
+                isRefreshing.value = false
             }
-        }
-    )
+        })
 
     // Double back press to exit state
     var backPressCount by remember { mutableStateOf(0) }
@@ -320,10 +323,10 @@ fun LandscapeMainScreen(
             //Recent Item Sold
             RecentItemSold(Modifier, dashboardViewModel.recentSellsItem)
         }
-        
+
         // Pull to refresh indicator
         PullRefreshIndicator(
-            refreshing = false,
+            refreshing = isRefreshing.value,
             state = pullRefreshState,
             modifier = Modifier.align(Alignment.TopCenter)
         )
@@ -730,12 +733,12 @@ fun CustomerOverview(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
-                                            "${summary.activeKhataBooks}",
+                                            "${summary.activeKhataBookCustomers}",
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
                                         Text(
-                                            "₹${summary.totalKhataBookAmount.to1FString()}",
+                                            "₹${summary.currentMonthKhataBookPayments.to1FString()}",
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
@@ -743,7 +746,7 @@ fun CustomerOverview(
                                     }
                                 }
                                 Text(
-                                    "Active Khata",
+                                    "Khata Customers",
                                     fontSize = 7.sp,
                                     color = Color.Gray,
                                     modifier = Modifier.fillMaxWidth(),
@@ -779,7 +782,7 @@ fun CustomerOverview(
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
-                                            "${summary.customersWithOutstandingBalance}",
+                                            "${dashboardViewModel.customersWithOutstandingBalance.size}",
                                             fontWeight = FontWeight.Bold,
                                             color = Color.Red
                                         )
@@ -903,8 +906,7 @@ fun getTimeRangeDisplayText(timeRange: TimeRange): String {
 
 @Composable
 fun RecentItemSold(
-    modifier: Modifier,
-    recentSellsItem: SnapshotStateList<IndividualSellItem>
+    modifier: Modifier, recentSellsItem: SnapshotStateList<IndividualSellItem>
 ) {
     val subNavController = LocalSubNavController.current
 
@@ -913,108 +915,104 @@ fun RecentItemSold(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
     ) {
-            // Colored header with icon
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.secondary
-                            )
-                        ), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                    )
-                    .padding(vertical = 10.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "Recent Sells",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    fontSize = 16.sp
+        // Colored header with icon
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary
+                        )
+                    ), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 )
-                Spacer(Modifier.weight(1f))
+                .padding(vertical = 10.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Recent Sells", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp
+            )
+            Spacer(Modifier.weight(1f))
+        }
+
+        // Card for table
+        Card(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Define headers for all essential fields
+            val headers = listOf(
+                "Date",
+                "Order ID",
+                "Customer Name",
+                "Mobile No",
+                "Address",
+                "GSTIN/PAN",
+                "Name",
+                "Quantity",
+                "Gross Wt",
+                "Net Wt",
+                "Fine Wt",
+                "Purity",
+                "Metal Price",
+                "Price",
+                "Tax",
+                "Tax Amount",
+                "Charge",
+                "M.Charge",
+                "Other Charge",
+                "Total Amount",
+                "HUID",
+                "Add. Description"
+            )
+
+            // Convert IndividualSellItem to List<String> for each row
+            val tableData = recentSellsItem.map { item ->
+                listOf(
+                    item.orderDate.toString(),
+                    item.orderId,
+                    item.name,
+                    item.mobileNo,
+                    item.address ?: "",
+                    item.gstin_pan ?: "",
+                    "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
+                    item.quantity.toString(),
+                    "${item.gsWt.to3FString()}g",
+                    "${item.ntWt.to3FString()}g",
+                    "${item.fnWt.to3FString()}g",
+                    item.purity,
+                    "₹${item.fnMetalPrice.to3FString()}",
+                    "₹${item.price.to3FString()}",
+                    "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
+                    "₹${item.tax.to3FString()}",
+                    "${item.crg.to3FString()} ${item.crgType}",
+                    "₹${item.charge.to3FString()}",
+                    "${item.othCrgDes}: ₹${item.othCrg.to3FString()}",
+                    "₹${
+                        CalculationUtils.totalPrice(
+                            item.price, item.charge, item.othCrg, item.tax
+                        ).to3FString()
+                    }",
+                    item.huid,
+                    "${item.addDesKey}: ${item.addDesValue}"
+                )
             }
 
-            // Card for table
-            Card(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // Define headers for all essential fields
-                val headers = listOf(
-                    "Date",
-                    "Order ID",
-                    "Customer Name",
-                    "Mobile No",
-                    "Address",
-                    "GSTIN/PAN",
-                    "Name",
-                    "Quantity",
-                    "Gross Wt",
-                    "Net Wt",
-                    "Fine Wt",
-                    "Purity",
-                    "Metal Price",
-                    "Price",
-                    "Tax",
-                    "Tax Amount",
-                    "Charge",
-                    "M.Charge",
-                    "Other Charge",
-                    "Total Amount",
-                    "HUID",
-                    "Add. Description"
-                )
-
-                // Convert IndividualSellItem to List<String> for each row
-                val tableData = recentSellsItem.map { item ->
-                    listOf(
-                        item.orderDate.toString(),
-                        item.orderId,
-                        item.name,
-                        item.mobileNo,
-                        item.address ?: "",
-                        item.gstin_pan ?: "",
-                        "${item.catName} (${item.catId}) - ${item.subCatName} (${item.subCatId}) - ${item.itemAddName}",
-                        item.quantity.toString(),
-                        "${item.gsWt.to3FString()}g",
-                        "${item.ntWt.to3FString()}g",
-                        "${item.fnWt.to3FString()}g",
-                        item.purity,
-                        "₹${item.fnMetalPrice.to3FString()}",
-                        "₹${item.price.to3FString()}",
-                        "${item.cgst.to1FString()} + ${item.sgst.to1FString()} + ${item.igst.to1FString()}",
-                        "₹${item.tax.to3FString()}",
-                        "${item.crg.to3FString()} ${item.crgType}",
-                        "₹${item.charge.to3FString()}",
-                        "${item.othCrgDes}: ₹${item.othCrg.to3FString()}",
-                        "₹${
-                            CalculationUtils.totalPrice(
-                                item.price, item.charge, item.othCrg, item.tax
-                            ).to3FString()
-                        }",
-                        item.huid,
-                        "${item.addDesKey}: ${item.addDesValue}"
-                    )
-                }
-
-                 TextListView(
-                     modifier = Modifier.fillMaxSize(),
-                     headerList = headers,
-                     items = tableData,
-                     onItemClick = { clickedItem ->
-                         val orderId = clickedItem[1]
-                         if (orderId.isNotEmpty()) {
-                             subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
-                         }
-                     },
-                     onItemLongClick = { longClickedItem ->
-                         // Handle item long click if needed
-                     })
-             }
+            TextListView(
+                modifier = Modifier.fillMaxSize(),
+                headerList = headers,
+                items = tableData,
+                onItemClick = { clickedItem ->
+                    val orderId = clickedItem[1]
+                    if (orderId.isNotEmpty()) {
+                        subNavController.navigate("${SubScreens.OrderItemDetail.route}/$orderId")
+                    }
+                },
+                onItemLongClick = { longClickedItem ->
+                    // Handle item long click if needed
+                })
+        }
     }
 }
 

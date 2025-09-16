@@ -3,12 +3,12 @@ package com.velox.jewelvault.ui.screen.customers
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,7 @@ import com.velox.jewelvault.utils.formatCurrency
 
 @Composable
 fun CustomerScreen(
-     viewModel: CustomerViewModel = hiltViewModel()
+    viewModel: CustomerViewModel = hiltViewModel()
 ) {
 
     viewModel.currentScreenHeadingState.value = "Customers"
@@ -71,19 +72,35 @@ fun CustomerScreen(
         viewModel.loadCustomerData()
     }
 
-    Column (
+    // Debug logging to check values
+    LaunchedEffect(viewModel.totalCustomers.value, viewModel.totalOutstandingAmount.value) {
+        println("DEBUG CustomerScreen - Total Customers: ${viewModel.totalCustomers.value}")
+        println("DEBUG CustomerScreen - Outstanding Amount: ${viewModel.totalOutstandingAmount.value}")
+        println("DEBUG CustomerScreen - Current Month Khata: ${viewModel.currentMonthKhataBookPayments.value}")
+        println("DEBUG CustomerScreen - Total Khata Paid: ${viewModel.totalKhataBookPaidAmount.value}")
+        println("DEBUG CustomerScreen - Active Khata Customers: ${viewModel.activeKhataBookCustomersCount.value}")
+    }
+
+    // Retry mechanism if data loading fails
+    LaunchedEffect(viewModel.snackBarState.value) {
+        if (viewModel.snackBarState.value.contains("Failed to load customer data")) {
+            // Auto-retry after 2 seconds
+            kotlinx.coroutines.delay(2000)
+            viewModel.retryLoadCustomerData()
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(5.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
-    ){
+    ) {
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
         ) {
-            CustomerStatisticsCard(Modifier.weight(1f),viewModel)
+            CustomerStatisticsCard(Modifier.weight(1f), viewModel)
             Spacer(Modifier.width(10.dp))
             CusOutlinedTextField(
                 state = searchQuery,
@@ -99,8 +116,7 @@ fun CustomerScreen(
                 onLeadingIconClick = {
                     searchQuery.text = ""
                     viewModel.loadCustomerData()
-                }
-            )
+                })
 
             IconButton(onClick = { showKhataBookPlans = true }) {
                 Icon(Icons.Default.Book, contentDescription = "Khata Book Plans")
@@ -124,7 +140,8 @@ fun CustomerScreen(
 
             // Customer List
             items(viewModel.customerList) { customer ->
-                CustomerCard(customer = customer,
+                CustomerCard(
+                    customer = customer,
                     onClick = { subNavController.navigate("${SubScreens.CustomersDetails.route}/${customer.mobileNo}") })
             }
         }
@@ -154,8 +171,7 @@ fun CustomerScreen(
                 viewModel.customerNotes.text = notes
                 viewModel.addCustomer()
                 showAddCustomerDialog = false
-            }
-        )
+            })
     }
 
     // Khata Book Plans Navigation
@@ -169,7 +185,7 @@ fun CustomerScreen(
 
 
 @Composable
-fun CustomerStatisticsCard(modifier: Modifier,viewModel: CustomerViewModel) {
+fun CustomerStatisticsCard(modifier: Modifier, viewModel: CustomerViewModel) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
@@ -182,24 +198,29 @@ fun CustomerStatisticsCard(modifier: Modifier,viewModel: CustomerViewModel) {
                 modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 StatisticItem(
-                    label = "Total Customers",
+                    label = "Customers",
                     value = viewModel.totalCustomers.value.toString(),
                     icon = Icons.Default.People
                 )
                 StatisticItem(
-                    label = "Outstanding Amount",
+                    label = "Outstanding Balance",
                     value = formatCurrency(viewModel.totalOutstandingAmount.value),
                     icon = Icons.Default.AccountBalance
                 )
                 StatisticItem(
-                    label = "Khata Book Amount",
-                    value = formatCurrency(viewModel.totalKhataBookAmount.value),
+                    label = "Month's Expected Khata",
+                    value = formatCurrency(viewModel.currentMonthKhataBookPayments.value),
+                    icon = Icons.Default.CheckCircle
+                )
+                StatisticItem(
+                    label = "Total Khata Paid",
+                    value = formatCurrency(viewModel.totalKhataBookPaidAmount.value),
                     icon = Icons.Default.Book
                 )
                 StatisticItem(
-                    label = "Active Customers",
-                    value = viewModel.customerList.count { it.isActive }.toString(),
-                    icon = Icons.Default.CheckCircle
+                    label = "Active Khata",
+                    value = viewModel.activeKhataBookCustomersCount.value.toString(),
+                    icon = Icons.Default.Warning
                 )
             }
         }
@@ -233,6 +254,7 @@ fun StatisticItem(
     }
 }
 
+
 @Composable
 fun FilterChips(
     selectedFilter: String, onFilterSelected: (String) -> Unit
@@ -240,13 +262,16 @@ fun FilterChips(
     Row(
         modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        FilterChip(selected = selectedFilter == "all",
+        FilterChip(
+            selected = selectedFilter == "all",
             onClick = { onFilterSelected("all") },
             label = { Text("All") })
-        FilterChip(selected = selectedFilter == "outstanding",
+        FilterChip(
+            selected = selectedFilter == "outstanding",
             onClick = { onFilterSelected("outstanding") },
             label = { Text("Outstanding") })
-        FilterChip(selected = selectedFilter == "khata",
+        FilterChip(
+            selected = selectedFilter == "khata",
             onClick = { onFilterSelected("khata") },
             label = { Text("Khata Book") })
     }
@@ -271,9 +296,7 @@ fun CustomerCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier.weight(1f)
-                ) {
+                Column {
                     Row {
                         Text(
                             text = customer.name,
@@ -287,15 +310,48 @@ fun CustomerCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.width(5.dp))
-                        customer.address?.let { address ->
-                            Text(
-                                text = address,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    }
+                    customer.address?.let { address ->
+                        Text(
+                            text = address,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                }
+
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    if (customer.outstandingBalance > 0) {
+                        Text(
+                            text = "Outstanding: ${formatCurrency(customer.outstandingBalance)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    if (customer.hasKhataBook) {
+                        val progressText = if (customer.totalKhataBookAmount > 0) {
+                            val paidPercentage =
+                                (customer.totalKhataBookPaidAmount / customer.totalKhataBookAmount * 100).toInt()
+                            "${customer.activeKhataBookCount} plan(s) - ${paidPercentage}% paid"
+                        } else {
+                            "${customer.activeKhataBookCount} plan(s)"
                         }
+
+                        Text(
+                            text = "Khata: $progressText",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
+
+                Spacer(Modifier.weight(1f))
+
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
@@ -310,71 +366,44 @@ fun CustomerCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
+                Spacer(modifier = Modifier.width(4.dp))
 
 
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    if (customer.outstandingBalance > 0) {
-                        Text(
-                            text = "Outstanding: ${formatCurrency(customer.outstandingBalance)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    if (customer.hasKhataBook) {
-                        val progressText = if (customer.totalKhataBookAmount > 0) {
-                            val paidPercentage = (customer.totalKhataBookPaidAmount / customer.totalKhataBookAmount * 100).toInt()
-                            "${customer.activeKhataBookCount} plan(s) - ${paidPercentage}% paid"
-                        } else {
-                            "${customer.activeKhataBookCount} plan(s)"
+                Row {
+                    Column {
+                        if (customer.outstandingBalance > 0) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
                         }
-                        
-                        Text(
-                            text = "Khata: $progressText",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary,
-                            fontWeight = FontWeight.Medium
-                        )
+
+                        if (customer.hasKhataBook) {
+                            Icon(
+                                imageVector = Icons.Default.Book,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                     }
+
                 }
+                Spacer(modifier = Modifier.width(4.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (customer.outstandingBalance > 0) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-
-                    if (customer.hasKhataBook) {
-                        Icon(
-                            imageVector = Icons.Default.Book,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
             }
+
+
         }
     }
 }
@@ -402,8 +431,7 @@ fun AddCustomerDialog(
                 onTextChange = { mobile = it },
                 placeholderText = "Mobile Number *",
                 keyboardType = KeyboardType.Phone,
-                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
-            )
+                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
 
             CusOutlinedTextField(
                 state = InputFieldState(address),

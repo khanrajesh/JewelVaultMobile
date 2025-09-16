@@ -179,8 +179,8 @@ fun KhataBookPlansScreen(
             PlanDetailsDialog(
                 plan = plan,
                 onDismiss = { selectedPlan = null },
-                onApply = { customerMobile ->
-                    viewModel.applyKhataBookPlan(customerMobile, plan)
+                onApply = { customerMobile, monthlyAmount ->
+                    viewModel.applyKhataBookPlan(customerMobile, plan, monthlyAmount)
                     selectedPlan = null
                 })
         }
@@ -599,9 +599,10 @@ fun KhataBookCalculatorDialog(
 
 @Composable
 fun PlanDetailsDialog(
-    plan: KhataBookPlan, onDismiss: () -> Unit, onApply: (String) -> Unit
+    plan: KhataBookPlan, onDismiss: () -> Unit, onApply: (String, Double) -> Unit
 ) {
     var customerMobile by remember { mutableStateOf("") }
+    var monthlyAmount by remember { mutableStateOf("") }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Apply ${plan.name}") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -615,10 +616,24 @@ fun PlanDetailsDialog(
                 placeholderText = "Customer Mobile Number",
                 keyboardType = KeyboardType.Phone,
                 validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
+            
+            CusOutlinedTextField(
+                state = InputFieldState(monthlyAmount),
+                onTextChange = { monthlyAmount = it },
+                placeholderText = "Monthly Amount",
+                keyboardType = KeyboardType.Number,
+                validation = { input -> 
+                    val amount = input.toDoubleOrNull()
+                    if (amount == null || amount <= 0) "Please Enter Valid Amount" else null 
+                })
         }
     }, confirmButton = {
         Button(
-            onClick = { onApply(customerMobile) }, enabled = customerMobile.isNotEmpty()
+            onClick = { 
+                val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
+                onApply(customerMobile, amount) 
+            }, 
+            enabled = customerMobile.isNotEmpty() && monthlyAmount.isNotEmpty()
         ) {
             Text("Apply Plan")
         }

@@ -321,7 +321,7 @@ class ExcelExporter(private val context: Context) {
         val customers = database.customerDao().getAllCustomersList()
         log("  → Found ${customers.size} customers to export")
         
-        val headers = listOf("mobileNo", "name", "address", "gstin_pan", "addDate", "lastModifiedDate", "totalItemBought", "totalAmount", "notes", "isActive", "userId", "storeId")
+        val headers = listOf("mobileNo", "name", "address", "gstin_pan", "addDate", "lastModifiedDate", "totalItemBought", "totalAmount", "notes", "userId", "storeId")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -339,9 +339,8 @@ class ExcelExporter(private val context: Context) {
             row.createCell(6).setCellValue(customer.totalItemBought.toDouble())
             row.createCell(7).setCellValue(customer.totalAmount)
             row.createCell(8).setCellValue(customer.notes ?: "")
-            row.createCell(9).setCellValue(customer.isActive)
-            row.createCell(10).setCellValue(customer.userId)
-            row.createCell(11).setCellValue(customer.storeId)
+            row.createCell(9).setCellValue(customer.userId)
+            row.createCell(10).setCellValue(customer.storeId)
         }
         log("  → CustomerEntity export completed: ${customers.size} records")
     }
