@@ -49,6 +49,9 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
+import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.ChargeType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,16 +62,8 @@ import com.velox.jewelvault.utils.LocalSubNavController
 fun ImportItemsScreen(
     viewModel: ImportItemsViewModel,
 ) {
-    val subNavController = LocalSubNavController.current
 
     viewModel.currentScreenHeadingState.value = "Import Items"
-    
-    // Navigate back after successful import
-    LaunchedEffect(viewModel.snackBarState.value) {
-        if (viewModel.snackBarState.value.contains("Successfully imported")) {
-            subNavController.popBackStack()
-        }
-    }
     
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -596,6 +591,14 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.entryType),
                     placeholderText = "Entry Type",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = EntryType.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.entryType = selected
+                        // Auto-fill quantity for Piece type
+                        if (selected == EntryType.Piece.type) {
+                            row.quantity = 1
+                        }
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -603,7 +606,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.quantity.toString()),
                     placeholderText = "Qty",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val qtyValue = text.toIntOrNull()
+                        if (qtyValue != null && qtyValue > 0) {
+                            row.quantity = qtyValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -632,14 +640,40 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.gsWt?.toString() ?: ""),
                     placeholderText = "GsWt",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val gsWtValue = text.toDoubleOrNull()
+                        if (gsWtValue != null) {
+                            row.gsWt = gsWtValue
+                            // Auto-fill net weight with gross weight
+                            row.ntWt = gsWtValue
+                            // Recalculate fine weight if purity is available
+                            if (row.purity?.isNotBlank() == true) {
+                                val purityObj = Purity.fromLabel(row.purity!!)
+                                if (purityObj != null) {
+                                    row.fnWt = gsWtValue * purityObj.multiplier
+                                }
+                            }
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
                     state = InputFieldState(initValue = row.ntWt?.toString() ?: ""),
                     placeholderText = "NtWt",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val ntWtValue = text.toDoubleOrNull()
+                        if (ntWtValue != null) {
+                            row.ntWt = ntWtValue
+                            // Recalculate fine weight if purity is available
+                            if (row.purity?.isNotBlank() == true) {
+                                val purityObj = Purity.fromLabel(row.purity!!)
+                                if (purityObj != null) {
+                                    row.fnWt = ntWtValue * purityObj.multiplier
+                                }
+                            }
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -653,6 +687,17 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.purity ?: ""),
                     placeholderText = "Purity",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = Purity.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.purity = selected
+                        // Auto-calculate fine weight if net weight is available
+                        if (row.ntWt != null) {
+                            val purityObj = Purity.fromLabel(selected)
+                            if (purityObj != null) {
+                                row.fnWt = row.ntWt!! * purityObj.multiplier
+                            }
+                        }
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -661,6 +706,10 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.mcType ?: ""),
                     placeholderText = "McType",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = ChargeType.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.mcType = selected
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -668,7 +717,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.mcChr?.toString() ?: ""),
                     placeholderText = "McChr",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val mcChrValue = text.toDoubleOrNull()
+                        if (mcChrValue != null && mcChrValue >= 0) {
+                            row.mcChr = mcChrValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -682,7 +736,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.chr?.toString() ?: ""),
                     placeholderText = "Chr",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val chrValue = text.toDoubleOrNull()
+                        if (chrValue != null && chrValue >= 0) {
+                            row.chr = chrValue
+                        }
+                    }
                 )
 
                 // GST Percentage Fields
@@ -692,7 +751,12 @@ private fun ImportedRowItem(
                     ), // CGST percentage
                     placeholderText = "CGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val cgstValue = text.toDoubleOrNull()
+                        if (cgstValue != null && cgstValue >= 0 && cgstValue <= 100) {
+                            row.cgst = cgstValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -701,7 +765,12 @@ private fun ImportedRowItem(
                     ), // SGST percentage
                     placeholderText = "SGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val sgstValue = text.toDoubleOrNull()
+                        if (sgstValue != null && sgstValue >= 0 && sgstValue <= 100) {
+                            row.sgst = sgstValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -710,7 +779,12 @@ private fun ImportedRowItem(
                     ), // IGST percentage
                     placeholderText = "IGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val igstValue = text.toDoubleOrNull()
+                        if (igstValue != null && igstValue >= 0 && igstValue <= 100) {
+                            row.igst = igstValue
+                        }
+                    }
                 )
 
                 // Additional Information
@@ -718,7 +792,11 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.huid ?: ""),
                     placeholderText = "HUID",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        // Format HUID to uppercase and limit to 6 characters
+                        val formattedHuid = text.trim().uppercase().take(6)
+                        row.huid = formattedHuid
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -867,8 +945,8 @@ private fun CategoryMappingDialog(
     onConfirm: (String, String) -> Unit
 ) {
     // State for selected category in the dialog
-    var selectedCategoryId by remember { mutableStateOf<String?>(row.mappedCategoryId) }
-    var selectedSubCategoryId by remember { mutableStateOf<String?>(row.mappedSubCategoryId) }
+    var selectedCategoryId by remember { mutableStateOf(row.mappedCategoryId) }
+    var selectedSubCategoryId by remember { mutableStateOf(row.mappedSubCategoryId) }
     
     // Filter subcategories based on selected category
     val filteredSubCategories = remember(selectedCategoryId) {

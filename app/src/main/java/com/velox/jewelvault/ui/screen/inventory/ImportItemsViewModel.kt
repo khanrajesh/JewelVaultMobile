@@ -20,6 +20,8 @@ import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.to3FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -455,44 +457,89 @@ class ImportItemsViewModel @Inject constructor(
         // Basic validation logic
         val errors = mutableListOf<String>()
         
+        // Required field validations
         if (row.itemName.isBlank()) errors.add("Item name is required")
         if (row.entryType.isBlank()) errors.add("Entry type is required")
-        if (row.quantity <= 0) errors.add("Quantity must be greater than 0")
         if (row.unit.isBlank()) errors.add("Unit is required")
         if (row.category.isBlank()) errors.add("Category is required")
         if (row.subCategory.isBlank()) errors.add("Sub-category is required")
         
-        // Validate entry type using utility class
+        // Quantity validation using InputValidator
+        if (!InputValidator.isValidQuantity(row.quantity.toString())) {
+            errors.add("Invalid quantity - must be a positive integer")
+        }
+        
+        // Entry type validation using utility class
         if (row.entryType.isNotBlank() && !EntryType.list().contains(row.entryType)) {
             errors.add("Invalid entry type. Must be one of: ${EntryType.list().joinToString(", ")}")
         }
         
-        // Validate making charge type using utility class
+        // Making charge type validation using utility class
         if (row.mcType?.isNotBlank() == true && !ChargeType.list().contains(row.mcType)) {
             errors.add("Invalid making charge type. Must be one of: ${ChargeType.list().joinToString(", ")}")
         }
         
-        // Validate purity using utility class
+        // Purity validation using utility class
         val purity = row.purity
         if (purity?.isNotBlank() == true && Purity.fromLabel(purity) == null) {
             errors.add("Invalid purity. Must be one of: ${Purity.list().joinToString(", ")}")
         }
         
-        // Validate weights
+        // Weight validations using InputValidator
         val gsWt = row.gsWt
         val ntWt = row.ntWt
         val fnWt = row.fnWt
-        if (gsWt != null && gsWt < 0) errors.add("Gross weight cannot be negative")
-        if (ntWt != null && ntWt < 0) errors.add("Net weight cannot be negative")
-        if (fnWt != null && fnWt < 0) errors.add("Fine weight cannot be negative")
         
-        // Validate charges
+        if (gsWt != null) {
+            if (!InputValidator.isValidWeight(gsWt.toString())) {
+                errors.add("Invalid gross weight - must be a positive decimal")
+            }
+        }
+        
+        if (ntWt != null) {
+            if (!InputValidator.isValidWeight(ntWt.toString())) {
+                errors.add("Invalid net weight - must be a positive decimal")
+            }
+        }
+        
+        if (fnWt != null) {
+            if (!InputValidator.isValidWeight(fnWt.toString())) {
+                errors.add("Invalid fine weight - must be a positive decimal")
+            }
+        }
+        
+        // Weight relationship validation
+        if (gsWt != null && ntWt != null) {
+            if (gsWt < ntWt) {
+                errors.add("Gross weight cannot be less than net weight")
+            }
+        }
+        
+        // Auto-calculate fine weight if purity and net weight are available
+        if (purity?.isNotBlank() == true && ntWt != null) {
+            val purityObj = Purity.fromLabel(purity)
+            if (purityObj != null) {
+                val calculatedFnWt = ntWt * purityObj.multiplier
+                if (fnWt == null) {
+                    // Auto-fill fine weight
+                    row.fnWt = calculatedFnWt
+                } else {
+                    // Validate fine weight against calculated value (allow small tolerance)
+                    val tolerance = 0.01
+                    if (kotlin.math.abs(fnWt - calculatedFnWt) > tolerance) {
+                        errors.add("Fine weight should be ${calculatedFnWt.to3FString()}g for ${purity} purity")
+                    }
+                }
+            }
+        }
+        
+        // Charge validations
         val mcChr = row.mcChr
         val chr = row.chr
         if (mcChr != null && mcChr < 0) errors.add("Making charge cannot be negative")
         if (chr != null && chr < 0) errors.add("Other charge cannot be negative")
         
-        // Validate GST percentages
+        // GST percentage validations
         val cgst = row.cgst
         val sgst = row.sgst
         val igst = row.igst
@@ -504,6 +551,7 @@ class ImportItemsViewModel @Inject constructor(
         if ((cgst == null || cgst == 0.0) && (sgst == null || sgst == 0.0) && (igst == null || igst == 0.0)) {
             errors.add("At least one GST percentage (CGST, SGST, or IGST) must be specified")
         }
+
         
         // Validate and map categories and subcategories
         if (row.category.isNotBlank() && row.subCategory.isNotBlank()) {
@@ -735,6 +783,9 @@ class ImportItemsViewModel @Inject constructor(
                 
                 _snackBarState.value = "Successfully imported ${items.size} items!"
                 showConfirmImportDialog.value = false
+                
+                // Clear the list and reset all values after successful import
+                clearImport()
                 
             } catch (e: Exception) {
                 log("Error importing items: ${e.message}")
