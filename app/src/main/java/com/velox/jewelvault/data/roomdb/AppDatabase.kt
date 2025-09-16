@@ -58,7 +58,7 @@ import com.velox.jewelvault.utils.Converters
         PurchaseOrderItemEntity::class,
         MetalExchangeEntity::class
     ],
-    version = 7,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

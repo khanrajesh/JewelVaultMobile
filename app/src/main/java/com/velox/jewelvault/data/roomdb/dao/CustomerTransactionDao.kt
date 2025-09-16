@@ -38,31 +38,31 @@ interface CustomerTransactionDao {
     @Query("SELECT * FROM ${TableNames.CUSTOMER_TRANSACTION} WHERE customerMobile = :customerMobile AND category = 'regular_payment' ORDER BY transactionDate DESC")
     fun getCustomerPaymentTransactions(customerMobile: String): Flow<List<CustomerTransactionEntity>>
     
-    // Calculate outstanding balance (debits - credits)
+    // Calculate outstanding balance (debits - credits) - only outstanding category
     @Query("""
         SELECT COALESCE(SUM(
             CASE 
-                WHEN transactionType IN ('debit', 'khata_debit') THEN amount
-                WHEN transactionType IN ('credit', 'khata_payment') THEN -amount
+                WHEN transactionType = 'debit' THEN amount
+                WHEN transactionType = 'credit' THEN -amount
                 ELSE 0
             END
         ), 0) 
         FROM ${TableNames.CUSTOMER_TRANSACTION} 
-        WHERE customerMobile = :customerMobile AND category = 'outstanding'
+        WHERE customerMobile = :customerMobile AND (category = 'outstanding' OR category = 'regular_payment')
     """)
     suspend fun getCustomerOutstandingBalance(customerMobile: String): Double
     
-    // Calculate total outstanding amount for all customers
+    // Calculate total outstanding amount for all customers - only outstanding category
     @Query("""
         SELECT COALESCE(SUM(
             CASE 
-                WHEN transactionType IN ('debit', 'khata_debit') THEN amount
-                WHEN transactionType IN ('credit', 'khata_payment') THEN -amount
+                WHEN transactionType = 'debit' THEN amount
+                WHEN transactionType = 'credit' THEN -amount
                 ELSE 0
             END
         ), 0) 
         FROM ${TableNames.CUSTOMER_TRANSACTION} 
-        WHERE userId = :userId AND storeId = :storeId AND category = 'outstanding'
+        WHERE userId = :userId AND storeId = :storeId AND (category = 'outstanding' OR category = 'regular_payment')
     """)
     suspend fun getTotalOutstandingAmount(userId: String, storeId: String): Double
     
@@ -90,19 +90,19 @@ interface CustomerTransactionDao {
     @Query("SELECT * FROM ${TableNames.CUSTOMER_TRANSACTION} WHERE userId = :userId AND storeId = :storeId AND transactionType = :transactionType ORDER BY transactionDate DESC")
     fun getTransactionsByType(userId: String, storeId: String, transactionType: String): Flow<List<CustomerTransactionEntity>>
     
-    // Get customer balance summary
+    // Get customer balance summary - only outstanding category
     @Query("""
         SELECT 
             customerMobile,
             COALESCE(SUM(
                 CASE 
-                    WHEN transactionType IN ('debit', 'khata_debit') THEN amount
-                    WHEN transactionType IN ('credit', 'khata_payment') THEN -amount
+                    WHEN transactionType = 'debit' THEN amount
+                    WHEN transactionType = 'credit' THEN -amount
                     ELSE 0
                 END
             ), 0) as balance
         FROM ${TableNames.CUSTOMER_TRANSACTION} 
-        WHERE userId = :userId AND storeId = :storeId AND category = 'outstanding'
+        WHERE userId = :userId AND storeId = :storeId AND  (category = 'outstanding' OR category = 'regular_payment')
         GROUP BY customerMobile
         HAVING balance > 0
         ORDER BY balance DESC
@@ -111,5 +111,35 @@ interface CustomerTransactionDao {
     
     @Query("SELECT * FROM ${TableNames.CUSTOMER_TRANSACTION}")
     suspend fun getAllTransactions(): List<CustomerTransactionEntity>
+    
+    // Get current month khata book payments
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM ${TableNames.CUSTOMER_TRANSACTION} 
+        WHERE userId = :userId AND storeId = :storeId 
+        AND category = 'khata_book' AND transactionType = 'khata_payment'
+        AND strftime('%Y-%m', datetime(transactionDate/1000, 'unixepoch')) = strftime('%Y-%m', 'now')
+    """)
+    suspend fun getCurrentMonthKhataBookPayments(userId: String, storeId: String): Double
+    
+    // Get total khata book payments (all time)
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM ${TableNames.CUSTOMER_TRANSACTION} 
+        WHERE userId = :userId AND storeId = :storeId 
+        AND category = 'khata_book' AND transactionType = 'khata_payment'
+    """)
+    suspend fun getTotalKhataBookPayments(userId: String, storeId: String): Double
+    
+    // Get current month khata book expected payments
+    @Query("""
+        SELECT COALESCE(SUM(kb.monthlyAmount), 0)
+        FROM ${TableNames.CUSTOMER_KHATA_BOOK} kb
+        WHERE kb.userId = :userId AND kb.storeId = :storeId 
+        AND kb.status = 'active'
+        AND strftime('%Y-%m', datetime(kb.startDate/1000, 'unixepoch')) <= strftime('%Y-%m', 'now')
+        AND strftime('%Y-%m', datetime(kb.endDate/1000, 'unixepoch')) >= strftime('%Y-%m', 'now')
+    """)
+    suspend fun getCurrentMonthKhataBookExpected(userId: String, storeId: String): Double
 }
 

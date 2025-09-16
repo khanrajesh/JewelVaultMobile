@@ -48,6 +48,10 @@ interface CustomerKhataBookDao {
     @Query("SELECT * FROM ${TableNames.CUSTOMER_KHATA_BOOK} WHERE customerMobile = :customerMobile ORDER BY startDate DESC")
     fun getCustomerKhataBooks(customerMobile: String): Flow<List<CustomerKhataBookEntity>>
     
+    // Get completed khata books for a customer
+    @Query("SELECT * FROM ${TableNames.CUSTOMER_KHATA_BOOK} WHERE customerMobile = :customerMobile AND status = 'completed' ORDER BY startDate DESC")
+    suspend fun getCompletedKhataBooks(customerMobile: String): List<CustomerKhataBookEntity>
+    
     // Legacy methods for backward compatibility (will be removed in future)
     @Deprecated("Use getFirstActiveKhataBook instead")
     @Query("SELECT * FROM ${TableNames.CUSTOMER_KHATA_BOOK} WHERE customerMobile = :customerMobile AND status = 'active' LIMIT 1")

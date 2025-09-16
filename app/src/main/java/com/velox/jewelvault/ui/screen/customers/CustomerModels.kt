@@ -25,29 +25,29 @@ fun getPredefinedPlans(): List<KhataBookPlan> {
             name = "Standard Plan",
             payMonths = 11,
             benefitMonths = 1,
-            description = "Pay for 11 months, get 1 month free",
+            description = "Pay for 11 months, get 1 month reward",
             benefitPercentage = 8.33
         ),
         KhataBookPlan(
             name = "Premium Plan",
-            payMonths = 23,
+            payMonths = 22,
             benefitMonths = 2,
-            description = "Pay for 23 months, get 2 months free",
-            benefitPercentage = 8.0
+            description = "Pay for 22 months, get 2 months reward",
+            benefitPercentage = 8.33
         ),
         KhataBookPlan(
             name = "Extended Plan",
-            payMonths = 35,
+            payMonths = 33,
             benefitMonths = 3,
-            description = "Pay for 35 months, get 3 months free",
-            benefitPercentage = 7.89
+            description = "Pay for 33 months, get 3 months reward",
+            benefitPercentage = 8.33
         ),
         KhataBookPlan(
             name = "Long Term Plan",
-            payMonths = 47,
+            payMonths = 44,
             benefitMonths = 4,
-            description = "Pay for 47 months, get 4 months free",
-            benefitPercentage = 7.84
+            description = "Pay for 44 months, get 4 months reward",
+            benefitPercentage = 8.33
         )
     )
 }

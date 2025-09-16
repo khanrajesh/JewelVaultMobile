@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 import com.velox.jewelvault.data.roomdb.TableNames
 import java.sql.Timestamp
+import java.util.UUID
 
 @Entity(
     tableName = TableNames.CUSTOMER_TRANSACTION,
@@ -13,6 +14,12 @@ import java.sql.Timestamp
             entity = CustomerEntity::class,
             parentColumns = ["mobileNo"],
             childColumns = ["customerMobile"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = CustomerKhataBookEntity::class,
+            parentColumns = ["khataBookId"],
+            childColumns = ["khataBookId"],
             onDelete = ForeignKey.CASCADE
         )
     ]

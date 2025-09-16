@@ -1,8 +1,8 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 7,
-    "identityHash": "924b90a230998334216fb0ffea345bac",
+    "version": 9,
+    "identityHash": "8bf198905173c5a968f596f42b8503c2",
     "entities": [
       {
         "tableName": "item",
@@ -713,7 +713,7 @@
       },
       {
         "tableName": "customer_transaction",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`transactionId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `transactionDate` INTEGER NOT NULL, `amount` REAL NOT NULL, `transactionType` TEXT NOT NULL, `category` TEXT NOT NULL, `description` TEXT, `referenceNumber` TEXT, `paymentMethod` TEXT, `khataBookId` TEXT, `monthNumber` INTEGER, `notes` TEXT, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`transactionId`), FOREIGN KEY(`customerMobile`) REFERENCES `customer`(`mobileNo`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`transactionId` TEXT NOT NULL, `customerMobile` TEXT NOT NULL, `transactionDate` INTEGER NOT NULL, `amount` REAL NOT NULL, `transactionType` TEXT NOT NULL, `category` TEXT NOT NULL, `description` TEXT, `referenceNumber` TEXT, `paymentMethod` TEXT, `khataBookId` TEXT, `monthNumber` INTEGER, `notes` TEXT, `userId` TEXT NOT NULL, `storeId` TEXT NOT NULL, PRIMARY KEY(`transactionId`), FOREIGN KEY(`customerMobile`) REFERENCES `customer`(`mobileNo`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`khataBookId`) REFERENCES `customer_khata_book`(`khataBookId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "transactionId",
@@ -810,6 +810,17 @@
             ],
             "referencedColumns": [
               "mobileNo"
+            ]
+          },
+          {
+            "table": "customer_khata_book",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "khataBookId"
+            ],
+            "referencedColumns": [
+              "khataBookId"
             ]
           }
         ]
@@ -1605,7 +1616,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '924b90a230998334216fb0ffea345bac')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8bf198905173c5a968f596f42b8503c2')"
     ]
   }
 }

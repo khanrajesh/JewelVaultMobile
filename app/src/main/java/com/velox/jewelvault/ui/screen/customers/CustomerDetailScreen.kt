@@ -18,10 +18,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Receipt
@@ -53,6 +56,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,13 +65,70 @@ import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.roomdb.dto.TransactionItem
+import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.TransactionUtils
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.formatDate
 import kotlinx.coroutines.delay
 import kotlin.collections.isNotEmpty
+
+// Dialog state enum for better state management
+private enum class DialogState {
+    None,
+    AddOutstanding,
+    AddKhataBook,
+    AddKhataPayment,
+    AddRegularPayment,
+    KhataBookDetails,
+    MonthPayment,
+    CompletePlan,
+    DeleteTransaction,
+    DeleteTransactionHistory
+}
+
+// Helper function to get plan info from predefined plans
+private fun getPlanInfo(planName: String): KhataBookPlan? {
+    return getPredefinedPlans().find { it.name == planName }
+}
+
+// Helper function to find transaction by data
+private fun findTransactionByData(transactionHistory: List<TransactionItem>, selectedData: List<String>): TransactionItem? {
+    if (selectedData.size < 4) return null
+    
+    val selectedDate = selectedData[0]
+    val selectedAmount = selectedData[3]
+    
+    return transactionHistory.find { transaction ->
+        formatDate(transaction.date) == selectedDate && 
+        formatCurrency(transaction.amount) == selectedAmount
+    }
+}
+
+@Composable
+fun LegendItem(label: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .background(color, RoundedCornerShape(2.dp))
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
 
 @Composable
 fun CustomerDetailScreen(
@@ -76,21 +138,16 @@ fun CustomerDetailScreen(
     val isLoadingDetails by viewModel.isLoadingCustomerDetails
     val isLoadingKhataBook by viewModel.isLoadingKhataBook
     val isLoadingPayment by viewModel.isLoadingPayment
+    val transactionsUpdated by viewModel.transactionsUpdated
 
-    var showAddOutstandingDialog by remember { mutableStateOf(false) }
-    var showAddKhataBookDialog by remember { mutableStateOf(false) }
-    var showAddKhataPaymentDialog by remember { mutableStateOf(false) }
-    var showAddRegularPaymentDialog by remember { mutableStateOf(false) }
-    var showKhataBookDetails by remember { mutableStateOf(false) }
-    var showMonthPaymentDialog by remember { mutableStateOf(false) }
+    // Consolidated dialog states for better performance
+    var dialogState by remember { mutableStateOf(DialogState.None) }
     var selectedMonth by remember { mutableStateOf(0) }
+    var selectedKhataBookForCompletion by remember { mutableStateOf<CustomerKhataBookEntity?>(null) }
+    var selectedTransactionForDeletion by remember { mutableStateOf<CustomerTransactionEntity?>(null) }
+    var selectedTransactionHistoryItem by remember { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(customerMobile) {
-        viewModel.loadCustomerDetails(customerMobile)
-    }
-
-    // Refresh data when screen is focused
-    LaunchedEffect(Unit) {
         viewModel.loadCustomerDetails(customerMobile)
     }
 
@@ -102,18 +159,9 @@ fun CustomerDetailScreen(
     }
 
     // Auto-dismiss dialogs when operations complete
-    LaunchedEffect(isLoadingKhataBook) {
-        if (!isLoadingKhataBook && showAddKhataBookDialog) {
-            showAddKhataBookDialog = false
-        }
-    }
-
-    LaunchedEffect(isLoadingPayment) {
-        if (!isLoadingPayment) {
-            if (showAddOutstandingDialog) showAddOutstandingDialog = false
-            if (showAddKhataPaymentDialog) showAddKhataPaymentDialog = false
-            if (showAddRegularPaymentDialog) showAddRegularPaymentDialog = false
-            if (showMonthPaymentDialog) showMonthPaymentDialog = false
+    LaunchedEffect(isLoadingKhataBook, isLoadingPayment) {
+        if (!isLoadingKhataBook && !isLoadingPayment) {
+            dialogState = DialogState.None
         }
     }
 
@@ -132,7 +180,10 @@ fun CustomerDetailScreen(
             {
                 // Customer Information Card (Compact)
                 item {
-                    CompactCustomerInfoCard(customer)
+                    CompactCustomerInfoCard(
+                        customer = customer,
+                        activeKhataBooks = viewModel.selectedCustomerKhataBooks
+                    )
                 }
 
                 // Khata Book Card (Second Position)
@@ -140,9 +191,9 @@ fun CustomerDetailScreen(
                     KhataBookCard(
                         khataBooks = viewModel.selectedCustomerKhataBooks,
                         transactions = viewModel.selectedCustomerTransactions,
-                        onAddKhataBook = { showAddKhataBookDialog = true },
-                        onAddPayment = { showAddKhataPaymentDialog = true },
-                        onViewDetails = { showKhataBookDetails = true },
+                        onAddKhataBook = { dialogState = DialogState.AddKhataBook },
+                        onAddPayment = { dialogState = DialogState.AddKhataPayment },
+                        onViewDetails = { dialogState = DialogState.KhataBookDetails },
                         onToggleStatus = { status ->
                             // For now, update the first active khata book
                             viewModel.selectedCustomerKhataBooks.firstOrNull()?.let {
@@ -151,15 +202,40 @@ fun CustomerDetailScreen(
                         },
                         onMonthClick = { month ->
                             selectedMonth = month
-                            showMonthPaymentDialog = true
+                            dialogState = DialogState.MonthPayment
+                        },
+                        viewModel = viewModel,
+                        onCompletePlan = { khataBook ->
+                            selectedKhataBookForCompletion = khataBook
+                            dialogState = DialogState.CompletePlan
+                        },
+                        onDeleteTransaction = { transaction ->
+                            selectedTransactionForDeletion = transaction
+                            dialogState = DialogState.DeleteTransaction
                         })
+                }
+
+                // Completed Plans Card (if any completed plans exist)
+                if (viewModel.selectedCustomerCompletedKhataBooks.isNotEmpty()) {
+                    item {
+                        CompletedPlansCard(
+                            completedPlans = viewModel.selectedCustomerCompletedKhataBooks,
+                            transactions = viewModel.selectedCustomerTransactions
+                        )
+                    }
                 }
 
                 // Combined Outstanding & Payments Card
                 item {
-                    CombinedPaymentsCard(transactions = viewModel.selectedCustomerTransactions,
-                        onAddOutstanding = { showAddOutstandingDialog = true },
-                        onAddPayment = { showAddRegularPaymentDialog = true })
+                    CombinedPaymentsCard(
+                        transactions = viewModel.selectedCustomerTransactions,
+                        onAddOutstanding = { dialogState = DialogState.AddOutstanding },
+                        onAddPayment = { dialogState = DialogState.AddRegularPayment },
+                        onDeleteTransaction = { transaction ->
+                            selectedTransactionForDeletion = transaction
+                            dialogState = DialogState.DeleteTransaction
+                        }
+                    )
                 }
 
                 // Customer Orders Card
@@ -171,98 +247,173 @@ fun CustomerDetailScreen(
 
                 item {
                     TransactionHistoryCard(
-                        customerMobile = customerMobile, viewModel = viewModel
+                        customerMobile = customerMobile, 
+                        viewModel = viewModel,
+                        onTransactionLongClick = { selectedTransaction ->
+                            selectedTransactionHistoryItem = selectedTransaction
+                            dialogState = DialogState.DeleteTransactionHistory
+                        }
                     )
                 }
             }
         }
     }
 
-    // Dialogs
-    if (showAddOutstandingDialog) {
-        AddOutstandingDialog(onDismiss = { showAddOutstandingDialog = false },
-            onConfirm = { amount, type, description, notes ->
-                viewModel.outstandingAmount.text = amount
-                viewModel.outstandingType.text = type
-                viewModel.outstandingDescription.text = description
-                viewModel.outstandingNotes.text = notes
-                viewModel.addOutstandingTransaction(customerMobile)
-            },
-            isLoading = isLoadingPayment
-        )
-    }
-
-    if (showAddKhataBookDialog) {
-        AddKhataBookDialog(onDismiss = { showAddKhataBookDialog = false },
-            onConfirm = { monthlyAmount, totalMonths, planName, notes ->
-                viewModel.khataBookMonthlyAmount.text = monthlyAmount
-                viewModel.khataBookTotalMonths.text = totalMonths
-                viewModel.khataBookPlanName.text = planName
-                viewModel.khataBookNotes.text = notes
-                viewModel.createKhataBook(customerMobile)
-            },
-            isLoading = isLoadingKhataBook
-        )
-    }
-
-    if (showAddKhataPaymentDialog) {
-        AddKhataPaymentDialog(
-            khataBooks = viewModel.selectedCustomerKhataBooks,
-            onDismiss = { showAddKhataPaymentDialog = false },
-            onConfirm = { month, amount, type, notes ->
-                viewModel.khataPaymentMonth.text = month
-                viewModel.khataPaymentAmount.text = amount
-                viewModel.khataPaymentType.text = type
-                viewModel.khataPaymentNotes.text = notes
-                viewModel.addKhataPayment(customerMobile)
-            },
-            isLoading = isLoadingPayment
-        )
-    }
-
-    if (showAddRegularPaymentDialog) {
-        AddRegularPaymentDialog(onDismiss = { showAddRegularPaymentDialog = false },
-            onConfirm = { amount, type, method, reference, notes ->
-                viewModel.regularPaymentAmount.text = amount
-                viewModel.regularPaymentType.text = type
-                viewModel.regularPaymentMethod.text = method
-                viewModel.regularPaymentReference.text = reference
-                viewModel.regularPaymentNotes.text = notes
-                viewModel.addRegularPayment(customerMobile)
-            },
-            isLoading = isLoadingPayment
-        )
-    }
-
-    if (showKhataBookDetails) {
-        KhataBookDetailsDialog(
-            khataBooks = viewModel.selectedCustomerKhataBooks,
-            transactions = viewModel.selectedCustomerTransactions,
-            onDismiss = { showKhataBookDetails = false })
-    }
-
-    if (showMonthPaymentDialog) {
-        MonthPaymentDialog(
-            month = selectedMonth, 
-            khataBooks = viewModel.selectedCustomerKhataBooks, 
-            onDismiss = {
-                showMonthPaymentDialog = false
-            }, 
-            onConfirm = { amount, notes ->
-                viewModel.khataPaymentMonth.text = selectedMonth.toString()
-                viewModel.khataPaymentAmount.text = amount
-                viewModel.khataPaymentType.text = "full"
-                viewModel.khataPaymentNotes.text = notes
-                viewModel.addKhataPayment(customerMobile)
-            }, 
-            isLoading = isLoadingPayment
-        )
+    // Consolidated Dialog Management
+    when (dialogState) {
+        DialogState.AddOutstanding -> {
+            AddOutstandingDialog(
+                onDismiss = { dialogState = DialogState.None },
+                onConfirm = { amount, type, description, notes ->
+                    viewModel.outstandingAmount.text = amount
+                    viewModel.outstandingType.text = type
+                    viewModel.outstandingDescription.text = description
+                    viewModel.outstandingNotes.text = notes
+                    viewModel.addOutstandingTransaction(customerMobile)
+                },
+                isLoading = isLoadingPayment
+            )
+        }
+        
+        DialogState.AddKhataBook -> {
+            AddKhataBookDialog(
+                onDismiss = { dialogState = DialogState.None },
+                onConfirm = { monthlyAmount, totalMonths, planName, notes ->
+                    viewModel.khataBookMonthlyAmount.text = monthlyAmount
+                    viewModel.khataBookTotalMonths.text = totalMonths
+                    viewModel.khataBookPlanName.text = planName
+                    viewModel.khataBookNotes.text = notes
+                    viewModel.createKhataBook(customerMobile)
+                },
+                isLoading = isLoadingKhataBook
+            )
+        }
+        
+        DialogState.AddKhataPayment -> {
+            AddKhataPaymentDialog(
+                khataBooks = viewModel.selectedCustomerKhataBooks,
+                onDismiss = { dialogState = DialogState.None },
+                onConfirm = { month, amount, type, notes ->
+                    viewModel.khataPaymentMonth.text = month
+                    viewModel.khataPaymentAmount.text = amount
+                    viewModel.khataPaymentType.text = type
+                    viewModel.khataPaymentNotes.text = notes
+                    viewModel.addKhataPayment(customerMobile)
+                },
+                isLoading = isLoadingPayment
+            )
+        }
+        
+        DialogState.AddRegularPayment -> {
+            AddRegularPaymentDialog(
+                onDismiss = { dialogState = DialogState.None },
+                onConfirm = { amount, type, method, reference, notes ->
+                    viewModel.regularPaymentAmount.text = amount
+                    viewModel.regularPaymentType.text = type
+                    viewModel.regularPaymentMethod.text = method
+                    viewModel.regularPaymentReference.text = reference
+                    viewModel.regularPaymentNotes.text = notes
+                    viewModel.addRegularPayment(customerMobile)
+                },
+                isLoading = isLoadingPayment
+            )
+        }
+        
+        DialogState.KhataBookDetails -> {
+            KhataBookDetailsDialog(
+                khataBooks = viewModel.selectedCustomerKhataBooks,
+                transactions = viewModel.selectedCustomerTransactions,
+                onDismiss = { dialogState = DialogState.None },
+                onDeleteTransaction = { transaction ->
+                    selectedTransactionForDeletion = transaction
+                    dialogState = DialogState.DeleteTransaction
+                }
+            )
+        }
+        
+        DialogState.MonthPayment -> {
+            MonthPaymentDialog(
+                month = selectedMonth, 
+                khataBooks = viewModel.selectedCustomerKhataBooks, 
+                onDismiss = { dialogState = DialogState.None }, 
+                onConfirm = { amount, notes ->
+                    viewModel.khataPaymentMonth.text = selectedMonth.toString()
+                    viewModel.khataPaymentAmount.text = amount
+                    viewModel.khataPaymentType.text = "full"
+                    viewModel.khataPaymentNotes.text = notes
+                    viewModel.addKhataPayment(customerMobile)
+                }, 
+                isLoading = isLoadingPayment
+            )
+        }
+        
+        DialogState.CompletePlan -> {
+            selectedKhataBookForCompletion?.let { khataBook ->
+                CompletePlanConfirmationDialog(
+                    khataBook = khataBook,
+                    transactions = viewModel.selectedCustomerTransactions,
+                    onDismiss = { 
+                        dialogState = DialogState.None
+                        selectedKhataBookForCompletion = null
+                    },
+                    onConfirm = { 
+                        viewModel.completeKhataBookPlan(khataBook.khataBookId)
+                        dialogState = DialogState.None
+                        selectedKhataBookForCompletion = null
+                    },
+                    isLoading = isLoadingKhataBook
+                )
+            }
+        }
+        
+        DialogState.DeleteTransaction -> {
+            selectedTransactionForDeletion?.let { transaction ->
+                DeleteTransactionConfirmationDialog(
+                    transaction = transaction,
+                    onDismiss = { 
+                        dialogState = DialogState.None
+                        selectedTransactionForDeletion = null
+                    },
+                    onConfirm = { 
+                        viewModel.deleteTransaction(transaction)
+                        dialogState = DialogState.None
+                        selectedTransactionForDeletion = null
+                    }
+                )
+            }
+        }
+        
+        DialogState.DeleteTransactionHistory -> {
+            selectedTransactionHistoryItem?.let { transactionData ->
+                TransactionHistoryDeleteDialog(
+                    transactionData = transactionData,
+                    onDismiss = { 
+                        dialogState = DialogState.None
+                        selectedTransactionHistoryItem = null
+                    },
+                    onConfirm = { 
+                        val transactionHistory by viewModel.transactionHistory
+                        val selectedTransaction = findTransactionByData(transactionHistory, transactionData)
+                        if (selectedTransaction != null) {
+                            viewModel.deleteTransactionHistoryItem(selectedTransaction)
+                        }
+                        dialogState = DialogState.None
+                        selectedTransactionHistoryItem = null
+                    }
+                )
+            }
+        }
+        
+        DialogState.None -> { /* No dialog */ }
     }
 }
 
 
 @Composable
-fun CompactCustomerInfoCard(customer: CustomerEntity?) {
+fun CompactCustomerInfoCard(
+    customer: CustomerEntity?,
+    activeKhataBooks: List<CustomerKhataBookEntity> = emptyList()
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -306,7 +457,7 @@ fun CompactCustomerInfoCard(customer: CustomerEntity?) {
                     Spacer(modifier = Modifier.weight(1f))
                     // Status chip
                     if (customer != null) {
-                        StatusChip(isActive = customer.isActive)
+                        StatusChip(isActive = activeKhataBooks.isNotEmpty())
                     }
                 }
             }
@@ -444,21 +595,54 @@ private fun InfoChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text
 fun CombinedPaymentsCard(
     transactions: List<CustomerTransactionEntity>,
     onAddOutstanding: () -> Unit,
-    onAddPayment: () -> Unit
+    onAddPayment: () -> Unit,
+    onDeleteTransaction: (CustomerTransactionEntity) -> Unit = {}
 ) {
-    val outstandingTransactions = transactions.filter { 
-        it.category == "outstanding" && it.isDebit 
-    }
-    val paymentTransactions = transactions.filter { 
-        it.category == "outstanding" && it.isCredit 
-    }
+    // Calculate outstanding balance using the same logic as DAO - only outstanding category
+    val outstandingBalance = transactions.filter { it.category == "outstanding" }
+        .sumOf { transaction ->
+            when (transaction.transactionType) {
+                "debit" -> transaction.amount
+                "credit" -> -transaction.amount
+                else -> 0.0
+            }
+        }
+    
+    // Calculate outstanding debts (positive amounts that customer owes)
+    val outstandingDebts = transactions.filter { 
+        it.category == "outstanding" && it.transactionType == "debit" 
+    }.sumOf { it.amount }
+    
+    // Calculate outstanding payments (negative amounts - payments made against outstanding)
+    val outstandingPayments = transactions.filter { 
+        it.category == "outstanding" && it.transactionType == "credit" 
+    }.sumOf { it.amount }
+    
+    // Calculate regular payments (separate from outstanding)
     val regularPayments = transactions.filter { 
         it.category == "regular_payment" 
-    }
+    }.sumOf { it.amount }
     
-    val totalOutstanding = outstandingTransactions.sumOf { it.amount }
-    val totalPayments = paymentTransactions.sumOf { it.amount } + regularPayments.sumOf { it.amount }
-    val remainingBalance = totalOutstanding - totalPayments
+    // Total outstanding amount (debts - payments)
+    val totalOutstanding = outstandingDebts - outstandingPayments
+    
+    // Total payments made (outstanding payments + regular payments)
+    val totalPayments = outstandingPayments + regularPayments
+    
+    // Remaining balance = outstanding debts - all payments made
+    val remainingBalance = outstandingDebts - totalPayments
+
+    // Debug logging to verify calculations
+    LaunchedEffect(transactions.size) {
+        println("DEBUG: Payment Calculations:")
+        println("  Outstanding Balance (DAO logic): $outstandingBalance")
+        println("  Outstanding Debts: $outstandingDebts")
+        println("  Outstanding Payments: $outstandingPayments")
+        println("  Regular Payments: $regularPayments")
+        println("  Total Outstanding: $totalOutstanding")
+        println("  Total Payments: $totalPayments")
+        println("  Remaining Balance: $remainingBalance")
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -488,10 +672,10 @@ fun CombinedPaymentsCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = formatCurrency(totalOutstanding),
+                        text = formatCurrency(outstandingBalance),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = if (totalOutstanding > 0) Color.Red else Color.Green
+                        color = if (outstandingBalance > 0) Color.Red else Color.Green
                     )
                 }
                 
@@ -556,29 +740,15 @@ fun CombinedPaymentsCard(
                 }
             }
 
-            // Recent Transactions
-            if (transactions.isNotEmpty()) {
-                Text(
-                    text = "Recent Activity",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                val recentTransactions = transactions
-                    .map { TransactionItem.fromTransaction(it) }
-                    .sortedByDescending { it.date }
-                    .take(3)
-
-                recentTransactions.forEach { transaction ->
-                    CompactTransactionItem(transaction)
-                }
-            }
         }
     }
 }
 
 @Composable
-fun CompactTransactionItem(transaction: TransactionItem) {
+fun CompactTransactionItemWithDelete(
+    transaction: CustomerTransactionEntity,
+    onDelete: (CustomerTransactionEntity) -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -593,25 +763,59 @@ fun CompactTransactionItem(transaction: TransactionItem) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = transaction.title,
+                    text = when (transaction.category) {
+                        "outstanding" -> if (transaction.transactionType == "debit") "Outstanding Debt" else "Outstanding Payment"
+                        "regular_payment" -> "Regular Payment"
+                        "khata_book" -> "Khata Payment"
+                        else -> transaction.category
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = formatDate(transaction.date),
+                    text = formatDate(transaction.transactionDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (transaction.description?.isNotEmpty() == true) {
+                    Text(
+                        text = transaction.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-            Text(
-                text = formatCurrency(transaction.amount),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold,
-                color = if (transaction.isOutstanding) Color.Red else Color.Green
-            )
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = formatCurrency(transaction.amount),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (transaction.isDebit) Color.Red else Color.Green
+                )
+                
+                // Delete button
+                IconButton(
+                    onClick = { onDelete(transaction) },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete Transaction",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }
+
 
 
 @Composable
@@ -622,7 +826,10 @@ fun KhataBookCard(
     onAddPayment: () -> Unit,
     onViewDetails: () -> Unit,
     onToggleStatus: (String) -> Unit,
-    onMonthClick: (Int) -> Unit
+    onMonthClick: (Int) -> Unit,
+    viewModel: CustomerViewModel,
+    onCompletePlan: (CustomerKhataBookEntity) -> Unit,
+    onDeleteTransaction: (CustomerTransactionEntity) -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -661,7 +868,8 @@ fun KhataBookCard(
                         }
                     } else {
                         IconButton(
-                            onClick = onViewDetails, modifier = Modifier.size(32.dp)
+                            onClick = onViewDetails, 
+                            modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
                                 Icons.Default.Visibility,
@@ -763,7 +971,9 @@ fun KhataBookCard(
                     KhataBookPlanItem(
                         khataBook = khataBook,
                         transactions = transactions,
-                        onMonthClick = onMonthClick
+                        onMonthClick = onMonthClick,
+                        viewModel = viewModel,
+                        onCompletePlan = onCompletePlan
                     )
                 }
             }
@@ -775,7 +985,9 @@ fun KhataBookCard(
 fun KhataBookPlanItem(
     khataBook: CustomerKhataBookEntity,
     transactions: List<CustomerTransactionEntity>,
-    onMonthClick: (Int) -> Unit
+    onMonthClick: (Int) -> Unit,
+    viewModel: CustomerViewModel,
+    onCompletePlan: (CustomerKhataBookEntity) -> Unit
 ) {
     val khataPayments = transactions.filter { 
         it.khataBookId == khataBook.khataBookId && it.transactionType == "khata_payment" 
@@ -806,11 +1018,41 @@ fun KhataBookPlanItem(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = khataBook.status.capitalize(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (khataBook.status == "active") Color.Green else Color.Gray
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = khataBook.status.capitalize(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when (khataBook.status) {
+                            "active" -> Color.Green
+                            "completed" -> Color.Blue
+                            else -> Color.Gray
+                        }
+                    )
+                    // Complete plan button (only show for active plans)
+                    if (khataBook.status == "active") {
+                        Button(
+                            onClick = { 
+                                onCompletePlan(khataBook)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Blue),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Complete Plan",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Complete",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                }
             }
 
             // Progress
@@ -823,6 +1065,54 @@ fun KhataBookPlanItem(
                     else -> Color.Red
                 },
             )
+
+            // Plan Structure (Pay vs Reward)
+            val planInfo = getPlanInfo(khataBook.planName)
+            if (planInfo != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Pay Months",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${planInfo.payMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Blue
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Reward Months",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${planInfo.benefitMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Total",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${planInfo.effectiveMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
             // Summary
             Row(
@@ -869,34 +1159,35 @@ fun KhataBookPlanItem(
                 }
             }
 
+            // Legend
+            val legendPlanInfo = getPlanInfo(khataBook.planName)
+            if (legendPlanInfo != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    LegendItem("Pay Months", Color(0xFF2196F3))
+                    LegendItem("Reward Months", Color(0xFFFF9800))
+                    LegendItem("Paid", Color(0xFF4CAF50))
+                }
+            }
+
             // Month grid
             KhataBookMonthGrid(
                 totalMonths = khataBook.totalMonths,
                 paidMonths = khataPayments.mapNotNull { it.monthNumber }.toSet(),
                 onMonthClick = onMonthClick,
-                enabled = khataBook.status == "active"
+                enabled = khataBook.status == "active",
+                planInfo = legendPlanInfo,
+                startDate = khataBook.startDate.time,
+                onClearPayment = { monthNumber ->
+                    viewModel.clearMonthlyPayment(khataBook.khataBookId, monthNumber)
+                }
             )
         }
     }
 }
 
-@Composable
-fun CustomerInfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
 
 // Dialog components
 @Composable
@@ -1033,8 +1324,45 @@ fun AddKhataPaymentDialog(
     var type by remember { mutableStateOf("full") }
     var notes by remember { mutableStateOf("") }
 
+    val khataBook = khataBooks.firstOrNull()
+    val planInfo = khataBook?.let { getPlanInfo(it.planName) }
+
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add Khata Payment") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Show plan structure if available
+            if (planInfo != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Plan: ${khataBook.planName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Pay: ${planInfo.payMonths} months",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Blue
+                            )
+                            Text(
+                                text = "Reward: ${planInfo.benefitMonths} months",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                    }
+                }
+            }
+
             CusOutlinedTextField(
                 state = InputFieldState(month),
                 onTextChange = { month = it },
@@ -1153,7 +1481,8 @@ fun AddRegularPaymentDialog(
 fun KhataBookDetailsDialog(
     khataBooks: List<CustomerKhataBookEntity>,
     transactions: List<CustomerTransactionEntity>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDeleteTransaction: (CustomerTransactionEntity) -> Unit = {}
 ) {
     AlertDialog(onDismissRequest = onDismiss,
         title = { Text("Khata Book Details", style = MaterialTheme.typography.titleMedium) },
@@ -1183,6 +1512,44 @@ fun KhataBookDetailsDialog(
                                 fontWeight = FontWeight.Bold
                             )
 
+                            // Plan Structure
+                            val planInfo = getPlanInfo(kb.planName)
+                            if (planInfo != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text(
+                                            "Pay Months", style = MaterialTheme.typography.bodySmall
+                                        )
+                                        Text(
+                                            "${planInfo.payMonths} months",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Blue
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Reward Months", style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            "${planInfo.benefitMonths} months",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF4CAF50)
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Total Months", style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            "${planInfo.effectiveMonths} months",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -1198,19 +1565,20 @@ fun KhataBookDetailsDialog(
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Total Months", style = MaterialTheme.typography.bodySmall)
-                                    Text(
-                                        kb.totalMonths.toString(),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
                                     Text("Total Amount", style = MaterialTheme.typography.bodySmall)
                                     Text(
                                         formatCurrency(totalAmount),
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Benefit", style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${planInfo?.benefitPercentage?.to1FString() ?: "0.0"}%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF4CAF50)
                                     )
                                 }
                             }
@@ -1306,7 +1674,10 @@ fun KhataBookDetailsDialog(
                             items(transactions.filter { 
                                 it.khataBookId == kb.khataBookId && it.transactionType == "khata_payment" 
                             }.sortedBy { it.monthNumber }) { payment ->
-                                PaymentHistoryItem(payment)
+                                PaymentHistoryItem(
+                                    payment = payment,
+                                    onDelete = onDeleteTransaction
+                                )
                             }
                         }
                     } else {
@@ -1354,7 +1725,10 @@ fun KhataBookDetailsDialog(
 }
 
 @Composable
-fun PaymentHistoryItem(payment: CustomerTransactionEntity) {
+fun PaymentHistoryItem(
+    payment: CustomerTransactionEntity,
+    onDelete: (CustomerTransactionEntity) -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -1369,7 +1743,7 @@ fun PaymentHistoryItem(payment: CustomerTransactionEntity) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Month ${payment.monthNumber}",
+                    text = if (payment.monthNumber != null) "Month ${payment.monthNumber}" else payment.description ?: "Transaction",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1384,12 +1758,31 @@ fun PaymentHistoryItem(payment: CustomerTransactionEntity) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = formatCurrency(payment.amount),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.Green
-            )
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = formatCurrency(payment.amount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (payment.transactionType == "debit") Color.Red else Color.Green
+                )
+                
+                // Delete button
+                IconButton(
+                    onClick = { onDelete(payment) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete Transaction",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 }
@@ -1449,9 +1842,14 @@ fun CustomerOrdersCard(
 }
 
 @Composable
-fun CompactOrderItem(order: com.velox.jewelvault.data.roomdb.entity.order.OrderEntity) {
+fun CompactOrderItem(order: OrderEntity) {
+    val subNavController = LocalSubNavController.current
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .bounceClick{
+                subNavController.navigate("${SubScreens.OrderItemDetail.route}/${order.orderId}")
+            }
+            .fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1492,7 +1890,13 @@ fun CompactOrderItem(order: com.velox.jewelvault.data.roomdb.entity.order.OrderE
 
 @Composable
 fun KhataBookMonthGrid(
-    totalMonths: Int, paidMonths: Set<Int>, onMonthClick: (Int) -> Unit, enabled: Boolean
+    totalMonths: Int, 
+    paidMonths: Set<Int>, 
+    onMonthClick: (Int) -> Unit, 
+    enabled: Boolean,
+    planInfo: KhataBookPlan? = null,
+    startDate: Long? = null,
+    onClearPayment: ((Int) -> Unit)? = null
 ) {
     val columns = 8 // Show 8 months per row for more compact layout
 
@@ -1505,11 +1909,18 @@ fun KhataBookMonthGrid(
         items(totalMonths) { index ->
             val monthNumber = index + 1
             val isEnabled = enabled && !paidMonths.contains(monthNumber)
+            val isPayMonth = planInfo?.let { monthNumber <= it.payMonths } ?: true
+            val isRewardMonth = planInfo?.let { monthNumber > it.payMonths } ?: false
+            
             MonthBox(
                 monthNumber = monthNumber,
                 isPaid = paidMonths.contains(monthNumber),
                 onClick = { onMonthClick(monthNumber) },
-                enabled = isEnabled
+                enabled = isEnabled,
+                isPayMonth = isPayMonth,
+                isRewardMonth = isRewardMonth,
+                startDate = startDate,
+                onClearPayment = onClearPayment?.let { { it(monthNumber) } }
             )
         }
     }
@@ -1517,45 +1928,81 @@ fun KhataBookMonthGrid(
 
 @Composable
 fun MonthBox(
-    monthNumber: Int, isPaid: Boolean, onClick: () -> Unit, enabled: Boolean
+    monthNumber: Int, 
+    isPaid: Boolean, 
+    onClick: () -> Unit, 
+    enabled: Boolean,
+    isPayMonth: Boolean = true,
+    isRewardMonth: Boolean = false,
+    startDate: Long? = null,
+    onClearPayment: (() -> Unit)? = null
 ) {
     var showTooltip by remember { mutableStateOf(false) }
+
+    // Determine colors based on month type and payment status
+    val backgroundColor = when {
+        isPaid -> Color(0xFF4CAF50) // Green for paid
+        isRewardMonth && enabled -> Color(0xFFFF9800) // Orange for reward months
+        isPayMonth && enabled -> Color(0xFF2196F3) // Blue for pay months
+        else -> Color(0xFF9E9E9E) // Gray for disabled
+    }
+
+    val textColor = if (isPaid) Color.White else Color.Black
 
     Card(
         modifier = Modifier
             .size(32.dp) // Make it a perfect square
             .pointerInput(Unit) {
-                detectTapGestures(onPress = {
-                    if (isPaid) {
-                        showTooltip = true
-                        delay(2000)
-                        showTooltip = false
-                    } else if (enabled) {
-                        onClick()
+                detectTapGestures(
+                    onPress = {
+                        if (isPaid) {
+                            showTooltip = true
+                            delay(2000)
+                            showTooltip = false
+                        } else if (enabled) {
+                            onClick()
+                        }
+                    },
+                    onLongPress = {
+                        if (isPaid && onClearPayment != null) {
+                            onClearPayment()
+                        }
                     }
-                })
+                )
             }, shape = RoundedCornerShape(4.dp), // Smaller corner radius
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPaid) Color(0xFF4CAF50) else if (enabled) Color(0xFFBDBDBD) else Color(
-                0xFF9E9E9E
-            )
-        ), elevation = CardDefaults.cardElevation(
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(
             defaultElevation = if (enabled && !isPaid) 2.dp else 0.dp
         )
     ) {
         Box(
             modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = monthNumber.toString(),
-                style = MaterialTheme.typography.labelSmall, // Smaller text
-                fontWeight = FontWeight.Bold,
-                color = if (isPaid) Color.White else Color.Black,
-                // Accessibility
-                modifier = Modifier
-                    .then(if (isPaid) Modifier else Modifier)
-                    .semantics { contentDescription = "Month $monthNumber" }
-            )
+            // Calculate actual month and year
+            val (monthText, yearText) = if (startDate != null) {
+                val calendar = java.util.Calendar.getInstance()
+                calendar.timeInMillis = startDate
+                calendar.add(java.util.Calendar.MONTH, monthNumber - 1)
+                val month = calendar.get(java.util.Calendar.MONTH) + 1
+                val year = calendar.get(java.util.Calendar.YEAR) % 100 // Last 2 digits
+                Pair(month.toString(), year.toString())
+            } else {
+                Pair(monthNumber.toString(), "")
+            }
+            
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (yearText.isNotEmpty()) "$monthText\n$yearText" else "$monthText",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = if (yearText.isNotEmpty()) 10.sp else MaterialTheme.typography.labelSmall.fontSize
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    lineHeight = 12.sp
+                )
+            }
 
             // Payment indicator for paid months
             if (isPaid) {
@@ -1568,12 +2015,24 @@ fun MonthBox(
                         .padding(1.dp), // Smaller padding
                     tint = Color.White
                 )
+            } else if (isRewardMonth) {
+                // Show "R" indicator for reward months
+                Text(
+                    text = "R",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                )
             }
         }
     }
 
     // Tooltip for paid months
     if (showTooltip && isPaid) {
+        val monthType = if (isRewardMonth) "Reward" else "Pay"
         Card(
             modifier = Modifier
                 .padding(4.dp)
@@ -1582,7 +2041,7 @@ fun MonthBox(
             shape = RoundedCornerShape(4.dp)
         ) {
             Text(
-                text = "Month $monthNumber - Paid",
+                text = "Month $monthNumber - $monthType (Paid)",
                 modifier = Modifier.padding(6.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White
@@ -1594,7 +2053,8 @@ fun MonthBox(
 @Composable
 fun TransactionHistoryCard(
     customerMobile: String,
-    viewModel: CustomerViewModel
+    viewModel: CustomerViewModel,
+    onTransactionLongClick: (List<String>) -> Unit
 ) {
     val transactionHistory by viewModel.transactionHistory
 
@@ -1621,17 +2081,29 @@ fun TransactionHistoryCard(
             }
 
             if (transactionHistory.isNotEmpty()) {
-                transactionHistory.forEach {transaction->
-                   CompactTransactionItem(transaction)
-                }
-
-                if (transactionHistory.size > 5) {
-                    Text(
-                        text = "And ${transactionHistory.size - 5} more transactions...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Prepare data for TextListView
+                val headers = listOf("Date", "Type", "Description", "Amount", "Status")
+                val transactionData = transactionHistory.map { transaction ->
+                    listOf(
+                        formatDate(transaction.date),
+                        transaction.transactionType.uppercase(),
+                        transaction.title,
+                        formatCurrency(transaction.amount),
+                        if (transaction.isOutstanding) "Outstanding" else "Paid"
                     )
                 }
+
+                TextListView(
+                    headerList = headers,
+                    items = transactionData,
+                    modifier = Modifier.height(300.dp),
+                    onItemClick = { selectedTransaction ->
+                        // Handle transaction click if needed
+                    },
+                    onItemLongClick = { selectedTransaction ->
+                        onTransactionLongClick(selectedTransaction)
+                    }
+                )
             } else {
                 Text(
                     text = "No transactions found",
@@ -1741,6 +2213,685 @@ private fun getMonthDueDate(
     return java.sql.Timestamp(khataBook.startDate.time + monthInMillis)
 }
 
+@Composable
+fun CompletedPlansCard(
+    completedPlans: List<CustomerKhataBookEntity>,
+    transactions: List<CustomerTransactionEntity>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Completed Plans (${completedPlans.size})",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Completed Plans",
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.Blue
+                )
+            }
+
+            // Show completed plans
+            completedPlans.forEach { plan ->
+                CompletedPlanItem(
+                    plan = plan,
+                    transactions = transactions
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun CompletedPlanItem(
+    plan: CustomerKhataBookEntity,
+    transactions: List<CustomerTransactionEntity>
+) {
+    val planPayments = transactions.filter { 
+        it.khataBookId == plan.khataBookId && it.transactionType == "khata_payment" 
+    }
+    val totalPaid = planPayments.sumOf { it.amount }
+    val planInfo = getPlanInfo(plan.planName)
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Plan header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = plan.planName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Completed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Blue,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Plan details
+            if (planInfo != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Pay Months",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${planInfo.payMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Blue
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Reward Months",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${planInfo.benefitMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Total Paid",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = formatCurrency(totalPaid),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Green
+                        )
+                    }
+                }
+            }
+
+            // Completion date
+            Text(
+                text = "Completed: ${formatDate(plan.endDate)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun CompletePlanConfirmationDialog(
+    khataBook: CustomerKhataBookEntity,
+    transactions: List<CustomerTransactionEntity>,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    isLoading: Boolean = false
+) {
+    val planPayments = transactions.filter { 
+        it.khataBookId == khataBook.khataBookId && it.transactionType == "khata_payment" 
+    }
+    val paidMonths = planPayments.mapNotNull { it.monthNumber }.toSet()
+    val totalPaid = planPayments.sumOf { it.amount }
+    val planInfo = getPlanInfo(khataBook.planName)
+    val requiredPayMonths = planInfo?.payMonths ?: khataBook.totalMonths
+    val completedPayMonths = paidMonths.count { it <= requiredPayMonths }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Text(
+                text = "Complete Khata Book Plan",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Plan Summary Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Plan Summary",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Plan Details
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Plan Name",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = khataBook.planName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Monthly Amount",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = formatCurrency(khataBook.monthlyAmount),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        
+                        // Plan Structure
+                        if (planInfo != null) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Pay Months",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "${planInfo.payMonths} months",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Blue
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Reward Months",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "${planInfo.benefitMonths} months",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF4CAF50)
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "Total Months",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "${planInfo.effectiveMonths} months",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Payment Summary Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Payment Summary",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Pay Months Completed",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "$completedPayMonths / $requiredPayMonths",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (completedPayMonths >= requiredPayMonths) Color.Green else Color.Red
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "Total Paid",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = formatCurrency(totalPaid),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Green
+                                )
+                            }
+                        }
+                        
+                        // Progress Bar
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Progress",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${((completedPayMonths.toDouble() / requiredPayMonths) * 100).toInt()}%",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = { (completedPayMonths.toFloat() / requiredPayMonths) },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = if (completedPayMonths >= requiredPayMonths) Color.Green else Color(0xFFFF9800)
+                            )
+                        }
+                    }
+                }
+                
+                // Completion Message
+                if (completedPayMonths >= requiredPayMonths) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E8))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Ready to Complete",
+                                tint = Color.Green,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "✅ All pay months completed! Customer is now eligible for reward months.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Green
+                            )
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Not Ready",
+                                tint = Color.Red,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "❌ Cannot complete plan. $completedPayMonths out of $requiredPayMonths pay months completed.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Red
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = completedPayMonths >= requiredPayMonths && !isLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Complete Plan",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Complete Plan")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeleteTransactionConfirmationDialog(
+    transaction: CustomerTransactionEntity,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Delete Transaction",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Are you sure you want to delete this transaction?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                // Transaction details
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Type:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = TransactionUtils.getTransactionTypeDisplayName(transaction.transactionType),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Amount:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatCurrency(transaction.amount),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = if (transaction.transactionType == "debit") Color.Red else Color.Green
+                            )
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Date:",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatDate(transaction.transactionDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        
+                        if (!transaction.description.isNullOrEmpty()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Description:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = transaction.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Text(
+                    text = "This action cannot be undone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 private fun String.capitalize(): String {
     return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+}
+
+@Composable
+fun TransactionHistoryDeleteDialog(
+    transactionData: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Delete Transaction",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Are you sure you want to delete this transaction?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                if (transactionData.size >= 4) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Date:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = transactionData[0],
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Type:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = transactionData[1],
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Description:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = transactionData[2],
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Amount:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = transactionData[3],
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                Text(
+                    text = "This action cannot be undone.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
