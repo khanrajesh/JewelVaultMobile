@@ -82,6 +82,17 @@ class ImportItemsViewModel @Inject constructor(
         }
     }
     
+    // Remove an item from the import list
+    fun removeItem(row: ImportedItemRow) {
+        importedRows.remove(row)
+        updateImportSummary()
+        
+        // Clear selection if the removed item was selected
+        if (selectedRow.value == row) {
+            selectedRow.value = null
+        }
+    }
+    
     // Find similar categories and subcategories for better mapping suggestions
     fun findSimilarCategories(categoryName: String): List<CategoryEntity> {
         return categories.filter { category ->
@@ -210,7 +221,7 @@ class ImportItemsViewModel @Inject constructor(
     fun getMappingSuggestionsSummary(): Map<String, List<Pair<CategoryEntity, SubCategoryEntity>>> {
         val summary = mutableMapOf<String, List<Pair<CategoryEntity, SubCategoryEntity>>>()
         
-        importedRows.filter { it.status == ImportRowStatus.NEEDS_MAPPING }.forEach { row ->
+        importedRows.filter { it.status == ImportRowStatus.NEEDS_MAPPING || it.status == ImportRowStatus.ERROR }.forEach { row ->
             val suggestions = showMappingSuggestions(row)
             if (suggestions.isNotEmpty()) {
                 summary["Row ${row.rowNumber}: ${row.category} → ${row.subCategory}"] = suggestions
@@ -747,11 +758,36 @@ class ImportItemsViewModel @Inject constructor(
                     "OthChr", "Chr", "CGST%", "SGST%", "IGST%", "Huid", "AddDate", "AddDesKey", "AddDesValue", "Extra"
                 )
                 
-                // Create sample data rows matching the actual item structure with valid utility values
+                // Create comprehensive sample data with various scenarios for testing
                 val sampleData = listOf(
+                    // VALID ITEMS (Passing scenarios)
                     listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID123", "2024-12-01", "Stone", "150.0", "Premium"),
-                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P916.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID456", "2024-12-01", "Style", "0.0", "Elegant"),
-                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID789", "2024-12-01", "Stone", "0.0", "Luxury")
+                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID456", "2024-12-01", "Style", "0.0", "Elegant"),
+                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID789", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    
+                    // NEEDS MAPPING ITEMS (Warning scenarios - similar but not exact matches)
+                    listOf("GOLD", "RINGS", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID124", "2024-12-01", "Stone", "150.0", "Premium"),
+                    listOf("Silver", "Chains", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID457", "2024-12-01", "Style", "0.0", "Elegant"),
+                    listOf("Platinum", "Earrings", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID790", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    
+                    // ERROR ITEMS (Various error scenarios)
+                    listOf("", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID125", "2024-12-01", "Stone", "150.0", "Premium"), // Missing category
+                    listOf("Gold", "", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID126", "2024-12-01", "Stone", "150.0", "Premium"), // Missing subcategory
+                    listOf("Gold", "Ring", "", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID127", "2024-12-01", "Stone", "150.0", "Premium"), // Missing item name
+                    listOf("Gold", "Ring", "Gold Ring 22K", "INVALID_TYPE", "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID128", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid entry type
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "0", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID129", "2024-12-01", "Stone", "150.0", "Premium"), // Zero quantity
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", "INVALID_PURITY", "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID130", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid purity
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", "INVALID_CHARGE_TYPE", "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID131", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid charge type
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "INVALID_GST", "9.0", "0.0", "HUID132", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid GST percentage
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "INVALID_HUID", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid HUID format
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID133", "INVALID_DATE", "Stone", "150.0", "Premium"), // Invalid date format
+                    
+                    // MIXED SCENARIOS (Some valid, some with issues)
+                    listOf("Diamond", "Ring", "Diamond Ring", EntryType.Piece.type, "1", "2.5", "2.0", "gm", Purity.P916.label, "1.8", ChargeType.Percentage.type, "5.0", "Other charges", "500", "9.0", "9.0", "0.0", "HUID134", "2024-12-01", "Stone", "200.0", "Premium"),
+                    listOf("Gold", "Bracelet", "Gold Bracelet 18K", EntryType.Piece.type, "1", "8.0", "7.5", "gm", Purity.P750.label, "7.0", ChargeType.PerGm.type, "4.0", "Other charges", "300", "9.0", "9.0", "0.0", "HUID135", "2024-12-01", "Style", "100.0", "Elegant"),
+                    listOf("Silver", "Necklace", "Silver Necklace 925", EntryType.Lot.type, "1", "15.0", "14.5", "gm", Purity.P999.label, "14.0", ChargeType.Piece.type, "1000", "Other charges", "250", "9.0", "9.0", "0.0", "HUID136", "2024-12-01", "Stone", "50.0", "Classic"),
+                    listOf("Gold", "Pendant", "Gold Pendant 22K", EntryType.Piece.type, "1", "3.0", "2.8", "gm", Purity.P916.label, "2.5", ChargeType.Percentage.type, "3.0", "Other charges", "180", "9.0", "9.0", "0.0", "HUID137", "2024-12-01", "Stone", "120.0", "Traditional"),
+                    listOf("Platinum", "Bangle", "Platinum Bangle", EntryType.Piece.type, "1", "12.0", "11.5", "gm", Purity.P1000.label, "11.0", ChargeType.Piece.type, "1500", "Other charges", "600", "0.0", "0.0", "18.0", "HUID138", "2024-12-01", "Style", "0.0", "Modern")
                 )
                 
                 // Generate filename with timestamp
