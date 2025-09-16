@@ -142,7 +142,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                         (index + 1).toString(),
                         item.catName,
                         item.subCatName,
-                        item.itemId.toString(),
+                        item.itemId,
                         item.itemAddName,
                         item.entryType,
                         item.quantity.toString(),

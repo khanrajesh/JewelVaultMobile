@@ -25,8 +25,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.0.6-test"
+        versionCode = 7
+        versionName = "0.0.7-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -100,8 +100,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material-icons-extended:1.6.3")
-    implementation("androidx.compose.material:material:1.6.3")
+    implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.material)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.junit.ktx)
     implementation(libs.androidx.room.testing.android)
@@ -118,8 +118,8 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation (libs.androidx.work.runtime.ktx)
-    implementation ("androidx.hilt:hilt-work:1.1.0")
-    kapt ("androidx.hilt:hilt-compiler:1.1.0")
+    implementation (libs.androidx.hilt.work)
+    kapt (libs.androidx.hilt.compiler)
 
     implementation(libs.androidx.datastore.preferences)
     implementation (libs.jsoup) // Use latest version
@@ -130,7 +130,7 @@ dependencies {
 
 // For JSON handling
     implementation(libs.json)
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation(libs.gson)
 
 // For Kotlin Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -156,7 +156,7 @@ dependencies {
     implementation (libs.barcode.scanning)
 
     // ZXing for QR code generation
-    implementation ("com.google.zxing:core:3.5.3")
+    implementation (libs.core)
     implementation (libs.zxing.android.embedded)
 
     implementation (libs.exp4j)
@@ -184,21 +184,21 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     
     // SafetyNet/Play Integrity API for reCAPTCHA verification
-    implementation("com.google.android.gms:play-services-safetynet:18.0.1")
-    implementation("com.google.android.play:integrity:1.3.0")
+    implementation(libs.play.services.safetynet)
+    implementation(libs.integrity)
 
     // Google Sheets API (kept for future use)
-    implementation("com.google.apis:google-api-services-sheets:v4-rev20220927-2.0.0")
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
-    implementation("com.google.api-client:google-api-client-android:2.2.0")
-    implementation("com.google.api-client:google-api-client-gson:2.2.0")
+    implementation(libs.google.api.services.sheets)
+    implementation(libs.google.auth.library.oauth2.http)
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.api.client.gson)
 
     // Coil for image loading
     implementation(libs.coil.compose)
 
     // Biometric authentication
     implementation(libs.androidx.biometric)
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation(libs.kotlin.reflect)
 
 
 }
