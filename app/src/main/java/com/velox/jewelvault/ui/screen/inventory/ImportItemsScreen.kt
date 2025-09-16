@@ -49,9 +49,13 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
+import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.ChargeType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.LinearProgressIndicator
+import com.velox.jewelvault.utils.LocalSubNavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +64,7 @@ fun ImportItemsScreen(
 ) {
 
     viewModel.currentScreenHeadingState.value = "Import Items"
+    
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -69,7 +74,9 @@ fun ImportItemsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(8.dp)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(5.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header Actions
         Row(
@@ -102,7 +109,7 @@ fun ImportItemsScreen(
                 strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
             )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
 
         // Imported Rows List
@@ -209,6 +216,7 @@ private fun ImportHeaderActions(
 private fun CompactImportSummary(modifier: Modifier = Modifier, summary: ImportSummary) {
     Card(
         modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -218,11 +226,11 @@ private fun CompactImportSummary(modifier: Modifier = Modifier, summary: ImportS
             verticalAlignment = Alignment.CenterVertically
         ) {
             Spacer(Modifier.weight(1f))
-            CompactSummaryItem("Total", summary.totalRows.toString(), Color.Black)
+            CompactSummaryItem("Total", summary.totalRows.toString(), MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.weight(1f))
             CompactSummaryItem("Valid", summary.validRows.toString(), LightGreen)
             Spacer(Modifier.weight(1f))
-            CompactSummaryItem("Needs Fix", summary.needsMappingRows.toString(), Color.Yellow)
+            CompactSummaryItem("Needs Fix", summary.needsMappingRows.toString(), Color(0xFFFF9800)) // Orange
             Spacer(Modifier.weight(1f))
             CompactSummaryItem("Errors", summary.errorRows.toString(), LightRed)
             Spacer(Modifier.weight(1f))
@@ -244,7 +252,7 @@ private fun CompactSummaryItem(label: String, value: String, color: Color) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -253,6 +261,7 @@ private fun CompactSummaryItem(label: String, value: String, color: Color) {
 private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -403,7 +412,7 @@ private fun ImportedRowsList(
                 Text(
                     text = viewModel.getFixSummary(),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Red,
+                    color = LightRed,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                 )
@@ -458,9 +467,9 @@ private fun ImportedRowItem(
     onClick: () -> Unit
 ) {
     val statusColor = when (row.status) {
-        ImportRowStatus.VALID -> Color(0xFF4CAF50) // Green
-        ImportRowStatus.NEEDS_MAPPING -> Color(0xFFFF9800) // Orange
-        ImportRowStatus.ERROR -> Color(0xFFF44336) // Red
+        ImportRowStatus.VALID -> LightGreen
+        ImportRowStatus.NEEDS_MAPPING -> Color(0xFFFF9800) // Orange for warning
+        ImportRowStatus.ERROR -> LightRed
     }
 
     val statusIcon = when (row.status) {
@@ -484,6 +493,7 @@ private fun ImportedRowItem(
                     Modifier
                 }
             ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -529,7 +539,8 @@ private fun ImportedRowItem(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
                         containerColor = if (row.status == ImportRowStatus.NEEDS_MAPPING)
-                            Color.Yellow.copy(alpha = 0.1f) else LightRed.copy(alpha = 0.1f)
+                            Color(0xFFFF9800).copy(alpha = 0.1f) // Orange for warning
+                        else LightRed.copy(alpha = 0.1f)
                     )
                 ) {
                     Column(
@@ -538,7 +549,9 @@ private fun ImportedRowItem(
                         Text(
                             text = row.errorMessage!!,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (row.status == ImportRowStatus.NEEDS_MAPPING) Color.Red else LightRed
+                            color = if (row.status == ImportRowStatus.NEEDS_MAPPING) 
+                                Color(0xFFFF9800) // Orange for warning
+                            else LightRed
                         )
 
                         // Show suggestion for mapping rows
@@ -549,7 +562,7 @@ private fun ImportedRowItem(
                                 Text(
                                     text = "Suggestion: ${suggestion.first.catName} → ${suggestion.second.subCatName}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Green,
+                                    color = LightGreen,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -578,6 +591,14 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.entryType),
                     placeholderText = "Entry Type",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = EntryType.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.entryType = selected
+                        // Auto-fill quantity for Piece type
+                        if (selected == EntryType.Piece.type) {
+                            row.quantity = 1
+                        }
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -585,7 +606,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.quantity.toString()),
                     placeholderText = "Qty",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val qtyValue = text.toIntOrNull()
+                        if (qtyValue != null && qtyValue > 0) {
+                            row.quantity = qtyValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -614,14 +640,40 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.gsWt?.toString() ?: ""),
                     placeholderText = "GsWt",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val gsWtValue = text.toDoubleOrNull()
+                        if (gsWtValue != null) {
+                            row.gsWt = gsWtValue
+                            // Auto-fill net weight with gross weight
+                            row.ntWt = gsWtValue
+                            // Recalculate fine weight if purity is available
+                            if (row.purity?.isNotBlank() == true) {
+                                val purityObj = Purity.fromLabel(row.purity!!)
+                                if (purityObj != null) {
+                                    row.fnWt = gsWtValue * purityObj.multiplier
+                                }
+                            }
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
                     state = InputFieldState(initValue = row.ntWt?.toString() ?: ""),
                     placeholderText = "NtWt",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val ntWtValue = text.toDoubleOrNull()
+                        if (ntWtValue != null) {
+                            row.ntWt = ntWtValue
+                            // Recalculate fine weight if purity is available
+                            if (row.purity?.isNotBlank() == true) {
+                                val purityObj = Purity.fromLabel(row.purity!!)
+                                if (purityObj != null) {
+                                    row.fnWt = ntWtValue * purityObj.multiplier
+                                }
+                            }
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -635,6 +687,17 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.purity ?: ""),
                     placeholderText = "Purity",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = Purity.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.purity = selected
+                        // Auto-calculate fine weight if net weight is available
+                        if (row.ntWt != null) {
+                            val purityObj = Purity.fromLabel(selected)
+                            if (purityObj != null) {
+                                row.fnWt = row.ntWt!! * purityObj.multiplier
+                            }
+                        }
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -643,6 +706,10 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.mcType ?: ""),
                     placeholderText = "McType",
                     modifier = Modifier.wrapContentWidth(),
+                    dropdownItems = ChargeType.list(),
+                    onDropdownItemSelected = { selected ->
+                        row.mcType = selected
+                    },
                     onTextChange = { /* Direct editing not supported in new structure */ }
                 )
 
@@ -650,7 +717,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.mcChr?.toString() ?: ""),
                     placeholderText = "McChr",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val mcChrValue = text.toDoubleOrNull()
+                        if (mcChrValue != null && mcChrValue >= 0) {
+                            row.mcChr = mcChrValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -664,7 +736,12 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.chr?.toString() ?: ""),
                     placeholderText = "Chr",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val chrValue = text.toDoubleOrNull()
+                        if (chrValue != null && chrValue >= 0) {
+                            row.chr = chrValue
+                        }
+                    }
                 )
 
                 // GST Percentage Fields
@@ -674,7 +751,12 @@ private fun ImportedRowItem(
                     ), // CGST percentage
                     placeholderText = "CGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val cgstValue = text.toDoubleOrNull()
+                        if (cgstValue != null && cgstValue >= 0 && cgstValue <= 100) {
+                            row.cgst = cgstValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -683,7 +765,12 @@ private fun ImportedRowItem(
                     ), // SGST percentage
                     placeholderText = "SGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val sgstValue = text.toDoubleOrNull()
+                        if (sgstValue != null && sgstValue >= 0 && sgstValue <= 100) {
+                            row.sgst = sgstValue
+                        }
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -692,7 +779,12 @@ private fun ImportedRowItem(
                     ), // IGST percentage
                     placeholderText = "IGST %",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        val igstValue = text.toDoubleOrNull()
+                        if (igstValue != null && igstValue >= 0 && igstValue <= 100) {
+                            row.igst = igstValue
+                        }
+                    }
                 )
 
                 // Additional Information
@@ -700,7 +792,11 @@ private fun ImportedRowItem(
                     state = InputFieldState(initValue = row.huid ?: ""),
                     placeholderText = "HUID",
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    onTextChange = { text ->
+                        // Format HUID to uppercase and limit to 6 characters
+                        val formattedHuid = text.trim().uppercase().take(6)
+                        row.huid = formattedHuid
+                    }
                 )
 
                 CusOutlinedTextField(
@@ -732,44 +828,70 @@ private fun ImportedRowItem(
                 )
             }
 
-            // Action buttons for rows that need special handling
-            if (row.status == ImportRowStatus.NEEDS_MAPPING) {
-                Spacer(modifier = Modifier.height(8.dp))
+            // Action buttons for all rows
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left side: Special handling buttons for rows that need mapping or have errors
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = { viewModel.showMappingDialogForRow(row) },
-                        modifier = Modifier.wrapContentWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Map Categories", style = MaterialTheme.typography.bodySmall)
-                    }
+                    if (row.status == ImportRowStatus.NEEDS_MAPPING || row.status == ImportRowStatus.ERROR) {
+                        OutlinedButton(
+                            onClick = { viewModel.showMappingDialogForRow(row) },
+                            modifier = Modifier.wrapContentWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Map Categories", style = MaterialTheme.typography.bodySmall)
+                        }
 
-                    OutlinedButton(
-                        onClick = {
-                            if (viewModel.applyBestSuggestion(row)) {
-                                // Success - row is now mapped
-                            } else {
-                                // No suggestion available
+                        // Quick Fix button only for items that need mapping (not for errors)
+                        if (row.status == ImportRowStatus.NEEDS_MAPPING) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (viewModel.applyBestSuggestion(row)) {
+                                        // Success - row is now mapped
+                                    } else {
+                                        // No suggestion available
+                                    }
+                                },
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoFixHigh,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Quick Fix", style = MaterialTheme.typography.bodySmall)
                             }
-                        },
-                        modifier = Modifier.wrapContentWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoFixHigh,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Quick Fix", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
+                }
+                
+                // Right side: Remove button for all rows
+                OutlinedButton(
+                    onClick = { viewModel.removeItem(row) },
+                    modifier = Modifier.wrapContentWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.Red
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Clear,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Remove", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -780,6 +902,7 @@ private fun ImportedRowItem(
 private fun EmptyImportState() {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
@@ -792,7 +915,7 @@ private fun EmptyImportState() {
                 imageVector = Icons.Default.UploadFile,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = Color.Gray
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -800,13 +923,13 @@ private fun EmptyImportState() {
             Text(
                 text = "No items imported yet",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
                 text = "Upload an Excel file to get started",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -821,6 +944,19 @@ private fun CategoryMappingDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String) -> Unit
 ) {
+    // State for selected category in the dialog
+    var selectedCategoryId by remember { mutableStateOf(row.mappedCategoryId) }
+    var selectedSubCategoryId by remember { mutableStateOf(row.mappedSubCategoryId) }
+    
+    // Filter subcategories based on selected category
+    val filteredSubCategories = remember(selectedCategoryId) {
+        if (selectedCategoryId != null) {
+            subCategories.filter { it.catId == selectedCategoryId }
+        } else {
+            emptyList()
+        }
+    }
+    
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Map Categories") },
@@ -830,35 +966,45 @@ private fun CategoryMappingDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.mappedCategoryId ?: ""),
+                    state = InputFieldState(initValue = selectedCategoryId?.let { catId ->
+                        categories.find { it.catId == catId }?.catName ?: ""
+                    } ?: ""),
                     placeholderText = "Select Category",
                     dropdownItems = categories.map { it.catName },
                     onDropdownItemSelected = { categoryName ->
                         val category = categories.find { it.catName == categoryName }
+                        selectedCategoryId = category?.catId
+                        // Clear subcategory selection when category changes
+                        selectedSubCategoryId = null
                         row.mappedCategoryId = category?.catId
+                        row.mappedSubCategoryId = null
                     }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.mappedSubCategoryId ?: ""),
-                    placeholderText = "Select SubCategory",
-                    dropdownItems = subCategories.map { it.subCatName },
+                    state = InputFieldState(initValue = selectedSubCategoryId?.let { subCatId ->
+                        filteredSubCategories.find { it.subCatId == subCatId }?.subCatName ?: ""
+                    } ?: ""),
+                    placeholderText = if (selectedCategoryId != null) "Select SubCategory" else "Select Category first",
+                    dropdownItems = filteredSubCategories.map { it.subCatName },
                     onDropdownItemSelected = { subCategoryName ->
-                        val subCategory = subCategories.find { it.subCatName == subCategoryName }
+                        val subCategory = filteredSubCategories.find { it.subCatName == subCategoryName }
+                        selectedSubCategoryId = subCategory?.subCatId
                         row.mappedSubCategoryId = subCategory?.subCatId
-                    }
+                    },
+                    enabled = selectedCategoryId != null
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (row.mappedCategoryId != null && row.mappedSubCategoryId != null) {
+                    if (selectedCategoryId != null && selectedSubCategoryId != null) {
                         row.status = ImportRowStatus.VALID
                         row.errorMessage = null
-                        onConfirm(row.mappedCategoryId!!, row.mappedSubCategoryId!!)
+                        onConfirm(selectedCategoryId!!, selectedSubCategoryId!!)
                     }
                     onDismiss()
                 }
@@ -918,7 +1064,7 @@ private fun ConfirmImportDialog(
                             Text(
                                 text = "Row $rowNumber: $description",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -927,7 +1073,7 @@ private fun ConfirmImportDialog(
                                 Text(
                                     text = "... and ${importPreview.size - 10} more items",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontStyle = FontStyle.Italic
                                 )
                             }

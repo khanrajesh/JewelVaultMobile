@@ -20,6 +20,8 @@ import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.to3FString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -79,6 +81,17 @@ class ImportItemsViewModel @Inject constructor(
             row.status = ImportRowStatus.VALID
             row.errorMessage = null
             updateImportSummary()
+        }
+    }
+    
+    // Remove an item from the import list
+    fun removeItem(row: ImportedItemRow) {
+        importedRows.remove(row)
+        updateImportSummary()
+        
+        // Clear selection if the removed item was selected
+        if (selectedRow.value == row) {
+            selectedRow.value = null
         }
     }
     
@@ -210,7 +223,7 @@ class ImportItemsViewModel @Inject constructor(
     fun getMappingSuggestionsSummary(): Map<String, List<Pair<CategoryEntity, SubCategoryEntity>>> {
         val summary = mutableMapOf<String, List<Pair<CategoryEntity, SubCategoryEntity>>>()
         
-        importedRows.filter { it.status == ImportRowStatus.NEEDS_MAPPING }.forEach { row ->
+        importedRows.filter { it.status == ImportRowStatus.NEEDS_MAPPING || it.status == ImportRowStatus.ERROR }.forEach { row ->
             val suggestions = showMappingSuggestions(row)
             if (suggestions.isNotEmpty()) {
                 summary["Row ${row.rowNumber}: ${row.category} → ${row.subCategory}"] = suggestions
@@ -444,44 +457,89 @@ class ImportItemsViewModel @Inject constructor(
         // Basic validation logic
         val errors = mutableListOf<String>()
         
+        // Required field validations
         if (row.itemName.isBlank()) errors.add("Item name is required")
         if (row.entryType.isBlank()) errors.add("Entry type is required")
-        if (row.quantity <= 0) errors.add("Quantity must be greater than 0")
         if (row.unit.isBlank()) errors.add("Unit is required")
         if (row.category.isBlank()) errors.add("Category is required")
         if (row.subCategory.isBlank()) errors.add("Sub-category is required")
         
-        // Validate entry type using utility class
+        // Quantity validation using InputValidator
+        if (!InputValidator.isValidQuantity(row.quantity.toString())) {
+            errors.add("Invalid quantity - must be a positive integer")
+        }
+        
+        // Entry type validation using utility class
         if (row.entryType.isNotBlank() && !EntryType.list().contains(row.entryType)) {
             errors.add("Invalid entry type. Must be one of: ${EntryType.list().joinToString(", ")}")
         }
         
-        // Validate making charge type using utility class
+        // Making charge type validation using utility class
         if (row.mcType?.isNotBlank() == true && !ChargeType.list().contains(row.mcType)) {
             errors.add("Invalid making charge type. Must be one of: ${ChargeType.list().joinToString(", ")}")
         }
         
-        // Validate purity using utility class
+        // Purity validation using utility class
         val purity = row.purity
         if (purity?.isNotBlank() == true && Purity.fromLabel(purity) == null) {
             errors.add("Invalid purity. Must be one of: ${Purity.list().joinToString(", ")}")
         }
         
-        // Validate weights
+        // Weight validations using InputValidator
         val gsWt = row.gsWt
         val ntWt = row.ntWt
         val fnWt = row.fnWt
-        if (gsWt != null && gsWt < 0) errors.add("Gross weight cannot be negative")
-        if (ntWt != null && ntWt < 0) errors.add("Net weight cannot be negative")
-        if (fnWt != null && fnWt < 0) errors.add("Fine weight cannot be negative")
         
-        // Validate charges
+        if (gsWt != null) {
+            if (!InputValidator.isValidWeight(gsWt.toString())) {
+                errors.add("Invalid gross weight - must be a positive decimal")
+            }
+        }
+        
+        if (ntWt != null) {
+            if (!InputValidator.isValidWeight(ntWt.toString())) {
+                errors.add("Invalid net weight - must be a positive decimal")
+            }
+        }
+        
+        if (fnWt != null) {
+            if (!InputValidator.isValidWeight(fnWt.toString())) {
+                errors.add("Invalid fine weight - must be a positive decimal")
+            }
+        }
+        
+        // Weight relationship validation
+        if (gsWt != null && ntWt != null) {
+            if (gsWt < ntWt) {
+                errors.add("Gross weight cannot be less than net weight")
+            }
+        }
+        
+        // Auto-calculate fine weight if purity and net weight are available
+        if (purity?.isNotBlank() == true && ntWt != null) {
+            val purityObj = Purity.fromLabel(purity)
+            if (purityObj != null) {
+                val calculatedFnWt = ntWt * purityObj.multiplier
+                if (fnWt == null) {
+                    // Auto-fill fine weight
+                    row.fnWt = calculatedFnWt
+                } else {
+                    // Validate fine weight against calculated value (allow small tolerance)
+                    val tolerance = 0.01
+                    if (kotlin.math.abs(fnWt - calculatedFnWt) > tolerance) {
+                        errors.add("Fine weight should be ${calculatedFnWt.to3FString()}g for ${purity} purity")
+                    }
+                }
+            }
+        }
+        
+        // Charge validations
         val mcChr = row.mcChr
         val chr = row.chr
         if (mcChr != null && mcChr < 0) errors.add("Making charge cannot be negative")
         if (chr != null && chr < 0) errors.add("Other charge cannot be negative")
         
-        // Validate GST percentages
+        // GST percentage validations
         val cgst = row.cgst
         val sgst = row.sgst
         val igst = row.igst
@@ -493,6 +551,7 @@ class ImportItemsViewModel @Inject constructor(
         if ((cgst == null || cgst == 0.0) && (sgst == null || sgst == 0.0) && (igst == null || igst == 0.0)) {
             errors.add("At least one GST percentage (CGST, SGST, or IGST) must be specified")
         }
+
         
         // Validate and map categories and subcategories
         if (row.category.isNotBlank() && row.subCategory.isNotBlank()) {
@@ -725,6 +784,9 @@ class ImportItemsViewModel @Inject constructor(
                 _snackBarState.value = "Successfully imported ${items.size} items!"
                 showConfirmImportDialog.value = false
                 
+                // Clear the list and reset all values after successful import
+                clearImport()
+                
             } catch (e: Exception) {
                 log("Error importing items: ${e.message}")
                 _snackBarState.value = "Error importing items: ${e.message}"
@@ -747,11 +809,36 @@ class ImportItemsViewModel @Inject constructor(
                     "OthChr", "Chr", "CGST%", "SGST%", "IGST%", "Huid", "AddDate", "AddDesKey", "AddDesValue", "Extra"
                 )
                 
-                // Create sample data rows matching the actual item structure with valid utility values
+                // Create comprehensive sample data with various scenarios for testing
                 val sampleData = listOf(
+                    // VALID ITEMS (Passing scenarios)
                     listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID123", "2024-12-01", "Stone", "150.0", "Premium"),
-                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P916.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID456", "2024-12-01", "Style", "0.0", "Elegant"),
-                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID789", "2024-12-01", "Stone", "0.0", "Luxury")
+                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID456", "2024-12-01", "Style", "0.0", "Elegant"),
+                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID789", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    
+                    // NEEDS MAPPING ITEMS (Warning scenarios - similar but not exact matches)
+                    listOf("GOLD", "RINGS", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID124", "2024-12-01", "Stone", "150.0", "Premium"),
+                    listOf("Silver", "Chains", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID457", "2024-12-01", "Style", "0.0", "Elegant"),
+                    listOf("Platinum", "Earrings", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID790", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    
+                    // ERROR ITEMS (Various error scenarios)
+                    listOf("", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID125", "2024-12-01", "Stone", "150.0", "Premium"), // Missing category
+                    listOf("Gold", "", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID126", "2024-12-01", "Stone", "150.0", "Premium"), // Missing subcategory
+                    listOf("Gold", "Ring", "", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID127", "2024-12-01", "Stone", "150.0", "Premium"), // Missing item name
+                    listOf("Gold", "Ring", "Gold Ring 22K", "INVALID_TYPE", "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID128", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid entry type
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "0", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID129", "2024-12-01", "Stone", "150.0", "Premium"), // Zero quantity
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", "INVALID_PURITY", "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID130", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid purity
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", "INVALID_CHARGE_TYPE", "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID131", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid charge type
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "INVALID_GST", "9.0", "0.0", "HUID132", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid GST percentage
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "INVALID_HUID", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid HUID format
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID133", "INVALID_DATE", "Stone", "150.0", "Premium"), // Invalid date format
+                    
+                    // MIXED SCENARIOS (Some valid, some with issues)
+                    listOf("Diamond", "Ring", "Diamond Ring", EntryType.Piece.type, "1", "2.5", "2.0", "gm", Purity.P916.label, "1.8", ChargeType.Percentage.type, "5.0", "Other charges", "500", "9.0", "9.0", "0.0", "HUID134", "2024-12-01", "Stone", "200.0", "Premium"),
+                    listOf("Gold", "Bracelet", "Gold Bracelet 18K", EntryType.Piece.type, "1", "8.0", "7.5", "gm", Purity.P750.label, "7.0", ChargeType.PerGm.type, "4.0", "Other charges", "300", "9.0", "9.0", "0.0", "HUID135", "2024-12-01", "Style", "100.0", "Elegant"),
+                    listOf("Silver", "Necklace", "Silver Necklace 925", EntryType.Lot.type, "1", "15.0", "14.5", "gm", Purity.P999.label, "14.0", ChargeType.Piece.type, "1000", "Other charges", "250", "9.0", "9.0", "0.0", "HUID136", "2024-12-01", "Stone", "50.0", "Classic"),
+                    listOf("Gold", "Pendant", "Gold Pendant 22K", EntryType.Piece.type, "1", "3.0", "2.8", "gm", Purity.P916.label, "2.5", ChargeType.Percentage.type, "3.0", "Other charges", "180", "9.0", "9.0", "0.0", "HUID137", "2024-12-01", "Stone", "120.0", "Traditional"),
+                    listOf("Platinum", "Bangle", "Platinum Bangle", EntryType.Piece.type, "1", "12.0", "11.5", "gm", Purity.P1000.label, "11.0", ChargeType.Piece.type, "1500", "Other charges", "600", "0.0", "0.0", "18.0", "HUID138", "2024-12-01", "Style", "0.0", "Modern")
                 )
                 
                 // Generate filename with timestamp
