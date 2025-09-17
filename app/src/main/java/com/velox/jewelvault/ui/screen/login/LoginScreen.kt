@@ -727,12 +727,12 @@ private fun loginAction(
             savePhone = savePhoneChecked.value,
             onSuccess = {
                 mainScope {
-                    keyboardController?.hide()
                     navHost.navigate(Screens.Main.route) {
                         popUpTo(Screens.Login.route) {
                             inclusive = true
                         }
                     }
+                    keyboardController?.hide()
                 }
             },
             onFailure = {

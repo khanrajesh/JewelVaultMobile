@@ -67,12 +67,12 @@ interface PurchaseDao {
     @Query(
         """
     SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM} 
-    WHERE purchaseOrderId = :orderId AND subCatName = :subCatName
+    WHERE purchaseOrderId = :orderId AND subCatId = :subCatId
     """
     )
-    suspend fun getItemsByOrderIdAndSubCatName(
+    suspend fun getItemsByOrderIdAndSubCatId(
         orderId: String,
-        subCatName: String
+        subCatId: String
     ): List<PurchaseOrderItemEntity>
 
 
