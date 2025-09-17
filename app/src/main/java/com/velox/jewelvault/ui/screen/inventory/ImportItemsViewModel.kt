@@ -19,6 +19,7 @@ import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.InputCorrectionUtils
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.to3FString
@@ -454,58 +455,170 @@ class ImportItemsViewModel @Inject constructor(
     }
     
     private fun validateRow(row: ImportedItemRow) {
-        // Basic validation logic
+        // Enhanced validation logic with all 9 mandatory fields and input correction
         val errors = mutableListOf<String>()
+        val suggestions = mutableListOf<String>()
         
-        // Required field validations
-        if (row.itemName.isBlank()) errors.add("Item name is required")
-        if (row.entryType.isBlank()) errors.add("Entry type is required")
-        if (row.unit.isBlank()) errors.add("Unit is required")
-        if (row.category.isBlank()) errors.add("Category is required")
-        if (row.subCategory.isBlank()) errors.add("Sub-category is required")
+        // 1. Category validation (MANDATORY) with correction
+        if (row.category.isBlank()) {
+            errors.add("Category is required")
+        } else {
+            val categoryCorrection = InputCorrectionUtils.findClosestCategory(row.category, categories)
+            if (categoryCorrection != null && categoryCorrection.corrected != null) {
+                if (categoryCorrection.confidence > 0.8f) {
+                    // Auto-correct with high confidence
+                    row.category = categoryCorrection.corrected.catName
+                    row.categoryId = categoryCorrection.corrected.catId
+                    row.mappedCategoryId = categoryCorrection.corrected.catId
+                    suggestions.add("✅ Auto-corrected category to '${categoryCorrection.corrected.catName}'")
+                } else {
+                    // Suggest correction
+                    suggestions.add("💡 ${categoryCorrection.suggestion}")
+                    errors.add("Category '${row.category}' not found. ${categoryCorrection.suggestion}")
+                }
+            }
+        }
         
-        // Quantity validation using InputValidator
-        if (!InputValidator.isValidQuantity(row.quantity.toString())) {
+        // 2. Sub-category validation (MANDATORY) with correction
+        if (row.subCategory.isBlank()) {
+            errors.add("Sub-category is required")
+        } else {
+            val subCategoryCorrection = InputCorrectionUtils.findClosestSubCategory(
+                row.subCategory, 
+                subCategories, 
+                row.categoryId
+            )
+            if (subCategoryCorrection != null && subCategoryCorrection.corrected != null) {
+                if (subCategoryCorrection.confidence > 0.8f) {
+                    // Auto-correct with high confidence
+                    row.subCategory = subCategoryCorrection.corrected.subCatName
+                    row.subCategoryId = subCategoryCorrection.corrected.subCatId
+                    row.mappedSubCategoryId = subCategoryCorrection.corrected.subCatId
+                    suggestions.add("✅ Auto-corrected sub-category to '${subCategoryCorrection.corrected.subCatName}'")
+                } else {
+                    // Suggest correction
+                    suggestions.add("💡 ${subCategoryCorrection.suggestion}")
+                    errors.add("Sub-category '${row.subCategory}' not found. ${subCategoryCorrection.suggestion}")
+                }
+            }
+        }
+        
+        // 3. Quantity validation (MANDATORY - not less than 1) with correction
+        if (row.quantity < 1) {
+            errors.add("Quantity must be at least 1")
+        } else if (!InputValidator.isValidQuantity(row.quantity.toString())) {
             errors.add("Invalid quantity - must be a positive integer")
         }
         
-        // Entry type validation using utility class
-        if (row.entryType.isNotBlank() && !EntryType.list().contains(row.entryType)) {
-            errors.add("Invalid entry type. Must be one of: ${EntryType.list().joinToString(", ")}")
-        }
-        
-        // Making charge type validation using utility class
-        if (row.mcType?.isNotBlank() == true && !ChargeType.list().contains(row.mcType)) {
-            errors.add("Invalid making charge type. Must be one of: ${ChargeType.list().joinToString(", ")}")
-        }
-        
-        // Purity validation using utility class
-        val purity = row.purity
-        if (purity?.isNotBlank() == true && Purity.fromLabel(purity) == null) {
-            errors.add("Invalid purity. Must be one of: ${Purity.list().joinToString(", ")}")
-        }
-        
-        // Weight validations using InputValidator
+        // 4. Gross Weight validation (MANDATORY - not less than 0)
         val gsWt = row.gsWt
+        if (gsWt == null) {
+            errors.add("Gross weight (Gs.Wt) is required")
+        } else if (gsWt < 0) {
+            errors.add("Gross weight (Gs.Wt) cannot be less than 0")
+        } else if (!InputValidator.isValidWeight(gsWt.toString())) {
+            errors.add("Invalid gross weight - must be a positive decimal")
+        }
+        
+        // 5. Net Weight validation (MANDATORY - not less than 0)
         val ntWt = row.ntWt
+        if (ntWt == null) {
+            errors.add("Net weight (Nt.Wt) is required")
+        } else if (ntWt < 0) {
+            errors.add("Net weight (Nt.Wt) cannot be less than 0")
+        } else if (!InputValidator.isValidWeight(ntWt.toString())) {
+            errors.add("Invalid net weight - must be a positive decimal")
+        }
+        
+        // 6. Purity validation (MANDATORY) with correction
+        val purity = row.purity
+        if (purity.isNullOrBlank()) {
+            errors.add("Purity is required")
+        } else {
+            val purityCorrection = InputCorrectionUtils.correctPurity(purity)
+            if (purityCorrection.corrected != null) {
+                if (purityCorrection.confidence > 0.8f) {
+                    // Auto-correct with high confidence
+                    row.purity = purityCorrection.corrected
+                    suggestions.add("✅ Auto-corrected purity to '${purityCorrection.corrected}'")
+                } else {
+                    // Suggest correction
+                    suggestions.add("💡 ${purityCorrection.suggestion}")
+                    errors.add("Invalid purity '${purity}'. ${purityCorrection.suggestion}")
+                }
+            } else if (Purity.fromLabel(purity) == null) {
+                errors.add("Invalid purity. Must be one of: ${Purity.list().take(10).joinToString(", ")}...")
+            }
+        }
+        
+        // 7. Making Charge Type validation (MANDATORY) with correction
+        if (row.mcType.isNullOrBlank()) {
+            errors.add("Making charge type (Mc.Type) is required")
+        } else {
+            val mcTypeValue = row.mcType ?: ""
+            val mcTypeCorrection = InputCorrectionUtils.correctMcType(mcTypeValue)
+            if (mcTypeCorrection.corrected != null) {
+                if (mcTypeCorrection.confidence > 0.8f) {
+                    // Auto-correct with high confidence
+                    row.mcType = mcTypeCorrection.corrected
+                    suggestions.add("✅ Auto-corrected making charge type to '${mcTypeCorrection.corrected}'")
+                } else {
+                    // Suggest correction
+                    suggestions.add("💡 ${mcTypeCorrection.suggestion}")
+                    errors.add("Invalid making charge type '${mcTypeValue}'. ${mcTypeCorrection.suggestion}")
+                }
+            } else if (!ChargeType.list().contains(mcTypeValue)) {
+                errors.add("Invalid making charge type. Must be one of: ${ChargeType.list().joinToString(", ")}")
+            }
+        }
+        
+        // 8. Making Charge validation (MANDATORY)
+        val mcChr = row.mcChr
+        if (mcChr == null) {
+            errors.add("Making charge (M.Chr) is required")
+        } else if (mcChr < 0) {
+            errors.add("Making charge (M.Chr) cannot be negative")
+        }
+        
+        // 9. Tax validation (MANDATORY - at least one GST type)
+        val cgst = row.cgst
+        val sgst = row.sgst
+        val igst = row.igst
+        val hasValidTax = (cgst != null && cgst > 0) || (sgst != null && sgst > 0) || (igst != null && igst > 0)
+        
+        if (!hasValidTax) {
+            errors.add("At least one tax percentage (CGST, SGST, or IGST) must be specified and greater than 0")
+        }
+        
+        // Additional validations for optional fields
+        if (row.itemName.isBlank()) errors.add("Item name is required")
+        if (row.entryType.isBlank()) errors.add("Entry type is required")
+        if (row.unit.isBlank()) errors.add("Unit is required")
+        
+        // Entry type validation using utility class with correction
+        if (row.entryType.isNotBlank()) {
+            val entryTypeCorrection = InputCorrectionUtils.correctEntryType(row.entryType)
+            if (entryTypeCorrection.corrected != null) {
+                if (entryTypeCorrection.confidence > 0.8f) {
+                    // Auto-correct with high confidence
+                    row.entryType = entryTypeCorrection.corrected
+                    suggestions.add("✅ Auto-corrected entry type to '${entryTypeCorrection.corrected}'")
+                } else {
+                    // Suggest correction
+                    suggestions.add("💡 ${entryTypeCorrection.suggestion}")
+                    errors.add("Invalid entry type '${row.entryType}'. ${entryTypeCorrection.suggestion}")
+                }
+            } else if (!EntryType.list().contains(row.entryType)) {
+                errors.add("Invalid entry type. Must be one of: ${EntryType.list().joinToString(", ")}")
+            }
+        }
+        
+        // Fine Weight validation (not less than 0)
         val fnWt = row.fnWt
-        
-        if (gsWt != null) {
-            if (!InputValidator.isValidWeight(gsWt.toString())) {
-                errors.add("Invalid gross weight - must be a positive decimal")
-            }
-        }
-        
-        if (ntWt != null) {
-            if (!InputValidator.isValidWeight(ntWt.toString())) {
-                errors.add("Invalid net weight - must be a positive decimal")
-            }
-        }
-        
-        if (fnWt != null) {
-            if (!InputValidator.isValidWeight(fnWt.toString())) {
-                errors.add("Invalid fine weight - must be a positive decimal")
-            }
+        if (fnWt != null && fnWt < 0) {
+            errors.add("Fine weight (Fn.Wt) cannot be less than 0")
+        } else if (fnWt != null && !InputValidator.isValidWeight(fnWt.toString())) {
+            errors.add("Invalid fine weight - must be a positive decimal")
         }
         
         // Weight relationship validation
@@ -515,10 +628,11 @@ class ImportItemsViewModel @Inject constructor(
             }
         }
         
-        // Auto-calculate fine weight if purity and net weight are available
-        if (purity?.isNotBlank() == true && ntWt != null) {
+        // Auto-calculate fine weight based on gs.wt, nt.wt and purity
+        if (purity?.isNotBlank() == true && ntWt != null && gsWt != null) {
             val purityObj = Purity.fromLabel(purity)
             if (purityObj != null) {
+                // Calculate fine weight as: (Net Weight * Purity multiplier)
                 val calculatedFnWt = ntWt * purityObj.multiplier
                 if (fnWt == null) {
                     // Auto-fill fine weight
@@ -527,30 +641,20 @@ class ImportItemsViewModel @Inject constructor(
                     // Validate fine weight against calculated value (allow small tolerance)
                     val tolerance = 0.01
                     if (kotlin.math.abs(fnWt - calculatedFnWt) > tolerance) {
-                        errors.add("Fine weight should be ${calculatedFnWt.to3FString()}g for ${purity} purity")
+                        errors.add("Fine weight should be ${calculatedFnWt.to3FString()}g for ${purity} purity (calculated from Nt.Wt: ${ntWt}g)")
                     }
                 }
             }
         }
         
-        // Charge validations
-        val mcChr = row.mcChr
+        // Other charge validation (optional)
         val chr = row.chr
-        if (mcChr != null && mcChr < 0) errors.add("Making charge cannot be negative")
         if (chr != null && chr < 0) errors.add("Other charge cannot be negative")
         
-        // GST percentage validations
-        val cgst = row.cgst
-        val sgst = row.sgst
-        val igst = row.igst
+        // GST percentage range validations
         if (cgst != null && (cgst < 0 || cgst > 100)) errors.add("CGST percentage must be between 0 and 100")
         if (sgst != null && (sgst < 0 || sgst > 100)) errors.add("SGST percentage must be between 0 and 100")
         if (igst != null && (igst < 0 || igst > 100)) errors.add("IGST percentage must be between 0 and 100")
-        
-        // Validate that at least one GST type is specified
-        if ((cgst == null || cgst == 0.0) && (sgst == null || sgst == 0.0) && (igst == null || igst == 0.0)) {
-            errors.add("At least one GST percentage (CGST, SGST, or IGST) must be specified")
-        }
 
         
         // Validate and map categories and subcategories
@@ -585,10 +689,18 @@ class ImportItemsViewModel @Inject constructor(
         
         if (errors.isEmpty()) {
             row.status = ImportRowStatus.VALID
-            row.errorMessage = null
+            row.errorMessage = if (suggestions.isNotEmpty()) {
+                "✅ Valid with corrections: ${suggestions.joinToString("; ")}"
+            } else {
+                null
+            }
         } else {
             row.status = ImportRowStatus.ERROR
-            row.errorMessage = errors.joinToString(", ")
+            val errorMessage = errors.joinToString("; ")
+            val suggestionMessage = if (suggestions.isNotEmpty()) {
+                " Suggestions: ${suggestions.joinToString("; ")}"
+            } else ""
+            row.errorMessage = errorMessage + suggestionMessage
         }
     }
     
@@ -700,7 +812,7 @@ class ImportItemsViewModel @Inject constructor(
             sgst = getCellValue(15).toDoubleOrNull(),
             igst = getCellValue(16).toDoubleOrNull(),
             huid = getCellValue(17).takeIf { it.isNotEmpty() },
-            addDate = getCellValue(18).takeIf { it.isNotEmpty() },
+            addDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date()), // Always use current date
             addDesKey = getCellValue(19).takeIf { it.isNotEmpty() },
             addDesValue = getCellValue(20).takeIf { it.isNotEmpty() },
             extra = getCellValue(21).takeIf { it.isNotEmpty() }

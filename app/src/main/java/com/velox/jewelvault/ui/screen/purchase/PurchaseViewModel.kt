@@ -48,8 +48,7 @@ class PurchaseViewModel @Inject constructor(
     private val _loadingState: MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _metalRates: SnapshotStateList<MetalRate>,
-    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
-
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>
     ) : ViewModel() {
 
     val snackBarState = _snackBarState

@@ -36,8 +36,9 @@ class ExportWorker @AssistedInject constructor(
 //        setForeground(createForegroundInfo(0))
 
         return try {
-            // Collect progress from the flow
+            // Collect progress from the flow and get the file URI
             var lastProgress = -1
+            var fileUri: String? = null
             exportItemListWithProgress(
                 context,
                 fileName,
@@ -52,8 +53,17 @@ class ExportWorker @AssistedInject constructor(
                     }
                 }
 
+            // Get the file URI from the export function
+            fileUri = exportItemListAndGetUri(
+                context,
+                fileName,
+                rows,
+                headers,
+                format
+            )
 
-            Result.success()
+            // Return success with file URI in output data
+            Result.success(workDataOf("fileUri" to fileUri))
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure()
