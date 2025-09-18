@@ -547,7 +547,7 @@ class ImportItemsViewModel @Inject constructor(
                     errors.add("Invalid purity '${purity}'. ${purityCorrection.suggestion}")
                 }
             } else if (Purity.fromLabel(purity) == null) {
-                errors.add("Invalid purity. Must be one of: ${Purity.list().take(10).joinToString(", ")}...")
+                errors.add("⚠️ Invalid purity '${purity}'. Please update the purity to one of: ${Purity.list().take(10).joinToString(", ")}... and ensure nt.wt is correct. Fn.Wt will be calculated automatically based on nt.wt and purity.")
             }
         }
         
@@ -613,13 +613,7 @@ class ImportItemsViewModel @Inject constructor(
             }
         }
         
-        // Fine Weight validation (not less than 0)
-        val fnWt = row.fnWt
-        if (fnWt != null && fnWt < 0) {
-            errors.add("Fine weight (Fn.Wt) cannot be less than 0")
-        } else if (fnWt != null && !InputValidator.isValidWeight(fnWt.toString())) {
-            errors.add("Invalid fine weight - must be a positive decimal")
-        }
+        // Fine Weight is now always calculated from nt.wt and purity, no validation needed
         
         // Weight relationship validation
         if (gsWt != null && ntWt != null) {
@@ -628,22 +622,15 @@ class ImportItemsViewModel @Inject constructor(
             }
         }
         
-        // Auto-calculate fine weight based on gs.wt, nt.wt and purity
-        if (purity?.isNotBlank() == true && ntWt != null && gsWt != null) {
+        // Auto-calculate fine weight based on nt.wt and purity
+        if (purity?.isNotBlank() == true && ntWt != null) {
             val purityObj = Purity.fromLabel(purity)
             if (purityObj != null) {
                 // Calculate fine weight as: (Net Weight * Purity multiplier)
                 val calculatedFnWt = ntWt * purityObj.multiplier
-                if (fnWt == null) {
-                    // Auto-fill fine weight
-                    row.fnWt = calculatedFnWt
-                } else {
-                    // Validate fine weight against calculated value (allow small tolerance)
-                    val tolerance = 0.01
-                    if (kotlin.math.abs(fnWt - calculatedFnWt) > tolerance) {
-                        errors.add("Fine weight should be ${calculatedFnWt.to3FString()}g for ${purity} purity (calculated from Nt.Wt: ${ntWt}g)")
-                    }
-                }
+                // Always set the calculated fine weight
+                row.fnWt = calculatedFnWt
+                suggestions.add("✅ Auto-calculated Fn.Wt: ${calculatedFnWt.to3FString()}g (Nt.Wt: ${ntWt}g × ${purity}: ${purityObj.multiplier})")
             }
         }
         
@@ -803,7 +790,7 @@ class ImportItemsViewModel @Inject constructor(
             ntWt = getCellValue(6).toDoubleOrNull(),
             unit = getCellValue(7),
             purity = getCellValue(8).takeIf { it.isNotEmpty() },
-            fnWt = getCellValue(9).toDoubleOrNull(),
+            fnWt = null, // Will be calculated based on nt.wt and purity
             mcType = getCellValue(10).takeIf { it.isNotEmpty() },
             mcChr = getCellValue(11).toDoubleOrNull(),
             othChr = getCellValue(12).takeIf { it.isNotEmpty() },
@@ -915,42 +902,32 @@ class ImportItemsViewModel @Inject constructor(
                 importProgressText.value = "Creating example Excel template..."
                 
                 // Create example Excel with headers matching the actual item export structure
+                // Note: FnWt is calculated automatically based on Nt.Wt and Purity
                 val headers = listOf(
                     "Category", "SubCategory", "ItemName", "EntryType", "Quantity", 
-                    "GsWt", "NtWt", "Unit", "Purity", "FnWt", "McType", "McChr", 
+                    "GsWt", "NtWt", "Unit", "Purity", "FnWt (Auto-calculated)", "McType", "McChr", 
                     "OthChr", "Chr", "CGST%", "SGST%", "IGST%", "Huid", "AddDate", "AddDesKey", "AddDesValue", "Extra"
                 )
                 
-                // Create comprehensive sample data with various scenarios for testing
+                // Create clean sample data with only essential fields filled
+                // Note: FnWt column is now calculated automatically based on Nt.Wt and Purity
                 val sampleData = listOf(
-                    // VALID ITEMS (Passing scenarios)
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID123", "2024-12-01", "Stone", "150.0", "Premium"),
-                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID456", "2024-12-01", "Style", "0.0", "Elegant"),
-                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID789", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    // VALID ITEMS (Minimal required fields only)
+                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "", ChargeType.Percentage.type, "2.5", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Silver", "Chain", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "", ChargeType.PerGm.type, "3.0", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Platinum", "Earring", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "", ChargeType.Piece.type, "800", "", "", "0.0", "0.0", "18.0", "", "", "", "", ""),
                     
-                    // NEEDS MAPPING ITEMS (Warning scenarios - similar but not exact matches)
-                    listOf("GOLD", "RINGS", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID124", "2024-12-01", "Stone", "150.0", "Premium"),
-                    listOf("Silver", "Chains", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "9.0", ChargeType.PerGm.type, "3.0", "Other charges", "150", "9.0", "9.0", "0.0", "HUID457", "2024-12-01", "Style", "0.0", "Elegant"),
-                    listOf("Platinum", "Earrings", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "2.8", ChargeType.Piece.type, "800", "Other charges", "400", "0.0", "0.0", "18.0", "HUID790", "2024-12-01", "Stone", "0.0", "Luxury"),
+                    // NEEDS MAPPING ITEMS (Similar but not exact matches)
+                    listOf("GOLD", "RINGS", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "", ChargeType.Percentage.type, "2.5", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Silver", "Chains", "Silver Chain 925", EntryType.Piece.type, "2", "10.0", "9.5", "gm", Purity.P999.label, "", ChargeType.PerGm.type, "3.0", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Platinum", "Earrings", "Platinum Earring", EntryType.Lot.type, "1", "3.2", "3.0", "gm", Purity.P1000.label, "", ChargeType.Piece.type, "800", "", "", "0.0", "0.0", "18.0", "", "", "", "", ""),
                     
-                    // ERROR ITEMS (Various error scenarios)
-                    listOf("", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID125", "2024-12-01", "Stone", "150.0", "Premium"), // Missing category
-                    listOf("Gold", "", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID126", "2024-12-01", "Stone", "150.0", "Premium"), // Missing subcategory
-                    listOf("Gold", "Ring", "", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID127", "2024-12-01", "Stone", "150.0", "Premium"), // Missing item name
-                    listOf("Gold", "Ring", "Gold Ring 22K", "INVALID_TYPE", "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID128", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid entry type
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "0", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID129", "2024-12-01", "Stone", "150.0", "Premium"), // Zero quantity
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", "INVALID_PURITY", "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID130", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid purity
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", "INVALID_CHARGE_TYPE", "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID131", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid charge type
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "INVALID_GST", "9.0", "0.0", "HUID132", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid GST percentage
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "INVALID_HUID", "2024-12-01", "Stone", "150.0", "Premium"), // Invalid HUID format
-                    listOf("Gold", "Ring", "Gold Ring 22K", EntryType.Piece.type, "1", "5.5", "5.0", "gm", Purity.P916.label, "4.8", ChargeType.Percentage.type, "2.5", "Other charges", "200", "9.0", "9.0", "0.0", "HUID133", "INVALID_DATE", "Stone", "150.0", "Premium"), // Invalid date format
-                    
-                    // MIXED SCENARIOS (Some valid, some with issues)
-                    listOf("Diamond", "Ring", "Diamond Ring", EntryType.Piece.type, "1", "2.5", "2.0", "gm", Purity.P916.label, "1.8", ChargeType.Percentage.type, "5.0", "Other charges", "500", "9.0", "9.0", "0.0", "HUID134", "2024-12-01", "Stone", "200.0", "Premium"),
-                    listOf("Gold", "Bracelet", "Gold Bracelet 18K", EntryType.Piece.type, "1", "8.0", "7.5", "gm", Purity.P750.label, "7.0", ChargeType.PerGm.type, "4.0", "Other charges", "300", "9.0", "9.0", "0.0", "HUID135", "2024-12-01", "Style", "100.0", "Elegant"),
-                    listOf("Silver", "Necklace", "Silver Necklace 925", EntryType.Lot.type, "1", "15.0", "14.5", "gm", Purity.P999.label, "14.0", ChargeType.Piece.type, "1000", "Other charges", "250", "9.0", "9.0", "0.0", "HUID136", "2024-12-01", "Stone", "50.0", "Classic"),
-                    listOf("Gold", "Pendant", "Gold Pendant 22K", EntryType.Piece.type, "1", "3.0", "2.8", "gm", Purity.P916.label, "2.5", ChargeType.Percentage.type, "3.0", "Other charges", "180", "9.0", "9.0", "0.0", "HUID137", "2024-12-01", "Stone", "120.0", "Traditional"),
-                    listOf("Platinum", "Bangle", "Platinum Bangle", EntryType.Piece.type, "1", "12.0", "11.5", "gm", Purity.P1000.label, "11.0", ChargeType.Piece.type, "1500", "Other charges", "600", "0.0", "0.0", "18.0", "HUID138", "2024-12-01", "Style", "0.0", "Modern")
+                    // ADDITIONAL EXAMPLES (Clean minimal data)
+                    listOf("Diamond", "Ring", "Diamond Ring", EntryType.Piece.type, "1", "2.5", "2.0", "gm", Purity.P916.label, "", ChargeType.Percentage.type, "5.0", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Gold", "Bracelet", "Gold Bracelet 18K", EntryType.Piece.type, "1", "8.0", "7.5", "gm", Purity.P750.label, "", ChargeType.PerGm.type, "4.0", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Silver", "Necklace", "Silver Necklace 925", EntryType.Lot.type, "1", "15.0", "14.5", "gm", Purity.P999.label, "", ChargeType.Piece.type, "1000", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Gold", "Pendant", "Gold Pendant 22K", EntryType.Piece.type, "1", "3.0", "2.8", "gm", Purity.P916.label, "", ChargeType.Percentage.type, "3.0", "", "", "9.0", "9.0", "0.0", "", "", "", "", ""),
+                    listOf("Platinum", "Bangle", "Platinum Bangle", EntryType.Piece.type, "1", "12.0", "11.5", "gm", Purity.P1000.label, "", ChargeType.Piece.type, "1500", "", "", "0.0", "0.0", "18.0", "", "", "", "", "")
                 )
                 
                 // Generate filename with timestamp
@@ -1175,5 +1152,52 @@ class ImportItemsViewModel @Inject constructor(
     fun showMappingDialogForRow(row: ImportedItemRow) {
         selectedRow.value = row
         showMappingDialog.value = true
+    }
+    
+    // Handle dynamic updates when nt.wt or purity changes
+    fun updateNtWt(row: ImportedItemRow, newNtWt: Double?) {
+        row.ntWt = newNtWt
+        // Recalculate fine weight if purity is available
+        if (row.purity?.isNotBlank() == true && newNtWt != null) {
+            val purityObj = Purity.fromLabel(row.purity!!)
+            if (purityObj != null) {
+                row.fnWt = newNtWt * purityObj.multiplier
+            }
+        }
+        // Re-validate the row to update status and error messages
+        validateRow(row)
+        updateImportSummary()
+    }
+    
+    fun updatePurity(row: ImportedItemRow, newPurity: String?) {
+        row.purity = newPurity
+        // Recalculate fine weight if net weight is available
+        if (row.ntWt != null && newPurity?.isNotBlank() == true) {
+            val purityObj = Purity.fromLabel(newPurity)
+            if (purityObj != null) {
+                row.fnWt = row.ntWt!! * purityObj.multiplier
+            }
+        }
+        // Re-validate the row to update status and error messages
+        validateRow(row)
+        updateImportSummary()
+    }
+    
+    fun updateGsWt(row: ImportedItemRow, newGsWt: Double?) {
+        row.gsWt = newGsWt
+        // Auto-fill net weight with gross weight (like AddItem section)
+        if (newGsWt != null) {
+            row.ntWt = newGsWt
+            // Recalculate fine weight using ntWt (always use ntWt for fnWt calculation)
+            if (row.purity?.isNotBlank() == true) {
+                val purityObj = Purity.fromLabel(row.purity!!)
+                if (purityObj != null) {
+                    row.fnWt = row.ntWt!! * purityObj.multiplier // Always use ntWt for fnWt calculation
+                }
+            }
+        }
+        // Re-validate the row to update status and error messages
+        validateRow(row)
+        updateImportSummary()
     }
 }

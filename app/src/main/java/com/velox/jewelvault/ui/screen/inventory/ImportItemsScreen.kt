@@ -54,8 +54,11 @@ import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.ChargeType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.text.input.KeyboardType
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.to3FString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -459,6 +462,7 @@ private fun ImportedRowsList(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImportedRowItem(
     row: ImportedItemRow,
@@ -516,7 +520,7 @@ private fun ImportedRowItem(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Text(
-                    text = "Row #${row.rowNumber}",
+                    text = "Row : ${row.rowNumber}",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -579,252 +583,427 @@ private fun ImportedRowItem(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Create reactive state variables that update when row changes
+                var itemName by remember { mutableStateOf(row.itemName ?: "") }
+                var entryType by remember { mutableStateOf(row.entryType ?: "") }
+                var quantity by remember { mutableStateOf(row.quantity?.toString() ?: "") }
+                var category by remember { mutableStateOf(row.category ?: "") }
+                var subCategory by remember { mutableStateOf(row.subCategory ?: "") }
+                var unit by remember { mutableStateOf(row.unit ?: "") }
+                var gsWt by remember { mutableStateOf(row.gsWt?.toString() ?: "") }
+                var ntWt by remember { mutableStateOf(row.ntWt?.toString() ?: "") }
+                var fnWt by remember { mutableStateOf(row.fnWt?.toString() ?: "") }
+                var purity by remember { mutableStateOf(row.purity ?: "") }
+                var mcType by remember { mutableStateOf(row.mcType ?: "") }
+                var mcChr by remember { mutableStateOf(row.mcChr?.toString() ?: "") }
+                var othChr by remember { mutableStateOf(row.othChr ?: "") }
+                var chr by remember { mutableStateOf(row.chr?.toString() ?: "") }
+                var cgst by remember { mutableStateOf(row.cgst?.toString() ?: "") }
+                var sgst by remember { mutableStateOf(row.sgst?.toString() ?: "") }
+                var igst by remember { mutableStateOf(row.igst?.toString() ?: "") }
+                var huid by remember { mutableStateOf(row.huid ?: "") }
+                var addDesKey by remember { mutableStateOf(row.addDesKey ?: "") }
+                var addDesValue by remember { mutableStateOf(row.addDesValue ?: "") }
+                var extra by remember { mutableStateOf(row.extra ?: "") }
+
+                // Update state when row data changes (for reactive updates)
+                LaunchedEffect(row.itemName) { itemName = row.itemName ?: "" }
+                LaunchedEffect(row.entryType) { entryType = row.entryType ?: "" }
+                LaunchedEffect(row.quantity) { quantity = row.quantity?.toString() ?: "" }
+                LaunchedEffect(row.category) { category = row.category ?: "" }
+                LaunchedEffect(row.subCategory) { subCategory = row.subCategory ?: "" }
+                LaunchedEffect(row.unit) { unit = row.unit ?: "" }
+                LaunchedEffect(row.gsWt) { gsWt = row.gsWt?.toString() ?: "" }
+                LaunchedEffect(row.ntWt) { ntWt = row.ntWt?.toString() ?: "" }
+                LaunchedEffect(row.fnWt) { fnWt = row.fnWt?.toString() ?: "" }
+                LaunchedEffect(row.purity) { purity = row.purity ?: "" }
+                LaunchedEffect(row.mcType) { mcType = row.mcType ?: "" }
+                LaunchedEffect(row.mcChr) { mcChr = row.mcChr?.toString() ?: "" }
+                LaunchedEffect(row.othChr) { othChr = row.othChr ?: "" }
+                LaunchedEffect(row.chr) { chr = row.chr?.toString() ?: "" }
+                LaunchedEffect(row.cgst) { cgst = row.cgst?.toString() ?: "" }
+                LaunchedEffect(row.sgst) { sgst = row.sgst?.toString() ?: "" }
+                LaunchedEffect(row.igst) { igst = row.igst?.toString() ?: "" }
+                LaunchedEffect(row.huid) { huid = row.huid ?: "" }
+                LaunchedEffect(row.addDesKey) { addDesKey = row.addDesKey ?: "" }
+                LaunchedEffect(row.addDesValue) { addDesValue = row.addDesValue ?: "" }
+                LaunchedEffect(row.extra) { extra = row.extra ?: "" }
+
                 // Basic Information
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.itemName),
-                    placeholderText = "Item Name",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.entryType),
-                    placeholderText = "Entry Type",
-                    modifier = Modifier.wrapContentWidth(),
-                    dropdownItems = EntryType.list(),
-                    onDropdownItemSelected = { selected ->
-                        row.entryType = selected
-                        // Auto-fill quantity for Piece type
-                        if (selected == EntryType.Piece.type) {
-                            row.quantity = 1
-                        }
+                OutlinedTextField(
+                    value = itemName,
+                    onValueChange = { text ->
+                        itemName = text
+                        row.itemName = text
                     },
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    label = { Text("Item Name") },
+                    placeholder = { Text("Enter Item Name") },
+                    modifier = Modifier.wrapContentWidth(),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.quantity.toString()),
-                    placeholderText = "Qty",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                // Entry Type dropdown
+                var entryTypeExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = entryTypeExpanded,
+                    onExpandedChange = { entryTypeExpanded = !entryTypeExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = entryType,
+                        onValueChange = { /* Read-only for dropdown */ },
+                        label = { Text("Entry Type") },
+                        placeholder = { Text("Select Entry Type") },
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .menuAnchor(),
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = entryTypeExpanded) },
+                        singleLine = true
+                    )
+                    ExposedDropdownMenu(
+                        expanded = entryTypeExpanded,
+                        onDismissRequest = { entryTypeExpanded = false }
+                    ) {
+                        EntryType.list().forEach { entryTypeValue ->
+                            DropdownMenuItem(
+                                text = { Text(entryTypeValue) },
+                                onClick = {
+                                    entryType = entryTypeValue
+                                    row.entryType = entryTypeValue
+                                    // Auto-fill quantity for Piece type
+                                    if (entryTypeValue == EntryType.Piece.type) {
+                                        row.quantity = 1
+                                        quantity = "1"
+                                    }
+                                    entryTypeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = { text ->
+                        quantity = text
                         val qtyValue = text.toIntOrNull()
                         if (qtyValue != null && qtyValue > 0) {
                             row.quantity = qtyValue
-                        }
-                    }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.category),
-                    placeholderText = "Category",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.subCategory),
-                    placeholderText = "SubCategory",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.unit),
-                    placeholderText = "Unit",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                // Weight Information
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.gsWt?.toString() ?: ""),
-                    placeholderText = "GsWt",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
-                        val gsWtValue = text.toDoubleOrNull()
-                        if (gsWtValue != null) {
-                            row.gsWt = gsWtValue
-                            // Auto-fill net weight with gross weight
-                            row.ntWt = gsWtValue
-                            // Recalculate fine weight if purity is available
-                            if (row.purity?.isNotBlank() == true) {
-                                val purityObj = Purity.fromLabel(row.purity!!)
-                                if (purityObj != null) {
-                                    row.fnWt = gsWtValue * purityObj.multiplier
-                                }
-                            }
-                        }
-                    }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.ntWt?.toString() ?: ""),
-                    placeholderText = "NtWt",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
-                        val ntWtValue = text.toDoubleOrNull()
-                        if (ntWtValue != null) {
-                            row.ntWt = ntWtValue
-                            // Recalculate fine weight if purity is available
-                            if (row.purity?.isNotBlank() == true) {
-                                val purityObj = Purity.fromLabel(row.purity!!)
-                                if (purityObj != null) {
-                                    row.fnWt = ntWtValue * purityObj.multiplier
-                                }
-                            }
-                        }
-                    }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.fnWt?.toString() ?: ""),
-                    placeholderText = "FnWt",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.purity ?: ""),
-                    placeholderText = "Purity",
-                    modifier = Modifier.wrapContentWidth(),
-                    dropdownItems = Purity.list(),
-                    onDropdownItemSelected = { selected ->
-                        row.purity = selected
-                        // Auto-calculate fine weight if net weight is available
-                        if (row.ntWt != null) {
-                            val purityObj = Purity.fromLabel(selected)
-                            if (purityObj != null) {
-                                row.fnWt = row.ntWt!! * purityObj.multiplier
-                            }
+                        } else if (text.isEmpty()) {
+                            row.quantity = 1
                         }
                     },
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    label = { Text("Qty") },
+                    placeholder = { Text("Enter Qty") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { text ->
+//                        category = text
+//                        row.category = text
+                    },
+                    label = { Text("Category") },
+                    placeholder = { Text("Enter Category") },
+                    modifier = Modifier.wrapContentWidth(),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = subCategory,
+                    onValueChange = { text ->
+//                        subCategory = text
+//                        row.subCategory = text
+                    },
+                    label = { Text("SubCategory") },
+                    placeholder = { Text("Enter SubCategory") },
+                    modifier = Modifier.wrapContentWidth(),
+                    singleLine = true
+                )
+
+
+
+                // Weight Information - Using reactive state for better reactivity
+                OutlinedTextField(
+                    value = gsWt,
+                    onValueChange = { text ->
+                        gsWt = text
+                        val gsWtValue = text.toDoubleOrNull()
+                        viewModel.updateGsWt(row, gsWtValue)
+                    },
+                    label = { Text("GsWt") },
+                    placeholder = { Text("Enter GsWt") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = ntWt,
+                    onValueChange = { text ->
+                        ntWt = text
+                        val ntWtValue = text.toDoubleOrNull()
+                        viewModel.updateNtWt(row, ntWtValue)
+                    },
+                    label = { Text("NtWt") },
+                    placeholder = { Text("Enter NtWt") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+
+                // Purity dropdown using ExposedDropdownMenuBox for better reactivity
+                var purityExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = purityExpanded,
+                    onExpandedChange = { purityExpanded = !purityExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = purity,
+                        onValueChange = { /* Read-only for dropdown */ },
+                        label = { Text("Purity") },
+                        placeholder = { Text("Select Purity") },
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .menuAnchor(),
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = purityExpanded) },
+                        singleLine = true
+                    )
+                    ExposedDropdownMenu(
+                        expanded = purityExpanded,
+                        onDismissRequest = { purityExpanded = false }
+                    ) {
+                        Purity.list().forEach { purityValue ->
+                            DropdownMenuItem(
+                                text = { Text(purityValue) },
+                                onClick = {
+                                    purity = purityValue
+                                    row.purity = purityValue
+                                    purityExpanded = false
+                                    viewModel.updatePurity(row, purityValue)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = fnWt,
+                    onValueChange = { /* Read-only */ },
+                    label = { Text("FnWt (Auto-calculated)") },
+                    placeholder = { Text("Auto-calculated") },
+                    modifier = Modifier.wrapContentWidth(),
+                    enabled = true,
+                    singleLine = true
                 )
 
                 // Charges and GST
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.mcType ?: ""),
-                    placeholderText = "McType",
-                    modifier = Modifier.wrapContentWidth(),
-                    dropdownItems = ChargeType.list(),
-                    onDropdownItemSelected = { selected ->
-                        row.mcType = selected
-                    },
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
+                var mcTypeExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = mcTypeExpanded,
+                    onExpandedChange = { mcTypeExpanded = !mcTypeExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = mcType,
+                        onValueChange = {  },
+                        label = { Text("McType") },
+                        placeholder = { Text("Select McType") },
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .menuAnchor(),
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = mcTypeExpanded) },
+                        singleLine = true
+                    )
+                    ExposedDropdownMenu(
+                        expanded = mcTypeExpanded,
+                        onDismissRequest = { mcTypeExpanded = false }
+                    ) {
+                        ChargeType.list().forEach { mcTypeValue ->
+                            DropdownMenuItem(
+                                text = { Text(mcTypeValue) },
+                                onClick = {
+                                    mcType = mcTypeValue
+                                    row.mcType = mcTypeValue
+                                    mcTypeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.mcChr?.toString() ?: ""),
-                    placeholderText = "McChr",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = mcChr,
+                    onValueChange = { text ->
+                        mcChr = text
                         val mcChrValue = text.toDoubleOrNull()
                         if (mcChrValue != null && mcChrValue >= 0) {
                             row.mcChr = mcChrValue
+                        } else if (text.isEmpty()) {
+                            row.mcChr = null
                         }
-                    }
+                    },
+                    label = { Text("McChr") },
+                    placeholder = { Text("Enter McChr") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.othChr ?: ""),
-                    placeholderText = "OthChr",
+                OutlinedTextField(
+                    value = othChr,
+                    onValueChange = { text ->
+                        othChr = text
+                        row.othChr = text
+                    },
+                    label = { Text("OthChr") },
+                    placeholder = { Text("Enter OthChr") },
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.chr?.toString() ?: ""),
-                    placeholderText = "Chr",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = chr,
+                    onValueChange = { text ->
+                        chr = text
                         val chrValue = text.toDoubleOrNull()
                         if (chrValue != null && chrValue >= 0) {
                             row.chr = chrValue
+                        } else if (text.isEmpty()) {
+                            row.chr = null
                         }
-                    }
+                    },
+                    label = { Text("Chr") },
+                    placeholder = { Text("Enter Chr") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                OutlinedTextField(
+                    value = unit,
+                    onValueChange = { text ->
+//                        unit = text
+//                        row.unit = text
+                    },
+                    label = { Text("Unit") },
+                    placeholder = { Text("Enter Unit") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
                 // GST Percentage Fields
-                CusOutlinedTextField(
-                    state = InputFieldState(
-                        initValue = row.cgst?.toString() ?: ""
-                    ), // CGST percentage
-                    placeholderText = "CGST %",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = cgst,
+                    onValueChange = { text ->
+                        cgst = text
                         val cgstValue = text.toDoubleOrNull()
                         if (cgstValue != null && cgstValue >= 0 && cgstValue <= 100) {
                             row.cgst = cgstValue
+                        } else if (text.isEmpty()) {
+                            row.cgst = null
                         }
-                    }
+                    },
+                    label = { Text("CGST %") },
+                    placeholder = { Text("Enter CGST %") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(
-                        initValue = row.sgst?.toString() ?: ""
-                    ), // SGST percentage
-                    placeholderText = "SGST %",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = sgst,
+                    onValueChange = { text ->
+                        sgst = text
                         val sgstValue = text.toDoubleOrNull()
                         if (sgstValue != null && sgstValue >= 0 && sgstValue <= 100) {
                             row.sgst = sgstValue
+                        } else if (text.isEmpty()) {
+                            row.sgst = null
                         }
-                    }
+                    },
+                    label = { Text("SGST %") },
+                    placeholder = { Text("Enter SGST %") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(
-                        initValue = row.igst?.toString() ?: ""
-                    ), // IGST percentage
-                    placeholderText = "IGST %",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = igst,
+                    onValueChange = { text ->
+                        igst = text
                         val igstValue = text.toDoubleOrNull()
                         if (igstValue != null && igstValue >= 0 && igstValue <= 100) {
                             row.igst = igstValue
+                        } else if (text.isEmpty()) {
+                            row.igst = null
                         }
-                    }
+                    },
+                    label = { Text("IGST %") },
+                    placeholder = { Text("Enter IGST %") },
+                    modifier = Modifier.wrapContentWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
                 // Additional Information
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.huid ?: ""),
-                    placeholderText = "HUID",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { text ->
+                OutlinedTextField(
+                    value = huid,
+                    onValueChange = { text ->
                         // Format HUID to uppercase and limit to 6 characters
                         val formattedHuid = text.trim().uppercase().take(6)
+                        huid = formattedHuid
                         row.huid = formattedHuid
-                    }
+                    },
+                    label = { Text("HUID") },
+                    placeholder = { Text("Enter HUID") },
+                    modifier = Modifier.wrapContentWidth(),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.addDate ?: ""),
-                    placeholderText = "Date",
+
+                OutlinedTextField(
+                    value = addDesKey,
+                    onValueChange = { text ->
+                        addDesKey = text
+                        row.addDesKey = text
+                    },
+                    label = { Text("DesKey") },
+                    placeholder = { Text("Enter DesKey") },
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.addDesKey ?: ""),
-                    placeholderText = "DesKey",
+                OutlinedTextField(
+                    value = addDesValue,
+                    onValueChange = { text ->
+                        addDesValue = text
+                        row.addDesValue = text
+                    },
+                    label = { Text("DesValue") },
+                    placeholder = { Text("Enter DesValue") },
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.addDesValue ?: ""),
-                    placeholderText = "DesValue",
+                OutlinedTextField(
+                    value = extra,
+                    onValueChange = { text ->
+                        extra = text
+                        row.extra = text
+                    },
+                    label = { Text("Extra") },
+                    placeholder = { Text("Enter Extra") },
                     modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
-                )
-
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = row.extra ?: ""),
-                    placeholderText = "Extra",
-                    modifier = Modifier.wrapContentWidth(),
-                    onTextChange = { /* Direct editing not supported in new structure */ }
+                    singleLine = true
                 )
             }
 
