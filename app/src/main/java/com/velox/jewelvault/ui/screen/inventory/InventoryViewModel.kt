@@ -623,7 +623,8 @@ class InventoryViewModel @Inject constructor(
                     firmId = firmId,
                     purchaseOrderId = purchaseOrderId
                 ).onStart {
-                    // optional: show loading state (if you have one)
+                    // Set loading state to true when filtering starts
+                    _loadingState.value = true
                 }.catch { e ->
                     // If cancelled, don't restart automatically to avoid endless loops
                     if (e is kotlinx.coroutines.CancellationException) {
@@ -634,6 +635,8 @@ class InventoryViewModel @Inject constructor(
                         _snackBarState.value =
                             "Failed to filter items: ${e.message ?: "Unknown error"}"
                     }
+                    // Set loading state to false on error
+                    _loadingState.value = false
                     // Ensure itemList stays empty or previous value (we already cleared above)
                 }.collectLatest { items ->
                     // Check if coroutine is still active before processing results
@@ -659,6 +662,9 @@ class InventoryViewModel @Inject constructor(
                     // Update UI state on the main thread (we're already in coroutine context started by ioLaunch).
                     itemList.clear()
                     itemList.addAll(sortedItems)
+                    
+                    // Set loading state to false when data is loaded
+                    _loadingState.value = false
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // Handle cancellation gracefully without restarting
@@ -669,6 +675,8 @@ class InventoryViewModel @Inject constructor(
                 this@InventoryViewModel.log("failed to filter item list (outer): ${e.message}")
                 _snackBarState.value = "Failed to filter items: ${e.message}"
             } finally {
+                // Ensure loading state is set to false in all cases
+                _loadingState.value = false
             }
         }
     }

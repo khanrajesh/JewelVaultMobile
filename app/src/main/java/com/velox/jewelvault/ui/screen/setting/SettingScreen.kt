@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudCircle
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -225,6 +226,33 @@ fun SettingScreen() {
                     )
                 }
 
+                // Legal & Support
+                item {
+                    SettingsSectionHeader("Legal & Support", Icons.Default.Info)
+                }
+                
+                item {
+                    SettingsActionItem(
+                        title = "Privacy Policy",
+                        subtitle = "View our privacy policy",
+                        icon = Icons.Default.Security,
+                        onClick = {
+                            subNavController.navigate(SubScreens.PrivacyPolicy.route)
+                        }
+                    )
+                }
+                
+                item {
+                    SettingsActionItem(
+                        title = "Terms & Conditions",
+                        subtitle = "View terms and conditions",
+                        icon = Icons.Default.Description,
+                        onClick = {
+                            subNavController.navigate(SubScreens.TermsAndConditions.route)
+                        }
+                    )
+                }
+                
                 // About & Support
                 item {
                     SettingsSectionHeader("About & Support", Icons.Default.Info)

@@ -12,6 +12,7 @@ import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.FirebaseUtils
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
@@ -244,6 +245,9 @@ class ProfileViewModel @Inject constructor(
 
                     // Save store name to DataStore for UPI QR generation
                     _dataStoreManager.setMerchantName(it.name)
+                    
+                    // Note: Logo download and caching is handled by BaseViewModel.loadStoreImage()
+                    // which automatically downloads if no local logo exists but URL is available
                 }
 
                 isLoading.value = false
@@ -357,6 +361,9 @@ class ProfileViewModel @Inject constructor(
                         finalImageUrl = uploadResult.getOrNull() ?: ""
                         selectedImageUri.value = finalImageUrl
                         log("Image uploaded successfully: $finalImageUrl")
+                        
+                        // Download and cache the logo locally
+                        downloadAndCacheLogo(finalImageUrl)
                     } else {
                         log("Failed to upload image: ${uploadResult.exceptionOrNull()?.message}")
                         _snackBarState.value = "Failed to upload image. Please try again."
@@ -449,6 +456,26 @@ class ProfileViewModel @Inject constructor(
         selectedImageFileUri.value = imageUri
         selectedImageUri.value = imageUri?.toString() // Set the URI string for immediate display
         shopImage.text = imageUri?.toString() ?: ""
+    }
+    
+    /**
+     * Download and cache logo from URL to local storage
+     */
+    private fun downloadAndCacheLogo(imageUrl: String) {
+        ioLaunch {
+            try {
+                log("ProfileViewModel: Starting logo download and cache from: $imageUrl")
+                val result = FileManager.downloadAndSaveLogo(android.app.Application(), imageUrl)
+                
+                if (result.isSuccess) {
+                    log("ProfileViewModel: Logo downloaded and cached successfully: ${result.getOrNull()}")
+                } else {
+                    log("ProfileViewModel: Failed to download logo: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                log("ProfileViewModel: Error downloading logo: ${e.message}")
+            }
+        }
     }
 
     /**

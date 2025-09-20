@@ -3,6 +3,13 @@ package com.velox.jewelvault.ui.screen.inventory
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
+import android.content.ContentValues
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,15 +26,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Print
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,12 +47,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import java.io.IOException
+import java.util.Date
+import java.sql.Timestamp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -64,6 +80,10 @@ import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.PrintUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.apache.poi.hssf.usermodel.HeaderFooter.fontSize
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -71,9 +91,9 @@ import java.util.Locale
 // Helper function to convert ItemEntity to List<String>
 private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     "$index",
-    "${catName} (${catId})",
-    "${subCatName} (${subCatId})",
-    itemId.toString(),
+    "${catName}", //"${catName} (${catId})",
+    "${subCatName}",// "${subCatName} (${subCatId})",
+    itemId,
     itemAddName,
     entryType,
     quantity.toString(),
@@ -91,13 +111,17 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     addDate.toString(),
     addDesKey,
     addDesValue,
-    "Extra value"
+    purchaseOrderId
 )
+
+
 
 @Composable
 fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
 
     viewModel.currentScreenHeadingState.value = "Inventory Filter"
 
@@ -108,7 +132,10 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     
     // State to track exported file URI for print functionality
     var exportedFileUri by remember { mutableStateOf<String?>(null) }
-
+    
+    // State for print dialog
+    val showPrintDialog = remember { mutableStateOf(false) }
+    val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
 
     LaunchedEffect(true) {
         viewModel.categoryFilter.clear()
@@ -387,15 +414,99 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Item list
-        TextListView(
-            headerList = viewModel.itemHeaderList,
-            items = viewModel.itemList.mapIndexed { index, item -> item.toListString(index + 1) },
-            onItemClick = { _ -> },
-            onItemLongClick = { _ ->
-                viewModel.snackBarState.value = "Long click"
+        // Show loader while loading, otherwise show the list
+        val isLoading by viewModel.loadingState
+        if (isLoading) {
+            // Loading state
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Loading items...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        )
+        } else {
+            TextListView(
+                headerList = viewModel.itemHeaderList,
+                items = viewModel.itemList.mapIndexed { index, item -> item.toListString(index + 1) },
+                onItemClick = { item ->
+                    // Copy item ID to clipboard
+                    clipboardManager.setText(AnnotatedString(item[3]))
+                },
+                onItemLongClick = { itemData ->
+                    val itemId = itemData[3] // itemId is at index 3
+                    val item = viewModel.itemList.find { it.itemId == itemId }
+                    item?.let {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedItem.value = it
+                        showPrintDialog.value = true
+                    }
+                }
+            )
+        }
+    }
+    
+    // Print Dialog
+    if (showPrintDialog.value && selectedItem.value != null) {
+        AlertDialog(
+            onDismissRequest = { showPrintDialog.value = false },
+            title = { Text("Item Details") },
+            text = {
+                Column {
+                    Text("Name: ${selectedItem.value?.itemAddName}")
+                    Text("ID: ${selectedItem.value?.itemId}")
+                    Text("Category: ${selectedItem.value?.catName}")
+                    Text("Sub Category: ${selectedItem.value?.subCatName}")
+                    Text("Purity: ${selectedItem.value?.purity}")
+                    Text("Quantity: ${selectedItem.value?.quantity}")
+                    Text("Net Weight: ${selectedItem.value?.ntWt}")
+                    Text("Fine Weight: ${selectedItem.value?.fnWt}")
+                    // Add more fields as needed...
+                }
+            },
+            confirmButton = {
+                Row {
+                    TextButton(onClick = {
+                        if (selectedItem.value != null) {
+                            PrintUtils.generateItemExcelAndPrint(context, selectedItem.value!!) {
+                                showPrintDialog.value = false
+                            }
+                        }
+                    }) {
+                        Text("Print", color = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = {
+                        if (selectedItem.value != null) {
+                            PrintUtils.printThermalLabel(context, selectedItem.value!!) {
+                                showPrintDialog.value = false
+                            }
+                        }
+                    }) {
+                        Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPrintDialog.value = false
+                }) {
+                    Text("Cancel")
+                }
+            })
     }
 }
 

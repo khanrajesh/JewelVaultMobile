@@ -38,6 +38,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -144,7 +145,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     Spacer(Modifier.weight(1f))
                     
                     // Sync button
-                    if (!isEditable.value && !profileViewModel.isLoading.value) {
+                    val isLoading by profileViewModel.isLoading
+                    if (!isEditable.value && !isLoading) {
                         Icon(
                             Icons.Default.Sync,
                             contentDescription = "Sync from Cloud",
@@ -164,7 +166,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     }
                     
                     // Loading indicator
-                    if (profileViewModel.isLoading.value) {
+                    if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(24.dp)
@@ -428,11 +430,16 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         )
                     }
                 } else {
-                    // Show selected image
+                    val imageData = if (baseViewModel.hasLocalLogo()) {
+                        baseViewModel.getLogoUri()
+                    } else {
+                        profileViewModel.selectedImageUri.value
+                    }
+                    
                     Image(
                         painter = rememberAsyncImagePainter(
                             ImageRequest.Builder(context)
-                                .data(profileViewModel.selectedImageUri.value)
+                                .data(imageData)
                                 .build()
                         ),
                         contentDescription = "Store Image",
@@ -451,7 +458,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            if (profileViewModel.isUploadingImage.value) {
+                            val isUploading by profileViewModel.isUploadingImage
+                            if (isUploading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(32.dp),
                                     color = Color.White,
