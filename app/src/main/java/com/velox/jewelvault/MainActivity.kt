@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -32,38 +33,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
+import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
-import com.velox.jewelvault.utils.log
-import com.velox.jewelvault.utils.monitorInternetConnection
 import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.monitorInternetConnection
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import androidx.fragment.app.FragmentActivity
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
     private val speedMonitorJob: MutableState<Job?> = mutableStateOf(null)
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
+
     @Inject
     lateinit var sessionManager: SessionManager
-    
+
     @Inject
     lateinit var dataStoreManager: DataStoreManager
 
@@ -80,12 +81,25 @@ class MainActivity : FragmentActivity() {
 
             // Check if network monitoring is enabled before starting it
             LaunchedEffect(Unit) {
-                    monitorInternetConnection(baseViewModel, speedMonitorJob, coroutineScope, this@MainActivity, dataStoreManager)
+                monitorInternetConnection(
+                    baseViewModel,
+                    speedMonitorJob,
+                    coroutineScope,
+                    this@MainActivity,
+                    dataStoreManager
+                )
             }
 
 
-            LaunchedEffect(dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true)) {
-                networkCheckEnabled.value = dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true).first() ?: true
+            LaunchedEffect(
+                dataStoreManager.getValue(
+                    DataStoreManager.CONTINUOUS_NETWORK_CHECK,
+                    true
+                )
+            ) {
+                networkCheckEnabled.value =
+                    dataStoreManager.getValue(DataStoreManager.CONTINUOUS_NETWORK_CHECK, true)
+                        .first() ?: true
             }
 
             // Check session validity on app start
@@ -101,7 +115,7 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             }
-            
+
             // Monitor session during app usage
             LaunchedEffect(Unit) {
                 coroutineScope.launch {
@@ -122,7 +136,8 @@ class MainActivity : FragmentActivity() {
                         if (sessionManager.isSessionExpiringSoon()) {
                             val timeRemaining = sessionManager.getSessionTimeRemaining()
                             val minutesRemaining = TimeUnit.MILLISECONDS.toMinutes(timeRemaining)
-                            baseViewModel.snackBarState = "Session expires in $minutesRemaining minutes. Please save your work."
+                            baseViewModel.snackBarState =
+                                "Session expires in $minutesRemaining minutes. Please save your work."
                         }
 
                         sessionManager.updateLastActivity() // Extend session on activity
@@ -155,10 +170,12 @@ class MainActivity : FragmentActivity() {
                         )
 
 
+                        // Safe loading state observation to prevent crashes from IO scope updates
                         if (baseViewModel.loading) {
-                            Dialog(properties = DialogProperties(
-                                dismissOnBackPress = false, dismissOnClickOutside = false
-                            ), onDismissRequest = { /* Handle dismiss */ }) {
+                            Dialog(
+                                properties = DialogProperties(
+                                    dismissOnBackPress = false, dismissOnClickOutside = false
+                                ), onDismissRequest = { /* Handle dismiss */ }) {
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
                                     modifier = Modifier.wrapContentSize(),
@@ -181,7 +198,7 @@ class MainActivity : FragmentActivity() {
                                     .wrapContentHeight()
                                     .padding(10.dp)
                                     .background(
-                                        color = MaterialTheme.colorScheme.onSurface.copy ( alpha = 0.5f ),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                                         RoundedCornerShape(12.dp)
                                     )
                                     .padding(16.dp),
@@ -194,7 +211,8 @@ class MainActivity : FragmentActivity() {
                         }
 
                         if (!baseViewModel.isConnectedState.value && networkCheckEnabled.value) {
-                            AlertDialog(onDismissRequest = {},
+                            AlertDialog(
+                                onDismissRequest = {},
                                 confirmButton = {},
                                 title = { Text("No Internet Connection") },
                                 text = { Text("Please check your connection and try again.") })

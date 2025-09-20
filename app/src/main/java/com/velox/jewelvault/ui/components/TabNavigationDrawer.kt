@@ -383,13 +383,19 @@ fun ProfileImage( onProfileClick: () -> Unit) {
         }
         .size(60.dp)
         .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-        val imageUri = baseViewModel.storeImage.value
+        // ALWAYS use local logo file if available, otherwise use Firebase URL
+        val imageData = if (baseViewModel.hasLocalLogo()) {
+            baseViewModel.getLogoUri()
+        } else {
+            // Only use URL if no local logo exists
+            baseViewModel.storeImage.value
+        }
 
-        if (!imageUri.isNullOrBlank()) {
+        if (imageData != null) {
             // Show profile image if available
             Image(
                 painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(context).data(imageUri).build()
+                    ImageRequest.Builder(context).data(imageData).build()
                 ),
                 contentDescription = "Profile Image",
                 modifier = Modifier

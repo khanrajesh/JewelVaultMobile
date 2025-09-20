@@ -21,9 +21,7 @@ object RoomMigration {
                 
                 try {
                     db.execSQL("ALTER TABLE CustomerEntity ADD COLUMN storeId INTEGER NOT NULL DEFAULT 0")
-                } catch (e: Exception) {
-                    // Column might already exist, ignore error
-                }
+                } catch (e: Exception) { }
             }
             
             // Create customer_outstanding table
@@ -120,7 +118,6 @@ object RoomMigration {
             try {
                 db.execSQL("ALTER TABLE customer_khata_book ADD COLUMN planName TEXT NOT NULL DEFAULT 'Standard Plan'")
             } catch (e: Exception) {
-                // Column might already exist, ignore error
             }
             
             // Create customer_transaction table (unified transaction entity)

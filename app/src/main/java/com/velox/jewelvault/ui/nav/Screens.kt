@@ -28,6 +28,8 @@ sealed class SubScreens(val route:String) {
     data object CustomersDetails : SubScreens("customersDetails")
     data object BackUpSetting : SubScreens("backUpSetting")
     data object Audit : SubScreens("audit")
+    data object PrivacyPolicy : SubScreens("privacyPolicy")
+    data object TermsAndConditions : SubScreens("termsAndConditions")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
 }

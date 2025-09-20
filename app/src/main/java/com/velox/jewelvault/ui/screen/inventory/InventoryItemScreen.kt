@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -76,6 +77,7 @@ import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.PrintUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -108,224 +110,6 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     purchaseOrderId,
 )
 
-// Function to generate Excel for individual item and print it
-private fun generateItemExcelAndPrint(
-    context: android.content.Context,
-    item: ItemEntity,
-    onComplete: () -> Unit
-) {
-    ioScope {
-        try {
-            val workbook = XSSFWorkbook()
-            val sheet = workbook.createSheet("Item Details")
-            
-            // Create header style
-            val headerStyle = workbook.createCellStyle().apply {
-                val font = workbook.createFont().apply {
-                    bold = true
-                    fontSize(12)
-                }
-                setFont(font)
-            }
-            
-            // Item Information as key-value pairs
-            val itemData = listOf(
-                "Item ID" to item.itemId,
-                "Name" to item.itemAddName,
-                "Category" to "${item.catName} (${item.catId})",
-                "Sub Category" to "${item.subCatName} (${item.subCatId})",
-                "Entry Type" to item.entryType,
-                "Quantity" to item.quantity.toString(),
-                "Gross Weight" to "${item.gsWt.to3FString()} gm",
-                "Net Weight" to "${item.ntWt.to3FString()} gm",
-                "Fine Weight" to "${item.fnWt.to3FString()} gm",
-                "Purity" to item.purity,
-                "Charge Type" to item.crgType,
-                "Charge" to "₹${item.crg.to3FString()}",
-                "Other Charge Description" to item.othCrgDes,
-                "Other Charge" to "₹${item.othCrg.to3FString()}",
-                "CGST" to "₹${item.cgst.to3FString()}",
-                "SGST" to "₹${item.sgst.to3FString()}",
-                "IGST" to "₹${item.igst.to3FString()}",
-                "Total Tax" to "₹${(item.cgst + item.sgst + item.igst).to3FString()}",
-                "HUID" to item.huid,
-                "Description Key" to item.addDesKey,
-                "Description Value" to item.addDesValue,
-                "Purchase Order ID" to item.purchaseOrderId,
-                "Added Date" to SimpleDateFormat("dd-MMM-yyyy HH:mm", Locale.getDefault()).format(Date(item.addDate.time))
-            )
-            
-            // Create header row with all property names
-            val headerRow = sheet.createRow(0)
-            itemData.forEachIndexed { index, (key, _) ->
-                val headerCell = headerRow.createCell(index)
-                headerCell.setCellValue(key)
-                headerCell.cellStyle = headerStyle
-            }
-            
-            // Create data row with all values
-            val dataRow = sheet.createRow(1)
-            itemData.forEachIndexed { index, (_, value) ->
-                val dataCell = dataRow.createCell(index)
-                dataCell.setCellValue(value)
-            }
-            
-            // Set column widths manually (avoid autoSizeColumn which uses AWT classes not available on Android)
-            itemData.forEachIndexed { index, _ ->
-                sheet.setColumnWidth(index, 20 * 256) // 20 characters wide for each column
-            }
-            
-            // Create temporary file
-            val fileName = "Item_${item.itemId}_${System.currentTimeMillis()}.xlsx"
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                put(
-                    MediaStore.Downloads.RELATIVE_PATH,
-                    Environment.DIRECTORY_DOWNLOADS + "/JewelVault/TempPrint"
-                )
-            }
-            
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            
-            if (uri != null) {
-                var success = false
-                try {
-                    resolver.openOutputStream(uri)?.use { outputStream ->
-                        workbook.write(outputStream)
-                        outputStream.flush()
-                        success = true
-                    }
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                } finally {
-                    workbook.close()
-                }
-                
-                if (success) {
-                    // Launch print intent
-                    val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(Intent.createChooser(intent, "Print Item Details"))
-                    
-                    // Schedule file deletion after a delay (5 seconds)
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        delay(5000) // Wait 5 seconds
-                        try {
-                            resolver.delete(uri, null, null)
-                        } catch (e: Exception) {
-                            // File might already be deleted or not accessible
-                        }
-                    }
-                    
-                    onComplete()
-                } else {
-                    resolver.delete(uri, null, null)
-                }
-            } else {
-                workbook.close()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-}
-
-// Function to print item details directly using Android's native printing
-private fun printItemDirectly(
-    context: android.content.Context,
-    item: ItemEntity,
-    onComplete: () -> Unit
-) {
-    val printManager = context.getSystemService(android.content.Context.PRINT_SERVICE) as PrintManager
-    
-    // Item Information as key-value pairs (same as Excel format)
-    val itemData = listOf(
-        "Item ID" to item.itemId,
-        "Name" to item.itemAddName,
-        "Category" to "${item.catName} (${item.catId})",
-        "Sub Category" to "${item.subCatName} (${item.subCatId})",
-        "Entry Type" to item.entryType,
-        "Quantity" to item.quantity.toString(),
-        "Gross Weight" to "${item.gsWt.to3FString()} gm",
-        "Net Weight" to "${item.ntWt.to3FString()} gm",
-        "Fine Weight" to "${item.fnWt.to3FString()} gm",
-        "Purity" to item.purity,
-        "Charge Type" to item.crgType,
-        "Charge" to "₹${item.crg.to3FString()}",
-        "Other Charge Description" to item.othCrgDes,
-        "Other Charge" to "₹${item.othCrg.to3FString()}",
-        "CGST" to "₹${item.cgst.to3FString()}",
-        "SGST" to "₹${item.sgst.to3FString()}",
-        "IGST" to "₹${item.igst.to3FString()}",
-        "Total Tax" to "₹${(item.cgst + item.sgst + item.igst).to3FString()}",
-        "HUID" to item.huid,
-        "Description Key" to item.addDesKey,
-        "Description Value" to item.addDesValue,
-        "Purchase Order ID" to item.purchaseOrderId,
-        "Added Date" to SimpleDateFormat("dd-MMM-yyyy HH:mm", Locale.getDefault()).format(Date(item.addDate.time))
-    )
-    
-    val htmlContent = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Item Details - ${item.itemId}</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                .header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; font-weight: bold; }
-                .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #888; }
-                @media print {
-                    body { margin: 0; }
-                    table { page-break-inside: avoid; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">Item Details Report</div>
-            
-            <table>
-                <tr>
-                    ${itemData.joinToString("") { (key, _) -> "<th>$key</th>" }}
-                </tr>
-                <tr>
-                    ${itemData.joinToString("") { (_, value) -> "<td>$value</td>" }}
-                </tr>
-            </table>
-            
-            <div class="footer">
-                Generated by JewelVault Mobile App
-            </div>
-        </body>
-        </html>
-    """.trimIndent()
-    
-    val webView = WebView(context)
-    webView.webViewClient = object : WebViewClient() {
-        override fun onPageFinished(view: WebView?, url: String?) {
-            super.onPageFinished(view, url)
-            
-            val printAdapter = webView.createPrintDocumentAdapter("Item_${item.itemId}_${System.currentTimeMillis()}")
-            val printAttributes = PrintAttributes.Builder()
-                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                .setResolution(PrintAttributes.Resolution("print", "print", 600, 600))
-                .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
-                .build()
-            
-            printManager.print("Item Details Print Job", printAdapter, printAttributes)
-            onComplete()
-        }
-    }
-    
-    webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-}
 
 @Composable
 fun InventoryItemScreen(
@@ -350,13 +134,13 @@ fun LandscapeInventoryItemScreen(
     val context = LocalContext.current
     LaunchedEffect(true) {
         delay(200)
-        inventoryViewModel.loadingState.value = true
         inventoryViewModel.categoryFilter.text = catName
         inventoryViewModel.subCategoryFilter.text = subCatName
         inventoryViewModel.startDateFilter.text = ""
         inventoryViewModel.endDateFilter.text = ""
+        
+        // Call filterItems() which is async
         inventoryViewModel.filterItems()
-        inventoryViewModel.loadingState.value = false
     }
     val clipboardManager = LocalClipboardManager.current
 
@@ -412,26 +196,52 @@ fun LandscapeInventoryItemScreen(
 
 
 
-            TextListView(
-                headerList = inventoryViewModel.itemHeaderList,
-                items = inventoryViewModel.itemList.mapIndexed { index, item ->
-                    item.toListString(index + 1)
-                },
-                onItemClick = { item ->
-                    item[0]
-                    clipboardManager.setText(AnnotatedString(item[3]))
-//                    inventoryViewModel.snackBarState.value = "Item ID copied: ${item[3]}"
-
-                },
-                onItemLongClick = { itemData ->
-                    val itemId = itemData[3] // itemId is at index 3
-                    val item = inventoryViewModel.itemList.find { it.itemId == itemId }
-                    item?.let {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        selectedItem.value = it
-                        showDialog.value = true
+            // Show loader while loading, otherwise show the list
+            val isLoading by inventoryViewModel.loadingState
+            if (isLoading) {
+                // Loading state
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Loading items...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                })
+                }
+            } else {
+                TextListView(
+                    headerList = inventoryViewModel.itemHeaderList,
+                    items = inventoryViewModel.itemList.mapIndexed { index, item ->
+                        item.toListString(index + 1)
+                    },
+                    onItemClick = { item ->
+                        item[0]
+                        clipboardManager.setText(AnnotatedString(item[3]))
+//                        inventoryViewModel.snackBarState.value = "Item ID copied: ${item[3]}"
+
+                    },
+                    onItemLongClick = { itemData ->
+                        val itemId = itemData[3] // itemId is at index 3
+                        val item = inventoryViewModel.itemList.find { it.itemId == itemId }
+                        item?.let {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            selectedItem.value = it
+                            showDialog.value = true
+                        }
+                    })
+            }
         }
 
         if (showOption.value) Box(
@@ -510,7 +320,7 @@ fun LandscapeInventoryItemScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                generateItemExcelAndPrint(context, selectedItem.value!!) {
+                                PrintUtils.generateItemExcelAndPrint(context, selectedItem.value!!) {
                                     showDialog.value = false
                                 }
                             }
@@ -520,7 +330,7 @@ fun LandscapeInventoryItemScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                printItemDirectly(context, selectedItem.value!!) {
+                                PrintUtils.printThermalLabel(context, selectedItem.value!!) {
                                     showDialog.value = false
                                 }
                             }

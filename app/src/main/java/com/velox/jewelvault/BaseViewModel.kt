@@ -1,6 +1,7 @@
 package com.velox.jewelvault
 
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -15,6 +16,7 @@ import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.backup.BackupManager
@@ -52,6 +54,7 @@ class BaseViewModel @Inject constructor(
     val isConnectedState = mutableStateOf(true)
     val storeImage = mutableStateOf<String?>(null)
     val storeName = mutableStateOf<String?>(null)
+    val localLogoUri = mutableStateOf<Uri?>(null)
     
     // Update management
     val remoteConfigManager = _remoteConfigManager
@@ -104,8 +107,87 @@ class BaseViewModel @Inject constructor(
                 val store = _appDatabase.storeDao().getStoreById(storeId)
                 log("Loading store image: ${store?.image}")
                 storeImage.value = store?.image
+                
+                // Load local logo file if available
+                loadLocalLogo()
+                
+                // If no local logo but there's a URL in database, download and cache it
+                if (!hasLocalLogo() && !store?.image.isNullOrBlank()) {
+                    log("No local logo found, downloading from URL: ${store?.image}")
+                    downloadAndCacheLogo(android.app.Application(), store?.image ?: "")
+                }
             } catch (e: Exception) {
                 log("Error loading store image: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Load local logo file URI
+     */
+    fun loadLocalLogo() {
+        ioLaunch {
+            try {
+                val logoUri = FileManager.getLogoFileUri(android.app.Application())
+                localLogoUri.value = logoUri
+                log("Local logo URI loaded: $logoUri")
+            } catch (e: Exception) {
+                log("Error loading local logo: ${e.message}")
+                localLogoUri.value = null
+            }
+        }
+    }
+    
+    /**
+     * Download and cache logo from URL
+     */
+    fun downloadAndCacheLogo(context: Context, imageUrl: String) {
+        ioLaunch {
+            try {
+                log("Starting logo download and cache from: $imageUrl")
+                val result = FileManager.downloadAndSaveLogo(context, imageUrl)
+                
+                if (result.isSuccess) {
+                    localLogoUri.value = result.getOrNull()
+                    log("Logo downloaded and cached successfully: ${result.getOrNull()}")
+                } else {
+                    log("Failed to download logo: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                log("Error downloading logo: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Get the logo URI to use (local file if available, otherwise null)
+     */
+    fun getLogoUri(): Uri? {
+        return localLogoUri.value
+    }
+    
+    /**
+     * Check if local logo exists
+     */
+    fun hasLocalLogo(): Boolean {
+        return localLogoUri.value != null
+    }
+    
+    /**
+     * Force refresh logo - download from URL even if local logo exists
+     */
+    fun forceRefreshLogo(context: Context) {
+        ioLaunch {
+            try {
+                val storeId = _dataStoreManager.getSelectedStoreInfo().first.first()
+                val store = _appDatabase.storeDao().getStoreById(storeId)
+                
+                if (!store?.image.isNullOrBlank()) {
+                    log("Force refreshing logo from URL: ${store?.image}")
+                    downloadAndCacheLogo(context, store?.image ?: "")
+                }
+            } catch (e: Exception) {
+                log("Error force refreshing logo: ${e.message}")
             }
         }
     }

@@ -63,8 +63,8 @@ fun PdfRendererPreview(uri: Uri, modifier: Modifier = Modifier, highQuality: Boo
 
     // Use higher resolution for better quality
     val scaleFactor = if (highQuality) 3 else 1 // 3x resolution for dialog
-    val a4Width = (595 * scaleFactor).toInt()  // 210mm in points
-    val a4Height = (421 * scaleFactor).toInt() // 148.5mm in points
+    val a4Width = (PdfUtils.A4_PORTRAIT.first * scaleFactor).toInt()  // 210mm in points
+    val a4Height = (PdfUtils.A4_PORTRAIT.second * scaleFactor).toInt() // 148.5mm in points
 
     LaunchedEffect(uri) {
         val parcelFileDescriptor = context.contentResolver.openFileDescriptor(uri, "r")
@@ -459,8 +459,8 @@ fun generateInvoicePdf(
 ) {
     val pdfDocument = PdfDocument()
     val pageInfo = PdfDocument.PageInfo.Builder(
-        (PdfUtils.A4_HALF_PORTRAIT.first * scale).toInt(),
-        (PdfUtils.A4_HALF_PORTRAIT.second * scale).toInt(),
+        (PdfUtils.A4_PORTRAIT.first * scale).toInt(),
+        (PdfUtils.A4_PORTRAIT.second * scale).toInt(),
         1
     ).create()
 
@@ -482,7 +482,7 @@ fun generateInvoicePdf(
     val startX = s15f
     val startY = s15f
     val endX = pageInfo.pageWidth - s15f
-    val endY = pageInfo.pageHeight - s15f
+    val endY = (pageInfo.pageHeight/2) - s15f
 
     val page = pdfDocument.startPage(pageInfo)
 
