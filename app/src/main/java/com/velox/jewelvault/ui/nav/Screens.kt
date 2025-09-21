@@ -10,6 +10,12 @@ sealed class Screens(val route:String) {
     data object Purchase : Screens("purchase")
 
     data object DraftInvoice : Screens("draftInvoice")
+    
+    // Bluetooth Printer Screens
+    data object BluetoothScan : Screens("bluetoothScan")
+    data object BluetoothDeviceDetails : Screens("bluetoothDeviceDetails")
+    data object BluetoothPrinterManagement : Screens("bluetoothPrinterManagement")
+    data object BluetoothPrintPreview : Screens("bluetoothPrintPreview")
 }
 
 sealed class SubScreens(val route:String) {
@@ -32,4 +38,9 @@ sealed class SubScreens(val route:String) {
     data object TermsAndConditions : SubScreens("termsAndConditions")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
+    
+    // Bluetooth Printer SubScreens
+    data object BluetoothScanSub : SubScreens("bluetoothScanSub")
+    data object BluetoothPrinterManagementSub : SubScreens("bluetoothPrinterManagementSub")
+    data object BluetoothPrintPreviewSub : SubScreens("bluetoothPrintPreviewSub")
 }

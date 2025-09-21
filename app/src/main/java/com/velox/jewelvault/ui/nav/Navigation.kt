@@ -47,6 +47,9 @@ import com.velox.jewelvault.ui.screen.audit.AuditScreen
 import com.velox.jewelvault.ui.screen.audit.AuditViewModel
 import com.velox.jewelvault.ui.screen.webview.PrivacyPolicyScreen
 import com.velox.jewelvault.ui.screen.webview.TermsAndConditionsScreen
+import com.velox.jewelvault.ui.screen.bluetooth.ScanAndConnectScreen
+import com.velox.jewelvault.ui.screen.bluetooth.PrinterManagementScreen
+import com.velox.jewelvault.ui.screen.bluetooth.PrintPreviewScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -207,6 +210,42 @@ fun SubAppNavigation(
             
             composable(SubScreens.TermsAndConditions.route) {
                 TermsAndConditionsScreen()
+            }
+            
+            // Bluetooth Printer Screens
+            composable(SubScreens.BluetoothScanSub.route) {
+                ScanAndConnectScreen(
+                    onNavigateToPrinterManagement = {
+                        subNavController.navigate(SubScreens.BluetoothPrinterManagementSub.route)
+                    }
+                )
+            }
+
+            
+            composable(SubScreens.BluetoothPrinterManagementSub.route) {
+                PrinterManagementScreen(
+                    onNavigateBack = { subNavController.popBackStack() },
+                    onNavigateToPreview = { htmlContent ->
+                        subNavController.navigate("${SubScreens.BluetoothPrintPreviewSub.route}/$htmlContent")
+                    }
+                )
+            }
+            
+            composable(
+                "${SubScreens.BluetoothPrintPreviewSub.route}/{htmlContent}",
+                arguments = listOf(
+                    navArgument("htmlContent") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val htmlContent = backStackEntry.arguments?.getString("htmlContent") ?: ""
+                PrintPreviewScreen(
+                    htmlContent = htmlContent,
+                    onNavigateBack = { subNavController.popBackStack() },
+                    onPrint = {
+                        // TODO: Implement print functionality
+                        subNavController.popBackStack()
+                    }
+                )
             }
             
         }

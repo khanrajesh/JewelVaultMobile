@@ -25,6 +25,9 @@ import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.backup.BackupManager
+import com.velox.jewelvault.data.bluetooth.BluetoothService
+import com.velox.jewelvault.data.bluetooth.BluetoothBroadcastReceiver
+import com.velox.jewelvault.utils.GlobalPrinterManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,6 +35,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 
 @Module
@@ -167,6 +173,46 @@ object AppModule {
             storage = storage,
             dataStoreManager = dataStoreManager
         )
+    }
+
+    //endregion
+
+    // region bluetooth printer
+
+    @Provides
+    @Singleton
+    fun provideBluetoothScope(): CoroutineScope {
+        return CoroutineScope(Dispatchers.Default + SupervisorJob())
+    }
+
+    @Provides
+    @Singleton
+    fun provideBluetoothBroadcastReceiver(
+        @ApplicationContext context: Context,
+        scope: CoroutineScope
+    ): BluetoothBroadcastReceiver {
+        return BluetoothBroadcastReceiver(context, scope)
+    }
+
+    @Provides
+    @Singleton
+    fun provideBluetoothService(
+        @ApplicationContext context: Context,
+        broadcastReceiver: BluetoothBroadcastReceiver
+    ): BluetoothService {
+        return BluetoothService(context, broadcastReceiver)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGlobalPrinterManager(
+        @ApplicationContext context: Context,
+        bluetoothService: BluetoothService
+    ): GlobalPrinterManager {
+        val manager = GlobalPrinterManager.getInstance(context, bluetoothService)
+        // Initialize PrinterUtils with the manager
+        com.velox.jewelvault.utils.PrinterUtils.initialize(manager)
+        return manager
     }
 
     //endregion

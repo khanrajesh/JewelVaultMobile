@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -60,6 +61,7 @@ import android.net.Uri
 import android.os.Environment
 import java.io.File
 import com.velox.jewelvault.R
+import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
 import com.velox.jewelvault.ui.components.TabNavigationDrawer
@@ -70,6 +72,7 @@ import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.launch
 
 
@@ -322,6 +325,15 @@ fun MainScreen() {
             // This will be handled after inputIconStates is created
         },
         InputIconState(
+            "Bluetooth", Icons.Default.Bluetooth
+        ) {
+            subNavController.navigate(SubScreens.BluetoothScanSub.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
             "Setting", Icons.Default.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
@@ -493,9 +505,19 @@ private fun LandscapeDashboardScreen(
             }
         },
         notifierContent = {
-            Column(
+            Row(
                 modifier = Modifier
             ) {
+                BluetoothToggleIcon(
+                    onStateChanged = { state ->
+                        log("BluetoothToggleIcon: State changed to $state")
+                    },
+                    onError = { error ->
+                        baseViewModel.snackBarState = error
+                    }
+                )
+                Spacer(Modifier.width(5.dp))
+
                 Text(
                     buildAnnotatedString {
 

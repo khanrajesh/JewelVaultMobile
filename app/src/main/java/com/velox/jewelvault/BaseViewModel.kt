@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -15,6 +16,8 @@ import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.bluetooth.BluetoothService
+import com.velox.jewelvault.data.bluetooth.ConnectionState
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.RemoteConfigManager
@@ -25,7 +28,10 @@ import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -42,7 +48,7 @@ class BaseViewModel @Inject constructor(
     private val _appUpdateManager: AppUpdateManager,
     private val _backupManager: BackupManager,
     private val _auth: FirebaseAuth,
-
+    val bluetoothService: BluetoothService
     ) : ViewModel() {
 
     var loading by _loadingState
@@ -90,6 +96,12 @@ class BaseViewModel @Inject constructor(
     val otpForWipe = mutableStateOf("")
     val isWipeInProgress = mutableStateOf(false)
     val otpVerificationId = mutableStateOf<String?>(null)
+
+    val connectionStatus: StateFlow<ConnectionState> = bluetoothService.connectionStatus.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = ConnectionState.DISCONNECTED
+    )
 
     init {
         loadSettings()

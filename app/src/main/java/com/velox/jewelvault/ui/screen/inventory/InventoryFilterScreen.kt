@@ -74,6 +74,10 @@ import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.PrinterStatusComponent
+import com.velox.jewelvault.ui.components.SmartPrintButton
+import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
@@ -122,6 +126,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
+    val subNavController = LocalSubNavController.current
 
     viewModel.currentScreenHeadingState.value = "Inventory Filter"
 
@@ -222,7 +227,16 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 context.startActivity(Intent.createChooser(intent, "Print with"))
             }
         )
+        val subNavController = LocalSubNavController.current
+        // Printer status component
+        PrinterStatusComponent(
+            modifier = Modifier.fillMaxWidth(),
+            onConnectPrinter = {
+                // Navigate to printer settings
 
+                subNavController.navigate(SubScreens.BluetoothScanSub.route)
+            }
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
         // Animated filter panel
@@ -489,15 +503,29 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                         Text("Print", color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = {
-                        if (selectedItem.value != null) {
-                            PrintUtils.printThermalLabel(context, selectedItem.value!!) {
-                                showPrintDialog.value = false
+                    SmartPrintButton(
+                        text = "Print Label",
+                        onClick = {
+                            if (selectedItem.value != null) {
+                                PrintUtils.printThermalLabelToBluetoothPrinter(
+                                    context = context,
+                                    item = selectedItem.value!!,
+                                    onComplete = {
+                                        showPrintDialog.value = false
+                                    },
+                                    onError = { error ->
+                                        // Show error message
+                                        // You can add a snackbar or toast here
+                                        println("Print failed: $error")
+                                    }
+                                )
                             }
+                        },
+                        onConnectPrinter = {
+                            // Navigate to printer settings
+                            subNavController.navigate(SubScreens.BluetoothScanSub.route)
                         }
-                    }) {
-                        Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
-                    }
+                    )
                 }
             },
             dismissButton = {

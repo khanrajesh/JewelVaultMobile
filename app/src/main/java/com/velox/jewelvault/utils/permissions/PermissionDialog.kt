@@ -214,6 +214,11 @@ enum class PermissionType(
         icon = Icons.Default.Mic,
         detailIcon = Icons.Default.RecordVoiceOver,
         description = "• Voice search functionality\n• Audio notes for items\n• Voice commands"
+    ),
+    BLUETOOTH(
+        icon = Icons.Default.Bluetooth,
+        detailIcon = Icons.Default.BluetoothConnected,
+        description = "• Connect to Bluetooth printers\n• Print invoices and receipts\n• Manage printer settings"
     )
 }
 
@@ -226,6 +231,7 @@ fun getPermissionTypeColor(permissionType: PermissionType): Color {
         PermissionType.LOCATION -> MaterialTheme.colorScheme.error
         PermissionType.CONTACTS -> MaterialTheme.colorScheme.primary
         PermissionType.MICROPHONE -> MaterialTheme.colorScheme.secondary
+        PermissionType.BLUETOOTH -> MaterialTheme.colorScheme.tertiary
     }
 }
 

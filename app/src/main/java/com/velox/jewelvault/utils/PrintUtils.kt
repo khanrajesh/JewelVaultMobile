@@ -15,6 +15,8 @@ import android.webkit.WebViewClient
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.poi.hssf.usermodel.HeaderFooter.fontSize
@@ -554,6 +556,412 @@ object PrintUtils {
 
         // Load HTML. Using loadDataWithBaseURL so data: URIs (base64) are allowed.
         webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+    }
+
+    /**
+     * Print HTML content using Bluetooth printer
+     * This function checks if printer is connected and prints the HTML content
+     * @param context Application context
+     * @param htmlContent HTML content to print
+     * @param onComplete Callback when print operation completes
+     * @param onError Callback when print operation fails
+     */
+    fun printHtmlToBluetoothPrinter(
+        context: Context,
+        htmlContent: String,
+        onComplete: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Check if printer is connected using PrinterUtils
+                if (!PrinterUtils.isConnected()) {
+                    onError("Printer is not connected. Please connect to a Bluetooth printer first.")
+                    return@launch
+                }
+                
+                // Print HTML content
+                PrinterUtils.printHtmlAsync(
+                    htmlContent = htmlContent,
+                    onSuccess = {
+                        onComplete()
+                    },
+                    onError = { error ->
+                        onError(error)
+                    }
+                )
+            } catch (e: Exception) {
+                onError("Error printing to Bluetooth printer: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Print item details using Bluetooth printer
+     * This function replaces the direct print functionality
+     * @param context Application context
+     * @param item Item entity to print
+     * @param onComplete Callback when print operation completes
+     * @param onError Callback when print operation fails
+     */
+    fun printItemToBluetoothPrinter(
+        context: Context,
+        item: ItemEntity,
+        onComplete: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Check if printer is connected
+                if (!PrinterUtils.isConnected()) {
+                    onError("Printer is not connected. Please connect to a Bluetooth printer first.")
+                    return@launch
+                }
+                
+                // Generate HTML content for the item
+                val htmlContent = generateItemHtml(item)
+                
+                // Print HTML content
+                PrinterUtils.printHtmlAsync(
+                    htmlContent = htmlContent,
+                    onSuccess = {
+                        onComplete()
+                    },
+                    onError = { error ->
+                        onError(error)
+                    }
+                )
+            } catch (e: Exception) {
+                onError("Error printing item to Bluetooth printer: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Generate HTML content for item details
+     * @param item Item entity
+     * @return HTML content string
+     */
+    private fun generateItemHtml(item: ItemEntity): String {
+        val itemData = listOf(
+            "Item ID" to item.itemId,
+            "Name" to item.itemAddName,
+            "Category" to "${item.catName} (${item.catId})",
+            "Sub Category" to "${item.subCatName} (${item.subCatId})",
+            "Entry Type" to item.entryType,
+            "Quantity" to item.quantity.toString(),
+            "Gross Weight" to "${item.gsWt.to3FString()} gm",
+            "Net Weight" to "${item.ntWt.to3FString()} gm",
+            "Fine Weight" to "${item.fnWt.to3FString()} gm",
+            "Purity" to item.purity,
+            "Charge Type" to item.crgType,
+            "Charge" to "₹${item.crg.to3FString()}",
+            "Other Charge Description" to item.othCrgDes,
+            "Other Charge" to "₹${item.othCrg.to3FString()}",
+            "CGST" to "₹${item.cgst.to3FString()}",
+            "SGST" to "₹${item.sgst.to3FString()}",
+            "IGST" to "₹${item.igst.to3FString()}",
+            "Total Tax" to "₹${(item.cgst + item.sgst + item.igst).to3FString()}",
+            "HUID" to item.huid,
+            "Description Key" to item.addDesKey,
+            "Description Value" to item.addDesValue,
+            "Purchase Order ID" to item.purchaseOrderId,
+            "Added Date" to SimpleDateFormat(
+                "dd-MMM-yyyy HH:mm", Locale.getDefault()
+            ).format(Date(item.addDate.time))
+        )
+
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Item Details - ${item.itemId}</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 10px; 
+                        font-size: 12px;
+                    }
+                    .header { 
+                        text-align: center; 
+                        font-size: 16px; 
+                        font-weight: bold; 
+                        margin-bottom: 15px; 
+                        border-bottom: 1px solid #333; 
+                        padding-bottom: 5px; 
+                    }
+                    .item-row { 
+                        display: flex; 
+                        justify-content: space-between; 
+                        margin-bottom: 3px; 
+                        padding: 2px 0;
+                    }
+                    .item-label { 
+                        font-weight: bold; 
+                        min-width: 120px;
+                    }
+                    .item-value { 
+                        text-align: right; 
+                        flex: 1;
+                    }
+                    .footer { 
+                        text-align: center; 
+                        margin-top: 15px; 
+                        font-size: 10px; 
+                        color: #888; 
+                        border-top: 1px solid #ccc;
+                        padding-top: 5px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">Item Details Report</div>
+                
+                ${itemData.joinToString("") { (key, value) ->
+                    """
+                    <div class="item-row">
+                        <span class="item-label">$key:</span>
+                        <span class="item-value">$value</span>
+                    </div>
+                    """.trimIndent()
+                }}
+                
+                <div class="footer">
+                    Generated by JewelVault Mobile App
+                </div>
+            </body>
+            </html>
+        """.trimIndent()
+    }
+
+    /**
+     * Print thermal label using Bluetooth printer
+     * @param context Application context
+     * @param item Item entity
+     * @param storeLogoBase64 Store logo in base64 format
+     * @param onComplete Callback when print operation completes
+     * @param onError Callback when print operation fails
+     */
+    fun printThermalLabelToBluetoothPrinter(
+        context: Context,
+        item: ItemEntity,
+        storeLogoBase64: String? = null,
+        onComplete: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Check if printer is connected
+                if (!PrinterUtils.isConnected()) {
+                    onError("Printer is not connected. Please connect to a Bluetooth printer first.")
+                    return@launch
+                }
+                
+                // Generate thermal label HTML
+                val htmlContent = generateThermalLabelHtml(context, item, storeLogoBase64)
+                
+                // Print HTML content
+                PrinterUtils.printHtmlAsync(
+                    htmlContent = htmlContent,
+                    onSuccess = {
+                        onComplete()
+                    },
+                    onError = { error ->
+                        onError(error)
+                    }
+                )
+            } catch (e: Exception) {
+                onError("Error printing thermal label to Bluetooth printer: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Generate thermal label HTML content
+     * @param item Item entity
+     * @param storeLogoBase64 Store logo in base64 format
+     * @return HTML content string
+     */
+    private fun generateThermalLabelHtml(context: Context, item: ItemEntity, storeLogoBase64: String?): String {
+        // Load hallmark from drawable
+        val hallmarkBase64 = try {
+            val hallmarkDrawable = context.resources.getIdentifier("hallmark", "drawable", context.packageName)
+            if (hallmarkDrawable != 0) {
+                val bitmap = android.graphics.BitmapFactory.decodeResource(
+                    context.resources,
+                    hallmarkDrawable
+                )
+                bitmap?.let { bitmapToBase64(it) }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            log("PrintUtils: Error loading hallmark drawable: ${e.message}")
+            null
+        }
+
+        // Generate QR code for itemId (80px)
+        val qrCodeBitmap = generateQRCode(item.itemId, 80)
+        val qrCodeBase64 = qrCodeBitmap?.let { bitmapToBase64(it) } ?: ""
+
+        // Format weights and purity
+        val grossWeight = "${item.gsWt.to3FString()} gm"
+        val fineWeight = "${item.fnWt.to3FString()} gm"
+        val purity = item.purity ?: ""
+
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Thermal Label - ${item.itemId}</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                @page {
+                    size: 100mm 13mm;
+                    margin: 0;
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                    width: 100mm;
+                    height: 13mm;
+                    background: white;
+                    font-family: Arial, sans-serif;
+                    -webkit-text-size-adjust: none;
+                }
+                .container {
+                    width: 100mm;
+                    height: 13mm;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
+                .printable-area {
+                    width: 65mm;
+                    height: 13mm;
+                    display: flex;
+                    box-sizing: border-box;
+                }
+                .left-section, .right-section {
+                    height: 13mm;
+                    box-sizing: border-box;
+                }
+                .left-section {
+                    width: 32.5mm;
+                    height: 13mm;
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 0.5mm;
+                    flex-wrap: nowrap;
+                    box-sizing: border-box;
+                }
+                .right-section {
+                    width: 32.5mm;
+                    height: 13mm;
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 0.5mm;
+                    box-sizing: border-box;
+                }
+                .store-logo {
+                    max-width: 13mm;
+                    max-height: 8mm;
+                    object-fit: contain;
+                    display: block;
+                }
+                .hallmark-logo {
+                    max-width: 10mm;
+                    max-height: 6mm;
+                    object-fit: contain;
+                    display: block;
+                }
+                .qr-code {
+                    width: 12mm;
+                    height: 12mm;
+                    object-fit: contain;
+                    display: block;
+                }
+                .item-id {
+                    font-size: 1.8mm; 
+                    margin: 0 0.5mm;
+                    text-align: center;
+                    line-height: 1;
+                    white-space: normal;
+                    word-wrap: break-word;
+                    max-width: 10mm;
+                }
+                .weight-info {
+                    font-size: 2.5mm;
+                    font-weight: bold;
+                    margin: 0 0.5mm;
+                    line-height: 1;
+                    text-align: center;
+                }
+                .purity-info {
+                    font-size: 3.0mm;
+                    font-weight: bold;
+                    margin: 0 0.5mm;
+                    margin-top: 0.4mm;
+                    text-align: center;
+                }
+                .store-name {
+                    font-size: 2.2mm;
+                    margin: 0;
+                    text-align: left;
+                    font-weight: 600;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="printable-area" aria-label="Printable area 65mm">
+                     <div class="left-section">
+                              ${
+            if (!storeLogoBase64.isNullOrEmpty()) {
+                """<img src="data:image/png;base64,$storeLogoBase64" class="store-logo" alt="Store Logo">"""
+            } else {
+                """<div style="width:13mm;height:8mm;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:2.2mm;color:#666;">STORE</div>"""
+            }
+        }
+                    
+                         ${
+            if (qrCodeBase64.isNotEmpty()) {
+                """<img src="data:image/png;base64,$qrCodeBase64" class="qr-code" alt="QR Code">"""
+            } else {
+                """<div style="width:12mm;height:12mm;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:2.2mm;color:#666;">QR</div>"""
+            }
+        }
+         
+              <p class="item-id">${item.itemId}</p>
+                     </div>
+
+                    <div class="right-section">
+                        <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;">
+                            ${
+            if (!hallmarkBase64.isNullOrEmpty()) {
+                """<img src="data:image/png;base64,$hallmarkBase64" class="hallmark-logo" alt="Hallmark Logo">"""
+            } else {
+                """<div style="width:10mm;height:6mm;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:2.2mm;color:#666;">HALLMARK</div>"""
+            }
+        }
+                            <p class="purity-info">$purity</p>
+                        </div>
+                        <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;">
+                            <p class="weight-info">GS: $grossWeight</p>
+                            <p class="weight-info">FN: $fineWeight</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    """.trimIndent()
     }
 
 

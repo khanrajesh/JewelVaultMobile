@@ -23,7 +23,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,6 +36,8 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.bluetooth.BluetoothBroadcastReceiver
+import com.velox.jewelvault.data.bluetooth.BluetoothService
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
@@ -68,11 +69,23 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var dataStoreManager: DataStoreManager
 
+    @Inject
+    lateinit var bluetoothBroadcastReceiver: BluetoothBroadcastReceiver
+
+    @Inject
+    lateinit var bluetoothService: BluetoothService
+
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Register Bluetooth broadcast receiver
+        bluetoothBroadcastReceiver.register()
+        // Start Bluetooth service
+        bluetoothService.start()
+
         setContent {
 
             val navController = rememberNavController()
@@ -93,8 +106,7 @@ class MainActivity : FragmentActivity() {
 
             LaunchedEffect(
                 dataStoreManager.getValue(
-                    DataStoreManager.CONTINUOUS_NETWORK_CHECK,
-                    true
+                    DataStoreManager.CONTINUOUS_NETWORK_CHECK, true
                 )
             ) {
                 networkCheckEnabled.value =
@@ -222,5 +234,50 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Ensure broadcast receiver is working when app comes to foreground
+        if (!bluetoothBroadcastReceiver.isRegistered()) {
+            bluetoothBroadcastReceiver.register()
+        }
+        // Ensure Bluetooth service is running
+        bluetoothService.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Note: We don't unregister on pause to maintain background functionality
+        // The receiver will continue to work in background for Bluetooth events
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!bluetoothBroadcastReceiver.isRegistered()) {
+            bluetoothBroadcastReceiver.register()
+        }
+        bluetoothService.start()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // App is going to background, but receiver should still work
+        log("MainActivity: App stopped, BluetoothBroadcastReceiver status: ${bluetoothBroadcastReceiver.getRegistrationStatus()}")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        // App is coming back from background
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop Bluetooth service and unregister receiver when activity is destroyed
+        bluetoothService.stop()
+        bluetoothBroadcastReceiver.unregister()
+        log("MainActivity: BluetoothService stopped and BluetoothBroadcastReceiver unregistered")
+    }
+
+
 }
 

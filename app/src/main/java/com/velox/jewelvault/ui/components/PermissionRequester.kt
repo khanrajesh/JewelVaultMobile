@@ -267,6 +267,11 @@ private fun getMultiplePermissionMessage(permissions: List<String>): String {
             Manifest.permission.ACCESS_FINE_LOCATION -> "• Location access for nearby shop recommendations."
             Manifest.permission.RECORD_AUDIO -> "• Microphone access for voice search."
             Manifest.permission.POST_NOTIFICATIONS -> "• Notification access to show backup/restore progress."
+            Manifest.permission.BLUETOOTH -> "• Bluetooth access to connect to printers."
+            Manifest.permission.BLUETOOTH_ADMIN -> "• Bluetooth admin access to manage printer connections."
+            Manifest.permission.BLUETOOTH_CONNECT -> "• Bluetooth connect access to pair with printers."
+            Manifest.permission.BLUETOOTH_SCAN -> "• Bluetooth scan access to discover nearby printers."
+            Manifest.permission.BLUETOOTH_ADVERTISE -> "• Bluetooth advertise access for printer discovery."
             else -> null
         }
     }
@@ -299,6 +304,13 @@ private fun getPermissionTypeForQueue(permissions: List<String>): PermissionType
         permissions.any { it == Manifest.permission.ACCESS_FINE_LOCATION } -> PermissionType.LOCATION
         permissions.any { it == Manifest.permission.READ_CONTACTS } -> PermissionType.CONTACTS
         permissions.any { it == Manifest.permission.RECORD_AUDIO } -> PermissionType.MICROPHONE
+        permissions.any { it in listOf(
+            Manifest.permission.BLUETOOTH,
+            Manifest.permission.BLUETOOTH_ADMIN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_ADVERTISE
+        ) } -> PermissionType.BLUETOOTH
         permissions.any { it in listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.MANAGE_EXTERNAL_STORAGE) } -> PermissionType.STORAGE
         else -> PermissionType.STORAGE
     }
