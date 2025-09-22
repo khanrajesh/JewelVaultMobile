@@ -37,6 +37,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.bluetooth.BluetoothReceiver
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
@@ -63,6 +64,9 @@ class MainActivity : FragmentActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Inject
+    lateinit var bluetoothBroadcastReceiver: BluetoothReceiver
+
+    @Inject
     lateinit var sessionManager: SessionManager
 
     @Inject
@@ -72,6 +76,7 @@ class MainActivity : FragmentActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bluetoothBroadcastReceiver.registerReceiver()
         enableEdgeToEdge()
         setContent {
 
@@ -221,6 +226,46 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+    override fun onResume() {
+        super.onResume()
+        // Ensure broadcast receiver is working when app comes to foreground
+        if (!bluetoothBroadcastReceiver.isRegistered()) {
+            bluetoothBroadcastReceiver.registerReceiver()
+        }
+        bluetoothBroadcastReceiver.refreshSystemState()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Note: We don't unregister on pause to maintain background functionality
+        // The receiver will continue to work in background for Bluetooth events
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!bluetoothBroadcastReceiver.isRegistered()) {
+            bluetoothBroadcastReceiver.registerReceiver()
+        }
+        bluetoothBroadcastReceiver.refreshSystemState()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // App is going to background, but receiver should still work
+        log("MainActivity: App stopped, BluetoothBroadcastReceiver status: ${bluetoothBroadcastReceiver.isRegistered()}")
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        // App is coming back from background
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Stop Bluetooth service and unregister receiver when activity is destroyed
+        bluetoothBroadcastReceiver.unregister()
+        log("MainActivity: BluetoothService stopped and BluetoothBroadcastReceiver unregistered")
     }
 }
 

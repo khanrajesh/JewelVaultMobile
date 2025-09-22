@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -60,6 +61,7 @@ import android.net.Uri
 import android.os.Environment
 import java.io.File
 import com.velox.jewelvault.R
+import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
 import com.velox.jewelvault.ui.components.TabNavigationDrawer
@@ -322,6 +324,15 @@ fun MainScreen() {
             // This will be handled after inputIconStates is created
         },
         InputIconState(
+            "Bluetooth Printing", Icons.Default.Print
+        ) {
+            subNavController.navigate(SubScreens.BluetoothScanConnect.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
             "Setting", Icons.Default.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
@@ -493,9 +504,11 @@ private fun LandscapeDashboardScreen(
             }
         },
         notifierContent = {
-            Column(
+            Row (
                 modifier = Modifier
             ) {
+                BluetoothToggleIcon()
+                Spacer(Modifier.width(8.dp))
                 Text(
                     buildAnnotatedString {
 

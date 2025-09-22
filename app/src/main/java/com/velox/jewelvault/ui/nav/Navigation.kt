@@ -47,6 +47,9 @@ import com.velox.jewelvault.ui.screen.audit.AuditScreen
 import com.velox.jewelvault.ui.screen.audit.AuditViewModel
 import com.velox.jewelvault.ui.screen.webview.PrivacyPolicyScreen
 import com.velox.jewelvault.ui.screen.webview.TermsAndConditionsScreen
+import com.velox.jewelvault.ui.screen.bluetooth.BluetoothScanConnectScreen
+import com.velox.jewelvault.ui.screen.bluetooth.BluetoothManagePrintersScreen
+import com.velox.jewelvault.ui.screen.bluetooth_new.ScanConnectScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -207,6 +210,14 @@ fun SubAppNavigation(
             
             composable(SubScreens.TermsAndConditions.route) {
                 TermsAndConditionsScreen()
+            }
+            
+            composable(SubScreens.BluetoothScanConnect.route) {
+                ScanConnectScreen()
+            }
+            
+            composable(SubScreens.BluetoothManagePrinters.route) {
+                BluetoothManagePrintersScreen()
             }
             
         }

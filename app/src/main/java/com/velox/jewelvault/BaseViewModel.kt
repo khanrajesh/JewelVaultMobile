@@ -1,5 +1,6 @@
 package com.velox.jewelvault
 
+import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.*
@@ -15,6 +16,7 @@ import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.bluetooth.BluetoothReceiver
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.RemoteConfigManager
@@ -24,8 +26,15 @@ import com.velox.jewelvault.utils.backup.BackupService
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -42,7 +51,7 @@ class BaseViewModel @Inject constructor(
     private val _appUpdateManager: AppUpdateManager,
     private val _backupManager: BackupManager,
     private val _auth: FirebaseAuth,
-
+    private val _bluetoothReceiver: BluetoothReceiver
     ) : ViewModel() {
 
     var loading by _loadingState
@@ -50,6 +59,7 @@ class BaseViewModel @Inject constructor(
     var currentScreenHeading by _currentScreenHeadingState
     val dataStoreManager = _dataStoreManager
     val metalRates = _metalRates
+    val bluetoothReceiver = _bluetoothReceiver
     val metalRatesLoading = mutableStateOf(false)
     val isConnectedState = mutableStateOf(true)
     val storeImage = mutableStateOf<String?>(null)
