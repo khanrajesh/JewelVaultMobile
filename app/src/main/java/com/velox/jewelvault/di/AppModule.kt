@@ -21,13 +21,11 @@ import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.RoomMigration
 import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.bluetooth.BluetoothReceiver
+import com.velox.jewelvault.data.bluetooth.InternalBluetoothManager
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.backup.BackupManager
-import com.velox.jewelvault.data.printing.BluetoothManager
-import com.velox.jewelvault.data.printing.PrinterRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -178,28 +176,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBluetoothManager(
-        @ApplicationContext context: Context
-    ): BluetoothManager {
-        return BluetoothManager(context)
-    }
-
-  /*  @Provides
-    @Singleton
-    fun providePrinterRepository(
-        @ApplicationContext context: Context,
-        bluetoothManager: BluetoothManager
-    ): PrinterRepository {
-        return PrinterRepository(context, bluetoothManager)
-    }*/
-
-
-    @Provides
-    @Singleton
     fun provideBluetoothReceiver(
         @ApplicationContext context: Context
-    ): BluetoothReceiver {
-        return BluetoothReceiver(context)
+    ): InternalBluetoothManager {
+        return InternalBluetoothManager(context)
     }
 
     //endregion

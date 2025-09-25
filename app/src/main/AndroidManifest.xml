@@ -96,7 +96,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <receiver android:name=".data.bluetooth.BluetoothReceiver"
+        <receiver android:name=".data.bluetooth.InternalBluetoothManager"
             android:enabled="true"/>
 
     </application>

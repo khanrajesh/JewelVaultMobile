@@ -23,7 +23,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,7 +36,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.bluetooth.BluetoothReceiver
+import com.velox.jewelvault.data.bluetooth.InternalBluetoothManager
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
@@ -64,7 +63,7 @@ class MainActivity : FragmentActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Inject
-    lateinit var bluetoothBroadcastReceiver: BluetoothReceiver
+    lateinit var bluetoothBroadcastReceiver: InternalBluetoothManager
 
     @Inject
     lateinit var sessionManager: SessionManager

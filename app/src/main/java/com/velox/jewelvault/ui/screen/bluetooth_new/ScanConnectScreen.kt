@@ -11,14 +11,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.Speaker
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeviceHub
 import androidx.compose.material.icons.filled.Link
@@ -49,13 +61,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.velox.jewelvault.data.printing.BluetoothManager
+import kotlinx.coroutines.launch
+import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,21 +78,23 @@ fun ScanConnectScreen(
     viewModel: ScanConnectViewModel = hiltViewModel()
 ) {
     val navController = LocalSubNavController.current
-    LocalContext.current
-    rememberCoroutineScope()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     val uiState by viewModel.uiState.collectAsState()
     val bluetoothManager = viewModel.bluetoothReceiver
-//    val discoveredDevices by bluetoothManager.discoveredDevices.collectAsState()
-//    val bondedDevices by bluetoothManager.bondedDevices.collectAsState()
+    
+    // Device lists from ViewModel
+    val connectedDevices by viewModel.connectedDevices.collectAsStateWithLifecycle()
+    val connectingDevices by viewModel.connectingDevices.collectAsStateWithLifecycle()
+    val unconnectedPairedDevices by viewModel.unconnectedPairedDevices.collectAsStateWithLifecycle()
+    val allDiscoveredDevices by viewModel.allDiscoveredDevices.collectAsStateWithLifecycle()
+    
     val bleState by bluetoothManager.bluetoothStateChanged.collectAsStateWithLifecycle()
     val isBluetoothEnabled = (bleState.currentState == BluetoothAdapter.STATE_ON)
 
     val isDiscovering = bluetoothManager.isDiscovering.collectAsState().value
-
-    // Separate bonded devices into connected and not connected
-//    val connectedDevices = bondedDevices.filter { bluetoothManager.isDeviceConnected(it.address)}
-//    val unconnectedPairedDevices = bondedDevices.filter { !bluetoothManager.isDeviceConnected(it.address) }
 
     // Request Bluetooth permissions
     PermissionRequester(
@@ -171,6 +188,18 @@ fun ScanConnectScreen(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                OutlinedButton(
+                    onClick = { viewModel.refreshConnectedDevices() }, modifier = Modifier
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = "Refresh Connected Devices",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -184,10 +213,10 @@ fun ScanConnectScreen(
 
         }
 
-   /*     LazyColumn(
+        LazyColumn(
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
-        )
-        {
+        ) {
             // Connected Devices (at the top)
             if (connectedDevices.isNotEmpty()) {
                 item {
@@ -201,23 +230,42 @@ fun ScanConnectScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-
                 items(connectedDevices) { device ->
-                    ConnectedDeviceCard(device = device, onManagePrinter = {
-                        if (bluetoothManager.isPrinterDevice(device)) {
-                            navController.navigate(SubScreens.BluetoothManagePrinters.route)
-                        }
-                    }, onDisconnect = { viewModel.disconnectDevice(device.address) },
-                        bluetoothManager
-                        )
+                    ConnectedDeviceCard(
+                        device = device, 
+                        onManagePrinter = {
+                            if (isPrinterDevice(device)) {
+                                navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                            }
+                        }, 
+                        onDisconnect = { viewModel.disconnectDevice(device.address) }
+                    )
+                }
+            }
+
+            // Connecting Devices
+            if (connectingDevices.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Connecting Devices (${connectingDevices.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
-
+                items(connectingDevices) { device ->
+                    ConnectingDeviceCard(
+                        device = device,
+                        onDisconnect = { viewModel.disconnectDevice(device.address) }
+                    )
+                }
             }
 
             // Paired Devices (not connected)
             if (unconnectedPairedDevices.isNotEmpty()) {
-
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
@@ -228,7 +276,6 @@ fun ScanConnectScreen(
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
-
                 }
 
                 items(unconnectedPairedDevices) { device ->
@@ -236,24 +283,20 @@ fun ScanConnectScreen(
                         device = device,
                         onConnect = { viewModel.connectToDevice(device.address) },
                         onManagePrinter = {
-                            if (bluetoothManager.isPrinterDevice(device)) {
+                            if (isPrinterDevice(device)) {
                                 navController.navigate(SubScreens.BluetoothManagePrinters.route)
                             }
-                        },
-
-                        bluetoothManager)
+                        }
+                    )
                 }
-
-
             }
 
             // Discovered Devices
-            if (discoveredDevices.isNotEmpty()) {
-
+            if (allDiscoveredDevices.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Discovered Devices (${discoveredDevices.size})",
+                        text = "Discovered Devices (${allDiscoveredDevices.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -262,22 +305,21 @@ fun ScanConnectScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-
-                items(discoveredDevices) { device ->
+                items(allDiscoveredDevices) { device ->
                     DeviceCard(
-                        bluetoothManager=bluetoothManager,
                         device = device,
-                        onConnect = { viewModel.connectToDevice(device.address) },
-                        onDisconnect = { viewModel.disconnectDevice(device.address) },
-                        onPair = { viewModel.pairDevice(device.address) })
+                        onPairAndConnect = {
+                            viewModel.pairAndConnectDevice(device.address)
+                            scope.launch { listState.animateScrollToItem(0) }
+                        }
+                    )
                 }
-
-            } else if (connectedDevices.isEmpty()) {
-
+            } else if (connectedDevices.isEmpty() && connectingDevices.isEmpty() && unconnectedPairedDevices.isEmpty()) {
                 item {
                     // No devices message
                     Card(
-                        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                        modifier = Modifier.fillMaxWidth(), 
+                        colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
@@ -288,7 +330,7 @@ fun ScanConnectScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.BluetoothSearching,
+                                imageVector = Icons.AutoMirrored.Filled.BluetoothSearching,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -313,9 +355,8 @@ fun ScanConnectScreen(
                         }
                     }
                 }
-
             }
-        }*/
+        }
 
 
         // Loading indicator
@@ -338,12 +379,26 @@ fun ScanConnectScreen(
 }
 
 
+// Helper function to check if device is a printer
+
+fun isPrinterDevice(device: BluetoothDeviceDetails): Boolean {
+    // Simple check based on device name or type
+    return device.name?.contains("printer", ignoreCase = true) == true ||
+           device.name?.contains("print", ignoreCase = true) == true ||
+           device.bluetoothClass?.contains("printer", ignoreCase = true) == true
+}
+
 @Composable
 fun DeviceCard(
-    bluetoothManager: BluetoothManager, device: BluetoothDevice, onConnect: () -> Unit, onDisconnect: () -> Unit, onPair: () -> Unit
+    device: BluetoothDeviceDetails, 
+    onPairAndConnect: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onPairAndConnect()
+            }
     ) {
         Row(
             modifier = Modifier
@@ -358,18 +413,18 @@ fun DeviceCard(
                     .clip(RoundedCornerShape(8.dp))
                     .background(
                         when {
-                            bluetoothManager.isDeviceConnected(device.address) -> MaterialTheme.colorScheme.primary
+                            device.action.contains("CONNECTED") -> MaterialTheme.colorScheme.primary
                             device.bondState == BluetoothDevice.BOND_BONDED -> MaterialTheme.colorScheme.secondary
                             else -> MaterialTheme.colorScheme.surfaceVariant
                         }
                     ), contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = getDeviceIcon(device.type),
+                    imageVector = getDeviceIcon(device),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                     tint = when {
-                        bluetoothManager.isDeviceConnected(device.address)-> MaterialTheme.colorScheme.onPrimary
+                        device.action.contains("CONNECTED") -> MaterialTheme.colorScheme.onPrimary
                         device.bondState == BluetoothDevice.BOND_BONDED -> MaterialTheme.colorScheme.onSecondary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
@@ -404,7 +459,7 @@ fun DeviceCard(
                             .clip(RoundedCornerShape(4.dp))
                             .background(
                                 when {
-                                    bluetoothManager.isDeviceConnected(device.address) -> Color.Green
+                                    device.action.contains("CONNECTED") -> Color.Green
                                     device.bondState == BluetoothDevice.BOND_BONDED -> Color.Blue
                                     else -> Color.Gray
                                 }
@@ -415,7 +470,7 @@ fun DeviceCard(
 
                     Text(
                         text = when {
-                            bluetoothManager.isDeviceConnected(device.address) -> "Connected"
+                            device.action.contains("CONNECTED") -> "Connected"
                             device.bondState == BluetoothDevice.BOND_BONDED -> "Paired"
                             else -> "Available"
                         },
@@ -423,91 +478,95 @@ fun DeviceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Device type indicator
-                    if (bluetoothManager.isPrinterDevice(device)) {
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = "• Printer",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    // Device type tags
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TypeTags(device)
                 }
-
-//                // RSSI indicator
-//                device.rssi?.let { rssi ->
-//                    Text(
-//                        text = "Signal: ${rssi}dBm",
-//                        style = MaterialTheme.typography.bodySmall,
-//                        color = MaterialTheme.colorScheme.onSurfaceVariant
-//                    )
-//                }
             }
 
-            // Action buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (bluetoothManager.isDeviceConnected(device.address)) {
-                    IconButton(
-                        onClick = onDisconnect
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Disconnect",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                } else if (device.bondState == BluetoothDevice.BOND_BONDED) {
-                    IconButton(
-                        onClick = onConnect
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Connect",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                } else {
-                    IconButton(
-                        onClick = onPair
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Link,
-                            contentDescription = "Pair",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+            // Action button (explicit)
+            OutlinedButton(onClick = onPairAndConnect) {
+                Text("Pair & Connect")
             }
         }
     }
 }
 
 @Composable
-fun getDeviceIcon(type: Int): ImageVector {
+private fun TypeTags(device: BluetoothDeviceDetails) {
+    val tags = buildList {
+        if (isPrinterDevice(device)) add("Printer")
+        when (device.type) {
+            BluetoothDevice.DEVICE_TYPE_CLASSIC -> add("Classic")
+            BluetoothDevice.DEVICE_TYPE_LE -> add("LE")
+            BluetoothDevice.DEVICE_TYPE_DUAL -> add("Dual")
+            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> add("Unknown")
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        tags.forEach { tag ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = tag,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun getDeviceIcon(device: BluetoothDeviceDetails): ImageVector {
+    val name = device.name?.lowercase() ?: ""
+    val cls = device.bluetoothClass?.lowercase() ?: ""
     return when {
+        isPrinterDevice(device) -> Icons.Default.Print
+        name.contains("headset") || name.contains("headphone") || cls.contains("headset") || cls.contains("headphone") -> Icons.Default.Headset
+        name.contains("speaker") || cls.contains("speaker") -> Icons.Default.Speaker
+        name.contains("keyboard") || cls.contains("keyboard") -> Icons.Default.Keyboard
+        name.contains("mouse") || cls.contains("mouse") -> Icons.Default.Mouse
+        name.contains("watch") || cls.contains("watch") -> Icons.Default.Watch
+        name.contains("phone") || name.contains("iphone") || cls.contains("phone") -> Icons.Default.Smartphone
+        device.type == BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.Filled.BluetoothSearching
+        device.type == BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.Default.Bluetooth
+        device.type == BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.Default.Devices
+        device.type == BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.Default.DeviceHub
+        else -> Icons.Default.DeviceHub
+    }
+}
+
+@Composable
+fun getDeviceIcon(type: Int): ImageVector {
+    return when (type) {
+        BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.Filled.BluetoothSearching
+        BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.Default.Bluetooth
+        BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.Default.Devices
+        BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.Default.DeviceHub
         else -> Icons.Default.DeviceHub
     }
 }
 
 @Composable
 fun ConnectedDeviceCard(
-    device: BluetoothDevice,
+    device: BluetoothDeviceDetails,
     onManagePrinter: () -> Unit,
-    onDisconnect: () -> Unit,
-    bluetoothManager: BluetoothManager
+    onDisconnect: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                if (bluetoothManager.isPrinterDevice(device)) {
+                if (isPrinterDevice(device)) {
                     onManagePrinter()
                 }
             }, colors = CardDefaults.cardColors(
-            containerColor = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.primaryContainer
+            containerColor = if (isPrinterDevice(device)) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
@@ -517,11 +576,11 @@ fun ConnectedDeviceCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = getDeviceIcon(device.type),
+                Icon(
+                    imageVector = getDeviceIcon(device),
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
+                tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -534,20 +593,20 @@ fun ConnectedDeviceCard(
                     text = device.name ?: "Unknown Device",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = device.address,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer.copy(
                         alpha = 0.7f
                     )
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                if (bluetoothManager.isPrinterDevice(device)) {
+                if (isPrinterDevice(device)) {
                     Text(
                         text = "Tap to manage printer settings",
                         style = MaterialTheme.typography.bodySmall,
@@ -571,7 +630,7 @@ fun ConnectedDeviceCard(
                 Text(
                     text = "Connected",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer.copy(
                         alpha = 0.7f
                     )
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -583,7 +642,7 @@ fun ConnectedDeviceCard(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Disconnect",
-                        tint = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onPrimaryContainer
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -594,22 +653,25 @@ fun ConnectedDeviceCard(
 
 @Composable
 fun PairedDeviceCard(
-    device: BluetoothDevice,
+    device: BluetoothDeviceDetails,
     onConnect: () -> Unit,
-    onManagePrinter: () -> Unit,
-    bluetoothManager: BluetoothManager
+    onManagePrinter: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                if (bluetoothManager.isPrinterDevice(device)) {
+                android.util.Log.d("PairedDeviceCard", "Clicked on bonded device: ${device.name} (${device.address})")
+                android.util.Log.d("PairedDeviceCard", "isPrinterDevice: ${isPrinterDevice(device)}")
+                if (isPrinterDevice(device)) {
+                    android.util.Log.d("PairedDeviceCard", "Calling onManagePrinter")
                     onManagePrinter()
                 } else {
+                    android.util.Log.d("PairedDeviceCard", "Calling onConnect")
                     onConnect()
                 }
             }, colors = CardDefaults.cardColors(
-            containerColor = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.secondaryContainer
+            containerColor = if (isPrinterDevice(device)) MaterialTheme.colorScheme.secondaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
@@ -620,10 +682,10 @@ fun PairedDeviceCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = getDeviceIcon(device.type),
+                imageVector = getDeviceIcon(device),
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
+                tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -636,20 +698,20 @@ fun PairedDeviceCard(
                     text = device.name ?: "Unknown Device",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Text(
                     text = device.address,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer.copy(
                         alpha = 0.7f
                     )
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                if (bluetoothManager.isPrinterDevice(device)) {
+                if (isPrinterDevice(device)) {
                     Text(
                         text = "Tap to manage printer settings",
                         style = MaterialTheme.typography.bodySmall,
@@ -679,20 +741,20 @@ fun PairedDeviceCard(
                 Text(
                     text = "Paired",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer.copy(
+                    color = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer.copy(
                         alpha = 0.7f
                     )
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                if (!bluetoothManager.isPrinterDevice(device)) {
+                if (!isPrinterDevice(device)) {
                     IconButton(
                         onClick = onConnect
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Connect",
-                            tint = if (bluetoothManager.isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
+                            tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
