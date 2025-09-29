@@ -25,11 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun ConnectingDeviceCard(
-    device: BluetoothDeviceDetails,
-    onDisconnect: () -> Unit
+    device: BluetoothDeviceDetails
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -73,8 +75,18 @@ fun ConnectingDeviceCard(
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+
+                val method = device.extraInfo["method"]
+                val timeoutMs = device.extraInfo["timeoutMs"]
+                val reason = device.extraInfo["reason"]
+                val statusText = when {
+                    reason != null -> "Attempt failed (${reason})"
+                    method != null -> "Connecting via ${method}"
+                    else -> "Connecting..."
+                }
+
                 Text(
-                    text = "Connecting...",
+                    text = "${device.state} ${if (timeoutMs != null && method != null) "$statusText(timeout ${ timeoutMs.toInt() / 1000 }s)" else statusText}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -85,17 +97,6 @@ fun ConnectingDeviceCard(
                 )
             }
 
-            // Disconnect button
-            IconButton(
-                onClick = onDisconnect,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Cancel Connection",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
         }
     }
 }

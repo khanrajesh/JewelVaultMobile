@@ -177,6 +177,12 @@ class ScanConnectViewModel @Inject constructor(
                 val device = _Internal_bluetoothManager.getDiscoveredDevice(deviceAddress)
                 if (device != null) {
                     log("PAIR: Found device ${device.name} (${device.address})")
+                    // Immediately reflect connecting placeholder in UI
+                    _Internal_bluetoothManager.addConnectingPlaceholder(
+                        address = device.address,
+                        name = device.name,
+                        extraInfo = mapOf("stage" to "pairing")
+                    )
                     
                     // Check if already bonded
                     if (device.bondState == BluetoothDevice.BOND_BONDED) {

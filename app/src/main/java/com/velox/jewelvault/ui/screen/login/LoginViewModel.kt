@@ -208,6 +208,10 @@ class LoginViewModel @Inject constructor(
         onVerificationFailed: (FirebaseException) -> Unit = {},
         retryCount: Int = 0
     ) {
+        if (_loadingState.value) {
+            log("LOGIN: startPhoneVerification ignored - loading in progress")
+            return
+        }
         // Validate phone number
         if (!InputValidator.isValidPhoneNumber(phoneNumber)) {
             _snackBarState.value = "Invalid phone number format"
@@ -310,6 +314,12 @@ class LoginViewModel @Inject constructor(
         otp: String, onSuccess: (FirebaseUser) -> Unit = {}, onFailure: (String) -> Unit = {}
     ) {
         if (!otpVerificationId.value.isNullOrBlank()) {
+            log("LOGIN: verifyOtpAndSignIn called")
+            if (otp.isBlank() || otp.length < 4) {
+                log("LOGIN: OTP input invalid (length=${otp.length})")
+                onFailure("Enter valid OTP")
+                return
+            }
             val credential = PhoneAuthProvider.getCredential(otpVerificationId.value!!, otp)
             _loadingState.value = true
             _auth.signInWithCredential(credential).addOnCompleteListener { task ->
@@ -318,11 +328,13 @@ class LoginViewModel @Inject constructor(
                         isOtpVerified.value = true
                         firebaseUser.value = user
                         stopTimer() // Stop timer when OTP is verified
+                        log("LOGIN: OTP verification successful, user=${user.uid}")
                         onSuccess(user)
                     }
                     _loadingState.value = false
                 } else {
                     _loadingState.value = false
+                    log("LOGIN: OTP verification failed -> ${task.exception?.message}")
                     onFailure(task.exception?.message ?: "OTP verification failed")
                 }
             }
@@ -333,6 +345,11 @@ class LoginViewModel @Inject constructor(
     fun uploadAdminUser(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
+        log("LOGIN: uploadAdminUser called")
+        if (_loadingState.value) {
+            log("LOGIN: uploadAdminUser ignored - loading in progress")
+            return
+        }
         // Validate PIN
         if (!InputValidator.isValidPin(pin)) {
             _snackBarState.value = "PIN must be 4-6 digits"
@@ -363,17 +380,21 @@ class LoginViewModel @Inject constructor(
                         val userCount = _appDatabase.userDao().getUserCount()
 
                         if (existingUser != null) {
+                            log("LOGIN: updating existing local admin user for $phone")
                             // User exists with same phone, update the existing user
                             val updatedUser = existingUser.copy(
                                 pin = hashedPin
                             )
                             val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                             if (updateResult > 0) {
+                                log("LOGIN: local admin user updated for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local admin user update failed for $phone")
                                 onFailure()
                             }
                         } else if (userCount == 0) {
+                            log("LOGIN: inserting new local admin user for $phone")
                             // No user exists, create new user
                             val newUser = UsersEntity(
                                 userId = uid,
@@ -384,25 +405,30 @@ class LoginViewModel @Inject constructor(
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
+                                log("LOGIN: local admin user inserted for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local admin user insert failed for $phone")
                                 onFailure()
                             }
                         } else {
                             // User exists but with different phone number - this should not happen due to OTP check
                             _snackBarState.value =
                                 "This device is already registered with a different phone number. Cannot proceed."
+                            log("LOGIN: local admin user conflict for $phone")
                             onFailure()
                         }
                         _loadingState.value = false
                     } catch (e: Exception) {
                         _loadingState.value = false
+                        log("LOGIN: uploadAdminUser exception -> ${e.message}")
                         onFailure()
                     }
                 }
             }.addOnFailureListener { it ->
                 _loadingState.value = false
                 _snackBarState.value = "Fire store upload failed"
+                log("LOGIN: Firestore set failed for $phone -> ${it.message}")
                 onFailure()
             }
         }
@@ -417,11 +443,13 @@ class LoginViewModel @Inject constructor(
     ) {
         // Validate inputs
         if (!InputValidator.isValidPhoneNumber(phone)) {
+            log("LOGIN: invalid phone format -> $phone")
             onFailure("Invalid phone number format")
             return
         }
 
         if (!InputValidator.isValidPin(pin)) {
+            log("LOGIN: invalid pin format (length=${pin.length})")
             onFailure("PIN must be 4-6 digits")
             return
         }
@@ -430,20 +458,24 @@ class LoginViewModel @Inject constructor(
             val user = _appDatabase.userDao().getUserByMobile(phone)
 
             if (user == null) {
+                log("LOGIN: user not found for $phone")
                 onFailure("User not found")
                 return@ioScope
             }
 
             if (user.role == "admin") {
+                log("LOGIN: attempting admin login for $phone")
                 adminLoginWithPin(phone, pin, {
                     if (savePhone) {
                         ioLaunch {
                             savePhoneNumber(phone)
                         }
                     }
+                    log("LOGIN: admin login success for $phone")
                     onSuccess()
                 }, onFailure)
             } else {
+                log("LOGIN: attempting user login for $phone")
                 userLoginWithPin(
                     user,
                     pin,
@@ -453,6 +485,7 @@ class LoginViewModel @Inject constructor(
                                 savePhoneNumber(phone)
                             }
                         }
+                        log("LOGIN: user login success for $phone")
                         onSuccess()
                     },
                     onFailure
@@ -468,18 +501,23 @@ class LoginViewModel @Inject constructor(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
+        log("LOGIN: userLoginWithPin for userId=${user.userId}")
         if ( user.pin != null && SecurityUtils.verifyPin(pin,  user.pin)) {
             try {
                 ioScope {
+                    log("LOGIN: PIN verified for userId=${user.userId}, saving session")
                     _dataStoreManager.saveCurrentLoginUser(user)
                     _sessionManager.startSession(user.userId)
+                    log("LOGIN: session started for userId=${user.userId}")
                     onSuccess()
                 }
                 _loadingState.value = false
             } catch (e: Exception) {
+                log("LOGIN: userLoginWithPin exception -> ${e.message}")
                 onFailure(e.message ?: "Login failed")
             }
         }else{
+            log("LOGIN: invalid PIN for userId=${user.userId}")
             onFailure("Invalid Pin!")
         }
     }
@@ -490,6 +528,7 @@ class LoginViewModel @Inject constructor(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
+        log("LOGIN: adminLoginWithPin start for $phone")
         ioLaunch {
 
        /*     val adminUser = _appDatabase.userDao().getAdminUser()
@@ -502,12 +541,14 @@ class LoginViewModel @Inject constructor(
             _loadingState.value = true
             _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
                 if (document.exists()) {
+                    log("LOGIN: Firestore user document exists for $phone")
                     val storedPin = document.getString("pin")
                     if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
                         ioScope {
                             val result = _appDatabase.userDao().getUserByMobile(phone)
                             if (result != null) {
                                 try {
+                                    log("LOGIN: admin PIN verified, saving admin info and session for $phone")
 
                                     _dataStoreManager.saveAdminInfo(
                                         phone,
@@ -518,27 +559,33 @@ class LoginViewModel @Inject constructor(
 
                                     _sessionManager.startSession(result.userId)
 
+                                    log("LOGIN: admin login success for $phone")
                                     onSuccess()
                                     _loadingState.value = false
                                 } catch (e: Exception) {
                                     _loadingState.value = false
+                                    log("LOGIN: admin save/session error -> ${e.message}")
                                     onFailure("Unable to store the user data")
                                 }
                             } else {
                                 _loadingState.value = false
+                                log("LOGIN: admin user not found locally for $phone")
                                 onFailure("User not found, please sign up first")
                             }
                         }
                     } else {
                         _loadingState.value = false
+                        log("LOGIN: admin invalid PIN for $phone")
                         onFailure("Invalid PIN")
                     }
                 } else {
                     _loadingState.value = false
+                    log("LOGIN: Firestore user document not found for $phone")
                     onFailure("User not found")
                 }
             }.addOnFailureListener {
                 _loadingState.value = false
+                log("LOGIN: Firestore get failed for $phone -> ${it.message}")
                 onFailure(it.message ?: "Login failed")
             }
 
@@ -548,13 +595,16 @@ class LoginViewModel @Inject constructor(
     fun logout() {
         ioLaunch {
             try {
+                log("LOGIN: logout called")
                 _sessionManager.endSession()
                 _auth.signOut()
                 firebaseUser.value = null
                 isOtpGenerated.value = false
                 isOtpVerified.value = false
                 otpVerificationId.value = null
+                log("LOGIN: logout completed")
             } catch (e: Exception) {
+                log("LOGIN: logout failed -> ${e.message}")
                 _snackBarState.value = "Logout failed: ${e.message}"
             }
         }
@@ -574,6 +624,11 @@ class LoginViewModel @Inject constructor(
     fun resetPin(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
+        log("LOGIN: resetPin called")
+        if (_loadingState.value) {
+            log("LOGIN: resetPin ignored - loading in progress")
+            return
+        }
         // Validate PIN
         if (!InputValidator.isValidPin(pin)) {
             _snackBarState.value = "PIN must be 4-6 digits"
@@ -603,17 +658,21 @@ class LoginViewModel @Inject constructor(
                         val userCount = _appDatabase.userDao().getUserCount()
 
                         if (existingUser != null) {
+                            log("LOGIN: updating local PIN for $phone")
                             // User exists with same phone, update the PIN
                             val updatedUser = existingUser.copy(
                                 pin = hashedPin
                             )
                             val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                             if (updateResult > 0) {
+                                log("LOGIN: local PIN updated for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local PIN update failed for $phone")
                                 onFailure()
                             }
                         } else if (userCount == 0) {
+                            log("LOGIN: inserting local admin user during reset for $phone")
                             // No user exists, create new user
                             val newUser = UsersEntity(
                                 userId = uid,
@@ -624,25 +683,30 @@ class LoginViewModel @Inject constructor(
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
+                                log("LOGIN: local admin user inserted during reset for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local insert failed during reset for $phone")
                                 onFailure()
                             }
                         } else {
                             // User exists but with different phone number - this should not happen due to OTP check
                             _snackBarState.value =
                                 "Another user is already registered. Only one user can be registered per device."
+                            log("LOGIN: resetPin conflict for $phone")
                             onFailure()
                         }
                         _loadingState.value = false
                     } catch (e: Exception) {
                         _loadingState.value = false
+                        log("LOGIN: resetPin exception -> ${e.message}")
                         onFailure()
                     }
                 }
             }.addOnFailureListener { it ->
                 _loadingState.value = false
                 _snackBarState.value = "Failed to reset PIN"
+                log("LOGIN: Firestore set failed during reset for $phone -> ${it.message}")
                 onFailure()
             }
         }

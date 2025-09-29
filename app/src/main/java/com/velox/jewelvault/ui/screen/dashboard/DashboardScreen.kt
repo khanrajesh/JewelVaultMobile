@@ -91,7 +91,8 @@ fun DashboardScreenPreview() {
 @Composable
 fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
     dashboardViewModel.currentScreenHeadingState.value = "Dashboard"
-    if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
+    LandscapeMainScreen(dashboardViewModel)
+//    if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
 }
 
 @OptIn(ExperimentalMaterialApi::class)

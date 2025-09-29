@@ -1,16 +1,14 @@
 package com.velox.jewelvault.data.bluetooth
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import androidx.annotation.RequiresPermission
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -23,77 +21,204 @@ import java.util.UUID
  */
 class InternalBluetoothConnect(
     private val context: Context,
-    private val bluetoothAdapter: BluetoothAdapter?,
-    private val bluetoothManager: BluetoothManager,
     private val scope: CoroutineScope,
-    private val hasConnectPermission: () -> Boolean,
-    private val stopScanning: () -> Unit,
-    private val startScanning: () -> Unit,
-    private val createDeviceEvent: (
-            device: BluetoothDevice?,
-            address: String?,
-            action: String,
-            name: String?,
-            extraInfo: Map<String, String>?,
-            uuids: String?
-        ) -> BluetoothDeviceDetails,
-    private val updateBondedDevices: () -> Unit,
-    private val updateConnectedDevices: () -> Unit,
-    private val addOrUpdateConnecting: (BluetoothDeviceDetails) -> Unit,
+    private val updateConnecting: (BluetoothDeviceDetails) -> Unit,
     private val removeConnecting: (String) -> Unit,
-    private val addOrUpdateConnected: (BluetoothDeviceDetails) -> Unit,
+    private val updateConnected: (BluetoothDeviceDetails) -> Unit,
     private val removeConnected: (String) -> Unit,
-    private val emitEvent: (BluetoothDeviceDetails) -> Unit,
     private val gattMap: MutableMap<String, BluetoothGatt>,
     private val isDeviceConnected: (String) -> Boolean,
     private val isDeviceConnecting: (String) -> Boolean,
-    private val log: (String) -> Unit,
+    private val ibm: InternalBluetoothManager,
 ) {
 
     private val rfcommSockets = mutableMapOf<String, BluetoothSocket>()
     private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private fun cLog(message: String) { log("CONNECT: $message") }
+    private fun cLog(message: String) {
+        log("CONNECT: $message")
+    }
+
+    // When true, lower-level connect functions must avoid auto restarting scans.
+    // The orchestrator in connect() will decide when to restart scanning.
+    private var suppressAutoRestartScan: Boolean = false
+    private val attemptSignal: MutableMap<String, String?> = mutableMapOf()
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun connect(address: String) {
-        if (!hasConnectPermission()) {
+
+        if (!ibm.hasConnectPermission()) {
             cLog("missing BLUETOOTH_CONNECT permission for $address")
             return
         }
 
-        stopScanning()
+        ibm.stopUnifiedScanning()
 
-        val device = try { bluetoothAdapter?.getRemoteDevice(address) } catch (t: Throwable) {
+        val device = try {
+            ibm.bluetoothAdapter?.getRemoteDevice(address)
+        } catch (t: Throwable) {
             cLog("resolve device failed for $address: ${t.message}")
             null
         } ?: return
 
         // Emit a generic CONNECTING state so UI can reflect immediately
-        val connecting = createDeviceEvent(device, address, "CONNECTING", device.name, null, null)
-        addOrUpdateConnecting(connecting)
-        emitEvent(connecting)
+        val connecting =
+            ibm.buildBluetoothDevice(device, address, "CONNECTING", device.name, null, null)
+        updateConnecting(connecting)
 
-        // Decide transport and delegate
-        val chosen = decideTransport(device)
-        when (chosen) {
-            Transport.RFCOMM -> connectViaRfcommInternal(device)
-            Transport.GATT -> connectGattInternal(device)
-            Transport.A2DP -> connectA2dpInternal(device)
-            Transport.HEADSET -> connectHeadsetInternal(device)
-            Transport.HID -> connectHidHostInternal(device)
-            Transport.ADV_ONLY -> prepareBleAdvertisementOnlyInternal(device)
-            Transport.LE_AUDIO -> connectLeAudioInternal(device)
-            Transport.MESH -> connectBleMeshInternal(device)
-        }
+        // Attempt all supported connection methods sequentially with per-step logging
+        tryAllTransportsSequentially(device)
+    }
 
-        // Safety timeout to clear connecting if no success
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun tryAllTransportsSequentially(device: BluetoothDevice) {
+        val address = device.address
         scope.launch {
-            delay(20_000)
-            if (!isDeviceConnected(address)) {
-                removeConnecting(address)
-                val failEvt = createDeviceEvent(device, address, "CONNECT_TIMEOUT", device.name, null, null)
-                emitEvent(failEvt)
-                updateConnectedDevices()
+            suppressAutoRestartScan = true
+            try {
+                val attempts: List<Pair<String, suspend () -> Unit>> = listOf(
+                    "RFCOMM" to { connectViaRfcommInternal(device) },
+                    "GATT" to { connectGattInternal(device) },
+                    "A2DP" to { connectA2dpInternal(device) },
+                    "HEADSET" to { connectHeadsetInternal(device) },
+                    "HID" to { connectHidHostInternal(device) },
+                    "LE_AUDIO" to { connectLeAudioInternal(device) },
+                    "MESH" to { connectBleMeshInternal(device) },
+                    "ADV_ONLY" to { prepareBleAdvertisementOnlyInternal(device) })
+
+                val total = attempts.size
+                for ((idx, pair) in attempts.withIndex()) {
+                    val name = pair.first
+                    val action = pair.second
+                    // Stop immediately if device is already connected
+                    if (isDeviceConnected(address)) {
+                        cLog("Device $address already connected; stopping further attempts")
+                        removeConnecting(address)
+                        ibm.updateConnectedDevices()
+                        return@launch
+                    }
+                    cLog("ATTEMPT_START $name for $address")
+                    val startEvt = ibm.buildBluetoothDevice(
+                        device, address, "CONNECT_ATTEMPT_START_${name}", device.name, mapOf(
+                            "method" to name,
+                            "methodLabel" to when (name) {
+                                "RFCOMM" -> "Classic (RFCOMM)"
+                                "GATT" -> "BLE (GATT)"
+                                "A2DP" -> "Audio (A2DP)"
+                                "HEADSET" -> "Headset"
+                                "HID" -> "HID Host"
+                                "LE_AUDIO" -> "LE Audio"
+                                "MESH" -> "BLE Mesh"
+                                "ADV_ONLY" -> "BLE Advertisement"
+                                else -> name
+                            },
+                            "timeoutMs" to "30000",
+                            "attempt" to (idx + 1).toString(),
+                            "total" to total.toString()
+                        ), null
+                    )
+                    updateConnecting(startEvt)
+
+                    try {
+                        action()
+                    } catch (t: Throwable) {
+                        // Action invocation error shouldn't stop further attempts
+                        cLog("ATTEMPT_ERROR $name for $address -> ${t.message}")
+                        val excEvt = ibm.buildBluetoothDevice(
+                            device, address, "CONNECT_ATTEMPT_FAILED_${name}", device.name, mapOf(
+                                "reason" to "exception",
+                                "error" to (t.message ?: "unknown"),
+                                "method" to name,
+                                "methodLabel" to when (name) {
+                                    "RFCOMM" -> "Classic (RFCOMM)"
+                                    "GATT" -> "BLE (GATT)"
+                                    "A2DP" -> "Audio (A2DP)"
+                                    "HEADSET" -> "Headset"
+                                    "HID" -> "HID Host"
+                                    "LE_AUDIO" -> "LE Audio"
+                                    "MESH" -> "BLE Mesh"
+                                    "ADV_ONLY" -> "BLE Advertisement"
+                                    else -> name
+                                },
+                                "attempt" to (idx + 1).toString(),
+                                "total" to total.toString()
+                            ), null
+                        )
+                        updateConnecting(excEvt)
+                    }
+
+                    val timeoutMs = 30_000
+
+                    var waited = 0
+                    val step = 300
+                    while (waited < timeoutMs) {
+                        if (isDeviceConnected(address)) break
+                        if ((attemptSignal[address] ?: "").startsWith("error_")) break
+                        delay(step.toLong())
+                        waited += step
+                    }
+
+                    if (isDeviceConnected(address)) {
+                        cLog("ATTEMPT_SUCCESS $name for $address")
+                        ibm.buildBluetoothDevice(
+                            device, address, "CONNECT_ATTEMPT_SUCCESS_${name}", device.name, mapOf(
+                                "method" to name, "methodLabel" to when (name) {
+                                    "RFCOMM" -> "Classic (RFCOMM)"
+                                    "GATT" -> "BLE (GATT)"
+                                    "A2DP" -> "Audio (A2DP)"
+                                    "HEADSET" -> "Headset"
+                                    "HID" -> "HID Host"
+                                    "LE_AUDIO" -> "LE Audio"
+                                    "MESH" -> "BLE Mesh"
+                                    "ADV_ONLY" -> "BLE Advertisement"
+                                    else -> name
+                                }, "attempt" to (idx + 1).toString(), "total" to total.toString()
+                            ), null
+                        )
+                        removeConnecting(address)
+                        ibm.updateConnectedDevices()
+                        return@launch
+                    } else {
+                        cLog("ATTEMPT_FAILED $name for $address (timeout)")
+                        val signal = attemptSignal[address]
+                        val failEvt = ibm.buildBluetoothDevice(
+                            device, address, "CONNECT_ATTEMPT_FAILED_${name}", device.name, mapOf(
+                                "reason" to "timeout",
+                                "method" to name,
+                                "methodLabel" to when (name) {
+                                    "RFCOMM" -> "Classic (RFCOMM)"
+                                    "GATT" -> "BLE (GATT)"
+                                    "A2DP" -> "Audio (A2DP)"
+                                    "HEADSET" -> "Headset"
+                                    "HID" -> "HID Host"
+                                    "LE_AUDIO" -> "LE Audio"
+                                    "MESH" -> "BLE Mesh"
+                                    "ADV_ONLY" -> "BLE Advertisement"
+                                    else -> name
+                                },
+                                "timeoutMs" to "30000",
+                                "attempt" to (idx + 1).toString(),
+                                "total" to total.toString()
+                            ).let { base ->
+                                signal?.let { s -> base + ("signal" to s) } ?: base
+                            }, null
+                        )
+                        updateConnecting(failEvt)
+                    }
+                }
+            } finally {
+                suppressAutoRestartScan = false
+                if (!isDeviceConnected(address)) {
+                    removeConnecting(address)
+                    ibm.buildBluetoothDevice(
+                        device, address, "CONNECT_FAILED_ALL", device.name, null, null
+                    )
+//                    emitEvent(failEvt)
+                    ibm.updateConnectedDevices()
+                    try {
+                        ibm.startUnifiedScanning()
+                    } catch (_: Throwable) {
+                    }
+                }
             }
         }
     }
@@ -101,26 +226,37 @@ class InternalBluetoothConnect(
     // Public unified disconnect that routes based on active transport
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun disconnect(address: String) {
-        // Prefer RFCOMM if socket is open
-        if (rfcommSockets.containsKey(address)) {
-            disconnectRfcommInternal(address)
-            return
+        cLog("disconnect requested for $address")
+        // Always try to disconnect all known transports in a safe order
+        try {
+            if (rfcommSockets.containsKey(address)) disconnectRfcommInternal(address)
+        } catch (_: Throwable) {
         }
-        // Try GATT map
-        if (gattMap.containsKey(address)) {
-            disconnectGattInternal(address)
-            return
+        try {
+            if (gattMap.containsKey(address)) disconnectGattInternal(address)
+        } catch (_: Throwable) {
         }
-        // Otherwise attempt profile-based disconnects (best-effort)
-        disconnectA2dpInternal(address)
-        disconnectHeadsetInternal(address)
-        disconnectHidHostInternal(address)
+        try {
+            disconnectA2dpInternal(address)
+        } catch (_: Throwable) {
+        }
+        try {
+            disconnectHeadsetInternal(address)
+        } catch (_: Throwable) {
+        }
+        try {
+            disconnectHidHostInternal(address)
+        } catch (_: Throwable) {
+        }
+        // Ensure connecting/connected lists are cleared
+        removeConnecting(address)
+        removeConnected(address)
     }
 
     // ----------------- Classic RFCOMM (SPP) -----------------
-            @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectViaRfcommInternal(device: BluetoothDevice, uuid: UUID = SPP_UUID) {
-        if (!hasConnectPermission()) {
+        if (!ibm.hasConnectPermission()) {
             log("RFCOMM: missing BLUETOOTH_CONNECT permission for ${device.address}")
             return
         }
@@ -135,26 +271,40 @@ class InternalBluetoothConnect(
         scope.launch(Dispatchers.IO) {
             try {
                 // Cancel discovery which slows down a connection
-                try { bluetoothAdapter?.cancelDiscovery() } catch (_: Throwable) {}
+                try {
+                    ibm.bluetoothAdapter?.cancelDiscovery()
+                } catch (_: Throwable) {
+                }
 
                 val socket = device.createRfcommSocketToServiceRecord(uuid)
                 log("RFCOMM: connecting socket to $address uuid=$uuid")
                 socket.connect()
                 rfcommSockets[address] = socket
 
-                val evt = createDeviceEvent(device, address, "CLASSIC_RFCOMM_CONNECTED", device.name, null, null)
-                addOrUpdateConnected(evt)
+                val evt = ibm.buildBluetoothDevice(
+                    device, address, "CLASSIC_RFCOMM_CONNECTED", device.name, null, null
+                )
+                updateConnected(evt)
                 removeConnecting(address)
-                emitEvent(evt)
-                updateConnectedDevices()
+                ibm.updateConnectedDevices()
                 log("RFCOMM: connected to $address")
             } catch (t: Throwable) {
                 log("RFCOMM: connect failed for $address -> ${t.message}")
-                try { rfcommSockets.remove(address)?.close() } catch (_: Throwable) {}
-                val failEvt = createDeviceEvent(device, address, "CLASSIC_RFCOMM_CONNECT_FAILED", device.name, mapOf("error" to (t.message ?: "unknown")), null)
-                emitEvent(failEvt)
-            startScanning()
-        }
+                try {
+                    rfcommSockets.remove(address)?.close()
+                } catch (_: Throwable) {
+                }
+                ibm.buildBluetoothDevice(
+                    device,
+                    address,
+                    "CLASSIC_RFCOMM_CONNECT_FAILED",
+                    device.name,
+                    mapOf("error" to (t.message ?: "unknown")),
+                    null
+                )
+//                emitEvent(failEvt)
+                if (!suppressAutoRestartScan) ibm.startUnifiedScanning()
+            }
         }
     }
 
@@ -163,13 +313,15 @@ class InternalBluetoothConnect(
         scope.launch(Dispatchers.IO) {
             try {
                 rfcommSockets.remove(address)?.close()
-                val evt = createDeviceEvent(null, address, "CLASSIC_RFCOMM_DISCONNECTED", null, null, null)
+                ibm.buildBluetoothDevice(
+                    null, address, "CLASSIC_RFCOMM_DISCONNECTED", null, null, null
+                )
                 removeConnected(address)
-                emitEvent(evt)
-                updateConnectedDevices()
-                } catch (t: Throwable) {
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
+            } catch (t: Throwable) {
                 log("RFCOMM: disconnect error for $address -> ${t.message}")
-                }
+            }
         }
     }
 
@@ -182,28 +334,57 @@ class InternalBluetoothConnect(
     // ----------------- Classic A2DP (Audio) and Headset -----------------
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectA2dpInternal(device: BluetoothDevice) {
-        withProfile( BluetoothProfile.A2DP ) { proxy, dev ->
+        withProfile(BluetoothProfile.A2DP) { proxy, dev ->
             val ok = tryInvokeConnect(proxy, dev)
             cLog("A2DP connect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, dev.address, "AUDIO_CONNECTED", dev.name, null, null)
-                addOrUpdateConnected(evt)
-                emitEvent(evt)
-                updateConnectedDevices()
+                val evt = ibm.buildBluetoothDevice(
+                    dev,
+                    dev.address,
+                    "AUDIO_CONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
+                updateConnected(evt)
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
+            } else {
+                ibm.buildBluetoothDevice(
+                    dev,
+                    dev.address,
+                    "A2DP_CONNECT_FAILED",
+                    dev.name,
+                    null,
+                    null
+                )
+//                emitEvent(failEvt)
             }
         }(device.address)
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectHeadsetInternal(device: BluetoothDevice) {
-        withProfile( BluetoothProfile.HEADSET ) { proxy, dev ->
+        withProfile(BluetoothProfile.HEADSET) { proxy, dev ->
             val ok = tryInvokeConnect(proxy, dev)
             cLog("HEADSET connect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, dev.address, "HEADSET_CONNECTED", dev.name, null, null)
-                addOrUpdateConnected(evt)
-                emitEvent(evt)
-                updateConnectedDevices()
+                val evt = ibm.buildBluetoothDevice(
+                    dev,
+                    dev.address,
+                    "HEADSET_CONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
+                updateConnected(evt)
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
+            } else {
+                ibm.buildBluetoothDevice(
+                    dev, dev.address, "HEADSET_CONNECT_FAILED", dev.name, null, null
+                )
+//                emitEvent(failEvt)
             }
         }(device.address)
     }
@@ -211,28 +392,42 @@ class InternalBluetoothConnect(
     // Disconnections for classic audio profiles
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun disconnectA2dpInternal(address: String) {
-        withProfile( BluetoothProfile.A2DP ) { proxy, dev ->
+        withProfile(BluetoothProfile.A2DP) { proxy, dev ->
             val ok = tryInvokeDisconnect(proxy, dev)
             cLog("A2DP disconnect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, address, "AUDIO_DISCONNECTED", dev.name, null, null)
+                ibm.buildBluetoothDevice(
+                    dev,
+                    address,
+                    "AUDIO_DISCONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
                 removeConnected(address)
-                emitEvent(evt)
-                updateConnectedDevices()
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
             }
         }(address)
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun disconnectHeadsetInternal(address: String) {
-        withProfile( BluetoothProfile.HEADSET ) { proxy, dev ->
+        withProfile(BluetoothProfile.HEADSET) { proxy, dev ->
             val ok = tryInvokeDisconnect(proxy, dev)
             cLog("HEADSET disconnect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, address, "HEADSET_DISCONNECTED", dev.name, null, null)
+                ibm.buildBluetoothDevice(
+                    dev,
+                    address,
+                    "HEADSET_DISCONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
                 removeConnected(address)
-                emitEvent(evt)
-                updateConnectedDevices()
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
             }
         }(address)
     }
@@ -242,73 +437,138 @@ class InternalBluetoothConnect(
     // restricted on some devices and may require system apps/privileges.
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectHidHostInternal(device: BluetoothDevice) {
-        withProfile( /* HID_HOST */ 4 ) { proxy, dev ->
+        withProfile( /* HID_HOST */ 4) { proxy, dev ->
             val ok = tryInvokeConnect(proxy, dev)
             cLog("HID_HOST connect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, dev.address, "HID_HOST_CONNECTED", dev.name, null, null)
-                addOrUpdateConnected(evt)
-                emitEvent(evt)
-                updateConnectedDevices()
+                val evt = ibm.buildBluetoothDevice(
+                    dev,
+                    dev.address,
+                    "HID_HOST_CONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
+                updateConnected(evt)
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
+            } else {
+                ibm.buildBluetoothDevice(
+                    dev, dev.address, "HID_HOST_CONNECT_FAILED", dev.name, null, null
+                )
+//                emitEvent(failEvt)
             }
         }(device.address)
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun disconnectHidHostInternal(address: String) {
-        withProfile( /* HID_HOST */ 4 ) { proxy, dev ->
+        withProfile( /* HID_HOST */ 4) { proxy, dev ->
             val ok = tryInvokeDisconnect(proxy, dev)
             cLog("HID_HOST disconnect(${dev.address}) result=$ok")
             if (ok) {
-                val evt = createDeviceEvent(dev, address, "HID_HOST_DISCONNECTED", dev.name, null, null)
+                ibm.buildBluetoothDevice(
+                    dev,
+                    address,
+                    "HID_HOST_DISCONNECTED",
+                    dev.name,
+                    null,
+                    null
+                )
                 removeConnected(address)
-                emitEvent(evt)
-                updateConnectedDevices()
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
             }
         }(address)
     }
 
     // ----------------- BLE Audio (LE Iso) placeholder -----------------
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectLeAudioInternal(device: BluetoothDevice) {
         cLog("LE_AUDIO not supported via public SDK. address=${device.address}")
+        ibm.buildBluetoothDevice(
+            device,
+            device.address,
+            "LE_AUDIO_NOT_SUPPORTED",
+            device.name,
+            mapOf("reason" to "public_sdk_unavailable"),
+            null
+        )
+//        emitEvent(evt)
     }
 
     // ----------------- BLE Mesh placeholder -----------------
     private fun connectBleMeshInternal(device: BluetoothDevice) {
         cLog("BLE_MESH requires vendor SDK; not implemented. address=${device.address}")
+        ibm.buildBluetoothDevice(
+            device,
+            device.address,
+            "BLE_MESH_NOT_IMPLEMENTED",
+            device.name,
+            mapOf("reason" to "vendor_sdk_required"),
+            null
+        )
+//        emitEvent(evt)
     }
 
     // ----------------- BLE Advertisement-only (no link to connect) -----------------
     private fun prepareBleAdvertisementOnlyInternal(device: BluetoothDevice) {
         cLog("BLE_ADV_ONLY no connection possible; ensure scanner is running. address=${device.address}")
+        ibm.buildBluetoothDevice(
+            device,
+            device.address,
+            "BLE_ADV_ONLY_NO_CONNECTION",
+            device.name,
+            mapOf("hint" to "scanner_running"),
+            null
+        )
+//        emitEvent(evt)
+        if (!suppressAutoRestartScan) {
+            try {
+                ibm.startUnifiedScanning()
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     // ----------------- Helpers -----------------
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun withProfile(profileId: Int, block: (proxy: Any, device: BluetoothDevice) -> Unit): (String) -> Unit = { address ->
-        if (!hasConnectPermission()) {
+    private fun withProfile(
+        profileId: Int, block: (proxy: Any, device: BluetoothDevice) -> Unit
+    ): (String) -> Unit = { address ->
+        if (!ibm.hasConnectPermission()) {
             cLog("PROFILE:$profileId missing BLUETOOTH_CONNECT permission for $address")
         } else {
-            val device = try { bluetoothAdapter?.getRemoteDevice(address) } catch (_: Throwable) { null }
+            val device = try {
+                ibm.bluetoothAdapter?.getRemoteDevice(address)
+            } catch (_: Throwable) {
+                null
+            }
             if (device == null) {
                 cLog("PROFILE:$profileId could not resolve device for $address")
             } else {
                 try {
-                    bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
-                        override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
-                            try {
-                                block(proxy, device)
-                            } catch (t: Throwable) {
-                                cLog("PROFILE:$p block error -> ${t.message}")
-                            } finally {
-                                try { bluetoothAdapter?.closeProfileProxy(p, proxy) } catch (_: Throwable) {}
+                    ibm.bluetoothAdapter?.getProfileProxy(
+                        context, object : BluetoothProfile.ServiceListener {
+                            override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
+                                try {
+                                    block(proxy, device)
+                                } catch (t: Throwable) {
+                                    cLog("PROFILE:$p block error -> ${t.message}")
+                                } finally {
+                                    try {
+                                        ibm.bluetoothAdapter?.closeProfileProxy(p, proxy)
+                                    } catch (_: Throwable) {
+                                    }
+                                }
                             }
-                        }
-                        override fun onServiceDisconnected(p: Int) {
-                            // no-op
-                        }
-                    }, profileId)
-                    } catch (t: Throwable) {
+
+                            override fun onServiceDisconnected(p: Int) {
+                                // no-op
+                            }
+                        }, profileId
+                    )
+                } catch (t: Throwable) {
                     cLog("PROFILE:$profileId getProfileProxy error -> ${t.message}")
                 }
             }
@@ -358,29 +618,34 @@ class InternalBluetoothConnect(
         if (gatt != null) {
             try {
                 gatt.disconnect()
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+            }
             try {
                 gatt.close()
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+            }
             gattMap.remove(address)
-            val evt = createDeviceEvent(null, address, "GATT_DISCONNECTED", null, null, null)
+            ibm.buildBluetoothDevice(null, address, "GATT_DISCONNECTED", null, null, null)
             removeConnected(address)
             removeConnecting(address)
-            emitEvent(evt)
-            updateConnectedDevices()
+//            emitEvent(evt)
+            ibm.updateConnectedDevices()
         }
     }
 
     // ----------------- Routing helpers -----------------
     private enum class Transport { RFCOMM, GATT, A2DP, HEADSET, HID, ADV_ONLY, LE_AUDIO, MESH }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun decideTransport(device: BluetoothDevice): Transport {
         // Heuristics targeting label printers: prefer RFCOMM SPP when classic device class is IMAGING/PRINTER
         val name = safe { device.name }?.lowercase() ?: ""
         val uuids = safe { device.uuids?.mapNotNull { it?.uuid } } ?: emptyList()
-        val isClassic = safe { device.type } == BluetoothDevice.DEVICE_TYPE_CLASSIC || safe { device.type } == BluetoothDevice.DEVICE_TYPE_DUAL
+        val isClassic =
+            safe { device.type } == BluetoothDevice.DEVICE_TYPE_CLASSIC || safe { device.type } == BluetoothDevice.DEVICE_TYPE_DUAL
 
-        val looksLikePrinter = listOf("printer", "label", "zebra", "sewnik", "seznik", "shakti").any { it in name }
+        val looksLikePrinter =
+            listOf("printer", "label", "zebra", "sewnik", "seznik", "shakti").any { it in name }
         val hasSpp = uuids.any { it == SPP_UUID }
 
         if (isClassic && (hasSpp || looksLikePrinter)) return Transport.RFCOMM
@@ -389,7 +654,69 @@ class InternalBluetoothConnect(
         return if (safe { device.type } == BluetoothDevice.DEVICE_TYPE_LE) Transport.GATT else Transport.ADV_ONLY
     }
 
-    private inline fun <T> safe(block: () -> T): T? = try { block() } catch (_: Throwable) { null }
+    private inline fun <T> safe(block: () -> T): T? = try {
+        block()
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun gattStatusName(code: Int): String = when (code) {
+        BluetoothGatt.GATT_SUCCESS -> "GATT_SUCCESS"
+        0x01 -> "GATT_INVALID_HANDLE"
+        0x02 -> "GATT_READ_NOT_PERMITTED"
+        0x03 -> "GATT_WRITE_NOT_PERMITTED"
+        0x04 -> "GATT_INVALID_PDU"
+        0x05 -> "GATT_INSUFFICIENT_AUTHENTICATION"
+        0x06 -> "GATT_REQUEST_NOT_SUPPORTED"
+        0x07 -> "GATT_INVALID_OFFSET"
+        0x08 -> "GATT_INSUFFICIENT_AUTHORIZATION"
+        0x09 -> "GATT_PREPARE_QUEUE_FULL"
+        0x0A -> "GATT_ATTRIBUTE_NOT_FOUND"
+        0x0B -> "GATT_ATTRIBUTE_NOT_LONG"
+        0x0C -> "GATT_INSUFFICIENT_ENCRYPTION_KEY_SIZE"
+        0x0D -> "GATT_INVALID_ATTRIBUTE_VALUE_LENGTH"
+        0x0E -> "GATT_UNLIKELY_ERROR"
+        0x0F -> "GATT_INSUFFICIENT_ENCRYPTION"
+        0x10 -> "GATT_UNSUPPORTED_GROUP_TYPE"
+        0x11 -> "GATT_INSUFFICIENT_RESOURCES"
+        0x80 -> "GATT_NO_RESOURCES"
+        0x81 -> "GATT_INTERNAL_ERROR"
+        0x85 -> "GATT_WRONG_STATE"
+        0x87 -> "GATT_DB_FULL"
+        0x88 -> "GATT_BUSY"
+        0x89 -> "GATT_ERROR"
+        0x8A -> "GATT_CMD_STARTED"
+        0x8B -> "GATT_ILLEGAL_PARAMETER"
+        0x8F -> "GATT_NO_ADV_IN_PROGRESS"
+        0x90 -> "GATT_STACK_TIMEOUT"
+        0x91 -> "GATT_ALREADY_OPEN"
+        0x92 -> "GATT_CANCEL"
+        0x101 -> "GATT_CONN_L2C_FAILURE"
+        0x103 -> "GATT_CONN_TIMEOUT"
+        0x104 -> "GATT_CONN_TERMINATE_PEER_USER"
+        0x105 -> "GATT_CONN_TERMINATE_LOCAL_HOST"
+        0x106 -> "GATT_CONN_FAIL_ESTABLISH"
+        0x107 -> "GATT_CONN_LMP_TIMEOUT"
+        0x109 -> "GATT_CONN_CANCEL"
+        else -> "UNKNOWN_$code"
+    }
+
+    private fun gattStatusCategory(code: Int): String = when (code) {
+        BluetoothGatt.GATT_SUCCESS -> "SUCCESS"
+        0x88 /* GATT_BUSY */, 0x90 /* GATT_STACK_TIMEOUT */, 0x103 /* GATT_CONN_TIMEOUT */, 0x8A /* GATT_CMD_STARTED */ -> "TRANSIENT"
+        0x05 /* INSUFFICIENT_AUTHENTICATION */, 0x0C /* INSUFFICIENT_ENCRYPTION_KEY_SIZE */, 0x0F /* INSUFFICIENT_ENCRYPTION */, 0x08 /* INSUFFICIENT_AUTHORIZATION */ -> "AUTH"
+        0x02 /* READ_NOT_PERMITTED */, 0x03 /* WRITE_NOT_PERMITTED */, 0x06 /* REQ_NOT_SUPPORTED */ -> "NOT_SUPPORTED"
+        0x81 /* INTERNAL_ERROR */, 0x101 /* L2C_FAILURE */, 0x104 /* TERM_PEER_USER */, 0x105 /* TERM_LOCAL_HOST */, 0x106 /* FAIL_ESTABLISH */ -> "LINK_ERROR"
+        else -> "OTHER"
+    }
+
+    private fun gattStateName(state: Int): String = when (state) {
+        BluetoothProfile.STATE_DISCONNECTED -> "DISCONNECTED"
+        BluetoothProfile.STATE_CONNECTING -> "CONNECTING"
+        BluetoothProfile.STATE_CONNECTED -> "CONNECTED"
+        BluetoothProfile.STATE_DISCONNECTING -> "DISCONNECTING"
+        else -> "STATE_$state"
+    }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectGattInternal(device: BluetoothDevice) {
@@ -398,31 +725,107 @@ class InternalBluetoothConnect(
             cLog("GATT already connecting/connected $address")
             return
         }
+
+        // Emit GATT connecting state
+        val connectingEvt = ibm.buildBluetoothDevice(
+            device, address, "GATT_CONNECTING", device.name, null, null
+        )
+        updateConnecting(connectingEvt)
+//        emitEvent(connectingEvt)
+
         val gatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                 super.onConnectionStateChange(gatt, status, newState)
                 val addr = gatt.device.address
+
+                val statusName = gattStatusName(status)
+                val statusCategory = gattStatusCategory(status)
+                val stateName = gattStateName(newState)
+                cLog("GATT onConnectionStateChange addr=$addr state=$stateName($newState) status=$statusName($status) cat=$statusCategory")
+                // Explicit mapping log like: GATT_SUCCESS -> CONNECTED/CONNECTING/... per current transition
+                cLog("GATT MAP $statusName -> $stateName [$statusCategory]")
+                ibm.buildBluetoothDevice(
+                    gatt.device, addr, "GATT_STATE_CHANGE", gatt.device.name, mapOf(
+                        "state" to newState.toString(),
+                        "stateName" to stateName,
+                        "status" to status.toString(),
+                        "statusName" to statusName,
+                        "category" to statusCategory
+                    ), null
+                )
+//                emitEvent(stateEvt)
+                // Emit a compact status->state route event for UI/analytics
+//                emitEvent(
+//                    ibm.buildBluetoothDevice(
+//                        gatt.device,
+//                        addr,
+//                        "GATT_STATUS_ROUTE",
+//                        gatt.device.name,
+//                        mapOf("from" to statusName, "to" to stateName, "category" to statusCategory),
+//                        null
+//                    )
+//                )
+
                 when (newState) {
-                    BluetoothProfile.STATE_CONNECTED -> {
-                        cLog("GATT connected -> $addr (status=$status)")
-                        gattMap[addr] = gatt
-                        val evt = createDeviceEvent(gatt.device, addr, "GATT_CONNECTED", gatt.device.name, null, null)
-                        addOrUpdateConnected(evt)
-                        removeConnecting(addr)
-                        emitEvent(evt)
-                        updateConnectedDevices()
-                        try { gatt.discoverServices() } catch (_: Throwable) {}
+                    BluetoothProfile.STATE_CONNECTING -> {
+                        cLog("GATT CONNECTING -> $addr ($statusName)")
+                        val evt = ibm.buildBluetoothDevice(
+                            gatt.device, addr, "GATT_CONNECTING", gatt.device.name, mapOf(
+                                "status" to status.toString(), "statusName" to statusName
+                            ), null
+                        )
+                        updateConnecting(evt)
+//                        emitEvent(evt)
                     }
+
+                    BluetoothProfile.STATE_CONNECTED -> {
+                        cLog("GATT CONNECTED -> $addr ($statusName)")
+                        gattMap[addr] = gatt
+                        val evt = ibm.buildBluetoothDevice(
+                            gatt.device, addr, "GATT_CONNECTED", gatt.device.name, mapOf(
+                                "status" to status.toString(), "statusName" to statusName
+                            ), null
+                        )
+                        updateConnected(evt)
+                        removeConnecting(addr)
+//                        emitEvent(evt)
+                        ibm.updateConnectedDevices()
+                        try {
+                            gatt.discoverServices()
+                        } catch (_: Throwable) {
+                        }
+                    }
+
+                    BluetoothProfile.STATE_DISCONNECTING -> {
+                        cLog("GATT DISCONNECTING -> $addr ($statusName)")
+                        ibm.buildBluetoothDevice(
+                            gatt.device, addr, "GATT_DISCONNECTING", gatt.device.name, mapOf(
+                                "status" to status.toString(), "statusName" to statusName
+                            ), null
+                        )
+//                        emitEvent(evt)
+                    }
+
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        cLog("GATT disconnected -> $addr (status=$status)")
-                        try { gatt.close() } catch (_: Throwable) {}
+                        cLog("GATT DISCONNECTED -> $addr ($statusName)")
+                        try {
+                            gatt.close()
+                        } catch (_: Throwable) {
+                        }
                         gattMap.remove(addr)
                         removeConnecting(addr)
                         removeConnected(addr)
-                        val evt = createDeviceEvent(gatt.device, addr, "GATT_DISCONNECTED", gatt.device.name, null, null)
-                        emitEvent(evt)
-        updateConnectedDevices()
+                        attemptSignal[addr] = "error_$statusName"
+                        ibm.buildBluetoothDevice(
+                            gatt.device, addr, "GATT_DISCONNECTED", gatt.device.name, mapOf(
+                                "status" to status.toString(), "statusName" to statusName
+                            ), null
+                        )
+//                        emitEvent(evt)
+                        ibm.updateConnectedDevices()
                     }
+
+
                 }
             }
 
@@ -430,32 +833,138 @@ class InternalBluetoothConnect(
                 super.onServicesDiscovered(gatt, status)
                 val addr = gatt.device.address
                 cLog("GATT services discovered for $addr (status=$status, services=${gatt.services?.size ?: 0})")
-                val evt = createDeviceEvent(gatt.device, addr, "GATT_SERVICES_DISCOVERED", gatt.device.name, mapOf("status" to status.toString()), null)
-                emitEvent(evt)
-                updateConnectedDevices()
+                ibm.buildBluetoothDevice(
+                    gatt.device, addr, "GATT_SERVICES_DISCOVERED", gatt.device.name, mapOf(
+                        "status" to status.toString(),
+                        "statusName" to gattStatusName(status),
+                        "serviceCount" to (gatt.services?.size ?: 0).toString()
+                    ), null
+                )
+//                emitEvent(evt)
+                ibm.updateConnectedDevices()
             }
-        })
+
+            override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+                super.onPhyUpdate(gatt, txPhy, rxPhy, status)
+                cLog(
+                    "GATT PHY_UPDATE addr=${gatt.device.address} tx=$txPhy rx=$rxPhy status=${
+                        gattStatusName(
+                            status
+                        )
+                    }($status)"
+                )
+//                emitEvent(
+//                    ibm.buildBluetoothDevice(
+//                        gatt.device,
+//                        gatt.device.address,
+//                        "GATT_PHY_UPDATE",
+//                        gatt.device.name,
+//                        mapOf("txPhy" to txPhy.toString(), "rxPhy" to rxPhy.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
+//                        null
+//                    )
+//                )
+            }
+
+            override fun onPhyRead(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+                super.onPhyRead(gatt, txPhy, rxPhy, status)
+                cLog(
+                    "GATT PHY_READ addr=${gatt.device.address} tx=$txPhy rx=$rxPhy status=${
+                        gattStatusName(
+                            status
+                        )
+                    }($status)"
+                )
+//                emitEvent(
+//                    ibm.buildBluetoothDevice(
+//                        gatt.device,
+//                        gatt.device.address,
+//                        "GATT_PHY_READ",
+//                        gatt.device.name,
+//                        mapOf("txPhy" to txPhy.toString(), "rxPhy" to rxPhy.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
+//                        null
+//                    )
+//                )
+            }
+
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                super.onMtuChanged(gatt, mtu, status)
+                cLog(
+                    "GATT MTU_CHANGED addr=${gatt.device.address} mtu=$mtu status=${
+                        gattStatusName(
+                            status
+                        )
+                    }($status)"
+                )
+//                emitEvent(
+//                    ibm.buildBluetoothDevice(
+//                        gatt.device,
+//                        gatt.device.address,
+//                        "GATT_MTU_CHANGED",
+//                        gatt.device.name,
+//                        mapOf("mtu" to mtu.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
+//                        null
+//                    )
+//                )
+            }
+
+            override fun onReliableWriteCompleted(gatt: BluetoothGatt, status: Int) {
+                super.onReliableWriteCompleted(gatt, status)
+                cLog(
+                    "GATT RELIABLE_WRITE_COMPLETED addr=${gatt.device.address} status=${
+                        gattStatusName(
+                            status
+                        )
+                    }($status)"
+                )
+//                emitEvent(
+//                    ibm.buildBluetoothDevice(
+//                        gatt.device,
+//                        gatt.device.address,
+//                        "GATT_RELIABLE_WRITE_COMPLETED",
+//                        gatt.device.name,
+//                        mapOf("status" to status.toString(), "statusName" to gattStatusName(status)),
+//                        null
+//                    )
+//                )
+            }
+        }, BluetoothDevice.TRANSPORT_AUTO)
         if (gatt == null) {
             cLog("GATT connectGatt returned null for $address")
+            ibm.buildBluetoothDevice(
+                device,
+                address,
+                "GATT_CONNECT_FAILED",
+                device.name,
+                mapOf("error" to "connectGatt_returned_null"),
+                null
+            )
+            removeConnecting(address)
             return
         }
         gattMap[address] = gatt
-        val connecting = createDeviceEvent(device, address, "GATT_CONNECTING", device.name, null, null)
-        addOrUpdateConnecting(connecting)
-        emitEvent(connecting)
-        updateBondedDevices()
+        // Note: connecting event already emitted above
+        ibm.updateBondedDevices()
         scope.launch {
-            delay(20_000)
+            delay(30_000)
             if (isDeviceConnected(address)) return@launch
             if (!isDeviceConnecting(address)) return@launch
             try {
                 gatt.disconnect()
                 gatt.close()
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+            }
             gattMap.remove(address)
             removeConnecting(address)
             removeConnected(address)
-        startScanning()
-    }
+            ibm.buildBluetoothDevice(
+                device,
+                address,
+                "GATT_CONNECT_TIMEOUT",
+                device.name,
+                null,
+                null
+            )
+            if (!suppressAutoRestartScan) ibm.startUnifiedScanning()
+        }
     }
 }

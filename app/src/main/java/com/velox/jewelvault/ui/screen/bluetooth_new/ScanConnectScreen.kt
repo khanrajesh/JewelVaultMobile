@@ -258,8 +258,7 @@ fun ScanConnectScreen(
 
                 items(connectingDevices) { device ->
                     ConnectingDeviceCard(
-                        device = device,
-                        onDisconnect = { viewModel.disconnectDevice(device.address) }
+                        device = device
                     )
                 }
             }
@@ -281,12 +280,7 @@ fun ScanConnectScreen(
                 items(unconnectedPairedDevices) { device ->
                     PairedDeviceCard(
                         device = device,
-                        onConnect = { viewModel.connectToDevice(device.address) },
-                        onManagePrinter = {
-                            if (isPrinterDevice(device)) {
-                                navController.navigate(SubScreens.BluetoothManagePrinters.route)
-                            }
-                        }
+                        onConnect = { viewModel.connectToDevice(device.address) }
                     )
                 }
             }
@@ -305,7 +299,42 @@ fun ScanConnectScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                items(allDiscoveredDevices) { device ->
+                // Highlight likely printer devices first
+                val possiblePrinters = allDiscoveredDevices.filter { isPrinterDevice(it) }
+                if (possiblePrinters.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = "Possible Printers (${possiblePrinters.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    items(possiblePrinters) { device ->
+                        PossiblePrinterCard(
+                            device = device,
+                            onPairAndConnect = {
+                                viewModel.pairAndConnectDevice(device.address)
+                                scope.launch { listState.animateScrollToItem(0) }
+                            }
+                        )
+                    }
+
+                    // Divider space before non-printers
+                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                }
+
+                val nonPrinters = allDiscoveredDevices.filterNot { isPrinterDevice(it) }
+                items(nonPrinters) { device ->
                     DeviceCard(
                         device = device,
                         onPairAndConnect = {
@@ -493,13 +522,63 @@ fun DeviceCard(
 }
 
 @Composable
+fun PossiblePrinterCard(
+    device: BluetoothDeviceDetails,
+    onPairAndConnect: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onPairAndConnect() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.secondary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Print,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = device.name ?: "Possible Printer",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = device.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TypeTags(device: BluetoothDeviceDetails) {
     val tags = buildList {
         if (isPrinterDevice(device)) add("Printer")
         when (device.type) {
             BluetoothDevice.DEVICE_TYPE_CLASSIC -> add("Classic")
             BluetoothDevice.DEVICE_TYPE_LE -> add("LE")
-            BluetoothDevice.DEVICE_TYPE_DUAL -> add("Dual")
+            BluetoothDevice.DEVICE_TYPE_DUAL -> add("LE + Classic")
             BluetoothDevice.DEVICE_TYPE_UNKNOWN -> add("Unknown")
         }
     }
@@ -654,22 +733,13 @@ fun ConnectedDeviceCard(
 @Composable
 fun PairedDeviceCard(
     device: BluetoothDeviceDetails,
-    onConnect: () -> Unit,
-    onManagePrinter: () -> Unit
+    onConnect: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                android.util.Log.d("PairedDeviceCard", "Clicked on bonded device: ${device.name} (${device.address})")
-                android.util.Log.d("PairedDeviceCard", "isPrinterDevice: ${isPrinterDevice(device)}")
-                if (isPrinterDevice(device)) {
-                    android.util.Log.d("PairedDeviceCard", "Calling onManagePrinter")
-                    onManagePrinter()
-                } else {
-                    android.util.Log.d("PairedDeviceCard", "Calling onConnect")
-                    onConnect()
-                }
+                onConnect()
             }, colors = CardDefaults.cardColors(
             containerColor = if (isPrinterDevice(device)) MaterialTheme.colorScheme.secondaryContainer
             else MaterialTheme.colorScheme.surfaceVariant
@@ -711,19 +781,11 @@ fun PairedDeviceCard(
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                if (isPrinterDevice(device)) {
-                    Text(
-                        text = "Tap to manage printer settings",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                    )
-                } else {
-                    Text(
-                        text = "Tap to connect",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
+                Text(
+                    text = "Tap to connect",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
 
             // Paired status indicator
@@ -747,17 +809,15 @@ fun PairedDeviceCard(
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
 
-                if (!isPrinterDevice(device)) {
-                    IconButton(
-                        onClick = onConnect
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Connect",
-                            tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                IconButton(
+                    onClick = onConnect
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Connect",
+                        tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

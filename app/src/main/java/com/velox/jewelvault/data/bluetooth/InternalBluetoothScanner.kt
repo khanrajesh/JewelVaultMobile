@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import androidx.annotation.RequiresPermission
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,6 @@ class InternalBluetoothScanner(
     private val scope: CoroutineScope,
     private val hasScanPermission: () -> Boolean,
     private val hasFineLocationPermission: () -> Boolean,
-    private val emitEvent: (BluetoothDeviceDetails) -> Unit,
     private val buildEvent: (
         device: BluetoothDevice?,
         address: String?,
@@ -41,7 +41,7 @@ class InternalBluetoothScanner(
     private val updateConnectedDevices: () -> Unit,
     private val classicDiscoveringState: MutableStateFlow<Boolean>,
     private val leDiscoveringState: MutableStateFlow<Boolean>,
-    private val log: (String) -> Unit
+    bluetoothManager: InternalBluetoothManager,
 ) {
     private var activeScanCallback: ScanCallback? = null
 
@@ -236,7 +236,6 @@ class InternalBluetoothScanner(
             )
 
             addLeDevice(details)
-            emitEvent(details)
         } catch (t: Throwable) {
             log("SCAN: Error processing BLE result ${t.message}")
         }
