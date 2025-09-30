@@ -1011,13 +1011,23 @@ class InternalBluetoothManager @Inject constructor(
 
             // Drop stale preserved classic connections
             pruneStaleClassic(connectedList)
-            // Remove duplicates and update the list
+            // Remove duplicates
             val uniqueDevices = connectedList.distinctBy { it.address }
-            _connectedDevices.value = uniqueDevices
-            log("CONNECT: Updated connected devices list: ${uniqueDevices.size} unique devices")
-            uniqueDevices.forEach { device ->
-                log("CONNECT: Connected device: ${device.address} (${device.name})")
-            }
+
+            // Incremental merge update to avoid full list clears
+            val current = _connectedDevices.value
+            val currentAddrs = current.map { it.address }.toSet()
+            val newAddrs = uniqueDevices.map { it.address }.toSet()
+
+            // Add or update entries
+            uniqueDevices.forEach { addOrUpdateDevice(_connectedDevices, it) }
+
+            // Remove entries that are no longer present
+            val toRemove = currentAddrs.minus(newAddrs)
+            toRemove.forEach { removeDevice(_connectedDevices, it) }
+
+            val finalSize = _connectedDevices.value.size
+            log("CONNECT: Incrementally updated connected devices: $finalSize devices (added/updated=${uniqueDevices.size}, removed=${toRemove.size})")
         } catch (e: SecurityException) {
             log("CONNECT: ERROR - Security exception updating connected devices: ${e.message}")
         } catch (e: Exception) {

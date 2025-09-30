@@ -12,26 +12,27 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
-import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.BiometricAuthManager
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.SessionManager
-import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.BiometricAuthManager
+import com.velox.jewelvault.utils.ioLaunch
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
-import com.velox.jewelvault.utils.RemoteConfigManager
-import com.velox.jewelvault.utils.AppUpdateManager
-import com.velox.jewelvault.data.UpdateInfo
+import com.velox.jewelvault.utils.mainScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -60,7 +61,7 @@ class LoginViewModel @Inject constructor(
     // Biometric authentication state
     val isBiometricAvailable = mutableStateOf(false)
     val biometricAuthEnabled = mutableStateOf(false)
-    
+
     // Update management state
     val updateInfo = mutableStateOf<UpdateInfo?>(null)
     val showForceUpdateDialog = mutableStateOf(false)
@@ -183,21 +184,16 @@ class LoginViewModel @Inject constructor(
     ) {
 
         log("Input validation passed, proceeding with biometric authentication")
-        authenticateWithBiometric(
-            context = context,
-            onSuccess = {
-                log("Biometric authentication successful, proceeding with Firebase PIN verification")
-                onSuccess()
-            },
-            onError = { error ->
-                log("Biometric authentication failed: $error")
-                onFailure(error)
-            },
-            onCancel = {
-                log("Biometric authentication cancelled")
-                onCancel()
-            }
-        )
+        authenticateWithBiometric(context = context, onSuccess = {
+            log("Biometric authentication successful, proceeding with Firebase PIN verification")
+            onSuccess()
+        }, onError = { error ->
+            log("Biometric authentication failed: $error")
+            onFailure(error)
+        }, onCancel = {
+            log("Biometric authentication cancelled")
+            onCancel()
+        })
     }
 
     fun startPhoneVerification(
@@ -206,7 +202,9 @@ class LoginViewModel @Inject constructor(
         onCodeSent: (String, PhoneAuthProvider.ForceResendingToken) -> Unit = { _, _ -> },
         onVerificationCompleted: (PhoneAuthCredential) -> Unit = {},
         onVerificationFailed: (FirebaseException) -> Unit = {},
-        retryCount: Int = 0
+        retryCount: Int = 0,
+        onOtpReceived: (String?) -> Unit
+
     ) {
         if (_loadingState.value) {
             log("LOGIN: startPhoneVerification ignored - loading in progress")
@@ -217,7 +215,7 @@ class LoginViewModel @Inject constructor(
             _snackBarState.value = "Invalid phone number format"
             return
         }
-        
+
         // Check if activity is still valid
         if (activity.isFinishing || activity.isDestroyed) {
             _snackBarState.value = "Activity is no longer valid"
@@ -241,10 +239,11 @@ class LoginViewModel @Inject constructor(
             _loadingState.value = true
             log("Starting phone verification for: +91$phoneNumber")
             log("Activity context: ${activity.javaClass.simpleName}")
-            
+
             val options = PhoneAuthOptions.newBuilder(_auth).setPhoneNumber("+91$phoneNumber")
                 .setTimeout(60L, TimeUnit.SECONDS).setActivity(activity)
                 .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
                     override fun onCodeSent(
                         verificationId: String, token: PhoneAuthProvider.ForceResendingToken
                     ) {
@@ -257,6 +256,12 @@ class LoginViewModel @Inject constructor(
                     }
 
                     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                        credential.smsCode?.let {
+                            verifyOtpAndSignIn(it)
+                        }
+                        mainScope {
+                            onOtpReceived(credential.smsCode)
+                        }
                         isOtpVerified.value = true
                         stopTimer() // Stop timer when OTP is verified
                         onVerificationCompleted(credential)
@@ -272,32 +277,40 @@ class LoginViewModel @Inject constructor(
                                     "reCAPTCHA verification failed. Please check your internet connection and try again."
                                 }
                             }
+
                             e.message?.contains("network", ignoreCase = true) == true -> {
                                 "Network error. Please check your internet connection and try again."
                             }
+
                             e.message?.contains("quota", ignoreCase = true) == true -> {
                                 "Too many attempts. Please wait a while before trying again."
                             }
+
                             else -> {
                                 "OTP verification failed: ${e.message}"
                             }
                         }
                         _snackBarState.value = errorMessage
                         log("Phone verification failed: ${e.message}")
-                        
+
                         // Auto-retry for reCAPTCHA failures
-                        if (e.message?.contains("reCAPTCHA", ignoreCase = true) == true && retryCount < 2) {
+                        if (e.message?.contains(
+                                "reCAPTCHA",
+                                ignoreCase = true
+                            ) == true && retryCount < 2
+                        ) {
                             log("Retrying phone verification due to reCAPTCHA failure. Attempt: ${retryCount + 1}")
                             // Wait 2 seconds before retry
                             ioLaunch {
-                                kotlinx.coroutines.delay(2000)
+                                delay(2000)
                                 startPhoneVerification(
                                     activity = activity,
                                     phoneNumber = phoneNumber,
                                     onCodeSent = onCodeSent,
                                     onVerificationCompleted = onVerificationCompleted,
                                     onVerificationFailed = onVerificationFailed,
-                                    retryCount = retryCount + 1
+                                    retryCount = retryCount + 1,
+                                    onOtpReceived = onOtpReceived
                                 )
                             }
                         } else {
@@ -431,6 +444,11 @@ class LoginViewModel @Inject constructor(
                 log("LOGIN: Firestore set failed for $phone -> ${it.message}")
                 onFailure()
             }
+        }else{
+            _loadingState.value = false
+            _snackBarState.value = "Fire store upload failed"
+            log("LOGIN: Firestore set failed for $phone ,uid: $uid invalid")
+            onFailure()
         }
     }
 
@@ -477,9 +495,7 @@ class LoginViewModel @Inject constructor(
             } else {
                 log("LOGIN: attempting user login for $phone")
                 userLoginWithPin(
-                    user,
-                    pin,
-                    {
+                    user, pin, {
                         if (savePhone) {
                             ioLaunch {
                                 savePhoneNumber(phone)
@@ -487,8 +503,7 @@ class LoginViewModel @Inject constructor(
                         }
                         log("LOGIN: user login success for $phone")
                         onSuccess()
-                    },
-                    onFailure
+                    }, onFailure
                 )
             }
         }
@@ -496,13 +511,10 @@ class LoginViewModel @Inject constructor(
 
     @SuppressLint("SuspiciousIndentation")
     private fun userLoginWithPin(
-        user: UsersEntity,
-        pin: String,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
+        user: UsersEntity, pin: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         log("LOGIN: userLoginWithPin for userId=${user.userId}")
-        if ( user.pin != null && SecurityUtils.verifyPin(pin,  user.pin)) {
+        if (user.pin != null && SecurityUtils.verifyPin(pin, user.pin)) {
             try {
                 ioScope {
                     log("LOGIN: PIN verified for userId=${user.userId}, saving session")
@@ -516,27 +528,24 @@ class LoginViewModel @Inject constructor(
                 log("LOGIN: userLoginWithPin exception -> ${e.message}")
                 onFailure(e.message ?: "Login failed")
             }
-        }else{
+        } else {
             log("LOGIN: invalid PIN for userId=${user.userId}")
             onFailure("Invalid Pin!")
         }
     }
 
     private fun adminLoginWithPin(
-        phone: String,
-        pin: String,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
+        phone: String, pin: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         log("LOGIN: adminLoginWithPin start for $phone")
         ioLaunch {
 
-       /*     val adminUser = _appDatabase.userDao().getAdminUser()
+            /*     val adminUser = _appDatabase.userDao().getAdminUser()
 
-            if (adminUser != null && adminUser.mobileNo != phone) {
-                onFailure("This device is already registered with a different phone number. Cannot proceed.")
-                return@ioLaunch
-            }*/
+                 if (adminUser != null && adminUser.mobileNo != phone) {
+                     onFailure("This device is already registered with a different phone number. Cannot proceed.")
+                     return@ioLaunch
+                 }*/
 
             _loadingState.value = true
             _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
@@ -551,9 +560,7 @@ class LoginViewModel @Inject constructor(
                                     log("LOGIN: admin PIN verified, saving admin info and session for $phone")
 
                                     _dataStoreManager.saveAdminInfo(
-                                        phone,
-                                        result.userId,
-                                        phone
+                                        phone, result.userId, phone
                                     )
                                     _dataStoreManager.saveCurrentLoginUser(result)
 
@@ -725,7 +732,7 @@ class LoginViewModel @Inject constructor(
         stopTimer() // Stop any existing timer
         timerValue.value = 60
         isTimerRunning.value = true
-        
+
         timerJob = CoroutineScope(Dispatchers.IO).launch {
             while (timerValue.value > 0) {
                 delay(1000) // Wait for 1 second
@@ -734,7 +741,7 @@ class LoginViewModel @Inject constructor(
             isTimerRunning.value = false
         }
     }
-    
+
     fun stopTimer() {
         timerJob?.cancel()
         timerJob = null
@@ -742,7 +749,7 @@ class LoginViewModel @Inject constructor(
         timerValue.value = 0
     }
 
-    
+
     fun resetTimer() {
         stopTimer()
         startTimer()
@@ -762,7 +769,7 @@ class LoginViewModel @Inject constructor(
             false
         }
     }
-    
+
     // Update management functions
     suspend fun checkForForceUpdates(context: android.content.Context) {
         log("🚨 Starting force update check in LoginViewModel...")
@@ -775,7 +782,7 @@ class LoginViewModel @Inject constructor(
                 val info = _remoteConfigManager.getUpdateInfo()
                 log("📋 Got update info for force update check: $info")
                 updateInfo.value = info
-                
+
                 // Check if force update is required
                 val isForceRequired = _remoteConfigManager.isForceUpdateRequired()
                 log("🔍 Force update required check: $isForceRequired")
@@ -793,7 +800,7 @@ class LoginViewModel @Inject constructor(
             log("❌ Exception details: ${e.javaClass.simpleName}")
         }
     }
-    
+
     fun onUpdateClick(context: android.content.Context) {
         log("🔄 Update button clicked in LoginViewModel")
         val info = updateInfo.value

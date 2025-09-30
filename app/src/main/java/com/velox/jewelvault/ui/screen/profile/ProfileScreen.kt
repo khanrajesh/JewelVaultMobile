@@ -41,7 +41,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -65,10 +63,8 @@ import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.mainScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
@@ -133,7 +129,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         },
                         value = profileViewModel.shopName.text,
                         onValueChange = {
-                            profileViewModel.shopName.onTextChanged(it)
+                            profileViewModel.shopName.textChange(it)
                         },
                         textStyle = TextStyle(
                             fontSize = 36.sp,
