@@ -178,6 +178,18 @@ class InventoryViewModel @Inject constructor(
 
     init {
         loadInitialData()
+        ioLaunch {
+            try {
+                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
+                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
+                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                mainScope {
+                    if (cgst.text.isBlank()) cgst.text = defCgst
+                    if (sgst.text.isBlank()) sgst.text = defSgst
+                    if (igst.text.isBlank()) igst.text = defIgst
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     private fun loadInitialData() {
@@ -722,9 +734,18 @@ class InventoryViewModel @Inject constructor(
         charge.clear()
         otherChargeDes.clear()
         othCharge.clear()
-        cgst.text = "1.5"
-        sgst.text = "1.5"
-        igst.clear()
+        ioLaunch {
+            try {
+                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
+                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
+                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                mainScope {
+                    cgst.text = defCgst
+                    sgst.text = defSgst
+                    igst.text = defIgst
+                }
+            } catch (_: Exception) { }
+        }
         desKey.clear()
         desValue.clear()
         huid.clear()

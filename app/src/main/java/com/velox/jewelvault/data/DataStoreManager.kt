@@ -40,6 +40,7 @@ class DataStoreManager @Inject constructor(
         val AUTO_LOGOUT_INACTIVITY = booleanPreferencesKey("auto_logout_inactivity")
         val BIOMETRIC_AUTH = booleanPreferencesKey("biometric_auth")
         val SAVED_PHONE_NUMBER = stringPreferencesKey("saved_phone_number")
+        val BIOMETRIC_OPTIN_SHOWN = booleanPreferencesKey("biometric_optin_shown")
 
         // Display & UI Settings
         val THEME_MODE = stringPreferencesKey("theme_mode")

@@ -78,8 +78,8 @@ class PurchaseViewModel @Inject constructor(
 
 
     val addBillDate = InputFieldState()
-    val addCGst = InputFieldState("1.5")
-    val addIGst = InputFieldState("1.5")
+    val addCGst = InputFieldState()
+    val addIGst = InputFieldState()
     val addSGst = InputFieldState()
 
 
@@ -105,6 +105,21 @@ class PurchaseViewModel @Inject constructor(
 
     val exchangeMetalRateDto = mutableStateListOf<PurchaseMetalRateDto>()
 
+
+    init {
+        ioLaunch {
+            try {
+                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
+                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
+                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                mainScope {
+                    if (addCGst.text.isBlank()) addCGst.text = defCgst
+                    if (addSGst.text.isBlank()) addSGst.text = defSgst
+                    if (addIGst.text.isBlank()) addIGst.text = defIgst
+                }
+            } catch (_: Exception) { }
+        }
+    }
 
     fun getCategoryAndSubCategoryDetails() {
         ioLaunch {

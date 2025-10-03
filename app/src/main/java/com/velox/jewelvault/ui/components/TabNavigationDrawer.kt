@@ -200,6 +200,7 @@ fun TabNavigationDrawer(
 
     LaunchedEffect(Unit) {
         baseViewModel.loadStoreName()
+        baseViewModel.loadStoreImage()
     }
 
 

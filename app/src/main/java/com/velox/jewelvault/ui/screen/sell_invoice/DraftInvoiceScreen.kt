@@ -308,18 +308,12 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 items = itemsData,
                 modifier = Modifier.fillMaxSize(),
                 onItemClick = { clickedItemData ->
-                    // Find the corresponding item from selectedItemList
-                    val itemIndex =
-                        clickedItemData[0].removeSuffix(".").toIntOrNull()?.minus(1) ?: 0
-                    if (itemIndex >= 0 && itemIndex < viewModel.selectedItemList.size) {
-                        val itemToEdit = viewModel.selectedItemList[itemIndex]
-                        viewModel.selectedItem.value = itemToEdit
-                        viewModel.showAddItemDialog.value = true
+                    val itemIndex = clickedItemData[0].removeSuffix(".").toIntOrNull()?.minus(1)
+                    if (itemIndex != null) {
+                        viewModel.draftBeginEdit(itemIndex)
                     }
                 },
-                onItemLongClick = {
-                    // Handle long click if needed
-                }
+                onItemLongClick = { }
             )
         }
     }
@@ -543,7 +537,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
 fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
     AlertDialog(
         onDismissRequest = { viewModel.draftShowAddItemDialog.value = false },
-        title = { Text("Add Item") },
+        title = { Text(if (viewModel.draftEditingItemIndex.value != null) "Edit Item" else "Add Item") },
         text = {
             LazyColumn(
                 modifier = Modifier
@@ -762,12 +756,22 @@ fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
             }
         },
         confirmButton = {
-            TextButton(onClick = { viewModel.draftAddItem() }) {
-                Text("Add Item")
+            Row {
+                if (viewModel.draftEditingItemIndex.value != null) {
+                    TextButton(onClick = { viewModel.draftRemoveEditingItem() }) {
+                        Text("Delete")
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(onClick = { viewModel.draftAddItem() }) {
+                    Text(if (viewModel.draftEditingItemIndex.value != null) "Update" else "Add Item")
+                }
             }
         },
         dismissButton = {
-            TextButton(onClick = { viewModel.draftShowAddItemDialog.value = false }) {
+            TextButton(onClick = {
+                viewModel.draftShowAddItemDialog.value = false
+            }) {
                 Text("Cancel")
             }
         }

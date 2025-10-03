@@ -75,6 +75,12 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     val context = LocalContext.current
     val subNavController = LocalSubNavController.current
     val store: Triple<Flow<String>, Flow<String>, Flow<String>> = profileViewModel.dataStoreManager.getSelectedStoreInfo()
+    LaunchedEffect(Unit) {
+        // Ensure store data and image are loaded on entry
+        val storeId = store.first.first()
+        profileViewModel.getStoreData(storeId, isFirstLaunch = firstLaunch)
+        baseViewModel.loadStoreImage()
+    }
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route) {
@@ -406,7 +412,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (profileViewModel.selectedImageUri.value.isNullOrBlank()) {
+                if (profileViewModel.selectedImageUri.value.isNullOrBlank() && baseViewModel.getLogoUri() == null && (baseViewModel.storeImage.value.isNullOrBlank())) {
                     // Show placeholder when no image
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -426,22 +432,25 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         )
                     }
                 } else {
-                    val imageData = if (baseViewModel.hasLocalLogo()) {
-                        baseViewModel.getLogoUri()
-                    } else {
-                        profileViewModel.selectedImageUri.value
+                    val imageData = when {
+                        baseViewModel.hasLocalLogo() -> baseViewModel.getLogoUri()
+                        !profileViewModel.selectedImageUri.value.isNullOrBlank() -> profileViewModel.selectedImageUri.value
+                        !baseViewModel.storeImage.value.isNullOrBlank() -> baseViewModel.storeImage.value
+                        else -> null
                     }
                     
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(context)
-                                .data(imageData)
-                                .build()
-                        ),
-                        contentDescription = "Store Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+                    if (imageData != null) {
+                        Image(
+                            painter = rememberAsyncImagePainter(
+                                ImageRequest.Builder(context)
+                                    .data(imageData)
+                                    .build()
+                            ),
+                            contentDescription = "Store Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                     
                     // Show edit overlay when in edit mode
                     if (isEditable.value) {

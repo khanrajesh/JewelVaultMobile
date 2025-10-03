@@ -24,6 +24,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -37,9 +38,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
@@ -86,6 +90,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
         } else {
             // Check biometric availability
             loginViewModel.checkBiometricAvailability(context)
+            loginViewModel.showBiometricOptInIfEligible(context)
 
             // Load saved phone number if available
             val savedPhone = loginViewModel.getSavedPhoneNumber()
@@ -124,6 +129,37 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
                     updateInfo = updateInfo,
                     onUpdateClick = { loginViewModel.onUpdateClick(context) })
             }
+        }
+
+        // Biometric opt-in dialog
+        if (loginViewModel.showBiometricOptInDialog.value) {
+            AlertDialog(
+                onDismissRequest = { loginViewModel.handleBiometricOptInDecision(false) },
+                confirmButton = {
+                    TextButton(onClick = { loginViewModel.handleBiometricOptInDecision(true) }) {
+                        Text("Enable")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { loginViewModel.handleBiometricOptInDecision(false) }) {
+                        Text("Not now")
+                    }
+                },
+                title = { Text("Enable biometric login?") },
+                text = {
+                    Text(
+                        buildAnnotatedString {
+                            append("Use your fingerprint/face to quickly authenticate on top of your ")
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) { append("PIN") }
+                            append(". Both ")
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) { append("BIOMETRIC") }
+                            append(" and ")
+                            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) { append("PIN") }
+                            append(" are required to sign in.")
+                        }
+                    )
+                }
+            )
         }
 
     }
@@ -345,6 +381,8 @@ private fun AuthScreen(
                     confirmPassword.clear()
                     otp.clear()
                     loginViewModel.resetOtpStates() // Reset timer after successful signup
+                    // Prompt biometric opt-in immediately after signup
+                    loginViewModel.showBiometricOptInIfEligible(activity)
                 }, onFailure = {
                     loginViewModel.snackBarState.value = "Failed to sign up"
                 })
@@ -544,6 +582,8 @@ private fun AuthScreen(
                                 confirmPassword.clear()
                                 otp.clear()
                                 loginViewModel.resetOtpStates() // Reset timer after successful signup
+                                // Prompt biometric opt-in immediately after signup
+                                loginViewModel.showBiometricOptInIfEligible(activity)
                             }, onFailure = {
                                 loginViewModel.snackBarState.value = "Failed to sign up"
                             })

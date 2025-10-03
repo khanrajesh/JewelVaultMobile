@@ -62,6 +62,9 @@ class LoginViewModel @Inject constructor(
     val isBiometricAvailable = mutableStateOf(false)
     val biometricAuthEnabled = mutableStateOf(false)
 
+    // Biometric opt-in
+    val showBiometricOptInDialog = mutableStateOf(false)
+
     // Update management state
     val updateInfo = mutableStateOf<UpdateInfo?>(null)
     val showForceUpdateDialog = mutableStateOf(false)
@@ -86,6 +89,41 @@ class LoginViewModel @Inject constructor(
         val isAvailable = biometricAuthManager.isBiometricAvailable()
         log("Biometric availability check: $isAvailable")
         isBiometricAvailable.value = isAvailable
+    }
+
+
+    fun showBiometricOptInIfEligible(context: android.content.Context) {
+        ioLaunch {
+            try {
+                val alreadyShown =
+                    _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_OPTIN_SHOWN, false)
+                        .first() ?: false
+                val enabled =
+                    _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_AUTH, false).first()
+                        ?: false
+                val available = BiometricAuthManager(context).isBiometricAvailable()
+                if (!alreadyShown && available && !enabled) {
+                    showBiometricOptInDialog.value = true
+                    log("Showing biometric opt-in dialog")
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun handleBiometricOptInDecision(enable: Boolean) {
+        ioLaunch {
+            try {
+                if (enable) {
+                    _dataStoreManager.setValue(DataStoreManager.BIOMETRIC_AUTH, true)
+                    biometricAuthEnabled.value = true
+                }
+                _dataStoreManager.setValue(DataStoreManager.BIOMETRIC_OPTIN_SHOWN, true)
+            } catch (_: Exception) {
+            } finally {
+                showBiometricOptInDialog.value = false
+            }
+        }
     }
 
     // Save phone number to DataStore

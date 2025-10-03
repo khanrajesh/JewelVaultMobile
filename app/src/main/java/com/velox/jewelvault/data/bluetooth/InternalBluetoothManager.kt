@@ -37,6 +37,12 @@ class InternalBluetoothManager @Inject constructor(
     private val context: Context
 ) : BroadcastReceiver() {
 
+    val showLog = false
+
+    fun cLog(msg:String){
+        if (showLog) log(msg)
+    }
+
     private val appContext: Context = context.applicationContext
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -95,7 +101,7 @@ class InternalBluetoothManager @Inject constructor(
             val mgr = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
             mgr?.adapter
         } catch (t: Throwable) {
-            log("Error obtaining BluetoothAdapter: ${t.message}")
+            cLog("Error obtaining BluetoothAdapter: ${t.message}")
             null
         }
     }
@@ -155,7 +161,7 @@ class InternalBluetoothManager @Inject constructor(
     // ----------------- Registration helpers -----------------
     fun registerReceiver() {
         if (isRegistered) {
-            log("BluetoothBroadcastReceiver already registered")
+            cLog("BluetoothBroadcastReceiver already registered")
             return
         }
 
@@ -182,36 +188,36 @@ class InternalBluetoothManager @Inject constructor(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // registerReceiver(receiver, filter, flags) overload available on API 33
                 appContext.registerReceiver(this, filter, Context.RECEIVER_NOT_EXPORTED)
-                log("BluetoothBroadcastReceiver registered with RECEIVER_NOT_EXPORTED")
+                cLog("BluetoothBroadcastReceiver registered with RECEIVER_NOT_EXPORTED")
             } else {
                 appContext.registerReceiver(this, filter)
-                log("BluetoothBroadcastReceiver registered (no flags)")
+                cLog("BluetoothBroadcastReceiver registered (no flags)")
             }
             isRegistered = true
-            log("BluetoothBroadcastReceiver registered successfully - isRegistered: $isRegistered")
+            cLog("BluetoothBroadcastReceiver registered successfully - isRegistered: $isRegistered")
             refreshSystemState()
 
             // Start monitoring connected devices
             startConnectedDevicesMonitoring()
         } catch (e: Exception) {
-            log("Failed to register BluetoothBroadcastReceiver: ${e.message}")
+            cLog("Failed to register BluetoothBroadcastReceiver: ${e.message}")
             e.printStackTrace()
         }
     }
 
     fun unregister() {
         if (!isRegistered) {
-            log("BluetoothBroadcastReceiver unregister called but not registered")
+            cLog("BluetoothBroadcastReceiver unregister called but not registered")
             return
         }
         try {
             appContext.unregisterReceiver(this)
             isRegistered = false
-            log("BluetoothBroadcastReceiver unregistered")
+            cLog("BluetoothBroadcastReceiver unregistered")
         } catch (e: IllegalArgumentException) {
-            log("Receiver not registered while trying to unregister: ${e.message}")
+            cLog("Receiver not registered while trying to unregister: ${e.message}")
         } catch (e: Exception) {
-            log("Error while unregistering bluetooth receiver: ${e.message}")
+            cLog("Error while unregistering bluetooth receiver: ${e.message}")
         }
     }
 
@@ -222,7 +228,7 @@ class InternalBluetoothManager @Inject constructor(
      * Refresh and sync with current system state when receiver registers
      */
     fun refreshSystemState() {
-        log("InternalBluetoothManager: Refreshing system state...")
+        cLog("InternalBluetoothManager: Refreshing system state...")
         scope.launch {
             try {
                 // Get current Bluetooth adapter state
@@ -232,13 +238,13 @@ class InternalBluetoothManager @Inject constructor(
 
                 if (adapter != null) {
                     val currentState = adapter.state
-                    log("InternalBluetoothManager: Current adapter state: $currentState")
+                    cLog("InternalBluetoothManager: Current adapter state: $currentState")
 
                     // Emit current state to sync with system
                     _bluetoothStateChanged.value = BluetoothStateChange(
                         currentState = currentState, previousState = currentState
                     )
-                    log("InternalBluetoothManager: Emitted initial state: currentState=$currentState")
+                    cLog("InternalBluetoothManager: Emitted initial state: currentState=$currentState")
 
                     // Check if classic discovery is currently running
                     val isCurrentlyClassicDiscovering = try {
@@ -248,21 +254,21 @@ class InternalBluetoothManager @Inject constructor(
                             false
                         }
                     } catch (e: SecurityException) {
-                        log("InternalBluetoothManager: SecurityException checking classic discovery state: ${e.message}")
+                        cLog("InternalBluetoothManager: SecurityException checking classic discovery state: ${e.message}")
                         false
                     } catch (t: Throwable) {
-                        log("InternalBluetoothManager: Error checking classic discovery state: ${t.message}")
+                        cLog("InternalBluetoothManager: Error checking classic discovery state: ${t.message}")
                         false
                     }
 
-                    log("InternalBluetoothManager: Current classic discovery state: $isCurrentlyClassicDiscovering")
+                    cLog("InternalBluetoothManager: Current classic discovery state: $isCurrentlyClassicDiscovering")
                     _isClassicDiscovering.value = isCurrentlyClassicDiscovering
 
                     // Check if LE scanning is currently running
                     try {
 
                     } catch (t: Throwable) {
-                        log("InternalBluetoothManager: Error checking LE discovery state: ${t.message}")
+                        cLog("InternalBluetoothManager: Error checking LE discovery state: ${t.message}")
                         false
                     }
 
@@ -270,10 +276,10 @@ class InternalBluetoothManager @Inject constructor(
                     updateBondedDevices()
                     updateConnectedDevices()
                 } else {
-                    log("InternalBluetoothManager: Bluetooth adapter not available")
+                    cLog("InternalBluetoothManager: Bluetooth adapter not available")
                 }
             } catch (t: Throwable) {
-                log("InternalBluetoothManager: Error refreshing system state: ${t.message}")
+                cLog("InternalBluetoothManager: Error refreshing system state: ${t.message}")
             }
         }
     }
@@ -306,7 +312,7 @@ class InternalBluetoothManager @Inject constructor(
     // ----------------- BroadcastReceiver -----------------
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        log("InternalBluetoothManager: onReceive called with action: $action")
+        cLog("InternalBluetoothManager: onReceive called with action: $action")
         try {
             when (action) {
                 // ACTION_FOUND: Broadcast when a Bluetooth device is discovered during classic discovery
@@ -315,14 +321,14 @@ class InternalBluetoothManager @Inject constructor(
                 // - Frequency: One broadcast per discovered device
                 // - Scope: Classic Bluetooth devices only (not BLE)
                 BluetoothDevice.ACTION_FOUND -> {
-                    log("InternalBluetoothManager: Processing ACTION_FOUND")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_FOUND")
                     try {
                         val device =
                             intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                         val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE)
                             .toInt()
                         val name = intent.getStringExtra(BluetoothDevice.EXTRA_NAME) ?: device?.name
-                        log("InternalBluetoothManager: Found device - name: $name, rssi: $rssi, address: ${device?.address}")
+                        cLog("InternalBluetoothManager: onReceive: Found device - name: $name, rssi: $rssi, address: ${device?.address}")
                         val event = buildBluetoothDevice(device, action = "ACTION_FOUND").copy(
                             name = name, rssi = rssi
                         )
@@ -330,11 +336,11 @@ class InternalBluetoothManager @Inject constructor(
                         // Add to classic discovered devices list
                         addOrUpdateDevice(_classicDiscoveredDevices, event)
 
-                        log("InternalBluetoothManager: Emitted ACTION_FOUND event for device: ${device?.address}")
+                        cLog("InternalBluetoothManager: onReceive: Emitted ACTION_FOUND event for device: ${device?.address}")
                     } catch (e: Exception) {
-                        log("InternalBluetoothManager: Exception in ACTION_FOUND: ${e.message}")
+                        cLog("InternalBluetoothManager: onReceive: Exception in ACTION_FOUND: ${e.message}")
                     } catch (e: SecurityException) {
-                        log("InternalBluetoothManager: SecurityException in ACTION_FOUND: ${e.message}")
+                        cLog("InternalBluetoothManager: onReceive: SecurityException in ACTION_FOUND: ${e.message}")
                     }
                 }
 
@@ -356,16 +362,16 @@ class InternalBluetoothManager @Inject constructor(
                 // - Frequency: Once per disconnect request
                 // - Scope: Both Classic and BLE devices
                 BluetoothDevice.ACTION_ACL_CONNECTED, BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> {
-                    log("InternalBluetoothManager: Processing ACL action: $action")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACL action: $action")
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                    log("InternalBluetoothManager: ACL device - address: ${device?.address}, name: ${device?.name}")
+                    cLog("InternalBluetoothManager: onReceive: ACL device - address: ${device?.address}, name: ${device?.name}")
                     val event = buildBluetoothDevice(device, action = action)
 
                     when (action) {
                         BluetoothDevice.ACTION_ACL_CONNECTED -> {
                             device?.address?.let { aclConnected.add(it) }
-                            log("CONNECT: ACL connected - Adding device ${event.address} (${event.name}) to connected list")
+                            cLog("InternalBluetoothManager: onReceive: ACL connected - Adding device ${event.address} (${event.name}) to connected list")
                             // Add to connected devices list
                             addOrUpdateDevice(_connectedDevices, event)
                             // Also refresh the full connected devices list to catch any missed devices
@@ -374,7 +380,7 @@ class InternalBluetoothManager @Inject constructor(
 
                         BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> {
                             device?.address?.let { aclConnected.remove(it) }
-                            log("CONNECT: ACL disconnected - Removing device ${event.address} (${event.name}) from connected list")
+                            cLog("InternalBluetoothManager: onReceive: ACL disconnected - Removing device ${event.address} (${event.name}) from connected list")
                             // Remove from connected devices list
                             removeDevice(_connectedDevices, event.address)
                             // Also refresh the full connected devices list to ensure accuracy
@@ -383,7 +389,7 @@ class InternalBluetoothManager @Inject constructor(
                     }
 
 //                    emit(event)
-                    log("InternalBluetoothManager: Emitted ACL event for device: ${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: Emitted ACL event for device: ${device?.address}")
                 }
 
                 // ACTION_BOND_STATE_CHANGED: Broadcast when device bonding/pairing state changes
@@ -393,12 +399,12 @@ class InternalBluetoothManager @Inject constructor(
                 // - Scope: Both Classic and BLE devices
                 // - States: BOND_NONE(10), BOND_BONDING(11), BOND_BONDED(12)
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
-                    log("InternalBluetoothManager: Processing ACTION_BOND_STATE_CHANGED")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_BOND_STATE_CHANGED")
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
                     val prev = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, -1)
-                    log("InternalBluetoothManager: Bond state changed - device: ${device?.address}, state: $state, prev: $prev")
+                    cLog("InternalBluetoothManager: onReceive: Bond state changed - device: ${device?.address}, state: $state, prev: $prev")
                     val event = buildBluetoothDevice(
                         device, action = "ACTION_BOND_STATE_CHANGED", extraInfo = mapOf(
                             "bondState" to state.toString(), "prevBondState" to prev.toString()
@@ -416,7 +422,7 @@ class InternalBluetoothManager @Inject constructor(
                         }
                     }
 
-                    log("InternalBluetoothManager: Emitted BOND_STATE_CHANGED event for device: ${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: Emitted BOND_STATE_CHANGED event for device: ${device?.address}")
                 }
 
                 // ACTION_PAIRING_REQUEST: Broadcast when device requests pairing/authentication
@@ -426,12 +432,12 @@ class InternalBluetoothManager @Inject constructor(
                 // - Scope: Both Classic and BLE devices
                 // - Variants: PIN, PASSKEY, CONSENT, DISPLAY_PASSKEY, DISPLAY_PIN
                 BluetoothDevice.ACTION_PAIRING_REQUEST -> {
-                    log("InternalBluetoothManager: Processing ACTION_PAIRING_REQUEST")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_PAIRING_REQUEST")
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1)
                     val key = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_KEY, -1)
-                    log("InternalBluetoothManager: Pairing request - device: ${device?.address}, variant: $variant, key: $key")
+                    cLog("InternalBluetoothManager: onReceive: Pairing request - device: ${device?.address}, variant: $variant, key: $key")
                     val event =
                         buildBluetoothDevice(device, action = "ACTION_PAIRING_REQUEST").copy(
                             extraInfo = mapOf(
@@ -439,8 +445,8 @@ class InternalBluetoothManager @Inject constructor(
                                 "pairingKey" to key.toString()
                             )
                         )
-                    log("InternalBluetoothManager: ACTION_PAIRING_REQUEST event: $event")
-                    log("InternalBluetoothManager: Emitted PAIRING_REQUEST event for device: ${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: ACTION_PAIRING_REQUEST event: $event")
+                    cLog("InternalBluetoothManager: onReceive: Emitted PAIRING_REQUEST event for device: ${device?.address}")
                 }
 
                 // ACTION_NAME_CHANGED: Broadcast when device name changes
@@ -450,15 +456,15 @@ class InternalBluetoothManager @Inject constructor(
                 // - Scope: Both Classic and BLE devices
                 // - Note: Some devices may not broadcast name changes
                 BluetoothDevice.ACTION_NAME_CHANGED -> {
-                    log("InternalBluetoothManager: Processing ACTION_NAME_CHANGED")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_NAME_CHANGED")
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val name = intent.getStringExtra(BluetoothDevice.EXTRA_NAME)
-                    log("InternalBluetoothManager: Name changed - device: ${device?.address}, new name: $name")
+                    cLog("InternalBluetoothManager: onReceive: Name changed - device: ${device?.address}, new name: $name")
                     buildBluetoothDevice(device, action = "ACTION_NAME_CHANGED").copy(
                         name = name ?: "<null>"
                     )
-                    log("InternalBluetoothManager: Emitted NAME_CHANGED event for device: ${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: Emitted NAME_CHANGED event for device: ${device?.address}")
                 }
 
                 // ACTION_UUID: Broadcast when device UUIDs are discovered/updated
@@ -468,15 +474,15 @@ class InternalBluetoothManager @Inject constructor(
                 // - Scope: Both Classic and BLE devices
                 // - Note: May be triggered by fetchUuidsWithSdp() call
                 BluetoothDevice.ACTION_UUID -> {
-                    log("InternalBluetoothManager: Processing ACTION_UUID")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_UUID")
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val uuids = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID)
-                    log("InternalBluetoothManager: UUID action - device: ${device?.address}, uuids count: ${uuids?.size}")
+                    cLog("InternalBluetoothManager: onReceive: UUID action - device: ${device?.address}, uuids count: ${uuids?.size}")
                     buildBluetoothDevice(device, action = "ACTION_UUID").copy(
                         uuids = uuidsToString(uuids)
                     )
-                    log("InternalBluetoothManager: Emitted UUID event for device: ${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: Emitted UUID event for device: ${device?.address}")
                 }
 
                 // ACTION_DISCOVERY_STARTED: Broadcast when classic Bluetooth discovery begins
@@ -505,11 +511,11 @@ class InternalBluetoothManager @Inject constructor(
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
                     val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)
                     val prev = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_STATE, -1)
-                    log("Adapter state changed: prev=$prev -> state=$state")
+                    cLog("InternalBluetoothManager: onReceive: Adapter state changed: prev=$prev -> state=$state")
                     _bluetoothStateChanged.value = BluetoothStateChange(
                         currentState = state, previousState = prev
                     )
-                    log("BluetoothBroadcastReceiver: Emitted state change: currentState=$state, previousState=$prev")
+                    cLog("InternalBluetoothManager: onReceive: Emitted state change: currentState=$state, previousState=$prev")
                 }
 
                 // ACTION_SCAN_MODE_CHANGED: Broadcast when adapter scan mode changes
@@ -518,19 +524,21 @@ class InternalBluetoothManager @Inject constructor(
                 // - Frequency: Once per mode change
                 // - Modes: SCAN_MODE_NONE(20), SCAN_MODE_CONNECTABLE(21), SCAN_MODE_CONNECTABLE_DISCOVERABLE(23)
                 BluetoothAdapter.ACTION_SCAN_MODE_CHANGED -> {
-                    log("InternalBluetoothManager: Processing ACTION_SCAN_MODE_CHANGED")
+                    cLog("InternalBluetoothManager: onReceive: Processing ACTION_SCAN_MODE_CHANGED")
                     val mode = intent.getIntExtra(BluetoothAdapter.EXTRA_SCAN_MODE, -1)
                     val prev = intent.getIntExtra(BluetoothAdapter.EXTRA_PREVIOUS_SCAN_MODE, -1)
-                    log("InternalBluetoothManager: Scan mode changed: prev=$prev -> mode=$mode")
+                    cLog("InternalBluetoothManager: onReceive: Scan mode changed: prev=$prev -> mode=$mode")
                 }
 
                 // Profile connection states: A2DP / HEADSET / HID Host
-                "android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED", "android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED", "android.bluetooth.hidhost.profile.action.CONNECTION_STATE_CHANGED" -> {
+                "android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED",
+                "android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED",
+                "android.bluetooth.hidhost.profile.action.CONNECTION_STATE_CHANGED" -> {
                     val device =
                         intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     val state = intent.getIntExtra(BluetoothProfile.EXTRA_STATE, -1)
                     val profileAction = action.substringAfterLast('.')
-                    log("CONNECT: PROFILE $profileAction state=$state dev=${device?.address}")
+                    cLog("InternalBluetoothManager: onReceive: PROFILE $profileAction state=$state dev=${device?.address}")
 
                     val event = buildBluetoothDevice(
                         device, action = when (action) {
@@ -575,17 +583,17 @@ class InternalBluetoothManager @Inject constructor(
                 }
 
                 else -> {
-                    log("InternalBluetoothManager: Unhandled action: $action")
+                    cLog("InternalBluetoothManager: onReceive: Unhandled action: $action")
                 }
             }
         } catch (t: Throwable) {
-            log("InternalBluetoothManager: Exception handling $action: ${t.message}")
+            cLog("InternalBluetoothManager: onReceive: Exception handling $action: ${t.message}")
             t.printStackTrace()
         } catch (se: SecurityException) {
-            log("InternalBluetoothManager: Security exception handling $action: ${se.message}")
+            cLog("InternalBluetoothManager: onReceive: Security exception handling $action: ${se.message}")
             se.printStackTrace()
         }
-        log("InternalBluetoothManager: onReceive completed for action: $action")
+        cLog("InternalBluetoothManager: onReceive completed for action: $action")
     }
 
     // BLE scan controls are internalized in unified/continuous APIs below
@@ -597,13 +605,13 @@ class InternalBluetoothManager @Inject constructor(
     }
 
     fun disconnectDevice(address: String) {
-        log("CONNECT: Starting disconnect process for device: $address")
+        cLog("InternalBluetoothManager: disconnectDevice: Starting disconnect process for device: $address")
 
         // Delegate to connector to handle RFCOMM/GATT/profiles end-to-end
         try {
             bluetoothConnect.disconnect(address)
         } catch (t: Throwable) {
-            log("CONNECT: ERROR - disconnect delegation failed for $address -> ${t.message}")
+            cLog("InternalBluetoothManager: disconnectDevice: ERROR - disconnect delegation failed for $address -> ${t.message}")
         }
 
         // Best-effort GATT cleanup in case delegate couldn't find it
@@ -640,7 +648,7 @@ class InternalBluetoothManager @Inject constructor(
     fun clearDiscoveredDevices() {
         _classicDiscoveredDevices.value = emptyList()
         _leDiscoveredDevices.value = emptyList()
-        log("Cleared all discovered device lists")
+        cLog("Cleared all discovered device lists")
     }
 
     /**
@@ -648,7 +656,7 @@ class InternalBluetoothManager @Inject constructor(
      */
     fun clearClassicDiscoveredDevices() {
         _classicDiscoveredDevices.value = emptyList()
-        log("Cleared classic discovered devices list")
+        cLog("Cleared classic discovered devices list")
     }
 
     /**
@@ -656,7 +664,7 @@ class InternalBluetoothManager @Inject constructor(
      */
     fun clearLeDiscoveredDevices() {
         _leDiscoveredDevices.value = emptyList()
-        log("Cleared LE discovered devices list")
+        cLog("Cleared LE discovered devices list")
     }
 
     /**
@@ -665,7 +673,7 @@ class InternalBluetoothManager @Inject constructor(
     fun refreshAllDeviceLists() {
         updateBondedDevices()
         updateConnectedDevices()
-        log("CONNECT: Refreshed all device lists from system")
+        cLog("CONNECT: Refreshed all device lists from system")
     }
 
     /**
@@ -673,7 +681,7 @@ class InternalBluetoothManager @Inject constructor(
      */
     fun refreshConnectedDevices() {
         updateConnectedDevices()
-        log("CONNECT: Manually refreshed connected devices list")
+        cLog("refreshConnectedDevices: Manually refreshed connected devices list")
     }
 
 
@@ -703,29 +711,29 @@ class InternalBluetoothManager @Inject constructor(
      */
     fun createBond(address: String): Boolean {
         return try {
-            log("PAIR: Attempting to create bond with device: $address")
+            cLog("PAIR: Attempting to create bond with device: $address")
             val device = bluetoothAdapter?.getRemoteDevice(address)
             if (device != null) {
-                log("PAIR: Device found: ${device.name} (${device.address})")
-                log("PAIR: Current bond state: ${device.bondState}")
+                cLog("PAIR: Device found: ${device.name} (${device.address})")
+                cLog("PAIR: Current bond state: ${device.bondState}")
 
                 if (device.bondState == BluetoothDevice.BOND_BONDED) {
-                    log("PAIR: Device $address is already bonded")
+                    cLog("PAIR: Device $address is already bonded")
                     return true
                 }
 
                 val result = device.createBond()
-                log("PAIR: createBond() returned: $result")
+                cLog("PAIR: createBond() returned: $result")
                 result
             } else {
-                log("PAIR: ERROR - Could not get remote device for $address")
+                cLog("PAIR: ERROR - Could not get remote device for $address")
                 false
             }
         } catch (e: SecurityException) {
-            log("PAIR: SecurityException creating bond: ${e.message}")
+            cLog("PAIR: SecurityException creating bond: ${e.message}")
             false
         } catch (e: Exception) {
-            log("PAIR: Exception creating bond: ${e.message}")
+            cLog("PAIR: Exception creating bond: ${e.message}")
             false
         }
     }
@@ -866,11 +874,11 @@ class InternalBluetoothManager @Inject constructor(
             val bondedSet = bluetoothAdapter?.bondedDevices ?: emptySet()
             val bondedList = bondedSet.map { buildBluetoothDevice(it, action = "BONDED_DEVICE") }
             _bondedDevices.value = bondedList
-            log("Updated bonded devices: ${bondedList.size} devices")
+            cLog("Updated bonded devices: ${bondedList.size} devices")
         } catch (e: SecurityException) {
-            log("SecurityException updating bonded devices: ${e.message}")
+            cLog("SecurityException updating bonded devices: ${e.message}")
         } catch (e: Exception) {
-            log("Error updating bonded devices: ${e.message}")
+            cLog("Error updating bonded devices: ${e.message}")
         }
     }
 
@@ -879,27 +887,27 @@ class InternalBluetoothManager @Inject constructor(
      */
     fun updateConnectedDevices() {
         try {
-            log("CONNECT: Updating connected devices list from system")
+            cLog("updateConnectedDevices: Updating connected devices list from system")
             val connectedList = mutableListOf<BluetoothDeviceDetails>()
 
             // Get GATT connected devices
             val gattConnected = try {
                 bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
             } catch (e: Exception) {
-                log("CONNECT: Error getting GATT connected devices: ${e.message}")
+                cLog("updateConnectedDevices: Error getting GATT connected devices: ${e.message}")
                 emptyList<BluetoothDevice>()
             }
-            log("CONNECT: Found ${gattConnected.size} GATT connected devices")
+            cLog("updateConnectedDevices: Found ${gattConnected.size} GATT connected devices")
             gattConnected.forEach { device ->
                 val deviceDetails = buildBluetoothDevice(device, action = "CONNECTED_DEVICE")
                 connectedList.add(deviceDetails)
-                log("CONNECT: Added GATT connected device: ${device.address} (${device.name})")
+                cLog("updateConnectedDevices: Added GATT connected device: ${device.address} (${device.name})")
             }
 
             // Try to get connected devices using reflection (for devices that don't support profile queries)
             try {
                 val bondedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
-                log("CONNECT: Checking ${bondedDevices.size} bonded devices for connection status")
+                cLog("updateConnectedDevices: Checking ${bondedDevices.size} bonded devices for connection status")
 
                 bondedDevices.forEach { device ->
                     try {
@@ -909,18 +917,18 @@ class InternalBluetoothManager @Inject constructor(
                             val deviceDetails =
                                 buildBluetoothDevice(device, action = "CONNECTED_DEVICE")
                             connectedList.add(deviceDetails)
-                            log("CONNECT: Added connected bonded device: ${device.address} (${device.name})")
+                            cLog("updateConnectedDevices: Added connected bonded device: ${device.address} (${device.name})")
                         }
                     } catch (e: Exception) {
-                        log("CONNECT: Error checking connection state for ${device.address}: ${e.message}")
+                        cLog("updateConnectedDevices: Error checking connection state for ${device.address}: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
-                log("CONNECT: Error checking bonded devices: ${e.message}")
+                cLog("updateConnectedDevices: Error checking bonded devices: ${e.message}")
             }
 
             // Include our own GATT connections (only actually connected ones)
-            log("CONNECT: Checking our own GATT connections: ${gattMap.size} devices")
+            cLog("updateConnectedDevices: Checking our own GATT connections: ${gattMap.size} devices")
             gattMap.keys.forEach { addr ->
                 try {
                     val dev = bluetoothAdapter?.getRemoteDevice(addr)
@@ -933,13 +941,13 @@ class InternalBluetoothManager @Inject constructor(
                             val deviceDetails =
                                 buildBluetoothDevice(dev, action = "CONNECTED_DEVICE")
                             connectedList.add(deviceDetails)
-                            log("CONNECT: Added our GATT connection: ${dev.address} (${dev.name})")
+                            cLog("updateConnectedDevices: Added our GATT connection: ${dev.address} (${dev.name})")
                         } else {
-                            log("CONNECT: GATT device ${dev.address} is still connecting (services: ${gatt?.services?.size ?: 0}), not adding to connected list")
+                            cLog("updateConnectedDevices: GATT device ${dev.address} is still connecting (services: ${gatt?.services?.size ?: 0}), not adding to connected list")
                         }
                     }
                 } catch (e: Exception) {
-                    log("CONNECT: Error getting our GATT device $addr: ${e.message}")
+                    cLog("updateConnectedDevices: Error getting our GATT device $addr: ${e.message}")
                 }
             }
 
@@ -956,7 +964,7 @@ class InternalBluetoothManager @Inject constructor(
                                     } catch (e: Exception) {
                                         emptyList<BluetoothDevice>()
                                     }
-                                    log("CONNECT: Profile $label has ${devices.size} connected devices")
+                                    cLog("mergeProfileDevices: Profile $label has ${devices.size} connected devices")
                                     val additions = devices.map { dev ->
                                         buildBluetoothDevice(
                                             dev,
@@ -967,7 +975,7 @@ class InternalBluetoothManager @Inject constructor(
                                         (connectedList + additions).distinctBy { it.address }
                                     _connectedDevices.value = merged
                                 } catch (t: Throwable) {
-                                    log("CONNECT: Error merging $label connected devices: ${t.message}")
+                                    cLog("mergeProfileDevices: Error merging $label connected devices: ${t.message}")
                                 } finally {
                                     try {
                                         bluetoothAdapter?.closeProfileProxy(p, proxy)
@@ -981,7 +989,7 @@ class InternalBluetoothManager @Inject constructor(
                         profileId
                     )
                 } catch (t: Throwable) {
-                    log("CONNECT: Error querying $label connected devices: ${t.message}")
+                    cLog("mergeProfileDevices: Error querying $label connected devices: ${t.message}")
                 }
             }
             mergeProfileDevices(BluetoothProfile.A2DP, "A2DP")
@@ -1001,11 +1009,11 @@ class InternalBluetoothManager @Inject constructor(
                     addr
                 ) || hidConnected.contains(addr))
             }
-            log("CONNECT: Preserving ${preserveEligible.size} confirmed classic connections")
+            cLog("updateConnectedDevices: Preserving ${preserveEligible.size} confirmed classic connections")
             preserveEligible.forEach { classicDevice ->
                 if (connectedList.none { it.address == classicDevice.address }) {
                     connectedList.add(classicDevice)
-                    log("CONNECT: Preserved confirmed classic connection: ${classicDevice.address} (${classicDevice.name})")
+                    cLog("updateConnectedDevices: Preserved confirmed classic connection: ${classicDevice.address} (${classicDevice.name})")
                 }
             }
 
@@ -1027,11 +1035,11 @@ class InternalBluetoothManager @Inject constructor(
             toRemove.forEach { removeDevice(_connectedDevices, it) }
 
             val finalSize = _connectedDevices.value.size
-            log("CONNECT: Incrementally updated connected devices: $finalSize devices (added/updated=${uniqueDevices.size}, removed=${toRemove.size})")
+            cLog("updateConnectedDevices: Incrementally updated connected devices: $finalSize devices (added/updated=${uniqueDevices.size}, removed=${toRemove.size})")
         } catch (e: SecurityException) {
-            log("CONNECT: ERROR - Security exception updating connected devices: ${e.message}")
+            cLog("updateConnectedDevices: ERROR - Security exception updating connected devices: ${e.message}")
         } catch (e: Exception) {
-            log("CONNECT: ERROR - Error updating connected devices: ${e.message}")
+            cLog("updateConnectedDevices: ERROR - Error updating connected devices: ${e.message}")
         }
     }
 
@@ -1121,7 +1129,7 @@ class InternalBluetoothManager @Inject constructor(
 
     /*   private fun emit(event: BluetoothDeviceDetails) {
            try {
-               // log a short summary
+               // cLog a short summary
                val summary = mutableListOf<String>()
                event.address.let { summary.add("addr=$it") }
                event.name?.let { summary.add("name=$it") }
@@ -1135,7 +1143,7 @@ class InternalBluetoothManager @Inject constructor(
                if (headsetConnected.contains(event.address)) transports.add("HEADSET")
                if (hidConnected.contains(event.address)) transports.add("HID")
                if (transports.isNotEmpty()) summary.add("links=${transports.joinToString("+")}")
-               log("${event.action} -> ${summary.joinToString(" | ")}")
+               cLog("${event.action} -> ${summary.joinToString(" | ")}")
 
                eventListener?.invoke(event)
            } catch (e: Exception) {
