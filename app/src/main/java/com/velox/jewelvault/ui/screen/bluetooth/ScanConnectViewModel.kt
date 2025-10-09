@@ -1,10 +1,10 @@
-package com.velox.jewelvault.ui.screen.bluetooth_new
+package com.velox.jewelvault.ui.screen.bluetooth
 
 import android.bluetooth.BluetoothDevice
 import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.velox.jewelvault.data.bluetooth.InternalBluetoothManager
+import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,25 +20,25 @@ import javax.inject.Named
 
 @HiltViewModel
 class ScanConnectViewModel @Inject constructor(
-    private val _Internal_bluetoothManager: InternalBluetoothManager,
+    private val bleManager: BleManager,
     @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(BluetoothScanConnectUiState())
     val uiState: StateFlow<BluetoothScanConnectUiState> = _uiState.asStateFlow()
-    val bluetoothReceiver = _Internal_bluetoothManager
+    val bluetoothReceiver = bleManager
 
-    // Device lists from InternalBluetoothManager
-    val bondedDevices: StateFlow<List<BluetoothDeviceDetails>> = _Internal_bluetoothManager.bondedDevices
-    val classicDiscoveredDevices: StateFlow<List<BluetoothDeviceDetails>> = _Internal_bluetoothManager.classicDiscoveredDevices
-    val leDiscoveredDevices: StateFlow<List<BluetoothDeviceDetails>> = _Internal_bluetoothManager.leDiscoveredDevices
-    val connectedDevices: StateFlow<List<BluetoothDeviceDetails>> = _Internal_bluetoothManager.connectedDevices
-    val connectingDevices: StateFlow<List<BluetoothDeviceDetails>> = _Internal_bluetoothManager.connectingDevices
+    // Device lists from BleManager
+    val bondedDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.bondedDevices
+    val classicDiscoveredDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.classicDiscoveredDevices
+    val leDiscoveredDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.leDiscoveredDevices
+    val connectedDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.connectedDevices.asStateFlow()
+    val connectingDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.connectingDevices.asStateFlow()
     
     // Combined discovered devices (classic + LE)
     val allDiscoveredDevices: StateFlow<List<BluetoothDeviceDetails>> = combine(
-        _Internal_bluetoothManager.classicDiscoveredDevices,
-        _Internal_bluetoothManager.leDiscoveredDevices
+        bleManager.classicDiscoveredDevices,
+        bleManager.leDiscoveredDevices
     ) { classic, le ->
         val merged = (classic + le).distinctBy { it.address }
         val (named, unnamed) = merged.partition { !it.name.isNullOrBlank() && it.name != "Unknown Device" }
@@ -51,9 +51,9 @@ class ScanConnectViewModel @Inject constructor(
     
     // Separate bonded devices into connected and not connected
     val unconnectedPairedDevices: StateFlow<List<BluetoothDeviceDetails>> = combine(
-        _Internal_bluetoothManager.bondedDevices,
-        _Internal_bluetoothManager.connectedDevices,
-        _Internal_bluetoothManager.connectingDevices
+        bleManager.bondedDevices,
+        bleManager.connectedDevices,
+        bleManager.connectingDevices
     ) { bonded, connected, connecting ->
         val connectedAddresses = connected.map { it.address }.toSet()
         val connectingAddresses = connecting.map { it.address }.toSet()
@@ -75,7 +75,7 @@ class ScanConnectViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 
                 // Start unified scanning (both Classic and BLE)
-                _Internal_bluetoothManager.startUnifiedScanning()
+                bleManager.startUnifiedScanning()
                 
                 log("Started unified device scanning")
             } catch (e: Exception) {
@@ -92,7 +92,7 @@ class ScanConnectViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Stop unified scanning (both Classic and BLE)
-                _Internal_bluetoothManager.stopUnifiedScanning()
+                bleManager.stopUnifiedScanning()
                 
                 log("Stopped unified device scanning")
             } catch (e: Exception) {
@@ -110,12 +110,12 @@ class ScanConnectViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 
                 // Stop and restart unified scanning to refresh
-                _Internal_bluetoothManager.stopUnifiedScanning()
+                bleManager.stopUnifiedScanning()
                 
                 // Small delay before restarting
                 kotlinx.coroutines.delay(500)
                 
-                _Internal_bluetoothManager.startUnifiedScanning()
+                bleManager.startUnifiedScanning()
                 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -139,7 +139,7 @@ class ScanConnectViewModel @Inject constructor(
                 log("CONNECT_VIEWMODEL: Starting connection to device: $deviceAddress")
                 _uiState.value = _uiState.value.copy(isLoading = true)
 
-                _Internal_bluetoothManager.connect(deviceAddress)
+                bleManager.connect(deviceAddress)
 
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 _snackBarState.value = "Connecting to device..."
@@ -155,7 +155,7 @@ class ScanConnectViewModel @Inject constructor(
     fun disconnectDevice(deviceAddress: String) {
         viewModelScope.launch {
             try {
-                _Internal_bluetoothManager.disconnectDevice(deviceAddress)
+                bleManager.disconnectDevice(deviceAddress)
                 _snackBarState.value = "Disconnected from device"
                 log("Disconnected from device: $deviceAddress")
             } catch (e: Exception) {
@@ -174,11 +174,11 @@ class ScanConnectViewModel @Inject constructor(
                 _snackBarState.value = "Pairing and connecting..."
                 
                 // Get the device from discovered devices
-                val device = _Internal_bluetoothManager.getDiscoveredDevice(deviceAddress)
+                val device = bleManager.getDiscoveredDevice(deviceAddress)
                 if (device != null) {
                     log("PAIR: Found device ${device.name} (${device.address})")
                     // Immediately reflect connecting placeholder in UI
-                    _Internal_bluetoothManager.addConnectingPlaceholder(
+                    bleManager.addConnectingPlaceholder(
                         address = device.address,
                         name = device.name,
                         extraInfo = mapOf("stage" to "pairing")
@@ -193,7 +193,7 @@ class ScanConnectViewModel @Inject constructor(
                     }
                     
                     // Attempt to create bond
-                    val result = _Internal_bluetoothManager.createBond(deviceAddress)
+                    val result = bleManager.createBond(deviceAddress)
                     if (result) {
                         log("PAIR: Bond creation initiated for $deviceAddress")
                         _uiState.value = _uiState.value.copy(isLoading = false)
@@ -220,10 +220,7 @@ class ScanConnectViewModel @Inject constructor(
         }
     }
 
-    // Convenience wrapper for UI: discover card should always pair then connect
-    fun pairAndConnectDevice(deviceAddress: String) {
-        pairDevice(deviceAddress)
-    }
+
     
     /**
      * Monitors pairing progress and automatically connects when pairing is complete
@@ -238,7 +235,7 @@ class ScanConnectViewModel @Inject constructor(
                 attempts++
                 
                 try {
-                    val device = _Internal_bluetoothManager.getDiscoveredDevice(deviceAddress)
+                    val device = bleManager.getDiscoveredDevice(deviceAddress)
                     if (device != null && device.bondState == BluetoothDevice.BOND_BONDED) {
                         log("PAIR: Pairing completed for $deviceAddress, starting connection")
                         _snackBarState.value = "Pairing completed! Connecting to ${device.name ?: deviceAddress}..."
@@ -258,7 +255,7 @@ class ScanConnectViewModel @Inject constructor(
     fun refreshConnectedDevices() {
         viewModelScope.launch {
             try {
-                _Internal_bluetoothManager.refreshConnectedDevices()
+                bleManager.refreshConnectedDevices()
                 log("Refreshed connected devices list")
             } catch (e: Exception) {
                 log("Error refreshing connected devices: ${e.message}")
@@ -280,10 +277,53 @@ class ScanConnectViewModel @Inject constructor(
     fun startContinuousScanning() {
         viewModelScope.launch {
             try {
-                _Internal_bluetoothManager.startContinuousScanning()
+                bleManager.startContinuousScanning()
                 log("Started continuous scanning")
             } catch (e: Exception) {
                 log("Error starting continuous scanning: ${e.message}")
+            }
+        }
+    }
+
+    fun forgetDevice(deviceAddress: String) {
+        viewModelScope.launch {
+            try {
+                log("FORGET: Starting forget process for device: $deviceAddress")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                // First disconnect if connected
+                val connectedDevice = bleManager.connectedDevices.value.find { it.address == deviceAddress }
+                if (connectedDevice != null) {
+                    bleManager.disconnectDevice(deviceAddress)
+                    delay(1000) // Give time for disconnect
+                }
+                
+                // Remove the bond/unpair the device
+                val success = bleManager.removeBond(deviceAddress)
+                
+                if (success) {
+                    _snackBarState.value = "Device forgotten successfully"
+                    log("FORGET: Successfully forgot device: $deviceAddress")
+                    
+                    // Give the system a moment to process the bond removal
+                    delay(500)
+                    
+                    // Immediately update bonded devices list after successful forget
+                    bleManager.updateBondedDevices()
+                    
+                    // Also refresh all device lists to ensure UI consistency
+                    bleManager.refreshAllDeviceLists()
+                } else {
+                    _snackBarState.value = "Failed to forget device"
+                    log("FORGET: Failed to forget device: $deviceAddress")
+                }
+                
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                
+            } catch (e: Exception) {
+                log("FORGET: Error forgetting device: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                _snackBarState.value = "Failed to forget device: ${e.message}"
             }
         }
     }
@@ -295,7 +335,7 @@ class ScanConnectViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         // Stop scanning when ViewModel is cleared
-        _Internal_bluetoothManager.stopUnifiedScanning()
+        bleManager.stopUnifiedScanning()
     }
 }
 

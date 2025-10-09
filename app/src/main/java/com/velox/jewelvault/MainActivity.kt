@@ -36,7 +36,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.bluetooth.InternalBluetoothManager
+import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
@@ -63,7 +63,7 @@ class MainActivity : FragmentActivity() {
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Inject
-    lateinit var bluetoothBroadcastReceiver: InternalBluetoothManager
+    lateinit var bluetoothBroadcastReceiver: BleManager
 
     @Inject
     lateinit var sessionManager: SessionManager

@@ -1,56 +1,43 @@
 package com.velox.jewelvault.data.bluetooth
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.Context
 import androidx.annotation.RequiresPermission
 import com.velox.jewelvault.utils.log
-import kotlinx.coroutines.CoroutineScope
+import com.velox.jewelvault.utils.permissions.hasFineLocation
+import com.velox.jewelvault.utils.permissions.hasScanPermission
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import androidx.core.util.size
 
 /**
  * Handles Bluetooth scanning logic (classic + BLE) so the receiver can delegate scanning concerns
  * and keep connection responsibilities separate.
  */
-class InternalBluetoothScanner(
-    private val bluetoothAdapter: BluetoothAdapter?,
-    private val bleScannerProvider: () -> BluetoothLeScanner?,
-    private val scope: CoroutineScope,
-    private val hasScanPermission: () -> Boolean,
-    private val hasFineLocationPermission: () -> Boolean,
-    private val buildEvent: (
-        device: BluetoothDevice?,
-        address: String?,
-        action: String,
-        name: String?,
-        extraInfo: Map<String, String>?,
-        uuids: String?
-    ) -> BluetoothDeviceDetails,
+class BleScanner(
     private val addLeDevice: (BluetoothDeviceDetails) -> Unit,
-    private val clearClassicDevices: () -> Unit,
-    private val clearLeDevices: () -> Unit,
-    private val updateBondedDevices: () -> Unit,
-    private val updateConnectedDevices: () -> Unit,
     private val classicDiscoveringState: MutableStateFlow<Boolean>,
     private val leDiscoveringState: MutableStateFlow<Boolean>,
-    bluetoothManager: InternalBluetoothManager,
+    private val manager: BleManager,
+    private val context: Context,
 ) {
     private var activeScanCallback: ScanCallback? = null
+
+    private val bleScannerProvider: BluetoothLeScanner? = manager.bluetoothAdapter?.bluetoothLeScanner
 
     val isDiscovering = MutableStateFlow(false)
 
     fun onClassicDiscoveryStarted() {
         log("SCAN: Classic discovery started")
         classicDiscoveringState.value = true
-        clearClassicDevices()
+        manager.classicDiscoveredDevices.value = emptyList()
         recomputeIsDiscovering()
     }
 
@@ -72,12 +59,12 @@ class InternalBluetoothScanner(
 
     @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_SCAN])
     fun startBleScan(scanSettings: ScanSettings? = null, scanFilters: List<ScanFilter>? = null) {
-        if (!hasScanPermission() || !hasFineLocationPermission()) {
+        if (!hasScanPermission(context) || !hasFineLocation(context)) {
             log("SCAN: Missing permissions; cannot start BLE scan")
             return
         }
 
-        val scanner = bleScannerProvider() ?: run {
+        val scanner = bleScannerProvider ?: run {
             log("SCAN: No BLE scanner available")
             return
         }
@@ -86,6 +73,10 @@ class InternalBluetoothScanner(
 
         val settings = scanSettings ?: ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+            .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+            .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
+            .setReportDelay(0L) //if this is not set to 0 the android will call onBatchScanResult not onScanResult
             .build()
 
         val callback = object : ScanCallback() {
@@ -108,7 +99,7 @@ class InternalBluetoothScanner(
             log("SCAN: BLE scan started")
             scanner.startScan(scanFilters, settings, callback)
             leDiscoveringState.value = true
-            clearLeDevices()
+            manager.leDiscoveredDevices.value = emptyList()
         } catch (t: Throwable) {
             log("SCAN: Error starting BLE scan ${t.message}")
             activeScanCallback = null
@@ -118,7 +109,7 @@ class InternalBluetoothScanner(
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun stopBleScan() {
-        val scanner = bleScannerProvider()
+        val scanner = bleScannerProvider
         val callback = activeScanCallback ?: return
         try {
             scanner?.stopScan(callback)
@@ -134,20 +125,16 @@ class InternalBluetoothScanner(
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun startClassicDiscovery() {
         try {
-            if (bluetoothAdapter == null) {
-                log("SCAN: No adapter for classic discovery")
-                return
-            }
-            if (bluetoothAdapter.isDiscovering) {
+            if (manager.bluetoothAdapter.isDiscovering) {
                 classicDiscoveringState.value = true
                 log("SCAN: Classic discovery already running")
                 return
             }
-            val ok = bluetoothAdapter.startDiscovery()
+            val ok = manager.bluetoothAdapter.startDiscovery()
             log("SCAN: Classic discovery start result -> $ok")
-            if (ok || bluetoothAdapter.isDiscovering) {
+            if (ok || manager.bluetoothAdapter.isDiscovering) {
                 classicDiscoveringState.value = true
-                clearClassicDevices()
+                manager.classicDiscoveredDevices.value = emptyList()
             }
         } catch (t: Throwable) {
             log("SCAN: Error starting classic discovery ${t.message}")
@@ -158,7 +145,7 @@ class InternalBluetoothScanner(
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun stopClassicDiscovery() {
         try {
-            bluetoothAdapter?.cancelDiscovery()
+            manager.bluetoothAdapter.cancelDiscovery()
             log("SCAN: Classic discovery cancelled")
         } catch (t: Throwable) {
             log("SCAN: Error cancelling classic discovery ${t.message}")
@@ -171,9 +158,9 @@ class InternalBluetoothScanner(
     fun startUnifiedScan(scanSettings: ScanSettings? = null, scanFilters: List<ScanFilter>? = null) {
         startBleScan(scanSettings, scanFilters)
         startClassicDiscovery()
-        updateBondedDevices()
-        updateConnectedDevices()
-        scope.launch {
+        manager.updateBondedDevices()
+        manager.updateConnectedDevices()
+        manager.bleManagerScope.launch {
             delay(60_000)
             log("SCAN: Auto-stop after 60s")
             stopUnifiedScan()
@@ -190,14 +177,14 @@ class InternalBluetoothScanner(
     fun startContinuousScan(scanSettings: ScanSettings? = null, scanFilters: List<ScanFilter>? = null) {
         startBleScan(scanSettings, scanFilters)
         startClassicDiscovery()
-        updateBondedDevices()
-        updateConnectedDevices()
+        manager.updateBondedDevices()
+        manager.updateConnectedDevices()
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun restartScan() {
         stopUnifiedScan()
-        scope.launch {
+        manager.bleManagerScope.launch {
             delay(500)
             startUnifiedScan()
         }
@@ -211,7 +198,7 @@ class InternalBluetoothScanner(
 
             val manuMap = mutableMapOf<Int, ByteArray>()
             record?.manufacturerSpecificData?.let { msd ->
-                for (i in 0 until msd.size()) {
+                for (i in 0 until msd.size) {
                     manuMap[msd.keyAt(i)] = msd.valueAt(i)
                 }
             }
@@ -221,7 +208,7 @@ class InternalBluetoothScanner(
                 svcMap[uuid.uuid] = bytes
             }
 
-            val details = buildEvent(
+            val details = manager.buildBluetoothDevice(
                 device,
                 device?.address,
                 "BLE_SCAN_RESULT",

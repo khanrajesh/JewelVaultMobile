@@ -15,7 +15,7 @@ import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.bluetooth.InternalBluetoothManager
+import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.RemoteConfigManager
@@ -43,7 +43,7 @@ class BaseViewModel @Inject constructor(
     private val _appUpdateManager: AppUpdateManager,
     private val _backupManager: BackupManager,
     private val _auth: FirebaseAuth,
-    private val _Internal_bluetoothManager: InternalBluetoothManager
+    private val _Internal_bluetoothManager: BleManager
     ) : ViewModel() {
 
     var loading by _loadingState

@@ -61,6 +61,7 @@ import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.isLandscape
 import kotlinx.coroutines.launch
 
 @Composable
@@ -203,152 +204,165 @@ fun TabNavigationDrawer(
         baseViewModel.loadStoreImage()
     }
 
+    if (isLandscape()) {
+        val width = if (drawerState.isOpen) 200.dp else 60.dp
 
-    val width = if (drawerState.isOpen) 200.dp else 60.dp
-
-    Row(modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxHeight()
-                .width(width)
-                .background(
-                    color = MaterialTheme.colorScheme.primary
-                )
-                .padding(8.dp)
-        ) {
-
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                ProfileImage(onProfileClick)
-                drawerContent()
-            }
-
-
-            Column(
-                modifier = Modifier, horizontalAlignment = Alignment.Start
-            ) {
-                Row(modifier = Modifier
-                    .clickable {
-                        drawerState.currentValue =
-                            if (drawerState.isOpen) TabDrawerValue.Closed else TabDrawerValue.Open
-                    }
-                    .fillMaxWidth()
-                    .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.End) {
-                    // Version info and update notification
-                    Icon(
-                        if (drawerState.isOpen) Icons.AutoMirrored.Filled.KeyboardArrowLeft
-                        else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = if (drawerState.isOpen) "Close drawer" else "Open drawer",
-                        modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
-                Text(
-                    text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Normal,
-                    lineHeight = 10.sp
-                )
-
-                // Show update notification if available
-                if (baseViewModel.updateInfo.value != null) {
-                    // Note: We can't call suspend function here, so we'll show based on updateInfo
-                    val currentVersion = baseViewModel.remoteConfigManager.getCurrentAppVersion()
-                    val latestVersion =
-                        baseViewModel.updateInfo.value?.latestVersionCode ?: currentVersion
-                    if (latestVersion > currentVersion) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(bottom = 10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Update,
-                                contentDescription = "Update Available",
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
-                            )
-                            Text(
-                                text = "Update",
-                                fontSize = 8.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = 0.8f
-                                ),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-                }
-
-
-            }
-
-
-        }
-
-        Column(Modifier.fillMaxSize()) {
+        Row(modifier.fillMaxSize()) {
             Column(
                 Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
+                    .fillMaxHeight()
+                    .width(width)
                     .background(
                         color = MaterialTheme.colorScheme.primary
                     )
+                    .padding(8.dp)
             ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Spacer(Modifier.width(20.dp))
-                    Column {
-                        Text(
-                            text = baseViewModel.storeName.value ?: "Jewel Vault",
-                            fontSize = 22.sp,
-                            fontFamily = ZenFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier
-                                .bounceClick {
-                                    ioScope.launch {
-                                        baseViewModel.refreshMetalRates(context = context)
-                                    }
-                                }
-                                .padding(top = 5.dp))
 
-                        // Current Screen Heading
-                        if (baseViewModel.currentScreenHeading.isNotEmpty()) {
-                            Text(
-                                text = baseViewModel.currentScreenHeading,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                                modifier = Modifier
-                                    .padding(start = 10.dp)
-                                    .offset(y = (-7).dp)
-                            )
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ProfileImage(onProfileClick)
+                    drawerContent()
+                }
+
+
+                Column(
+                    modifier = Modifier, horizontalAlignment = Alignment.Start
+                ) {
+                    Row(modifier = Modifier
+                        .clickable {
+                            drawerState.currentValue =
+                                if (drawerState.isOpen) TabDrawerValue.Closed else TabDrawerValue.Open
+                        }
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.End) {
+                        // Version info and update notification
+                        Icon(
+                            if (drawerState.isOpen) Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                            else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = if (drawerState.isOpen) "Close drawer" else "Open drawer",
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    Text(
+                        text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Normal,
+                        lineHeight = 10.sp
+                    )
+
+                    // Show update notification if available
+                    if (baseViewModel.updateInfo.value != null) {
+                        // Note: We can't call suspend function here, so we'll show based on updateInfo
+                        val currentVersion =
+                            baseViewModel.remoteConfigManager.getCurrentAppVersion()
+                        val latestVersion =
+                            baseViewModel.updateInfo.value?.latestVersionCode ?: currentVersion
+                        if (latestVersion > currentVersion) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(bottom = 10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Update,
+                                    contentDescription = "Update Available",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    text = "Update",
+                                    fontSize = 8.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(
+                                        alpha = 0.8f
+                                    ),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
-                    Spacer(Modifier.width(20.dp))
-                    MetalRatesTicker(
-                        Modifier
-                            .height(30.dp)
-                            .weight(1f),
-                        backgroundColor = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(20.dp))
-                    notifierContent()
-                    Spacer(Modifier.width(10.dp))
+
+
                 }
-                Box(Modifier.fillMaxSize()) {
-                    content()
+
+
+            }
+
+            Column(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .background(
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                ) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(Modifier.width(20.dp))
+                        Column {
+                            Text(
+                                text = baseViewModel.storeName.value ?: "Jewel Vault",
+                                fontSize = 22.sp,
+                                fontFamily = ZenFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier
+                                    .bounceClick {
+                                        ioScope.launch {
+                                            baseViewModel.refreshMetalRates(context = context)
+                                        }
+                                    }
+                                    .padding(top = 5.dp))
+
+                            // Current Screen Heading
+                            if (baseViewModel.currentScreenHeading.isNotEmpty()) {
+                                Text(
+                                    text = baseViewModel.currentScreenHeading,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                    modifier = Modifier
+                                        .padding(start = 10.dp)
+                                        .offset(y = (-7).dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(20.dp))
+                        MetalRatesTicker(
+                            Modifier
+                                .height(30.dp)
+                                .weight(1f),
+                            backgroundColor = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.width(20.dp))
+                        notifierContent()
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Box(Modifier.fillMaxSize()) {
+                        content()
+                    }
                 }
             }
         }
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth()) {
+
+                ProfileImage { onProfileClick }
+
+                notifierContent()
+            }
+            content()
+        }
     }
+
 
 }
 
@@ -368,7 +382,7 @@ class InputIconState(
 
 
 @Composable
-fun ProfileImage( onProfileClick: () -> Unit) {
+fun ProfileImage(onProfileClick: () -> Unit) {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
 

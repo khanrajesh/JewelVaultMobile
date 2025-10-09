@@ -1,4 +1,4 @@
-package com.velox.jewelvault.ui.screen.bluetooth_new
+package com.velox.jewelvault.ui.screen.bluetooth
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
