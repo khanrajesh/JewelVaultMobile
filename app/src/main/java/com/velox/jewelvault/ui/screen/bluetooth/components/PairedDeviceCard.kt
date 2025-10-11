@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrowserNotSupported
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,7 +96,7 @@ fun PairedDeviceCard(
                 onClick = onForget
             ) {
                 Icon(
-                    imageVector = Icons.Default.BrowserNotSupported,
+                    imageVector = Icons.Default.LinkOff,
                     contentDescription = "Forget",
                     tint = if (isPrinterDevice(device)) MaterialTheme.colorScheme.onSecondaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant

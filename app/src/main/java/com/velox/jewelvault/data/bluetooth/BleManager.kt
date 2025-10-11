@@ -267,13 +267,6 @@ class BleManager @Inject constructor(
         cLog("CONNECT: Refreshed all device lists from system")
     }
 
-    /**
-     * Manually refreshes connected devices list
-     */
-    fun refreshConnectedDevices() {
-        updateConnectedDevices()
-        cLog("refreshConnectedDevices: Manually refreshed connected devices list")
-    }
 
 
     /**

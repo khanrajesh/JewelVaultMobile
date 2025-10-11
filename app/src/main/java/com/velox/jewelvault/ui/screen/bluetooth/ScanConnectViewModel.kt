@@ -121,35 +121,7 @@ class ScanConnectViewModel @Inject constructor(
             }
         }
     }
-    
-    fun refreshDevices() {
-        viewModelScope.launch {
-            try {
-                _uiState.value = _uiState.value.copy(isLoading = true)
-                
-                // Stop and restart unified scanning to refresh
-                bleManager.stopUnifiedScanning()
-                
-                // Small delay before restarting
-                kotlinx.coroutines.delay(500)
-                
-                bleManager.startUnifiedScanning()
-                
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Refreshing device list..."
-                )
-                
-                log("Refreshed device list")
-            } catch (e: Exception) {
-                log("Error refreshing devices: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Failed to refresh devices: ${e.message}"
-                )
-            }
-        }
-    }
+
     
     fun connectToDevice(deviceAddress: String) {
         viewModelScope.launch {
@@ -310,10 +282,10 @@ class ScanConnectViewModel @Inject constructor(
         }
     }
     
-    fun refreshConnectedDevices() {
+    fun refreshAllDeviceLists() {
         viewModelScope.launch {
             try {
-                bleManager.refreshConnectedDevices()
+                bleManager.refreshAllDeviceLists()
                 log("Refreshed connected devices list")
             } catch (e: Exception) {
                 log("Error refreshing connected devices: ${e.message}")
