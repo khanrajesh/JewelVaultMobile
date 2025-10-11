@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,6 +45,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -274,6 +278,10 @@ private fun AuthScreen(
     val activity = LocalContext.current as FragmentActivity
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    // PIN visibility states
+    val passwordVisible = remember { mutableStateOf(false) }
+    val confirmPasswordVisible = remember { mutableStateOf(false) }
+
 
     // Create focus requesters for focus management
     val mobileNoFocusRequester = remember { FocusRequester() }
@@ -433,6 +441,9 @@ private fun AuthScreen(
                     state = password,
                     placeholderText = "PIN",
                     keyboardType = KeyboardType.Password,
+                    visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(onDone = {
                         loginAction(
@@ -489,6 +500,9 @@ private fun AuthScreen(
                         state = password,
                         placeholderText = "New PIN",
                         keyboardType = KeyboardType.Password,
+                        visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                         imeAction = ImeAction.Next,
                         nextFocusRequester = confirmPasswordFocusRequester
                     )
@@ -500,6 +514,9 @@ private fun AuthScreen(
                         state = confirmPassword,
                         placeholderText = "Confirm New PIN",
                         keyboardType = KeyboardType.Password,
+                        visualTransformation = if (confirmPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = if (confirmPasswordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        onTrailingIconClick = { confirmPasswordVisible.value = !confirmPasswordVisible.value },
                         imeAction = ImeAction.Done
                     )
                 }
@@ -554,6 +571,9 @@ private fun AuthScreen(
                         state = password,
                         placeholderText = "PIN",
                         keyboardType = KeyboardType.Password,
+                        visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                         imeAction = ImeAction.Next,
                         nextFocusRequester = confirmPasswordFocusRequester
                     )
@@ -565,6 +585,9 @@ private fun AuthScreen(
                         state = confirmPassword,
                         placeholderText = "Confirm PIN",
                         keyboardType = KeyboardType.Password,
+                        visualTransformation = if (confirmPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = if (confirmPasswordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        onTrailingIconClick = { confirmPasswordVisible.value = !confirmPasswordVisible.value },
                         imeAction = ImeAction.Done,
                         keyboardActions = KeyboardActions(onDone = {
                             // Validate PIN confirmation
