@@ -1,10 +1,14 @@
-package com.velox.jewelvault.utils
+package com.velox.jewelvault.data.firebase
 
 import android.net.Uri
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
+import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity
+import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
@@ -153,7 +157,7 @@ class FirebaseUtils {
         /**
          * Convert StoreEntity to Firestore map
          */
-        fun storeEntityToMap(storeEntity: com.velox.jewelvault.data.roomdb.entity.StoreEntity): Map<String, Any> {
+        fun storeEntityToMap(storeEntity: StoreEntity): Map<String, Any> {
             return mapOf(
                 "storeId" to storeEntity.storeId,
                 "userId" to storeEntity.userId,
@@ -175,8 +179,8 @@ class FirebaseUtils {
         /**
          * Convert Firestore map to StoreEntity
          */
-        fun mapToStoreEntity(data: Map<String, Any>): com.velox.jewelvault.data.roomdb.entity.StoreEntity {
-            return com.velox.jewelvault.data.roomdb.entity.StoreEntity(
+        fun mapToStoreEntity(data: Map<String, Any>): StoreEntity {
+            return StoreEntity(
                 storeId = (data["storeId"] as? String) ?: "",
                 userId = (data["userId"] as? String) ?: "",
                 proprietor = data["proprietor"] as? String ?: "",
@@ -212,9 +216,9 @@ class FirebaseUtils {
                     log("Invalid parameters: userMobileNumber='$userMobileNumber', storeId='$storeId', appUserMobileNumber='$appUserMobileNumber'")
                     return Result.failure(IllegalArgumentException("Invalid parameters provided"))
                 }
-                
+
                 log("Creating document reference: users/$userMobileNumber/stores/$storeId/app_users/$appUserMobileNumber")
-                
+
                 val documentRef = firestore
                     .collection(USERS_COLLECTION)
                     .document(userMobileNumber)
@@ -248,9 +252,9 @@ class FirebaseUtils {
                     log("Invalid parameters: userMobileNumber='$userMobileNumber', storeId='$storeId', appUserMobileNumber='$appUserMobileNumber'")
                     return Result.failure(IllegalArgumentException("Invalid parameters provided"))
                 }
-                
+
                 log("Creating document reference: users/$userMobileNumber/stores/$storeId/app_users/$appUserMobileNumber/user_additional_info/$appUserMobileNumber")
-                
+
                 val documentRef = firestore
                     .collection(USERS_COLLECTION)
                     .document(userMobileNumber)
@@ -283,9 +287,9 @@ class FirebaseUtils {
                     log("Invalid parameters: mobileNumber='$mobileNumber', storeId='$storeId'")
                     return Result.failure(IllegalArgumentException("Invalid parameters provided"))
                 }
-                
+
                 log("Creating collection reference: users/$mobileNumber/stores/$storeId/app_users")
-                
+
                 val snapshot = firestore
                     .collection(USERS_COLLECTION)
                     .document(mobileNumber)
@@ -355,9 +359,9 @@ class FirebaseUtils {
                     log("Invalid parameters: storeOwnerMobile='$storeOwnerMobile', storeId='$storeId', userMobileNumber='$userMobileNumber'")
                     return Result.failure(IllegalArgumentException("Invalid parameters provided"))
                 }
-                
+
                 log("Deleting user: users/$storeOwnerMobile/stores/$storeId/app_users/$userMobileNumber")
-                
+
                 // Delete user additional info first (if exists)
                 firestore
                     .collection(USERS_COLLECTION)
@@ -392,7 +396,7 @@ class FirebaseUtils {
         /**
          * Convert UsersEntity to Firestore map
          */
-        fun userEntityToMap(userEntity: com.velox.jewelvault.data.roomdb.entity.users.UsersEntity): Map<String, Any> {
+        fun userEntityToMap(userEntity: UsersEntity): Map<String, Any> {
             return mapOf(
                 "userId" to userEntity.userId,
                 "name" to userEntity.name,
@@ -406,7 +410,7 @@ class FirebaseUtils {
         /**
          * Convert UserAdditionalInfoEntity to Firestore map
          */
-        fun userAdditionalInfoEntityToMap(userInfoEntity: com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity): Map<String, Any> {
+        fun userAdditionalInfoEntityToMap(userInfoEntity: UserAdditionalInfoEntity): Map<String, Any> {
             return mapOf(
                 "userId" to userInfoEntity.userId,
                 "aadhaarNumber" to (userInfoEntity.aadhaarNumber ?: ""),
@@ -426,8 +430,8 @@ class FirebaseUtils {
         /**
          * Convert Firestore map to UsersEntity
          */
-        fun mapToUserEntity(data: Map<String, Any>): com.velox.jewelvault.data.roomdb.entity.users.UsersEntity {
-            return com.velox.jewelvault.data.roomdb.entity.users.UsersEntity(
+        fun mapToUserEntity(data: Map<String, Any>): UsersEntity {
+            return UsersEntity(
                 userId = (data["userId"] as? String) ?: "",
                 name = data["name"] as? String ?: "",
                 email = data["email"] as? String,
@@ -440,8 +444,8 @@ class FirebaseUtils {
         /**
          * Convert Firestore map to UserAdditionalInfoEntity
          */
-        fun mapToUserAdditionalInfoEntity(data: Map<String, Any>): com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity {
-            return com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity(
+        fun mapToUserAdditionalInfoEntity(data: Map<String, Any>): UserAdditionalInfoEntity {
+            return UserAdditionalInfoEntity(
                 userId = (data["userId"] as? String) ?: "",
                 aadhaarNumber = data["aadhaarNumber"] as? String,
                 address = data["address"] as? String,

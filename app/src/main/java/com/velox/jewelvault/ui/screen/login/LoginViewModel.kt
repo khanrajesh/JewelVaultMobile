@@ -19,7 +19,7 @@ import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.BiometricAuthManager
 import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.RemoteConfigManager
+import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.ioLaunch

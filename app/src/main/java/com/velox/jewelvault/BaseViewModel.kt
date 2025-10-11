@@ -18,7 +18,7 @@ import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
-import com.velox.jewelvault.utils.RemoteConfigManager
+import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.backup.BackupManager
 import com.velox.jewelvault.utils.backup.BackupService

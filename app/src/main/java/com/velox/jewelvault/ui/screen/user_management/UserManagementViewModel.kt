@@ -10,7 +10,7 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.FirebaseUtils
+import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.ioLaunch

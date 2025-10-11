@@ -23,7 +23,7 @@ import com.velox.jewelvault.data.roomdb.RoomMigration
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.utils.AppUpdateManager
-import com.velox.jewelvault.utils.RemoteConfigManager
+import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.backup.BackupManager
 import dagger.Module
