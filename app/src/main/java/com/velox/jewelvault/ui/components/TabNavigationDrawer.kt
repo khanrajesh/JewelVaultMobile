@@ -62,6 +62,7 @@ import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.launch
 
 @Composable
@@ -398,20 +399,44 @@ fun ProfileImage(onProfileClick: () -> Unit) {
         }
         .size(60.dp)
         .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
-        // ALWAYS use local logo file if available, otherwise use Firebase URL
-        val imageData = if (baseViewModel.hasLocalLogo()) {
-            baseViewModel.getLogoUri()
-        } else {
-            // Only use URL if no local logo exists
-            baseViewModel.storeImage.value
+        // Prefer remote URL if present; fall back to local cached file
+        val imageData = when {
+            !baseViewModel.storeImage.value.isNullOrBlank() -> {
+                log("TabNavigationDrawer: Using storeImage: ${baseViewModel.storeImage.value}")
+                baseViewModel.storeImage.value
+            }
+            baseViewModel.hasLocalLogo() -> {
+                log("TabNavigationDrawer: Using local logo: ${baseViewModel.getLogoUri()}")
+                baseViewModel.getLogoUri()
+            }
+            else -> {
+                log("TabNavigationDrawer: No image data available")
+                null
+            }
         }
 
         if (imageData != null) {
+            log("TabNavigationDrawer: ImageData type: ${imageData::class.simpleName}, value: $imageData")
+            
+            // Create ImageRequest with proper configuration and logging
+            val imageRequest = ImageRequest.Builder(context)
+                .data(imageData)
+                .crossfade(true)
+                .error(android.R.drawable.ic_menu_gallery)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .listener(
+                    onError = { request, result ->
+                        log("TabNavigationDrawer: Coil load error for ${request.data}: ${result.throwable.message}")
+                    },
+                    onSuccess = { request, _ ->
+                        log("TabNavigationDrawer: Coil load success for ${request.data}")
+                    }
+                )
+                .build()
+            
             // Show profile image if available
             Image(
-                painter = rememberAsyncImagePainter(
-                    ImageRequest.Builder(context).data(imageData).build()
-                ),
+                painter = rememberAsyncImagePainter(imageRequest),
                 contentDescription = "Profile Image",
                 modifier = Modifier
                     .size(60.dp)

@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.ParcelUuid
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
+import com.velox.jewelvault.utils.log
 import kotlin.collections.set
 
 
@@ -21,7 +22,7 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
     BroadcastReceiver() {
 
     private val appContext = context.applicationContext
-    private fun cLog(msg: String) = manager.cLog(msg)
+    private fun cLog(msg: String) = log(msg)
 
 
     var isReceiverRegistered = false

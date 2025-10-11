@@ -62,6 +62,7 @@ import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -80,6 +81,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
         val storeId = store.first.first()
         profileViewModel.getStoreData(storeId, isFirstLaunch = firstLaunch)
         baseViewModel.loadStoreImage()
+    }
+    
+    // Watch for changes in store image and refresh if needed
+    LaunchedEffect(baseViewModel.storeImage.value, baseViewModel.localLogoUri.value) {
+        // This will trigger recomposition when store image changes
     }
 
     BackHandler {
@@ -345,27 +351,34 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     Text("Done", Modifier
                         .clickable {
                             if (profileViewModel.shopName.text.isNotBlank() && profileViewModel.propName.text.isNotBlank() && profileViewModel.userEmail.text.isNotBlank() && profileViewModel.userMobile.text.isNotBlank() && profileViewModel.address.text.isNotBlank() && profileViewModel.registrationNo.text.isNotBlank() && profileViewModel.gstinNo.text.isNotBlank() && profileViewModel.panNumber.text.isNotBlank()) {
-                                profileViewModel.saveStoreData(onSuccess = {
-                                    // Refresh the store image in BaseViewModel
-                                    baseViewModel.loadStoreImage()
-                                    if (firstLaunch) {
-                                        ioScope {
+                                profileViewModel.saveStoreData(
+                                    onSuccess = {
+                                        // Refresh the store image in BaseViewModel
+                                        baseViewModel.loadStoreImage()
+                                        if (firstLaunch) {
+                                            ioScope {
 //                                            profileViewModel.initializeDefaultCategories()
 //                                            delay(100)
-                                            mainScope {
-                                                subNavController.navigate(SubScreens.Dashboard.route) {
-                                                    popUpTo(SubScreens.Dashboard.route) {
-                                                        inclusive = true
+                                                mainScope {
+                                                    subNavController.navigate(SubScreens.Dashboard.route) {
+                                                        popUpTo(SubScreens.Dashboard.route) {
+                                                            inclusive = true
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
+                                        profileViewModel.snackBarState.value =
+                                            "Store Details updated successfully!"
+                                    }, 
+                                    onFailure = {
+                                        // Error message is already set in ViewModel
+                                    },
+                                    onImageUpdated = {
+                                        // Refresh the store image immediately after upload
+                                        baseViewModel.loadStoreImage()
                                     }
-                                    profileViewModel.snackBarState.value =
-                                        "Store Details updated successfully!"
-                                }, onFailure = {
-                                    // Error message is already set in ViewModel
-                                })
+                                )
                                 isEditable.value = !isEditable.value
                             } else {
                                 profileViewModel.snackBarState.value = "Please fill all the required fields."
@@ -433,19 +446,52 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     }
                 } else {
                     val imageData = when {
-                        baseViewModel.hasLocalLogo() -> baseViewModel.getLogoUri()
-                        !profileViewModel.selectedImageUri.value.isNullOrBlank() -> profileViewModel.selectedImageUri.value
-                        !baseViewModel.storeImage.value.isNullOrBlank() -> baseViewModel.storeImage.value
-                        else -> null
+                        // If we have a newly selected image file, show it immediately
+                        profileViewModel.selectedImageFileUri.value != null -> {
+                            log("ProfileScreen: Using selectedImageFileUri: ${profileViewModel.selectedImageFileUri.value}")
+                            profileViewModel.selectedImageFileUri.value
+                        }
+                        // Prefer remote URL if present
+                        !profileViewModel.selectedImageUri.value.isNullOrBlank() -> {
+                            log("ProfileScreen: Using selectedImageUri: ${profileViewModel.selectedImageUri.value}")
+                            profileViewModel.selectedImageUri.value
+                        }
+                        !baseViewModel.storeImage.value.isNullOrBlank() -> {
+                            log("ProfileScreen: Using storeImage: ${baseViewModel.storeImage.value}")
+                            baseViewModel.storeImage.value
+                        }
+                        // Fallback to local logo file
+                        baseViewModel.hasLocalLogo() -> {
+                            log("ProfileScreen: Using local logo: ${baseViewModel.getLogoUri()}")
+                            baseViewModel.getLogoUri()
+                        }
+                        else -> {
+                            log("ProfileScreen: No image data available")
+                            null
+                        }
                     }
                     
                     if (imageData != null) {
+                        log("ProfileScreen: ImageData type: ${imageData::class.simpleName}, value: $imageData")
+                        
+                        // Create ImageRequest with proper configuration
+                        val imageRequest = ImageRequest.Builder(context)
+                            .data(imageData)
+                            .crossfade(true)
+                            .error(android.R.drawable.ic_menu_gallery)
+                            .placeholder(android.R.drawable.ic_menu_gallery)
+                            .listener(
+                                onError = { request, result ->
+                                    log("ProfileScreen: Coil load error for ${request.data}: ${result.throwable.message}")
+                                },
+                                onSuccess = { request, _ ->
+                                    log("ProfileScreen: Coil load success for ${request.data}")
+                                }
+                            )
+                            .build()
+                        
                         Image(
-                            painter = rememberAsyncImagePainter(
-                                ImageRequest.Builder(context)
-                                    .data(imageData)
-                                    .build()
-                            ),
+                            painter = rememberAsyncImagePainter(imageRequest),
                             contentDescription = "Store Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

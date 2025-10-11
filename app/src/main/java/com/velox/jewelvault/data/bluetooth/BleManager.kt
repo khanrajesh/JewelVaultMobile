@@ -12,6 +12,7 @@ import android.content.Context
 import androidx.annotation.RequiresPermission
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.permissions.hasConnectPermission
+import com.velox.jewelvault.data.DataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BleManager @Inject constructor(
-    private val context: Context
+    private val context: Context,
+    private val dataStoreManager: DataStoreManager
 ) {
 
     val showLog = true
@@ -72,6 +74,13 @@ class BleManager @Inject constructor(
 //    private val headsetConnected = mutableSetOf<String>()
 //    private val hidConnected = mutableSetOf<String>()
 
+    // Screen-specific monitoring
+    private var isScanConnectScreenActive = false
+    private var monitoringJob: kotlinx.coroutines.Job? = null
+
+    // Connection success callbacks for printer saving
+    private val connectionSuccessCallbacks = mutableMapOf<String, (String) -> Unit>()
+
     private val bleReceiver: BleBroadcastReceiver = BleBroadcastReceiver(context, this)
 
     val bleScanner = BleScanner(
@@ -84,14 +93,14 @@ class BleManager @Inject constructor(
 
     val isDiscovering: StateFlow<Boolean> = bleScanner.isDiscovering
 
-    private val bluetoothConnect = BleConnect(
+    val bluetoothConnect = BleConnect(
         context = context,
         updateConnecting = { addOrUpdateDevice(connectingDevices, it) },
         removeConnecting = { removeDevice(connectingDevices, it) },
         removeConnected = { removeDevice(connectedDevices, it) },
         gattMap = gattMap,
-        isDeviceConnected = { addr -> connectedDevices.value.any { it.address == addr } },
-        isDeviceConnecting = { addr -> connectingDevices.value.any { it.address == addr } },
+//        isDeviceConnected = { addr -> connectedDevices.value.any { it.address == addr } },
+//        isDeviceConnecting = { addr -> connectingDevices.value.any { it.address == addr } },
         manager = this
     )
 
@@ -376,6 +385,45 @@ class BleManager @Inject constructor(
         }
     }
 
+    /**
+     * Sets ScanConnectScreen as active and starts 5-second monitoring
+     */
+    fun setScanConnectScreenActive(active: Boolean) {
+        isScanConnectScreenActive = active
+        if (active) {
+            startScanConnectScreenMonitoring()
+        } else {
+            stopScanConnectScreenMonitoring()
+        }
+    }
+
+    /**
+     * Starts 5-second monitoring specifically for ScanConnectScreen
+     */
+    private fun startScanConnectScreenMonitoring() {
+        // Cancel existing monitoring if any
+        monitoringJob?.cancel()
+        
+        monitoringJob = bleManagerScope.launch {
+            while (isScanConnectScreenActive) {
+                delay(5000) // 5 seconds
+                if (isScanConnectScreenActive) {
+                    cLog("ScanConnectScreen: Updating connected devices (5-second interval)")
+                    updateConnectedDevices()
+                }
+            }
+        }
+    }
+
+    /**
+     * Stops ScanConnectScreen-specific monitoring
+     */
+    private fun stopScanConnectScreenMonitoring() {
+        monitoringJob?.cancel()
+        monitoringJob = null
+        cLog("ScanConnectScreen: Stopped 5-second monitoring")
+    }
+
     // ----------------- Utility getters removed (not used by UI) -----------------
 
 
@@ -498,82 +546,230 @@ class BleManager @Inject constructor(
     }
 
     /**
-     * Updates connected devices list from system and returns resulting list.
-     *
-     * NOTE: This function uses a CountDownLatch to synchronously wait for
-     * profile binding callbacks. Call this off the main thread or convert to suspend.
+     * Gets GATT connected devices from system
      */
-    fun updateConnectedDevices(div: BluetoothDeviceDetails?=null) {
-        try {
-            cLog("updateConnectedDevices: Updating connected devices list from system")
-            val connectedList = mutableListOf<BluetoothDeviceDetails>()
-
-            if (div != null) connectedList += listOf(div)
-
-            // 1) GATT connected devices
-            val gattConnected = try {
-                bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
-            } catch (e: Exception) {
-                cLog("updateConnectedDevices: Error getting GATT connected devices: ${e.message}")
-                emptyList<BluetoothDevice>()
-            }
-            cLog("updateConnectedDevices: Found ${gattConnected.size} GATT connected devices")
-            val gattDetails = gattConnected.map { device ->
+    fun getGattConnectedDevices(): List<BluetoothDeviceDetails> {
+        return try {
+            val gattConnected = bluetoothManager.getConnectedDevices(BluetoothProfile.GATT)
+            cLog("getGattConnectedDevices: Found ${gattConnected.size} GATT connected devices")
+            gattConnected.map { device ->
                 val d = buildBluetoothDevice(device, action = "CONNECTED_DEVICE")
-                cLog("updateConnectedDevices: Added GATT connected device: ${device.address} (${device.name})")
+                cLog("getGattConnectedDevices: Added GATT connected device: ${device.address} (${device.name})")
                 d
             }
-            connectedList += gattDetails
+        } catch (e: Exception) {
+            cLog("getGattConnectedDevices: Error getting GATT connected devices: ${e.message}")
+            emptyList()
+        }
+    }
 
-            // 2) Bonded devices (reflection or best-effort)
-            val bondedList = try {
+    /**
+     * Gets connected bonded devices using reflection
+     */
+    fun getConnectedBondedDevices(): List<BluetoothDeviceDetails> {
+        return try {
                 val bondedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
-                cLog("updateConnectedDevices: Checking ${bondedDevices.size} bonded devices for connection status")
+            cLog("getConnectedBondedDevices: Checking ${bondedDevices.size} bonded devices for connection status")
                 bondedDevices.mapNotNull { device ->
                     try {
                         val connectionState = getDeviceConnectionState(device)
                         if (connectionState == BluetoothProfile.STATE_CONNECTED) {
                             val d = buildBluetoothDevice(device, action = "CONNECTED_DEVICE")
-                            cLog("updateConnectedDevices: Added connected bonded device: ${device.address} (${device.name})")
+                        cLog("getConnectedBondedDevices: Added connected bonded device: ${device.address} (${device.name})")
                             d
                         } else null
                     } catch (e: Exception) {
-                        cLog("updateConnectedDevices: Error checking connection state for ${device.address}: ${e.message}")
+                    cLog("getConnectedBondedDevices: Error checking connection state for ${device.address}: ${e.message}")
                         null
                     }
                 }
             } catch (e: Exception) {
-                cLog("updateConnectedDevices: Error checking bonded devices: ${e.message}")
+            cLog("getConnectedBondedDevices: Error checking bonded devices: ${e.message}")
                 emptyList()
             }
-            connectedList += bondedList
+    }
 
-            // 3) Our own GATT connections (only actually connected ones)
-            cLog("updateConnectedDevices: Checking our own GATT connections: ${gattMap.size} devices")
-            val ourGatts = gattMap.keys.mapNotNull { addr ->
+    /**
+     * Gets our own GATT connections (only actually connected ones)
+     * Also cleans up disconnected GATT connections
+     */
+    fun getOurGattConnections(): List<BluetoothDeviceDetails> {
+        cLog("getOurGattConnections: Checking our own GATT connections: ${gattMap.size} devices")
+        
+        val connectedDevices = mutableListOf<BluetoothDeviceDetails>()
+        val disconnectedAddresses = mutableListOf<String>()
+        
+        gattMap.keys.forEach { addr ->
                 try {
                     val dev = bluetoothAdapter?.getRemoteDevice(addr)
                     if (dev != null) {
                         val gatt = gattMap[addr]
                         val isActuallyConnected = gatt?.services?.isNotEmpty() == true
+                    
                         if (isActuallyConnected) {
                             val d = buildBluetoothDevice(dev, action = "CONNECTED_DEVICE")
-                            cLog("updateConnectedDevices: Added our GATT connection: ${dev.address} (${dev.name})")
-                            d
+                        connectedDevices.add(d)
+                        cLog("getOurGattConnections: Added our GATT connection: ${dev.address} (${dev.name})")
                         } else {
-                            cLog("updateConnectedDevices: GATT device ${dev.address} is still connecting (services: ${gatt?.services?.size ?: 0}), not adding to connected list")
-                            null
+                        cLog("getOurGattConnections: GATT device ${dev.address} is still connecting (services: ${gatt?.services?.size ?: 0}), marking for cleanup")
+                        disconnectedAddresses.add(addr)
                         }
-                    } else null
+                } else {
+                    cLog("getOurGattConnections: GATT device $addr not found in adapter, marking for cleanup")
+                    disconnectedAddresses.add(addr)
+                }
                 } catch (e: Exception) {
-                    cLog("updateConnectedDevices: Error getting our GATT device $addr: ${e.message}")
-                    null
+                cLog("getOurGattConnections: Error checking our GATT device $addr: ${e.message}, marking for cleanup")
+                disconnectedAddresses.add(addr)
+            }
+        }
+        
+        // Clean up disconnected GATT connections
+        if (disconnectedAddresses.isNotEmpty()) {
+            cLog("getOurGattConnections: Cleaning up ${disconnectedAddresses.size} disconnected GATT connections")
+            disconnectedAddresses.forEach { addr ->
+                try {
+                    gattMap[addr]?.close()
+                    gattMap.remove(addr)
+                    cLog("getOurGattConnections: Cleaned up disconnected GATT connection for $addr")
+                } catch (e: Exception) {
+                    cLog("getOurGattConnections: Error cleaning up GATT connection for $addr: ${e.message}")
                 }
             }
-            connectedList += ourGatts
+        }
+        
+        return connectedDevices
+    }
 
-            // Helper: synchronously get profile-connected devices with timeout (returns BluetoothDevice list)
-            fun getProfileConnectedDevicesSync(
+    /**
+     * Enhanced RFComm connection check with multiple validation methods
+     */
+    fun isRfcommDeviceConnected(address: String): Boolean {
+        return try {
+            val socket = bluetoothConnect.rfcommSockets[address]
+            if (socket == null) {
+                cLog("isRfcommDeviceConnected: No socket found for $address")
+                return false
+            }
+
+            // Method 1: Basic socket state check
+            val basicCheck = socket.isConnected
+            cLog("isRfcommDeviceConnected: Basic check for $address: $basicCheck")
+
+            if (!basicCheck) {
+                return false
+            }
+
+            // Method 2: Try to read socket state (more reliable)
+            val advancedCheck = try {
+                // Try to get socket input stream - this will fail if disconnected
+                socket.inputStream.available() >= 0
+            } catch (e: Exception) {
+                cLog("isRfcommDeviceConnected: Advanced check failed for $address: ${e.message}")
+                false
+            }
+
+            // Method 3: Check if device is still in bonded devices
+            val deviceCheck = try {
+                val device = bluetoothAdapter?.getRemoteDevice(address)
+                device != null && device.bondState == BluetoothDevice.BOND_BONDED
+            } catch (e: Exception) {
+                cLog("isRfcommDeviceConnected: Device check failed for $address: ${e.message}")
+                false
+            }
+
+            val isConnected = basicCheck && advancedCheck && deviceCheck
+            cLog("isRfcommDeviceConnected: Final result for $address: $isConnected (basic: $basicCheck, advanced: $advancedCheck, device: $deviceCheck)")
+            
+            isConnected
+
+        } catch (e: Exception) {
+            cLog("isRfcommDeviceConnected: Error checking RFComm device $address: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Test RFComm connection by sending a small test packet
+     */
+    fun testRfcommConnection(address: String): Boolean {
+        return try {
+            val socket = bluetoothConnect.rfcommSockets[address]
+            if (socket == null) {
+                cLog("testRfcommConnection: No socket found for $address")
+                return false
+            }
+
+            // Try to write a small test packet
+            val testData = byteArrayOf(0x00) // Null byte test
+            socket.outputStream.write(testData)
+            socket.outputStream.flush()
+            
+            cLog("testRfcommConnection: Test packet sent successfully to $address")
+            true
+
+        } catch (e: Exception) {
+            cLog("testRfcommConnection: Test packet failed for $address: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Gets RFComm connected devices (Classic Bluetooth SPP connections)
+     * Also cleans up disconnected sockets
+     */
+    fun getRfcommConnectedDevices(): List<BluetoothDeviceDetails> {
+        cLog("getRfcommConnectedDevices: Checking RFComm connections: ${bluetoothConnect.rfcommSockets.size} devices")
+        
+        val connectedDevices = mutableListOf<BluetoothDeviceDetails>()
+        val disconnectedAddresses = mutableListOf<String>()
+        
+        bluetoothConnect.rfcommSockets.keys.forEach { addr ->
+            try {
+                val dev = bluetoothAdapter?.getRemoteDevice(addr)
+                if (dev != null) {
+                    // Use enhanced connection check instead of basic socket.isConnected
+                    val isActuallyConnected = isRfcommDeviceConnected(addr)
+                    
+                    if (isActuallyConnected) {
+                        val d = buildBluetoothDevice(dev, action = "CONNECTED_DEVICE")
+                        connectedDevices.add(d)
+                        cLog("getRfcommConnectedDevices: Added RFComm connected device: ${dev.address} (${dev.name})")
+                    } else {
+                        cLog("getRfcommConnectedDevices: RFComm device ${dev.address} failed enhanced connection check, marking for cleanup")
+                        disconnectedAddresses.add(addr)
+                    }
+                } else {
+                    cLog("getRfcommConnectedDevices: RFComm device $addr not found in adapter, marking for cleanup")
+                    disconnectedAddresses.add(addr)
+                }
+            } catch (e: Exception) {
+                cLog("getRfcommConnectedDevices: Error checking RFComm device $addr: ${e.message}, marking for cleanup")
+                disconnectedAddresses.add(addr)
+            }
+        }
+        
+        // Clean up disconnected sockets
+        if (disconnectedAddresses.isNotEmpty()) {
+            cLog("getRfcommConnectedDevices: Cleaning up ${disconnectedAddresses.size} disconnected RFComm sockets")
+            disconnectedAddresses.forEach { addr ->
+                try {
+                    bluetoothConnect.rfcommSockets[addr]?.close()
+                    bluetoothConnect.rfcommSockets.remove(addr)
+                    cLog("getRfcommConnectedDevices: Cleaned up disconnected socket for $addr")
+                } catch (e: Exception) {
+                    cLog("getRfcommConnectedDevices: Error cleaning up socket for $addr: ${e.message}")
+                }
+            }
+        }
+        
+        return connectedDevices
+    }
+
+    /**
+     * Helper: synchronously get profile-connected devices with timeout (returns BluetoothDevice list)
+     */
+    private fun getProfileConnectedDevicesSync(
                 profileId: Int,
                 timeoutMs: Long = 500L
             ): List<BluetoothDevice> {
@@ -616,31 +812,274 @@ class BleManager @Inject constructor(
                 return result
             }
 
-            // 4) Merge profile-connected classic devices (A2DP, HEADSET, HID_HOST)
-            fun mergeProfileDevices(profileId: Int, label: String): List<BluetoothDeviceDetails> {
+    /**
+     * Gets profile-connected devices for a specific profile
+     */
+    fun getProfileConnectedDevices(profileId: Int, label: String): List<BluetoothDeviceDetails> {
                 return try {
                     val devices = getProfileConnectedDevicesSync(profileId, timeoutMs = 500L)
-                    cLog("mergeProfileDevices: Profile $label has ${devices.size} connected devices: $devices")
-                    val additions = devices.map { dev ->
+            cLog("getProfileConnectedDevices: Profile $label has ${devices.size} connected devices: $devices")
+            devices.map { dev ->
                         buildBluetoothDevice(dev, action = "CONNECTED_DEVICE")
                     }
-                    additions
                 } catch (t: Throwable) {
-                    cLog("mergeProfileDevices: Error querying $label connected devices: ${t.message}")
+            cLog("getProfileConnectedDevices: Error querying $label connected devices: ${t.message}")
                     emptyList()
                 }
             }
 
-            // add them
-            connectedList += mergeProfileDevices(BluetoothProfile.A2DP, "A2DP")
-            connectedList += mergeProfileDevices(BluetoothProfile.HEADSET, "HEADSET")
-            connectedList +=  mergeProfileDevices(4, "HID_HOST")
-            connectedList +=  mergeProfileDevices(BluetoothProfile.GATT_SERVER, "GATT_SERVER")
+    /**
+     * Gets all profile-connected devices (A2DP, HEADSET, HID_HOST, GATT_SERVER)
+     */
+    fun getAllProfileConnectedDevices(): List<BluetoothDeviceDetails> {
+        val profileDevices = mutableListOf<BluetoothDeviceDetails>()
+        profileDevices += getProfileConnectedDevices(BluetoothProfile.A2DP, "A2DP")
+        profileDevices += getProfileConnectedDevices(BluetoothProfile.HEADSET, "HEADSET")
+        profileDevices += getProfileConnectedDevices(4, "HID_HOST")
+        profileDevices += getProfileConnectedDevices(BluetoothProfile.GATT_SERVER, "GATT_SERVER")
+        return profileDevices
+    }
 
-            connectedDevices.value = connectedList.distinctBy { it.address }
+    /**
+     * Determines the connection method for a device based on its current connection state
+     */
+    fun getDeviceConnectionMethod(address: String): String? {
+        try {
+            // Check GATT connections first
+            val gattDevices = getGattConnectedDevices()
+            if (gattDevices.any { it.address == address }) {
+                return "GATT"
+            }
 
-            cLog("updateConnectedDevices: Incrementally updated connected devices: ${connectedDevices.value.size} devices (added/updated=${connectedDevices.value.size})")
+            // Check our own GATT connections
+            val ourGattDevices = getOurGattConnections()
+            if (ourGattDevices.any { it.address == address }) {
+                return "GATT"
+            }
 
+            // Check RFComm connections
+            val rfcommDevices = getRfcommConnectedDevices()
+            if (rfcommDevices.any { it.address == address }) {
+                return "RFComm"
+            }
+
+            // Check profile connections
+            val a2dpDevices = getProfileConnectedDevices(BluetoothProfile.A2DP, "A2DP")
+            if (a2dpDevices.any { it.address == address }) {
+                return "A2DP"
+            }
+
+            val headsetDevices = getProfileConnectedDevices(BluetoothProfile.HEADSET, "HEADSET")
+            if (headsetDevices.any { it.address == address }) {
+                return "HEADSET"
+            }
+
+            val hidDevices = getProfileConnectedDevices(4, "HID_HOST")
+            if (hidDevices.any { it.address == address }) {
+                return "HID_HOST"
+            }
+
+            val gattServerDevices = getProfileConnectedDevices(BluetoothProfile.GATT_SERVER, "GATT_SERVER")
+            if (gattServerDevices.any { it.address == address }) {
+                return "GATT_SERVER"
+            }
+
+            // Check bonded devices with reflection
+            val bondedDevices = getConnectedBondedDevices()
+            if (bondedDevices.any { it.address == address }) {
+                return "BONDED"
+            }
+
+            cLog("getDeviceConnectionMethod: No connection method found for device $address")
+            return null
+
+        } catch (e: Exception) {
+            cLog("getDeviceConnectionMethod: Error determining connection method for $address: ${e.message}")
+            return null
+        }
+    }
+
+    /**
+     * Gets the saved connection method for a printer from DataStore
+     */
+    fun getSavedPrinterConnectionMethod(address: String): String? {
+        return try {
+            val savedPrinters = dataStoreManager.getSavedPrinters()
+            val printer = savedPrinters.find { it.address == address }
+            printer?.connectionMethod
+        } catch (e: Exception) {
+            cLog("getSavedPrinterConnectionMethod: Error getting saved connection method for $address: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Checks if a printer is connected using its saved connection method
+     */
+    fun isPrinterConnected(address: String): Boolean {
+        return try {
+            val savedMethod = getSavedPrinterConnectionMethod(address)
+            if (savedMethod == null) {
+                cLog("isPrinterConnected: No saved connection method for $address, checking all methods")
+                return getDeviceConnectionMethod(address) != null
+            }
+
+            cLog("isPrinterConnected: Checking $address using saved method: $savedMethod")
+            
+            when (savedMethod) {
+                "GATT" -> {
+                    val gattDevices = getGattConnectedDevices()
+                    val ourGattDevices = getOurGattConnections()
+                    gattDevices.any { it.address == address } || ourGattDevices.any { it.address == address }
+                }
+                "RFComm" -> {
+                    val rfcommDevices = getRfcommConnectedDevices()
+                    rfcommDevices.any { it.address == address }
+                }
+                "A2DP" -> {
+                    val a2dpDevices = getProfileConnectedDevices(BluetoothProfile.A2DP, "A2DP")
+                    a2dpDevices.any { it.address == address }
+                }
+                "HEADSET" -> {
+                    val headsetDevices = getProfileConnectedDevices(BluetoothProfile.HEADSET, "HEADSET")
+                    headsetDevices.any { it.address == address }
+                }
+                "HID_HOST" -> {
+                    val hidDevices = getProfileConnectedDevices(4, "HID_HOST")
+                    hidDevices.any { it.address == address }
+                }
+                "GATT_SERVER" -> {
+                    val gattServerDevices = getProfileConnectedDevices(BluetoothProfile.GATT_SERVER, "GATT_SERVER")
+                    gattServerDevices.any { it.address == address }
+                }
+                "BONDED" -> {
+                    val bondedDevices = getConnectedBondedDevices()
+                    bondedDevices.any { it.address == address }
+                }
+                else -> {
+                    cLog("isPrinterConnected: Unknown connection method $savedMethod for $address, checking all methods")
+                    getDeviceConnectionMethod(address) != null
+                }
+            }
+        } catch (e: Exception) {
+            cLog("isPrinterConnected: Error checking connection for $address: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Connects to a printer using its saved connection method
+     */
+    fun connectToPrinterUsingSavedMethod(address: String): Boolean {
+        return try {
+            val savedMethod = getSavedPrinterConnectionMethod(address)
+            if (savedMethod == null) {
+                cLog("connectToPrinterUsingSavedMethod: No saved connection method for $address, using default connect")
+                connect(address)
+                return true
+            }
+
+            cLog("connectToPrinterUsingSavedMethod: Connecting to $address using saved method: $savedMethod")
+            
+            when (savedMethod) {
+                "GATT", "GATT_SERVER" -> {
+                    // Use GATT connection
+                    connect(address)
+                }
+                "RFComm" -> {
+                    // Use RFComm connection
+                    connect(address)
+                }
+                "A2DP", "HEADSET", "HID_HOST" -> {
+                    // These are typically managed by the system, just use default connect
+                    connect(address)
+                }
+                "BONDED" -> {
+                    // Device is already bonded, just connect
+                    connect(address)
+                }
+                else -> {
+                    cLog("connectToPrinterUsingSavedMethod: Unknown connection method $savedMethod for $address, using default connect")
+                    connect(address)
+                }
+            }
+            true
+        } catch (e: Exception) {
+            cLog("connectToPrinterUsingSavedMethod: Error connecting to $address: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Registers a callback to be called when a device successfully connects
+     */
+    fun registerConnectionSuccessCallback(address: String, callback: (String) -> Unit) {
+        connectionSuccessCallbacks[address] = callback
+        cLog("registerConnectionSuccessCallback: Registered callback for $address")
+    }
+
+    /**
+     * Unregisters a connection success callback
+     */
+    fun unregisterConnectionSuccessCallback(address: String) {
+        connectionSuccessCallbacks.remove(address)
+        cLog("unregisterConnectionSuccessCallback: Unregistered callback for $address")
+    }
+
+    /**
+     * Triggers connection success callbacks for a device
+     */
+    fun triggerConnectionSuccessCallback(address: String, connectionMethod: String) {
+        connectionSuccessCallbacks[address]?.let { callback ->
+            cLog("triggerConnectionSuccessCallback: Triggering callback for $address with method: $connectionMethod")
+            callback(connectionMethod)
+            // Remove callback after triggering to avoid multiple calls
+            connectionSuccessCallbacks.remove(address)
+        }
+    }
+
+    /**
+     * Updates connected devices list from system and returns resulting list.
+     *
+     * NOTE: This function uses a CountDownLatch to synchronously wait for
+     * profile binding callbacks. Call this off the main thread or convert to suspend.
+     */
+    fun updateConnectedDevices(div: BluetoothDeviceDetails?=null) {
+        try {
+            cLog("updateConnectedDevices: Updating connected devices list from system")
+            
+            val currentConnectedDevices = connectedDevices.value.toMutableList()
+            val newConnectedDevices = mutableListOf<BluetoothDeviceDetails>()
+
+            if (div != null) newConnectedDevices += listOf(div)
+
+            // 1) GATT connected devices
+            newConnectedDevices += getGattConnectedDevices()
+
+            // 2) Bonded devices (reflection or best-effort)
+            newConnectedDevices += getConnectedBondedDevices()
+
+            // 3) Our own GATT connections (only actually connected ones)
+            newConnectedDevices += getOurGattConnections()
+
+            // 4) RFComm connected devices (Classic Bluetooth SPP connections)
+            newConnectedDevices += getRfcommConnectedDevices()
+
+            // 5) Profile-connected classic devices (A2DP, HEADSET, HID_HOST, GATT_SERVER)
+            newConnectedDevices += getAllProfileConnectedDevices()
+
+            val finalConnectedDevices = newConnectedDevices.distinctBy { it.address }
+            
+            // Only update if the list has actually changed to prevent UI blinking
+            val currentAddresses = currentConnectedDevices.map { it.address }.toSet()
+            val newAddresses = finalConnectedDevices.map { it.address }.toSet()
+            
+            if (currentAddresses != newAddresses) {
+                connectedDevices.value = finalConnectedDevices
+                cLog("updateConnectedDevices: Updated connected devices: ${finalConnectedDevices.size} devices (changed)")
+            } else {
+                cLog("updateConnectedDevices: Connected devices list unchanged: ${finalConnectedDevices.size} devices")
+            }
 
         } catch (e: SecurityException) {
             cLog("updateConnectedDevices: ERROR - Security exception updating connected devices: ${e.message}")
@@ -672,7 +1111,8 @@ class BleManager @Inject constructor(
         action: String,
         name: String? = null,
         extraInfo: Map<String, String>? = null,
-        uuids: String? = null
+        uuids: String? = null,
+        state: String? = null
     ): BluetoothDeviceDetails {
         val address = address ?: try {
             device?.address ?: "<unknown>"
@@ -731,33 +1171,11 @@ class BleManager @Inject constructor(
             type = type,
             bondState = bond,
             bluetoothClass = btClass,
-            uuids = uuidsStr
+            uuids = uuidsStr,
+            extraInfo = extraInfo ?: emptyMap(),
+            state = state
         )
     }
-
-    /*   private fun emit(event: BluetoothDeviceDetails) {
-           try {
-               // cLog a short summary
-               val summary = mutableListOf<String>()
-               event.address.let { summary.add("addr=$it") }
-               event.name?.let { summary.add("name=$it") }
-               event.rssi?.let { summary.add("rssi=$it") }
-               event.uuids?.let { summary.add("uuids=${it.take(120)}") }
-               // enrich with transport state we track
-               val transports = mutableListOf<String>()
-               if (aclConnected.contains(event.address)) transports.add("ACL")
-               if (gattMap.containsKey(event.address)) transports.add("GATT")
-               if (a2dpConnected.contains(event.address)) transports.add("A2DP")
-               if (headsetConnected.contains(event.address)) transports.add("HEADSET")
-               if (hidConnected.contains(event.address)) transports.add("HID")
-               if (transports.isNotEmpty()) summary.add("links=${transports.joinToString("+")}")
-               cLog("${event.action} -> ${summary.joinToString(" | ")}")
-
-               eventListener?.invoke(event)
-           } catch (e: Exception) {
-
-           }
-       }*/
 
 
     private fun ByteArray?.toHex(): String =
@@ -780,7 +1198,7 @@ data class BluetoothDeviceDetails(
     val serviceData: Map<UUID, ByteArray>? = null,
     val txPower: Int? = null,
     val extraInfo: Map<String, String> = emptyMap(),
-    val state: String? = null
+    val state: String? = "-"
 )
 
 /**

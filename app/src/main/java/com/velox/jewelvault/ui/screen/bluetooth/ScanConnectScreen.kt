@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -100,6 +101,19 @@ fun ScanConnectScreen(
 
     val isDiscovering = bluetoothManager.isDiscovering.collectAsState().value
 
+    // Start/stop screen-specific monitoring
+    LaunchedEffect(Unit) {
+        // Screen is active - start 5-second monitoring
+        bluetoothManager.setScanConnectScreenActive(true)
+    }
+    
+    // Cleanup when screen is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            bluetoothManager.setScanConnectScreenActive(false)
+        }
+    }
+
     // Request Bluetooth permissions
     PermissionRequester(
         permissions = listOf(
@@ -109,7 +123,7 @@ fun ScanConnectScreen(
             android.Manifest.permission.BLUETOOTH_ADMIN,
             android.Manifest.permission.ACCESS_FINE_LOCATION
         ), onAllPermissionsGranted = {
-            viewModel.startScanning()
+            // Permissions granted - scanning is now manual via Start Scan button
         })
 
     Column(
@@ -284,7 +298,10 @@ fun ScanConnectScreen(
                 items(unconnectedPairedDevices) { device ->
                     PairedDeviceCard(
                         device = device,
-                        onConnect = { viewModel.connectToDevice(device.address) },
+                        onConnect = { 
+                            viewModel.connectToDevice(device.address)
+                            scope.launch { listState.animateScrollToItem(0) }
+                        },
                         onForget = { viewModel.forgetDevice(device.address) }
                     )
                 }

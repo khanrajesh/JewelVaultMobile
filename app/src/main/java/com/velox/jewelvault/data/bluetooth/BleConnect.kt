@@ -25,12 +25,12 @@ class BleConnect(
     private val removeConnecting: (String) -> Unit,
     private val removeConnected: (String) -> Unit,
     private val gattMap: MutableMap<String, BluetoothGatt>,
-    private val isDeviceConnected: (String) -> Boolean,
-    private val isDeviceConnecting: (String) -> Boolean,
+//    private val isDeviceConnected: (String) -> Boolean,
+//    private val isDeviceConnecting: (String) -> Boolean,
     private val manager: BleManager,
 ) {
 
-    private val rfcommSockets = mutableMapOf<String, BluetoothSocket>()
+    val rfcommSockets = mutableMapOf<String, BluetoothSocket>()
     private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private fun cLog(message: String) {
         log("BleConnect: $message")
@@ -63,9 +63,9 @@ class BleConnect(
             manager.buildBluetoothDevice(device, address, "CONNECTING", device.name, null, null)
         updateConnecting(connecting)
 
-        // Attempt all supported connection methods sequentially with per-step logging
-//        tryAllTransportsSequentially(device)
-        connectGattInternal(device)
+        // Try all supported connection methods sequentially with per-step logging
+        // This ensures we can connect to any type of device (BLE, Classic, Dual-mode)
+        tryAllTransportsSequentially(device)
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
@@ -115,16 +115,46 @@ class BleConnect(
                     })
 
                 val total = attempts.size
+
                 for ((idx, pair) in attempts.withIndex()) {
                     val name = pair.first
                     val action = pair.second
+                    
                     // Stop immediately if device is already connected
-                    if (isDeviceConnected(address)) {
+                    if (manager.connectedDevices.value.any { it.address == address }) {
                         cLog("Device $address already connected; stopping further attempts")
                         removeConnecting(address)
                         manager.updateConnectedDevices()
                         return@launch
                     }
+                    
+                    // Clean up any existing connections before each attempt
+                    cLog("Cleaning up existing connections before $name attempt for $address")
+                    try {
+                        // Clean up GATT
+                        gattMap[address]?.let { gatt ->
+                            try { gatt.disconnect() } catch (_: Throwable) {}
+                            try { gatt.close() } catch (_: Throwable) {}
+                            gattMap.remove(address)
+                        }
+                        
+                        // Clean up RFCOMM
+                        rfcommSockets[address]?.let { socket ->
+                            try { socket.close() } catch (_: Throwable) {}
+                            rfcommSockets.remove(address)
+                        }
+                        
+                        // Remove from connecting devices
+                        removeConnecting(address)
+                    } catch (e: Throwable) {
+                        cLog("Error during cleanup before $name attempt: ${e.message}")
+                    }
+                    
+                    // Add small delay between attempts to allow cleanup
+                    if (idx > 0) {
+                        delay(500) // 500ms delay between attempts
+                    }
+                    
                     cLog("ATTEMPT_START $name for $address")
                     val startEvt = manager.buildBluetoothDevice(
                         device, address, "CONNECT_ATTEMPT_START_${name}", device.name, mapOf(
@@ -180,13 +210,13 @@ class BleConnect(
                     var waited = 0
                     val step = 300
                     while (waited < timeoutMs) {
-                        if (isDeviceConnected(address)) break
+                        if (manager.connectedDevices.value.any { it.address == address }) break
                         if ((attemptSignal[address] ?: "").startsWith("error_")) break
                         delay(step.toLong())
                         waited += step
                     }
 
-                    if (isDeviceConnected(address)) {
+                    if (manager.connectedDevices.value.any { it.address == address }) {
                         cLog("ATTEMPT_SUCCESS $name for $address")
                         manager.buildBluetoothDevice(
                             device, address, "CONNECT_ATTEMPT_SUCCESS_${name}", device.name, mapOf(
@@ -209,6 +239,30 @@ class BleConnect(
                     } else {
                         cLog("ATTEMPT_FAILED $name for $address (timeout)")
                         val signal = attemptSignal[address]
+                        
+                        // Clean up failed attempt
+                        cLog("Cleaning up failed $name attempt for $address")
+                        try {
+                            when (name) {
+                                "RFCOMM" -> {
+                                    rfcommSockets[address]?.let { socket ->
+                                        try { socket.close() } catch (_: Throwable) {}
+                                        rfcommSockets.remove(address)
+                                    }
+                                }
+                                "GATT" -> {
+                                    gattMap[address]?.let { gatt ->
+                                        try { gatt.disconnect() } catch (_: Throwable) {}
+                                        try { gatt.close() } catch (_: Throwable) {}
+                                        gattMap.remove(address)
+                                    }
+                                }
+                            }
+                            removeConnecting(address)
+                        } catch (e: Throwable) {
+                            cLog("Error cleaning up failed $name attempt: ${e.message}")
+                        }
+                        
                         val failEvt = manager.buildBluetoothDevice(
                             device, address, "CONNECT_ATTEMPT_FAILED_${name}", device.name, mapOf(
                                 "reason" to "timeout",
@@ -229,19 +283,18 @@ class BleConnect(
                                 "total" to total.toString()
                             ).let { base ->
                                 signal?.let { s -> base + ("signal" to s) } ?: base
-                            }, null
+                            }, null, "TIMEOUT"
                         )
                         updateConnecting(failEvt)
                     }
                 }
             } finally {
                 suppressAutoRestartScan = false
-                if (!isDeviceConnected(address)) {
+                if (!manager.connectedDevices.value.any { it.address == address }) {
                     removeConnecting(address)
                     manager.buildBluetoothDevice(
                         device, address, "CONNECT_FAILED_ALL", device.name, null, null
                     )
-//                    emitEvent(failEvt)
                     manager.updateConnectedDevices()
                     try {
                         manager.startUnifiedScanning()
@@ -293,8 +346,13 @@ class BleConnect(
         val address = device.address
 
         if (rfcommSockets.containsKey(address)) {
-            log("RFCOMM: socket already exists for $address")
-            return
+            log("RFCOMM: cleaning up existing socket for $address before new attempt")
+            try {
+                rfcommSockets[address]?.close()
+            } catch (e: Throwable) {
+                log("Error closing existing RFCOMM socket: ${e.message}")
+            }
+            rfcommSockets.remove(address)
         }
 
         manager.bleManagerScope.launch(Dispatchers.IO) {
@@ -311,10 +369,18 @@ class BleConnect(
                 rfcommSockets[address] = socket
 
                 val evt = manager.buildBluetoothDevice(
-                    device, address, "CLASSIC_RFCOMM_CONNECTED", device.name, null, null
+                    device, address, "CLASSIC_RFCOMM_CONNECTED", device.name, mapOf(
+                        "connectionMethod" to "RFCOMM",
+                        "connectionTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth"
+                    ), null, "CONNECTED_RFCOMM"
                 )
                 removeConnecting(address)
                 manager.updateConnectedDevices(evt)
+                
+                // Trigger connection success callback for printer saving
+                manager.triggerConnectionSuccessCallback(address, "RFComm")
+                
                 log("RFCOMM: connected to $address")
                 // Initiate bonding if needed immediately after classic connect
                 if (hasConnectPermission(context)) {
@@ -331,8 +397,14 @@ class BleConnect(
                     address,
                     "CLASSIC_RFCOMM_CONNECT_FAILED",
                     device.name,
-                    mapOf("error" to (t.message ?: "unknown")),
-                    null
+                    mapOf(
+                        "error" to (t.message ?: "unknown"),
+                        "connectionMethod" to "RFCOMM",
+                        "errorTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth"
+                    ),
+                    null,
+                    "ERROR_RFCOMM"
                 )
 //                emitEvent(failEvt)
                 if (!suppressAutoRestartScan) manager.startUnifiedScanning()
@@ -346,7 +418,11 @@ class BleConnect(
             try {
                 rfcommSockets.remove(address)?.close()
                 manager.buildBluetoothDevice(
-                    null, address, "CLASSIC_RFCOMM_DISCONNECTED", null, null, null
+                    null, address, "CLASSIC_RFCOMM_DISCONNECTED", null, mapOf(
+                        "connectionMethod" to "RFCOMM",
+                        "disconnectTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth"
+                    ), null, "DISCONNECTED_RFCOMM"
                 )
                 removeConnected(address)
                 manager.updateConnectedDevices()
@@ -370,12 +446,20 @@ class BleConnect(
             cLog("A2DP connect(${dev.address}) result=$ok")
             if (ok) {
                 val evt = manager.buildBluetoothDevice(
-                    dev, dev.address, "AUDIO_CONNECTED", dev.name, null, null
+                    dev, dev.address, "AUDIO_CONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "A2DP",
+                        "connectionTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Audio"
+                    ), null, "CONNECTED_A2DP"
                 )
                 manager.updateConnectedDevices(evt)
             } else {
                 manager.buildBluetoothDevice(
-                    dev, dev.address, "A2DP_CONNECT_FAILED", dev.name, null, null
+                    dev, dev.address, "A2DP_CONNECT_FAILED", dev.name, mapOf(
+                        "connectionMethod" to "A2DP",
+                        "errorTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Audio"
+                    ), null, "ERROR_A2DP"
                 )
             }
         }(device.address)
@@ -388,12 +472,20 @@ class BleConnect(
             cLog("HEADSET connect(${dev.address}) result=$ok")
             if (ok) {
                 val evt = manager.buildBluetoothDevice(
-                    dev, dev.address, "HEADSET_CONNECTED", dev.name, null, null
+                    dev, dev.address, "HEADSET_CONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "HEADSET",
+                        "connectionTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Headset"
+                    ), null, "CONNECTED_HEADSET"
                 )
                 manager.updateConnectedDevices(evt)
             } else {
                 manager.buildBluetoothDevice(
-                    dev, dev.address, "HEADSET_CONNECT_FAILED", dev.name, null, null
+                    dev, dev.address, "HEADSET_CONNECT_FAILED", dev.name, mapOf(
+                        "connectionMethod" to "HEADSET",
+                        "errorTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Headset"
+                    ), null, "ERROR_HEADSET"
                 )
             }
         }(device.address)
@@ -407,7 +499,11 @@ class BleConnect(
             cLog("A2DP disconnect(${dev.address}) result=$ok")
             if (ok) {
                 manager.buildBluetoothDevice(
-                    dev, address, "AUDIO_DISCONNECTED", dev.name, null, null
+                    dev, address, "AUDIO_DISCONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "A2DP",
+                        "disconnectTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Audio"
+                    ), null, "DISCONNECTED_A2DP"
                 )
                 removeConnected(address)
                 manager.updateConnectedDevices()
@@ -422,7 +518,11 @@ class BleConnect(
             cLog("HEADSET disconnect(${dev.address}) result=$ok")
             if (ok) {
                 manager.buildBluetoothDevice(
-                    dev, address, "HEADSET_DISCONNECTED", dev.name, null, null
+                    dev, address, "HEADSET_DISCONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "HEADSET",
+                        "disconnectTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth Headset"
+                    ), null, "DISCONNECTED_HEADSET"
                 )
                 removeConnected(address)
                 manager.updateConnectedDevices()
@@ -440,12 +540,20 @@ class BleConnect(
             cLog("HID_HOST connect(${dev.address}) result=$ok")
             if (ok) {
                 val evt = manager.buildBluetoothDevice(
-                    dev, dev.address, "HID_HOST_CONNECTED", dev.name, null, null
+                    dev, dev.address, "HID_HOST_CONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "HID",
+                        "connectionTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth HID"
+                    ), null, "CONNECTED_HID"
                 )
                 manager.updateConnectedDevices(evt)
             } else {
                 manager.buildBluetoothDevice(
-                    dev, dev.address, "HID_HOST_CONNECT_FAILED", dev.name, null, null
+                    dev, dev.address, "HID_HOST_CONNECT_FAILED", dev.name, mapOf(
+                        "connectionMethod" to "HID",
+                        "errorTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth HID"
+                    ), null, "ERROR_HID"
                 )
             }
         }(device.address)
@@ -458,7 +566,11 @@ class BleConnect(
             cLog("HID_HOST disconnect(${dev.address}) result=$ok")
             if (ok) {
                 manager.buildBluetoothDevice(
-                    dev, address, "HID_HOST_DISCONNECTED", dev.name, null, null
+                    dev, address, "HID_HOST_DISCONNECTED", dev.name, mapOf(
+                        "connectionMethod" to "HID",
+                        "disconnectTime" to System.currentTimeMillis().toString(),
+                        "transportType" to "Classic Bluetooth HID"
+                    ), null, "DISCONNECTED_HID"
                 )
                 removeConnected(address)
                 manager.updateConnectedDevices()
@@ -585,7 +697,11 @@ class BleConnect(
             } catch (_: Throwable) {
             }
             gattMap.remove(address)
-            manager.buildBluetoothDevice(null, address, "GATT_DISCONNECTED", null, null, null)
+            manager.buildBluetoothDevice(null, address, "GATT_DISCONNECTED", null, mapOf(
+                "connectionMethod" to "GATT",
+                "disconnectTime" to System.currentTimeMillis().toString(),
+                "transportType" to "BLE (GATT)"
+            ), null, "DISCONNECTED_GATT")
             removeConnected(address)
             removeConnecting(address)
             manager.updateConnectedDevices()
@@ -638,6 +754,7 @@ class BleConnect(
         0x106 -> "GATT_CONN_FAIL_ESTABLISH"
         0x107 -> "GATT_CONN_LMP_TIMEOUT"
         0x109 -> "GATT_CONN_CANCEL"
+        0x133 -> "GATT_CONN_ERROR"
         else -> "UNKNOWN_$code"
     }
 
@@ -658,274 +775,669 @@ class BleConnect(
         else -> "STATE_$state"
     }
 
+    // add this field to your class (top of the class)
+    private val reconnectAttempts = mutableMapOf<String, Int>()
+
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun connectGattInternal(device: BluetoothDevice) {
         val address = device.address
-        if (gattMap.containsKey(address)) {
-            cLog("GATT already connecting/connected $address")
-            return
+
+        // mark as connecting for UI/logic (you already use updateConnecting/removeConnecting)
+        cLog("GATT starting connection process for device: $address (${device.name})")
+        val connectingEvt = manager.buildBluetoothDevice(
+            device, address, "GATT_CONNECTING", device.name, mapOf(
+                "connectionMethod" to "GATT",
+                "transportType" to "BLE (GATT)",
+                "timestamp" to System.currentTimeMillis().toString()
+            ), null, "CONNECTING_GATT"
+        )
+
+        // Clean up any existing GATT connection before attempting new one
+        val existingGatt = gattMap[address]
+        if (existingGatt != null) {
+            cLog("Cleaning up existing GATT connection for $address before new attempt")
+            try {
+                existingGatt.disconnect()
+                existingGatt.close()
+            } catch (e: Throwable) {
+                cLog("Error cleaning up existing GATT: ${e.message}")
+            }
+            gattMap.remove(address)
+        }
+        
+        // Remove from connecting devices to allow fresh attempt
+        removeConnecting(address)
+
+
+
+        updateConnecting(connectingEvt)
+
+        // Determine the best transport mode based on device type
+        val transportMode = when {
+            // If device has BLE service UUIDs, prefer LE transport
+            device.uuids?.any { uuid ->
+                uuid?.uuid?.toString()?.let { uuidStr ->
+                    uuidStr.contains("0000180", ignoreCase = true) || // BLE services
+                    uuidStr.contains("df21fe2c", ignoreCase = true) // Custom BLE UUID
+                } ?: false
+            } == true -> {
+                cLog("Device $address has BLE services, using TRANSPORT_LE")
+                BluetoothDevice.TRANSPORT_LE
+            }
+            // For dual-mode or unknown devices, use AUTO to let system decide
+            else -> {
+                cLog("Device $address using TRANSPORT_AUTO for compatibility")
+                BluetoothDevice.TRANSPORT_AUTO
+            }
         }
 
-        // Emit GATT connecting state
-        val connectingEvt = manager.buildBluetoothDevice(
-            device, address, "GATT_CONNECTING", device.name, null, null
-        )
-        updateConnecting(connectingEvt)
-//        emitEvent(connectingEvt)
+        // call connectGatt with appropriate transport mode
+        cLog("GATT attempting connection to $address with transport mode: $transportMode")
+        val gatt = try {
+            device.connectGatt(context, false, object : BluetoothGattCallback() {
 
-        val gatt = device.connectGatt(context, false, object : BluetoothGattCallback() {
-            @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-            override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-                super.onConnectionStateChange(gatt, status, newState)
-                val addr = gatt.device.address
+                @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                    super.onConnectionStateChange(gatt, status, newState)
+                    val addr = gatt.device.address
 
-                val statusName = gattStatusName(status)
-                val statusCategory = gattStatusCategory(status)
-                val stateName = gattStateName(newState)
-                cLog("GATT onConnectionStateChange addr=$addr state=$stateName($newState) status=$statusName($status) cat=$statusCategory")
-                // Explicit mapping log like: GATT_SUCCESS -> CONNECTED/CONNECTING/... per current transition
-                cLog("GATT MAP $statusName -> $stateName [$statusCategory]")
-                manager.buildBluetoothDevice(
-                    gatt.device, addr, "GATT_STATE_CHANGE", gatt.device.name, mapOf(
-                        "state" to newState.toString(),
-                        "stateName" to stateName,
-                        "status" to status.toString(),
-                        "statusName" to statusName,
-                        "category" to statusCategory
-                    ), null
-                )
-//                emitEvent(stateEvt)
-                // Emit a compact status->state route event for UI/analytics
-//                emitEvent(
-//                    ibm.buildBluetoothDevice(
-//                        gatt.device,
-//                        addr,
-//                        "GATT_STATUS_ROUTE",
-//                        gatt.device.name,
-//                        mapOf("from" to statusName, "to" to stateName, "category" to statusCategory),
-//                        null
-//                    )
-//                )
+                    val statusName = gattStatusName(status)
+                    val statusCategory = gattStatusCategory(status)
+                    val stateName = gattStateName(newState)
+                    
+                    cLog("=== GATT CONNECTION STATE CHANGE ===")
+                    cLog("Device: $addr (${gatt.device.name})")
+                    cLog("New State: $stateName ($newState)")
+                    cLog("Status: $statusName ($status)")
+                    cLog("Category: $statusCategory")
+                    cLog("Transport Mode Used: $transportMode")
+                    cLog("=====================================")
 
-                when (status) {
-                    BluetoothGatt.GATT_SUCCESS -> {
+                    // Build state change event with comprehensive state info
+                    val stateChangeEvt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_STATE_CHANGE", gatt.device.name, mapOf(
+                            "stateCode" to newState.toString(),
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "category" to statusCategory,
+                            "transportMode" to transportMode.toString(),
+                            "timestamp" to System.currentTimeMillis().toString()
+                        ), null, stateName
+                    )
+                    updateConnecting(stateChangeEvt)
+
+                    // Handle success transitions first
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
                         when (newState) {
                             BluetoothProfile.STATE_CONNECTING -> {
-                                cLog("GATT CONNECTING -> $addr ($statusName)")
+                                cLog("✅ GATT CONNECTING SUCCESS -> $addr")
                                 val evt = manager.buildBluetoothDevice(
                                     gatt.device, addr, "GATT_CONNECTING", gatt.device.name, mapOf(
-                                        "status" to status.toString(), "statusName" to statusName
-                                    ), null
+                                        "status" to statusName,
+                                        "statusCode" to status.toString(),
+                                        "transportMode" to transportMode.toString(),
+                                        "timestamp" to System.currentTimeMillis().toString(),
+                                        "connectionMethod" to "GATT",
+                                        "transportType" to "BLE (GATT)"
+                                    ), null, "CONNECTING_GATT"
                                 )
                                 updateConnecting(evt)
                             }
 
                             BluetoothProfile.STATE_CONNECTED -> {
-                                cLog("GATT CONNECTED -> $addr ($statusName)")
+                                cLog("🎉 GATT CONNECTED SUCCESS -> $addr")
+                                cLog("Moving device from connecting to connected state")
+                                
+                                // Mark connected: move from connecting -> connected
                                 gattMap[addr] = gatt
+                                removeConnecting(addr)
+                                
                                 val evt = manager.buildBluetoothDevice(
                                     gatt.device, addr, "GATT_CONNECTED", gatt.device.name, mapOf(
-                                        "status" to status.toString(), "statusName" to statusName
-                                    ), null
+                                        "status" to statusName,
+                                        "statusCode" to status.toString(),
+                                        "transportMode" to transportMode.toString(),
+                                        "connectionTime" to System.currentTimeMillis().toString(),
+                                        "servicesDiscovered" to "false",
+                                        "connectionMethod" to "GATT",
+                                        "transportType" to "BLE (GATT)"
+                                    ), null, "CONNECTED_GATT"
                                 )
-                                removeConnecting(addr)
                                 manager.updateConnectedDevices(evt)
+                                
+                                // Trigger connection success callback for printer saving
+                                manager.triggerConnectionSuccessCallback(addr, "GATT")
+                                
+                                // reset reconnect attempts on success
+                                reconnectAttempts.remove(addr)
+                                cLog("Reset reconnect attempts for $addr")
 
-                                // Initiate bonding if needed right after successful GATT connect
+                                // Initiate bonding if needed, and only then discover services in callback
                                 if (hasConnectPermission(context)) {
-                                    tryCreateBondIfNeeded(gatt.device,){
-                                        val ok = try { gatt.discoverServices() } catch (_: Throwable) { false }
-                                        cLog("GATT discoverServices after bonding ${if (ok) "started" else "failed to start"} -> ${device.address}")
+                                    cLog("Initiating bonding process for $addr")
+                                    tryCreateBondIfNeeded(gatt.device) {
+                                        val ok = try { 
+                                            gatt.discoverServices() 
+                                            cLog("🔍 Starting service discovery for $addr")
+                                            true
+                                        } catch (e: Throwable) { 
+                                            cLog("❌ Service discovery failed for $addr: ${e.message}")
+                                            false 
+                                        }
+                                        cLog("GATT discoverServices ${if (ok) "started successfully" else "failed to start"} -> $addr")
+                                    }
+                                } else {
+                                    cLog("⚠️ No connect permission, attempting service discovery anyway")
+                                    // no permission: still try discoverServices to keep behavior consistent
+                                    try { 
+                                        gatt.discoverServices() 
+                                        cLog("🔍 Service discovery started without permission for $addr")
+                                    } catch (e: Throwable) { 
+                                        cLog("❌ Service discovery failed due to permission for $addr: ${e.message}") 
                                     }
                                 }
-
                             }
 
                             BluetoothProfile.STATE_DISCONNECTING -> {
-                                cLog("GATT DISCONNECTING -> $addr ($statusName)")
-                                manager.buildBluetoothDevice(
+                                cLog("🔄 GATT DISCONNECTING -> $addr")
+                                val evt = manager.buildBluetoothDevice(
                                     gatt.device,
                                     addr,
                                     "GATT_DISCONNECTING",
                                     gatt.device.name,
                                     mapOf(
-                                        "status" to status.toString(), "statusName" to statusName
+                                        "status" to statusName,
+                                        "statusCode" to status.toString(),
+                                        "transportMode" to transportMode.toString(),
+                                        "timestamp" to System.currentTimeMillis().toString(),
+                                        "connectionMethod" to "GATT",
+                                        "transportType" to "BLE (GATT)"
                                     ),
-                                    null
+                                    null,
+                                    "DISCONNECTING_GATT"
                                 )
+                                updateConnecting(evt)
                             }
 
                             BluetoothProfile.STATE_DISCONNECTED -> {
-                                cLog("GATT DISCONNECTED -> $addr ($statusName)")
-                                try {
-                                    gatt.close()
-                                } catch (_: Throwable) {
-                                }
+                                cLog("❌ GATT DISCONNECTED -> $addr")
+                                cLog("Cleaning up resources for disconnected device")
+                                
+                                try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT: ${e.message}") }
                                 gattMap.remove(addr)
                                 removeConnecting(addr)
                                 removeConnected(addr)
                                 attemptSignal[addr] = "error_$statusName"
-                               val evt =  manager.buildBluetoothDevice(
+                                
+                                val evt = manager.buildBluetoothDevice(
                                     gatt.device, addr, "GATT_DISCONNECTED", gatt.device.name, mapOf(
-                                        "status" to status.toString(), "statusName" to statusName
-                                    ), null
+                                        "status" to statusName,
+                                        "statusCode" to status.toString(),
+                                        "transportMode" to transportMode.toString(),
+                                        "disconnectTime" to System.currentTimeMillis().toString(),
+                                        "reason" to "normal_disconnect",
+                                        "connectionMethod" to "GATT",
+                                        "transportType" to "BLE (GATT)"
+                                    ), null, "DISCONNECTED_GATT"
                                 )
                                 manager.updateConnectedDevices(evt)
+                                cLog("Device $addr removed from all connection lists")
                             }
-
-
                         }
+                        return
                     }
 
-                    BluetoothGatt.GATT_CONNECTION_TIMEOUT -> {
-                        cLog("Connection attempt timed out for $addr")
-                        // Potentially trigger retry logic here if newState is STATE_DISCONNECTED
-                    }
+                    // Non-success statuses: handle aggressively for common codes (133 etc.)
+                    cLog("❌ GATT CONNECTION FAILED - Status: $statusName ($status)")
+                    when (status) {
+                        133 -> { // GATT_ERROR: generic Android BLE stack error
+                            cLog("🚨 CRITICAL: GATT_ERROR(133) for $addr")
+                            cLog("This is a generic Android BLE stack error - cleaning up and scheduling reconnect")
+                            
+                            // Close & cleanup immediately
+                            try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT during cleanup: ${e.message}") }
+                            gattMap.remove(addr)
+                            removeConnecting(addr)
+                            removeConnected(addr)
+                            attemptSignal[addr] = "error_${gattStatusName(status)}"
+                            
+                            val evt = manager.buildBluetoothDevice(
+                                gatt.device, addr, "GATT_DISCONNECTED_ERROR", gatt.device.name,
+                                mapOf(
+                                    "status" to statusName,
+                                    "statusCode" to status.toString(),
+                                    "transportMode" to transportMode.toString(),
+                                    "errorTime" to System.currentTimeMillis().toString(),
+                                    "reason" to "gatt_error_133",
+                                    "willRetry" to "true",
+                                    "connectionMethod" to "GATT",
+                                    "transportType" to "BLE (GATT)"
+                                ), null, "ERROR_GATT"
+                            )
+                            manager.updateConnectedDevices(evt)
 
-                    // Add cases for other specific statuses you want to handle or log differently
-                    else -> {
-                        if (status != BluetoothGatt.GATT_SUCCESS) {
-                            cLog("GATT operation failed with status: ${gattStatusName(status)} for $addr")
+                            // Wait before retry to allow resources to be freed
+                            manager.bleManagerScope.launch {
+                                cLog("⏳ Waiting 1 second before retry for $addr")
+                                delay(1000) // Wait 1 second before retry
+                                scheduleReconnect(gatt.device)
+                            }
+                            return
+                        }
+
+                        BluetoothGatt.GATT_CONNECTION_TIMEOUT -> {
+                            cLog("⏰ CONNECTION TIMEOUT for $addr (status=$statusName)")
+                            cLog("Cleaning up and scheduling retry")
+                            
+                            try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT during timeout cleanup: ${e.message}") }
+                            gattMap.remove(addr)
+                            removeConnecting(addr)
+                            removeConnected(addr)
+                            attemptSignal[addr] = "error_$statusName"
+                            
+                            val evt = manager.buildBluetoothDevice(
+                                gatt.device, addr, "GATT_CONNECTION_TIMEOUT", gatt.device.name,
+                                mapOf(
+                                    "status" to statusName,
+                                    "statusCode" to status.toString(),
+                                    "transportMode" to transportMode.toString(),
+                                    "timeoutTime" to System.currentTimeMillis().toString(),
+                                    "reason" to "connection_timeout",
+                                    "willRetry" to "true",
+                                    "connectionMethod" to "GATT",
+                                    "transportType" to "BLE (GATT)"
+                                ), null, "TIMEOUT_GATT"
+                            )
+                            manager.updateConnectedDevices(evt)
+                            scheduleReconnect(gatt.device)
+                            return
+                        }
+
+                        5, 0x0F -> { // INSUFFICIENT_AUTHENTICATION / INSUFFICIENT_ENCRYPTION
+                            cLog("🔐 AUTHENTICATION/ENCRYPTION REQUIRED for $addr ($statusName)")
+                            cLog("Triggering bonding process then retry")
+                            
+                            try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT during auth cleanup: ${e.message}") }
+                            gattMap.remove(addr)
+                            removeConnecting(addr)
+                            removeConnected(addr)
+                            attemptSignal[addr] = "error_$statusName"
+                            
+                            val evt = manager.buildBluetoothDevice(
+                                gatt.device, addr, "GATT_AUTH_REQUIRED", gatt.device.name,
+                                mapOf(
+                                    "status" to statusName,
+                                    "statusCode" to status.toString(),
+                                    "transportMode" to transportMode.toString(),
+                                    "authTime" to System.currentTimeMillis().toString(),
+                                    "reason" to "insufficient_auth_encryption",
+                                    "willRetry" to "true",
+                                    "connectionMethod" to "GATT",
+                                    "transportType" to "BLE (GATT)"
+                                ), null, "AUTH_REQUIRED_GATT"
+                            )
+                            manager.updateConnectedDevices(evt)
+                            
+                            // trigger bonding flow and reconnect when bonded
+                            tryCreateBondIfNeeded(gatt.device) {
+                                scheduleReconnect(gatt.device)
+                            }
+                            return
+                        }
+
+                        62 -> { // GATT_CONN_FAIL_ESTABLISH
+                            cLog("🔌 CONNECTION FAILED TO ESTABLISH for $addr (status=$statusName)")
+                            cLog("Scheduling reconnect attempt")
+                            
+                            try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT during establish failure cleanup: ${e.message}") }
+                            gattMap.remove(addr)
+                            removeConnecting(addr)
+                            removeConnected(addr)
+                            attemptSignal[addr] = "error_$statusName"
+                            
+                            val evt = manager.buildBluetoothDevice(
+                                gatt.device, addr, "GATT_CONN_FAIL_ESTABLISH", gatt.device.name,
+                                mapOf(
+                                    "status" to statusName,
+                                    "statusCode" to status.toString(),
+                                    "transportMode" to transportMode.toString(),
+                                    "failTime" to System.currentTimeMillis().toString(),
+                                    "reason" to "connection_failed_establish",
+                                    "willRetry" to "true",
+                                    "connectionMethod" to "GATT",
+                                    "transportType" to "BLE (GATT)"
+                                ), null, "CONNECTION_FAILED_GATT"
+                            )
+                            manager.updateConnectedDevices(evt)
+                            scheduleReconnect(gatt.device)
+                            return
+                        }
+
+                        else -> {
+                            cLog("❓ UNKNOWN GATT ERROR for $addr: ${gattStatusName(status)} ($status)")
+                            cLog("Cleaning up resources")
+                            
+                            try { gatt.close() } catch (e: Throwable) { cLog("Error closing GATT during unknown error cleanup: ${e.message}") }
+                            gattMap.remove(addr)
+                            removeConnecting(addr)
+                            removeConnected(addr)
+                            attemptSignal[addr] = "error_${gattStatusName(status)}"
+                            
+                            val evt = manager.buildBluetoothDevice(
+                                gatt.device, addr, "GATT_UNKNOWN_ERROR", gatt.device.name,
+                                mapOf(
+                                    "status" to statusName,
+                                    "statusCode" to status.toString(),
+                                    "transportMode" to transportMode.toString(),
+                                    "errorTime" to System.currentTimeMillis().toString(),
+                                    "reason" to "unknown_gatt_error",
+                                    "willRetry" to "false",
+                                    "connectionMethod" to "GATT",
+                                    "transportType" to "BLE (GATT)"
+                                ), null, "UNKNOWN_ERROR_GATT"
+                            )
+                            manager.updateConnectedDevices(evt)
+
+                            // Optional: retry for some other codes if you want (e.g., transient)
+                            when (status) {
+                                0x88, 0x90, 0x8A /* transient-like */ -> {
+                                    cLog("🔄 Transient error detected, scheduling retry")
+                                    scheduleReconnect(gatt.device)
+                                }
+                                else -> {
+                                    cLog("❌ Non-transient error, no retry scheduled")
+                                }
+                            }
+                            return
                         }
                     }
                 }
 
+                @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+                override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+                    super.onServicesDiscovered(gatt, status)
+                    val addr = gatt.device.address
+                    val serviceCount = gatt.services?.size ?: 0
+                    val statusName = gattStatusName(status)
+                    
+                    cLog("🔍 GATT SERVICES DISCOVERED")
+                    cLog("Device: $addr (${gatt.device.name})")
+                    cLog("Status: $statusName ($status)")
+                    cLog("Services Found: $serviceCount")
+                    
+                    if (serviceCount > 0) {
+                        cLog("Available Services:")
+                        gatt.services?.forEachIndexed { index, service ->
+                            cLog("  [$index] ${service.uuid} - ${service.type}")
+                        }
+                    }
+                    
+                    val evt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_SERVICES_DISCOVERED", gatt.device.name, mapOf(
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "serviceCount" to serviceCount.toString(),
+                            "discoveryTime" to System.currentTimeMillis().toString(),
+                            "servicesAvailable" to if (serviceCount > 0) "true" else "false",
+                            "connectionMethod" to "GATT",
+                            "transportType" to "BLE (GATT)"
+                        ), null, "SERVICES_DISCOVERED_GATT"
+                    )
+                    manager.updateConnectedDevices(evt)
+                }
 
-            }
+                override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+                    super.onPhyUpdate(gatt, txPhy, rxPhy, status)
+                    val addr = gatt.device.address
+                    val statusName = gattStatusName(status)
+                    
+                    cLog("📡 GATT PHY UPDATE")
+                    cLog("Device: $addr")
+                    cLog("TX PHY: $txPhy, RX PHY: $rxPhy")
+                    cLog("Status: $statusName ($status)")
+                    
+                    val evt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_PHY_UPDATE", gatt.device.name, mapOf(
+                            "txPhy" to txPhy.toString(),
+                            "rxPhy" to rxPhy.toString(),
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "updateTime" to System.currentTimeMillis().toString(),
+                            "connectionMethod" to "GATT",
+                            "transportType" to "BLE (GATT)"
+                        ), null, "PHY_UPDATE_GATT"
+                    )
+                    manager.updateConnectedDevices(evt)
+                }
 
-            @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-            override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                super.onServicesDiscovered(gatt, status)
-                val addr = gatt.device.address
-                cLog("GATT services discovered for $addr (status=$status, services=${gatt.services?.size ?: 0})")
-                manager.buildBluetoothDevice(
-                    gatt.device, addr, "GATT_SERVICES_DISCOVERED", gatt.device.name, mapOf(
-                        "status" to status.toString(),
-                        "statusName" to gattStatusName(status),
-                        "serviceCount" to (gatt.services?.size ?: 0).toString()
-                    ), null
-                )
-                manager.updateConnectedDevices()
-            }
+                override fun onPhyRead(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+                    super.onPhyRead(gatt, txPhy, rxPhy, status)
+                    val addr = gatt.device.address
+                    val statusName = gattStatusName(status)
+                    
+                    cLog("📖 GATT PHY READ")
+                    cLog("Device: $addr")
+                    cLog("TX PHY: $txPhy, RX PHY: $rxPhy")
+                    cLog("Status: $statusName ($status)")
+                    
+                    val evt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_PHY_READ", gatt.device.name, mapOf(
+                            "txPhy" to txPhy.toString(),
+                            "rxPhy" to rxPhy.toString(),
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "readTime" to System.currentTimeMillis().toString(),
+                            "connectionMethod" to "GATT",
+                            "transportType" to "BLE (GATT)"
+                        ), null, "PHY_READ_GATT"
+                    )
+                    manager.updateConnectedDevices(evt)
+                }
 
-            override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
-                super.onPhyUpdate(gatt, txPhy, rxPhy, status)
-                cLog(
-                    "GATT PHY_UPDATE addr=${gatt.device.address} tx=$txPhy rx=$rxPhy status=${
-                        gattStatusName(
-                            status
-                        )
-                    }($status)"
-                )
-//                emitEvent(
-//                    ibm.buildBluetoothDevice(
-//                        gatt.device,
-//                        gatt.device.address,
-//                        "GATT_PHY_UPDATE",
-//                        gatt.device.name,
-//                        mapOf("txPhy" to txPhy.toString(), "rxPhy" to rxPhy.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
-//                        null
-//                    )
-//                )
-            }
+                override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                    super.onMtuChanged(gatt, mtu, status)
+                    val addr = gatt.device.address
+                    val statusName = gattStatusName(status)
+                    
+                    cLog("📏 GATT MTU CHANGED")
+                    cLog("Device: $addr")
+                    cLog("New MTU: $mtu")
+                    cLog("Status: $statusName ($status)")
+                    
+                    val evt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_MTU_CHANGED", gatt.device.name, mapOf(
+                            "mtu" to mtu.toString(),
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "changeTime" to System.currentTimeMillis().toString(),
+                            "connectionMethod" to "GATT",
+                            "transportType" to "BLE (GATT)"
+                        ), null, "MTU_CHANGED_GATT"
+                    )
+                    manager.updateConnectedDevices(evt)
+                }
 
-            override fun onPhyRead(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
-                super.onPhyRead(gatt, txPhy, rxPhy, status)
-                cLog(
-                    "GATT PHY_READ addr=${gatt.device.address} tx=$txPhy rx=$rxPhy status=${
-                        gattStatusName(
-                            status
-                        )
-                    }($status)"
-                )
-//                emitEvent(
-//                    ibm.buildBluetoothDevice(
-//                        gatt.device,
-//                        gatt.device.address,
-//                        "GATT_PHY_READ",
-//                        gatt.device.name,
-//                        mapOf("txPhy" to txPhy.toString(), "rxPhy" to rxPhy.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
-//                        null
-//                    )
-//                )
-            }
-
-            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-                super.onMtuChanged(gatt, mtu, status)
-                cLog(
-                    "GATT MTU_CHANGED addr=${gatt.device.address} mtu=$mtu status=${
-                        gattStatusName(
-                            status
-                        )
-                    }($status)"
-                )
-//                emitEvent(
-//                    ibm.buildBluetoothDevice(
-//                        gatt.device,
-//                        gatt.device.address,
-//                        "GATT_MTU_CHANGED",
-//                        gatt.device.name,
-//                        mapOf("mtu" to mtu.toString(), "status" to status.toString(), "statusName" to gattStatusName(status)),
-//                        null
-//                    )
-//                )
-            }
-
-            override fun onReliableWriteCompleted(gatt: BluetoothGatt, status: Int) {
-                super.onReliableWriteCompleted(gatt, status)
-                cLog(
-                    "GATT RELIABLE_WRITE_COMPLETED addr=${gatt.device.address} status=${
-                        gattStatusName(
-                            status
-                        )
-                    }($status)"
-                )
-//                emitEvent(
-//                    ibm.buildBluetoothDevice(
-//                        gatt.device,
-//                        gatt.device.address,
-//                        "GATT_RELIABLE_WRITE_COMPLETED",
-//                        gatt.device.name,
-//                        mapOf("status" to status.toString(), "statusName" to gattStatusName(status)),
-//                        null
-//                    )
-//                )
-            }
-        }, BluetoothDevice.TRANSPORT_AUTO)
-        if (gatt == null) {
-            cLog("GATT connectGatt returned null for $address")
-            manager.buildBluetoothDevice(
-                device,
-                address,
-                "GATT_CONNECT_FAILED",
-                device.name,
-                mapOf("error" to "connectGatt_returned_null"),
-                null
+                override fun onReliableWriteCompleted(gatt: BluetoothGatt, status: Int) {
+                    super.onReliableWriteCompleted(gatt, status)
+                    val addr = gatt.device.address
+                    val statusName = gattStatusName(status)
+                    
+                    cLog("✍️ GATT RELIABLE WRITE COMPLETED")
+                    cLog("Device: $addr")
+                    cLog("Status: $statusName ($status)")
+                    
+                    val evt = manager.buildBluetoothDevice(
+                        gatt.device, addr, "GATT_RELIABLE_WRITE_COMPLETED", gatt.device.name, mapOf(
+                            "status" to statusName,
+                            "statusCode" to status.toString(),
+                            "completionTime" to System.currentTimeMillis().toString(),
+                            "connectionMethod" to "GATT",
+                            "transportType" to "BLE (GATT)"
+                        ), null, "RELIABLE_WRITE_COMPLETED_GATT"
+                    )
+                    manager.updateConnectedDevices(evt)
+                }
+            }, transportMode)
+        } catch (e: SecurityException) {
+            cLog("🚫 SECURITY EXCEPTION: Missing BLUETOOTH_CONNECT permission for $address")
+            cLog("Error details: ${e.message}")
+            
+            val evt = manager.buildBluetoothDevice(
+                device, address, "GATT_PERMISSION_ERROR", device.name, mapOf(
+                    "error" to "missing_bluetooth_connect_permission",
+                    "errorMessage" to (e.message ?: "unknown"),
+                    "errorTime" to System.currentTimeMillis().toString(),
+                    "connectionMethod" to "GATT",
+                    "transportType" to "BLE (GATT)"
+                ), null, "PERMISSION_ERROR_GATT"
             )
+            manager.updateConnectedDevices(evt)
+            removeConnecting(address)
+            return
+        } catch (t: Throwable) {
+            cLog("💥 EXCEPTION: connectGatt threw exception for $address")
+            cLog("Exception type: ${t.javaClass.simpleName}")
+            cLog("Exception message: ${t.message}")
+            cLog("Stack trace: ${t.stackTrace.joinToString("\n")}")
+            
+            val evt = manager.buildBluetoothDevice(
+                device, address, "GATT_CONNECT_EXCEPTION", device.name, mapOf(
+                    "error" to "connectgatt_exception",
+                    "errorType" to t.javaClass.simpleName,
+                    "errorMessage" to (t.message ?: "unknown"),
+                    "errorTime" to System.currentTimeMillis().toString(),
+                    "connectionMethod" to "GATT",
+                    "transportType" to "BLE (GATT)"
+                ), null, "EXCEPTION_GATT"
+            )
+            manager.updateConnectedDevices(evt)
             removeConnecting(address)
             return
         }
-        gattMap[address] = gatt
-        // Note: connecting event already emitted above
+
+        if (gatt == null) {
+            cLog("❌ CRITICAL: connectGatt returned null for $address")
+            cLog("This indicates a serious system-level issue")
+            
+            val evt = manager.buildBluetoothDevice(
+                device, address, "GATT_CONNECT_NULL", device.name, mapOf(
+                    "error" to "connectgatt_returned_null",
+                    "errorTime" to System.currentTimeMillis().toString(),
+                    "severity" to "critical",
+                    "connectionMethod" to "GATT",
+                    "transportType" to "BLE (GATT)"
+                ), null, "NULL_GATT"
+            )
+            manager.updateConnectedDevices(evt)
+            removeConnecting(address)
+            return
+        }
+
+        cLog("✅ GATT object created successfully for $address")
+        cLog("Starting 30-second connection timeout watchdog")
+
         manager.updateBondedDevices()
+
+        // connect timeout watchdog (your original 30s behavior)
         manager.bleManagerScope.launch {
             delay(30_000)
-            if (isDeviceConnected(address)) return@launch
-            if (!isDeviceConnecting(address)) return@launch
-            try {
-                gatt.disconnect()
-                gatt.close()
-            } catch (_: Throwable) {
+            if (manager.connectedDevices.value.any { it.address == address }) {
+                cLog("✅ Device $address connected successfully within timeout")
+                return@launch
             }
+            if (!manager.connectingDevices.value.any { it.address == address }) {
+                cLog("ℹ️ Device $address no longer in connecting state, timeout watchdog cancelled")
+                return@launch
+            }
+            
+            cLog("⏰ TIMEOUT: GATT connection timeout reached for $address")
+            cLog("Forcing disconnect and cleanup")
+            
+            try {
+                // Try to get GATT from map first, if not there, use the local reference
+                val current = gattMap[address] ?: gatt
+                try { 
+                    current?.disconnect() 
+                    cLog("Disconnected GATT for timeout cleanup")
+                } catch (e: Throwable) { 
+                    cLog("Error disconnecting GATT during timeout: ${e.message}") 
+                }
+                try { 
+                    current?.close() 
+                    cLog("Closed GATT for timeout cleanup")
+                } catch (e: Throwable) { 
+                    cLog("Error closing GATT during timeout: ${e.message}") 
+                }
+            } catch (e: Throwable) {
+                cLog("Exception during timeout cleanup: ${e.message}")
+            }
+            
             gattMap.remove(address)
             removeConnecting(address)
             removeConnected(address)
-            manager.buildBluetoothDevice(
-                device, address, "GATT_CONNECT_TIMEOUT", device.name, null, null
+            
+            val evt = manager.buildBluetoothDevice(
+                device, address, "GATT_CONNECT_TIMEOUT", device.name, mapOf(
+                    "timeoutDuration" to "30000",
+                    "timeoutTime" to System.currentTimeMillis().toString(),
+                    "reason" to "connection_timeout",
+                    "connectionMethod" to "GATT",
+                    "transportType" to "BLE (GATT)"
+                ), null, "TIMEOUT_GATT"
             )
-            if (!suppressAutoRestartScan) manager.startUnifiedScanning()
+            manager.updateConnectedDevices(evt)
+            
+            if (!suppressAutoRestartScan) {
+                cLog("Restarting unified scanning after timeout")
+                manager.startUnifiedScanning()
+            }
         }
     }
+
+    /* -----------------------
+       Small helpers used above
+       ----------------------- */
+
+    // Best-effort refresh using reflection — often clears cached service table on many devices
+    private fun refreshGatt(gatt: BluetoothGatt): Boolean {
+        return try {
+            val refresh = gatt.javaClass.getMethod("refresh")
+            val result = refresh.invoke(gatt) as? Boolean ?: false
+            cLog("refreshGatt() -> $result for ${gatt.device.address}")
+            result
+        } catch (e: Exception) {
+            cLog("refreshGatt() failed: ${e.message} for ${gatt.device.address}")
+            false
+        }
+    }
+
+    // Schedules reconnect attempts with small linear backoff. Limits attempts per-device.
+    private fun scheduleReconnect(device: BluetoothDevice, maxAttempts: Int = 3) {
+        val addr = device.address
+        val prev = reconnectAttempts[addr] ?: 0
+        val nextAttempt = prev + 1
+        reconnectAttempts[addr] = nextAttempt
+
+        if (nextAttempt > maxAttempts) {
+            cLog("Max reconnect attempts ($maxAttempts) reached for $addr — giving up.")
+            reconnectAttempts.remove(addr)
+            return
+        }
+
+        val delayMs = 200L * nextAttempt // 200ms, 400ms, 600ms...
+        manager.bleManagerScope.launch {
+            cLog("Schedule reconnect attempt #$nextAttempt for $addr after ${delayMs}ms")
+            delay(delayMs)
+            // skip if already connecting/connected by another flow
+            if (manager.connectedDevices.value.any { it.address == addr } || manager.connectingDevices.value.any { it.address == addr }) {
+                cLog("Skipping reconnect for $addr because it is already connecting/connected")
+                reconnectAttempts.remove(addr)
+                return@launch
+            }
+            connectGattInternal(device)
+        }
+    }
+
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun tryCreateBondIfNeeded(device: BluetoothDevice,startDiscovery:()->Unit={}) {

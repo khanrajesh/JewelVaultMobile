@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.PrinterInfo
+import com.velox.jewelvault.ui.screen.bluetooth.components.isPrinterDevice
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,12 +24,15 @@ import javax.inject.Named
 @HiltViewModel
 class ScanConnectViewModel @Inject constructor(
     private val bleManager: BleManager,
-    @Named("snackMessage") private val _snackBarState: MutableState<String>
+    private val dataStoreManager: DataStoreManager,
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(BluetoothScanConnectUiState())
     val uiState: StateFlow<BluetoothScanConnectUiState> = _uiState.asStateFlow()
     val bluetoothReceiver = bleManager
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     // Device lists from BleManager
     val bondedDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.bondedDevices
@@ -49,7 +55,7 @@ class ScanConnectViewModel @Inject constructor(
         initialValue = emptyList()
     )
     
-    // Separate bonded devices into connected and not connected
+    // Separate bonded devices into connected and not connected, with printers prioritized
     val unconnectedPairedDevices: StateFlow<List<BluetoothDeviceDetails>> = combine(
         bleManager.bondedDevices,
         bleManager.connectedDevices,
@@ -57,7 +63,19 @@ class ScanConnectViewModel @Inject constructor(
     ) { bonded, connected, connecting ->
         val connectedAddresses = connected.map { it.address }.toSet()
         val connectingAddresses = connecting.map { it.address }.toSet()
-        bonded.filter { it.address !in connectedAddresses && it.address !in connectingAddresses }
+        val unconnected = bonded.filter { it.address !in connectedAddresses && it.address !in connectingAddresses }
+        
+        // Separate printers and non-printers, then prioritize printers
+        val printers = unconnected.filter { isPrinterDevice(it) }
+        val nonPrinters = unconnected.filterNot { isPrinterDevice(it) }
+        
+        // Sort printers by connection time (most recent first) and non-printers alphabetically
+        val sortedPrinters = printers.sortedByDescending { 
+            dataStoreManager.getSavedPrinters().find { saved -> saved.address == it.address }?.connectionTime ?: 0L
+        }
+        val sortedNonPrinters = nonPrinters.sortedBy { it.name?.lowercase() ?: "~" }
+        
+        sortedPrinters + sortedNonPrinters
     }.stateIn(
         scope = viewModelScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
@@ -65,8 +83,8 @@ class ScanConnectViewModel @Inject constructor(
     )
     
     init {
-        // Start scanning automatically when ViewModel is created
-        startScanning()
+        // Set screen heading when ViewModel is created
+        currentScreenHeadingState.value = "Bluetooth Devices"
     }
     
     fun startScanning() {
@@ -141,6 +159,25 @@ class ScanConnectViewModel @Inject constructor(
 
                 bleManager.connect(deviceAddress)
 
+                // Register callback to save printer info when connection succeeds
+                val deviceDetails = bleManager.getDiscoveredClassicDevice(deviceAddress) 
+                    ?: bleManager.getDiscoveredLeDevice(deviceAddress)
+                    ?: bleManager.getBondedDevice(deviceAddress)
+                if (deviceDetails != null && isPrinterDevice(deviceDetails)) {
+                    bleManager.registerConnectionSuccessCallback(deviceAddress) { connectionMethod ->
+                        viewModelScope.launch {
+                            val printerInfo = PrinterInfo(
+                                address = deviceDetails.address,
+                                name = deviceDetails.name ?: "Unknown Printer",
+                                connectionMethod = connectionMethod,
+                                connectionTime = System.currentTimeMillis()
+                            )
+                            dataStoreManager.savePrinter(printerInfo)
+                            log("PRINTER: Saved printer info for ${deviceDetails.name} (${deviceDetails.address}) with method: $connectionMethod")
+                        }
+                    }
+                }
+
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 _snackBarState.value = "Connecting to device..."
                 log("CONNECT_VIEWMODEL: Connection initiated for device: $deviceAddress")
@@ -174,18 +211,20 @@ class ScanConnectViewModel @Inject constructor(
                 _snackBarState.value = "Pairing and connecting..."
                 
                 // Get the device from discovered devices
-                val device = bleManager.getDiscoveredDevice(deviceAddress)
-                if (device != null) {
-                    log("PAIR: Found device ${device.name} (${device.address})")
+                val deviceDetails = bleManager.getDiscoveredClassicDevice(deviceAddress) 
+                    ?: bleManager.getDiscoveredLeDevice(deviceAddress)
+                    ?: bleManager.getBondedDevice(deviceAddress)
+                if (deviceDetails != null) {
+                    log("PAIR: Found device ${deviceDetails.name} (${deviceDetails.address})")
                     // Immediately reflect connecting placeholder in UI
                     bleManager.addConnectingPlaceholder(
-                        address = device.address,
-                        name = device.name,
+                        address = deviceDetails.address,
+                        name = deviceDetails.name,
                         extraInfo = mapOf("stage" to "pairing")
                     )
                     
                     // Check if already bonded
-                    if (device.bondState == BluetoothDevice.BOND_BONDED) {
+                    if (deviceDetails.bondState == BluetoothDevice.BOND_BONDED) {
                         log("PAIR: Device $deviceAddress is already bonded, connecting directly")
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         connectToDevice(deviceAddress)
@@ -197,14 +236,14 @@ class ScanConnectViewModel @Inject constructor(
                     if (result) {
                         log("PAIR: Bond creation initiated for $deviceAddress")
                         _uiState.value = _uiState.value.copy(isLoading = false)
-                        _snackBarState.value = "Pairing initiated for ${device.name ?: deviceAddress}."
+                        _snackBarState.value = "Pairing initiated for ${deviceDetails.name ?: deviceAddress}."
                         
                         // Start monitoring for successful pairing, then auto-connect
                         startPairingMonitor(deviceAddress)
                     } else {
                         log("PAIR: Failed to initiate bond creation for $deviceAddress")
                         _uiState.value = _uiState.value.copy(isLoading = false)
-                        _snackBarState.value = "Failed to initiate pairing for ${device.name ?: deviceAddress}"
+                        _snackBarState.value = "Failed to initiate pairing for ${deviceDetails.name ?: deviceAddress}"
                     }
                 } else {
                     log("PAIR: Device $deviceAddress not found in discovered devices")
@@ -235,10 +274,29 @@ class ScanConnectViewModel @Inject constructor(
                 attempts++
                 
                 try {
-                    val device = bleManager.getDiscoveredDevice(deviceAddress)
-                    if (device != null && device.bondState == BluetoothDevice.BOND_BONDED) {
+                    val deviceDetails = bleManager.getDiscoveredClassicDevice(deviceAddress) 
+                        ?: bleManager.getDiscoveredLeDevice(deviceAddress)
+                        ?: bleManager.getBondedDevice(deviceAddress)
+                    if (deviceDetails != null && deviceDetails.bondState == BluetoothDevice.BOND_BONDED) {
                         log("PAIR: Pairing completed for $deviceAddress, starting connection")
-                        _snackBarState.value = "Pairing completed! Connecting to ${device.name ?: deviceAddress}..."
+                        _snackBarState.value = "Pairing completed! Connecting to ${deviceDetails.name ?: deviceAddress}..."
+                        
+                        // Register callback to save printer info when connection succeeds
+                        if (isPrinterDevice(deviceDetails)) {
+                            bleManager.registerConnectionSuccessCallback(deviceAddress) { connectionMethod ->
+                                viewModelScope.launch {
+                                    val printerInfo = PrinterInfo(
+                                        address = deviceDetails.address,
+                                        name = deviceDetails.name ?: "Unknown Printer",
+                                        connectionMethod = connectionMethod,
+                                        connectionTime = System.currentTimeMillis()
+                                    )
+                                    dataStoreManager.savePrinter(printerInfo)
+                                    log("PRINTER: Saved printer info for ${deviceDetails.name} (${deviceDetails.address}) during pairing with method: $connectionMethod")
+                                }
+                            }
+                        }
+                        
                         connectToDevice(deviceAddress)
                         return@launch
                     }

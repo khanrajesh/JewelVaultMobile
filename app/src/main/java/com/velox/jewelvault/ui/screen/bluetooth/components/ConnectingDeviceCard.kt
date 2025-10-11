@@ -78,7 +78,7 @@ fun ConnectingDeviceCard(
                 }
 
                 Text(
-                    text = "${device.state} ${if (timeoutMs != null && method != null) "$statusText(timeout ${ timeoutMs.toInt() / 1000 }s)" else statusText}",
+                    text = "${if (timeoutMs != null && method != null) "$statusText(timeout ${ timeoutMs.toInt() / 1000 }s)" else statusText}, ${device.state} ",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
