@@ -12,26 +12,27 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
-import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.utils.ioLaunch
-import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.BiometricAuthManager
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.SessionManager
-import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.BiometricAuthManager
+import com.velox.jewelvault.utils.ioLaunch
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
-import com.velox.jewelvault.utils.RemoteConfigManager
-import com.velox.jewelvault.utils.AppUpdateManager
-import com.velox.jewelvault.data.UpdateInfo
+import com.velox.jewelvault.utils.mainScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -60,7 +61,10 @@ class LoginViewModel @Inject constructor(
     // Biometric authentication state
     val isBiometricAvailable = mutableStateOf(false)
     val biometricAuthEnabled = mutableStateOf(false)
-    
+
+    // Biometric opt-in
+    val showBiometricOptInDialog = mutableStateOf(false)
+
     // Update management state
     val updateInfo = mutableStateOf<UpdateInfo?>(null)
     val showForceUpdateDialog = mutableStateOf(false)
@@ -85,6 +89,41 @@ class LoginViewModel @Inject constructor(
         val isAvailable = biometricAuthManager.isBiometricAvailable()
         log("Biometric availability check: $isAvailable")
         isBiometricAvailable.value = isAvailable
+    }
+
+
+    fun showBiometricOptInIfEligible(context: android.content.Context) {
+        ioLaunch {
+            try {
+                val alreadyShown =
+                    _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_OPTIN_SHOWN, false)
+                        .first() ?: false
+                val enabled =
+                    _dataStoreManager.getValue(DataStoreManager.BIOMETRIC_AUTH, false).first()
+                        ?: false
+                val available = BiometricAuthManager(context).isBiometricAvailable()
+                if (!alreadyShown && available && !enabled) {
+                    showBiometricOptInDialog.value = true
+                    log("Showing biometric opt-in dialog")
+                }
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun handleBiometricOptInDecision(enable: Boolean) {
+        ioLaunch {
+            try {
+                if (enable) {
+                    _dataStoreManager.setValue(DataStoreManager.BIOMETRIC_AUTH, true)
+                    biometricAuthEnabled.value = true
+                }
+                _dataStoreManager.setValue(DataStoreManager.BIOMETRIC_OPTIN_SHOWN, true)
+            } catch (_: Exception) {
+            } finally {
+                showBiometricOptInDialog.value = false
+            }
+        }
     }
 
     // Save phone number to DataStore
@@ -183,21 +222,16 @@ class LoginViewModel @Inject constructor(
     ) {
 
         log("Input validation passed, proceeding with biometric authentication")
-        authenticateWithBiometric(
-            context = context,
-            onSuccess = {
-                log("Biometric authentication successful, proceeding with Firebase PIN verification")
-                onSuccess()
-            },
-            onError = { error ->
-                log("Biometric authentication failed: $error")
-                onFailure(error)
-            },
-            onCancel = {
-                log("Biometric authentication cancelled")
-                onCancel()
-            }
-        )
+        authenticateWithBiometric(context = context, onSuccess = {
+            log("Biometric authentication successful, proceeding with Firebase PIN verification")
+            onSuccess()
+        }, onError = { error ->
+            log("Biometric authentication failed: $error")
+            onFailure(error)
+        }, onCancel = {
+            log("Biometric authentication cancelled")
+            onCancel()
+        })
     }
 
     fun startPhoneVerification(
@@ -206,14 +240,20 @@ class LoginViewModel @Inject constructor(
         onCodeSent: (String, PhoneAuthProvider.ForceResendingToken) -> Unit = { _, _ -> },
         onVerificationCompleted: (PhoneAuthCredential) -> Unit = {},
         onVerificationFailed: (FirebaseException) -> Unit = {},
-        retryCount: Int = 0
+        retryCount: Int = 0,
+        onOtpReceived: (String?) -> Unit
+
     ) {
+        if (_loadingState.value) {
+            log("LOGIN: startPhoneVerification ignored - loading in progress")
+            return
+        }
         // Validate phone number
         if (!InputValidator.isValidPhoneNumber(phoneNumber)) {
             _snackBarState.value = "Invalid phone number format"
             return
         }
-        
+
         // Check if activity is still valid
         if (activity.isFinishing || activity.isDestroyed) {
             _snackBarState.value = "Activity is no longer valid"
@@ -237,10 +277,11 @@ class LoginViewModel @Inject constructor(
             _loadingState.value = true
             log("Starting phone verification for: +91$phoneNumber")
             log("Activity context: ${activity.javaClass.simpleName}")
-            
+
             val options = PhoneAuthOptions.newBuilder(_auth).setPhoneNumber("+91$phoneNumber")
                 .setTimeout(60L, TimeUnit.SECONDS).setActivity(activity)
                 .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
                     override fun onCodeSent(
                         verificationId: String, token: PhoneAuthProvider.ForceResendingToken
                     ) {
@@ -253,6 +294,12 @@ class LoginViewModel @Inject constructor(
                     }
 
                     override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                        credential.smsCode?.let {
+                            verifyOtpAndSignIn(it)
+                        }
+                        mainScope {
+                            onOtpReceived(credential.smsCode)
+                        }
                         isOtpVerified.value = true
                         stopTimer() // Stop timer when OTP is verified
                         onVerificationCompleted(credential)
@@ -268,32 +315,40 @@ class LoginViewModel @Inject constructor(
                                     "reCAPTCHA verification failed. Please check your internet connection and try again."
                                 }
                             }
+
                             e.message?.contains("network", ignoreCase = true) == true -> {
                                 "Network error. Please check your internet connection and try again."
                             }
+
                             e.message?.contains("quota", ignoreCase = true) == true -> {
                                 "Too many attempts. Please wait a while before trying again."
                             }
+
                             else -> {
                                 "OTP verification failed: ${e.message}"
                             }
                         }
                         _snackBarState.value = errorMessage
                         log("Phone verification failed: ${e.message}")
-                        
+
                         // Auto-retry for reCAPTCHA failures
-                        if (e.message?.contains("reCAPTCHA", ignoreCase = true) == true && retryCount < 2) {
+                        if (e.message?.contains(
+                                "reCAPTCHA",
+                                ignoreCase = true
+                            ) == true && retryCount < 2
+                        ) {
                             log("Retrying phone verification due to reCAPTCHA failure. Attempt: ${retryCount + 1}")
                             // Wait 2 seconds before retry
                             ioLaunch {
-                                kotlinx.coroutines.delay(2000)
+                                delay(2000)
                                 startPhoneVerification(
                                     activity = activity,
                                     phoneNumber = phoneNumber,
                                     onCodeSent = onCodeSent,
                                     onVerificationCompleted = onVerificationCompleted,
                                     onVerificationFailed = onVerificationFailed,
-                                    retryCount = retryCount + 1
+                                    retryCount = retryCount + 1,
+                                    onOtpReceived = onOtpReceived
                                 )
                             }
                         } else {
@@ -310,6 +365,12 @@ class LoginViewModel @Inject constructor(
         otp: String, onSuccess: (FirebaseUser) -> Unit = {}, onFailure: (String) -> Unit = {}
     ) {
         if (!otpVerificationId.value.isNullOrBlank()) {
+            log("LOGIN: verifyOtpAndSignIn called")
+            if (otp.isBlank() || otp.length < 4) {
+                log("LOGIN: OTP input invalid (length=${otp.length})")
+                onFailure("Enter valid OTP")
+                return
+            }
             val credential = PhoneAuthProvider.getCredential(otpVerificationId.value!!, otp)
             _loadingState.value = true
             _auth.signInWithCredential(credential).addOnCompleteListener { task ->
@@ -318,11 +379,13 @@ class LoginViewModel @Inject constructor(
                         isOtpVerified.value = true
                         firebaseUser.value = user
                         stopTimer() // Stop timer when OTP is verified
+                        log("LOGIN: OTP verification successful, user=${user.uid}")
                         onSuccess(user)
                     }
                     _loadingState.value = false
                 } else {
                     _loadingState.value = false
+                    log("LOGIN: OTP verification failed -> ${task.exception?.message}")
                     onFailure(task.exception?.message ?: "OTP verification failed")
                 }
             }
@@ -333,6 +396,11 @@ class LoginViewModel @Inject constructor(
     fun uploadAdminUser(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
+        log("LOGIN: uploadAdminUser called")
+        if (_loadingState.value) {
+            log("LOGIN: uploadAdminUser ignored - loading in progress")
+            return
+        }
         // Validate PIN
         if (!InputValidator.isValidPin(pin)) {
             _snackBarState.value = "PIN must be 4-6 digits"
@@ -363,17 +431,21 @@ class LoginViewModel @Inject constructor(
                         val userCount = _appDatabase.userDao().getUserCount()
 
                         if (existingUser != null) {
+                            log("LOGIN: updating existing local admin user for $phone")
                             // User exists with same phone, update the existing user
                             val updatedUser = existingUser.copy(
                                 pin = hashedPin
                             )
                             val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                             if (updateResult > 0) {
+                                log("LOGIN: local admin user updated for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local admin user update failed for $phone")
                                 onFailure()
                             }
                         } else if (userCount == 0) {
+                            log("LOGIN: inserting new local admin user for $phone")
                             // No user exists, create new user
                             val newUser = UsersEntity(
                                 userId = uid,
@@ -384,27 +456,37 @@ class LoginViewModel @Inject constructor(
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
+                                log("LOGIN: local admin user inserted for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local admin user insert failed for $phone")
                                 onFailure()
                             }
                         } else {
                             // User exists but with different phone number - this should not happen due to OTP check
                             _snackBarState.value =
                                 "This device is already registered with a different phone number. Cannot proceed."
+                            log("LOGIN: local admin user conflict for $phone")
                             onFailure()
                         }
                         _loadingState.value = false
                     } catch (e: Exception) {
                         _loadingState.value = false
+                        log("LOGIN: uploadAdminUser exception -> ${e.message}")
                         onFailure()
                     }
                 }
             }.addOnFailureListener { it ->
                 _loadingState.value = false
                 _snackBarState.value = "Fire store upload failed"
+                log("LOGIN: Firestore set failed for $phone -> ${it.message}")
                 onFailure()
             }
+        }else{
+            _loadingState.value = false
+            _snackBarState.value = "Fire store upload failed"
+            log("LOGIN: Firestore set failed for $phone ,uid: $uid invalid")
+            onFailure()
         }
     }
 
@@ -417,11 +499,13 @@ class LoginViewModel @Inject constructor(
     ) {
         // Validate inputs
         if (!InputValidator.isValidPhoneNumber(phone)) {
+            log("LOGIN: invalid phone format -> $phone")
             onFailure("Invalid phone number format")
             return
         }
 
         if (!InputValidator.isValidPin(pin)) {
+            log("LOGIN: invalid pin format (length=${pin.length})")
             onFailure("PIN must be 4-6 digits")
             return
         }
@@ -430,32 +514,34 @@ class LoginViewModel @Inject constructor(
             val user = _appDatabase.userDao().getUserByMobile(phone)
 
             if (user == null) {
+                log("LOGIN: user not found for $phone")
                 onFailure("User not found")
                 return@ioScope
             }
 
             if (user.role == "admin") {
+                log("LOGIN: attempting admin login for $phone")
                 adminLoginWithPin(phone, pin, {
                     if (savePhone) {
                         ioLaunch {
                             savePhoneNumber(phone)
                         }
                     }
+                    log("LOGIN: admin login success for $phone")
                     onSuccess()
                 }, onFailure)
             } else {
+                log("LOGIN: attempting user login for $phone")
                 userLoginWithPin(
-                    user,
-                    pin,
-                    {
+                    user, pin, {
                         if (savePhone) {
                             ioLaunch {
                                 savePhoneNumber(phone)
                             }
                         }
+                        log("LOGIN: user login success for $phone")
                         onSuccess()
-                    },
-                    onFailure
+                    }, onFailure
                 )
             }
         }
@@ -463,82 +549,88 @@ class LoginViewModel @Inject constructor(
 
     @SuppressLint("SuspiciousIndentation")
     private fun userLoginWithPin(
-        user: UsersEntity,
-        pin: String,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
+        user: UsersEntity, pin: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
-        if ( user.pin != null && SecurityUtils.verifyPin(pin,  user.pin)) {
+        log("LOGIN: userLoginWithPin for userId=${user.userId}")
+        if (user.pin != null && SecurityUtils.verifyPin(pin, user.pin)) {
             try {
                 ioScope {
+                    log("LOGIN: PIN verified for userId=${user.userId}, saving session")
                     _dataStoreManager.saveCurrentLoginUser(user)
                     _sessionManager.startSession(user.userId)
+                    log("LOGIN: session started for userId=${user.userId}")
                     onSuccess()
                 }
                 _loadingState.value = false
             } catch (e: Exception) {
+                log("LOGIN: userLoginWithPin exception -> ${e.message}")
                 onFailure(e.message ?: "Login failed")
             }
-        }else{
+        } else {
+            log("LOGIN: invalid PIN for userId=${user.userId}")
             onFailure("Invalid Pin!")
         }
     }
 
     private fun adminLoginWithPin(
-        phone: String,
-        pin: String,
-        onSuccess: () -> Unit,
-        onFailure: (String) -> Unit
+        phone: String, pin: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
+        log("LOGIN: adminLoginWithPin start for $phone")
         ioLaunch {
 
-       /*     val adminUser = _appDatabase.userDao().getAdminUser()
+            /*     val adminUser = _appDatabase.userDao().getAdminUser()
 
-            if (adminUser != null && adminUser.mobileNo != phone) {
-                onFailure("This device is already registered with a different phone number. Cannot proceed.")
-                return@ioLaunch
-            }*/
+                 if (adminUser != null && adminUser.mobileNo != phone) {
+                     onFailure("This device is already registered with a different phone number. Cannot proceed.")
+                     return@ioLaunch
+                 }*/
 
             _loadingState.value = true
             _fireStore.collection("users").document(phone).get().addOnSuccessListener { document ->
                 if (document.exists()) {
+                    log("LOGIN: Firestore user document exists for $phone")
                     val storedPin = document.getString("pin")
                     if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
                         ioScope {
                             val result = _appDatabase.userDao().getUserByMobile(phone)
                             if (result != null) {
                                 try {
+                                    log("LOGIN: admin PIN verified, saving admin info and session for $phone")
 
                                     _dataStoreManager.saveAdminInfo(
-                                        phone,
-                                        result.userId,
-                                        phone
+                                        phone, result.userId, phone
                                     )
                                     _dataStoreManager.saveCurrentLoginUser(result)
 
                                     _sessionManager.startSession(result.userId)
 
+                                    log("LOGIN: admin login success for $phone")
                                     onSuccess()
                                     _loadingState.value = false
                                 } catch (e: Exception) {
                                     _loadingState.value = false
+                                    log("LOGIN: admin save/session error -> ${e.message}")
                                     onFailure("Unable to store the user data")
                                 }
                             } else {
                                 _loadingState.value = false
+                                log("LOGIN: admin user not found locally for $phone")
                                 onFailure("User not found, please sign up first")
                             }
                         }
                     } else {
                         _loadingState.value = false
+                        log("LOGIN: admin invalid PIN for $phone")
                         onFailure("Invalid PIN")
                     }
                 } else {
                     _loadingState.value = false
+                    log("LOGIN: Firestore user document not found for $phone")
                     onFailure("User not found")
                 }
             }.addOnFailureListener {
                 _loadingState.value = false
+                log("LOGIN: Firestore get failed for $phone -> ${it.message}")
                 onFailure(it.message ?: "Login failed")
             }
 
@@ -548,13 +640,16 @@ class LoginViewModel @Inject constructor(
     fun logout() {
         ioLaunch {
             try {
+                log("LOGIN: logout called")
                 _sessionManager.endSession()
                 _auth.signOut()
                 firebaseUser.value = null
                 isOtpGenerated.value = false
                 isOtpVerified.value = false
                 otpVerificationId.value = null
+                log("LOGIN: logout completed")
             } catch (e: Exception) {
+                log("LOGIN: logout failed -> ${e.message}")
                 _snackBarState.value = "Logout failed: ${e.message}"
             }
         }
@@ -574,6 +669,11 @@ class LoginViewModel @Inject constructor(
     fun resetPin(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
+        log("LOGIN: resetPin called")
+        if (_loadingState.value) {
+            log("LOGIN: resetPin ignored - loading in progress")
+            return
+        }
         // Validate PIN
         if (!InputValidator.isValidPin(pin)) {
             _snackBarState.value = "PIN must be 4-6 digits"
@@ -603,17 +703,21 @@ class LoginViewModel @Inject constructor(
                         val userCount = _appDatabase.userDao().getUserCount()
 
                         if (existingUser != null) {
+                            log("LOGIN: updating local PIN for $phone")
                             // User exists with same phone, update the PIN
                             val updatedUser = existingUser.copy(
                                 pin = hashedPin
                             )
                             val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                             if (updateResult > 0) {
+                                log("LOGIN: local PIN updated for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local PIN update failed for $phone")
                                 onFailure()
                             }
                         } else if (userCount == 0) {
+                            log("LOGIN: inserting local admin user during reset for $phone")
                             // No user exists, create new user
                             val newUser = UsersEntity(
                                 userId = uid,
@@ -624,25 +728,30 @@ class LoginViewModel @Inject constructor(
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
+                                log("LOGIN: local admin user inserted during reset for $phone")
                                 onSuccess()
                             } else {
+                                log("LOGIN: local insert failed during reset for $phone")
                                 onFailure()
                             }
                         } else {
                             // User exists but with different phone number - this should not happen due to OTP check
                             _snackBarState.value =
                                 "Another user is already registered. Only one user can be registered per device."
+                            log("LOGIN: resetPin conflict for $phone")
                             onFailure()
                         }
                         _loadingState.value = false
                     } catch (e: Exception) {
                         _loadingState.value = false
+                        log("LOGIN: resetPin exception -> ${e.message}")
                         onFailure()
                     }
                 }
             }.addOnFailureListener { it ->
                 _loadingState.value = false
                 _snackBarState.value = "Failed to reset PIN"
+                log("LOGIN: Firestore set failed during reset for $phone -> ${it.message}")
                 onFailure()
             }
         }
@@ -661,7 +770,7 @@ class LoginViewModel @Inject constructor(
         stopTimer() // Stop any existing timer
         timerValue.value = 60
         isTimerRunning.value = true
-        
+
         timerJob = CoroutineScope(Dispatchers.IO).launch {
             while (timerValue.value > 0) {
                 delay(1000) // Wait for 1 second
@@ -670,7 +779,7 @@ class LoginViewModel @Inject constructor(
             isTimerRunning.value = false
         }
     }
-    
+
     fun stopTimer() {
         timerJob?.cancel()
         timerJob = null
@@ -678,7 +787,7 @@ class LoginViewModel @Inject constructor(
         timerValue.value = 0
     }
 
-    
+
     fun resetTimer() {
         stopTimer()
         startTimer()
@@ -698,7 +807,7 @@ class LoginViewModel @Inject constructor(
             false
         }
     }
-    
+
     // Update management functions
     suspend fun checkForForceUpdates(context: android.content.Context) {
         log("🚨 Starting force update check in LoginViewModel...")
@@ -711,7 +820,7 @@ class LoginViewModel @Inject constructor(
                 val info = _remoteConfigManager.getUpdateInfo()
                 log("📋 Got update info for force update check: $info")
                 updateInfo.value = info
-                
+
                 // Check if force update is required
                 val isForceRequired = _remoteConfigManager.isForceUpdateRequired()
                 log("🔍 Force update required check: $isForceRequired")
@@ -729,7 +838,7 @@ class LoginViewModel @Inject constructor(
             log("❌ Exception details: ${e.javaClass.simpleName}")
         }
     }
-    
+
     fun onUpdateClick(context: android.content.Context) {
         log("🔄 Update button clicked in LoginViewModel")
         val info = updateInfo.value

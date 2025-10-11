@@ -42,7 +42,7 @@ class InputFieldState(
 
     var error by mutableStateOf("")
 
-    fun onTextChanged(newText: String) {
+    fun textChange(newText: String) {
         text = newText
         if (error.isNotEmpty()) {
             error = ""
@@ -129,7 +129,7 @@ fun CusOutlinedTextField(
             context,
             { _, year, month, day ->
                 val pickedDate = LocalDate.of(year, month + 1, day)
-                state.onTextChanged(pickedDate.format(formatter))
+                state.textChange(pickedDate.format(formatter))
                 onDateSelected?.invoke(pickedDate)
             },
             initialDate.year,
@@ -164,7 +164,7 @@ fun CusOutlinedTextField(
                     if (keyboardType == KeyboardType.Number) {
 
                         if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d*\$"))) {
-                            state.onTextChanged(it)
+                            state.textChange(it)
                             validation?.let { validate ->
                                 val errorMsg = validate(it)
                                 state.error = errorMsg ?: ""
@@ -178,7 +178,7 @@ fun CusOutlinedTextField(
                         }
                     } else {
 
-                        state.onTextChanged(it)
+                        state.textChange(it)
                         validation?.let { validate ->
                             val errorMsg = validate(it)
                             state.error = errorMsg ?: ""
@@ -278,7 +278,7 @@ fun CusOutlinedTextField(
                         DropdownMenuItem(
                             text = { Text(item) },
                             onClick = {
-                                state.onTextChanged(item)
+                                state.textChange(item)
                                 validation?.let { validate ->
                                     val errorMsg = validate(item)
                                     state.error = errorMsg ?: ""

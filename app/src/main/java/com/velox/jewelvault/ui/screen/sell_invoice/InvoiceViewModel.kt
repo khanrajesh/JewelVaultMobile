@@ -626,6 +626,21 @@ class InvoiceViewModel @Inject constructor(
 
     // UI states
     val draftShowAddItemDialog = mutableStateOf(false)
+    val draftEditingItemIndex = mutableStateOf<Int?>(null)
+
+    init {
+        // Prefill draft GST defaults once
+        ioLaunch {
+            try {
+                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
+                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
+                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                draftDialogCgst.text = defCgst
+                draftDialogSgst.text = defSgst
+                draftDialogIgst.text = defIgst
+            } catch (_: Exception) { }
+        }
+    }
 
 
     fun draftAddSampleItem() {
@@ -870,11 +885,19 @@ class InvoiceViewModel @Inject constructor(
             purchaseItemId = "0"
         )
 
-        selectedItemList.add(newItem)
+        // If we are editing an existing item, replace it; otherwise add new
+        val editingIndex = draftEditingItemIndex.value
+        if (editingIndex != null && editingIndex in selectedItemList.indices) {
+            selectedItemList[editingIndex] = newItem.copy(itemId = selectedItemList[editingIndex].itemId)
+            snackBarState.value = "Item updated successfully"
+        } else {
+            selectedItemList.add(newItem)
+            snackBarState.value = "Item added successfully"
+        }
         calculateTotals()
         draftClearItemForm()
+        draftEditingItemIndex.value = null
         draftShowAddItemDialog.value = false
-        snackBarState.value = "Item added successfully"
     }
 
 
@@ -882,6 +905,46 @@ class InvoiceViewModel @Inject constructor(
         selectedItemList.remove(item)
         calculateTotals()
         snackBarState.value = "Item removed"
+    }
+
+    fun draftRemoveEditingItem() {
+        val index = draftEditingItemIndex.value
+        if (index != null && index in selectedItemList.indices) {
+            val toRemove = selectedItemList[index]
+            selectedItemList.removeAt(index)
+            calculateTotals()
+            snackBarState.value = "Item removed"
+            draftEditingItemIndex.value = null
+            draftClearItemForm()
+            draftShowAddItemDialog.value = false
+        }
+    }
+
+    fun draftBeginEdit(itemIndex: Int) {
+        if (itemIndex in selectedItemList.indices) {
+            val item = selectedItemList[itemIndex]
+            draftDialogItemName.text = item.itemAddName
+            draftDialogCategoryName.text = item.catName
+            draftDialogSubCategoryName.text = item.subCatName
+            draftDialogEntryType.text = item.entryType
+            draftDialogQuantity.text = item.quantity.toString()
+            draftDialogGrossWeight.text = item.gsWt.toString()
+            draftDialogNetWeight.text = item.ntWt.toString()
+            draftDialogFineWeight.text = item.fnWt.toString()
+            draftDialogPurity.text = item.purity
+            draftDialogChargeType.text = item.crgType
+            draftDialogCharge.text = item.crg.toString()
+            draftDialogOtherChargeDescription.text = item.othCrgDes ?: ""
+            draftDialogOtherCharge.text = item.othCrg.toString()
+            draftDialogCgst.text = (item.cgst ?: 0.0).toString()
+            draftDialogSgst.text = (item.sgst ?: 0.0).toString()
+            draftDialogIgst.text = (item.igst ?: 0.0).toString()
+            draftDialogHuid.text = item.huid ?: ""
+            draftDialogDescription.text = item.addDesKey ?: ""
+            draftDialogDescriptionValue.text = item.addDesValue ?: ""
+            draftEditingItemIndex.value = itemIndex
+            draftShowAddItemDialog.value = true
+        }
     }
 
     private fun calculateTotals() {
@@ -904,9 +967,21 @@ class InvoiceViewModel @Inject constructor(
         draftDialogCharge.clear()
         draftDialogOtherChargeDescription.clear()
         draftDialogOtherCharge.clear()
-        draftDialogCgst.clear()
-        draftDialogSgst.clear()
-        draftDialogIgst.clear()
+        // Reset to default GST values on clear
+        ioLaunch {
+            try {
+                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
+                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
+                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                draftDialogCgst.text = defCgst
+                draftDialogSgst.text = defSgst
+                draftDialogIgst.text = defIgst
+            } catch (_: Exception) {
+                draftDialogCgst.clear()
+                draftDialogSgst.clear()
+                draftDialogIgst.clear()
+            }
+        }
         draftDialogHuid.clear()
         draftDialogDescription.clear()
         draftDialogDescriptionValue.clear()

@@ -259,7 +259,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun saveStoreData(onSuccess: () -> Unit, onFailure: () -> Unit) {
+    fun saveStoreData(onSuccess: () -> Unit, onFailure: () -> Unit, onImageUpdated: (() -> Unit)? = null) {
         // Comprehensive validation with specific error messages
         when {
             /*    shopName.text.isBlank() -> {
@@ -364,6 +364,9 @@ class ProfileViewModel @Inject constructor(
                         
                         // Download and cache the logo locally
                         downloadAndCacheLogo(finalImageUrl)
+                        
+                        // Notify that image was updated
+                        onImageUpdated?.invoke()
                     } else {
                         log("Failed to upload image: ${uploadResult.exceptionOrNull()?.message}")
                         _snackBarState.value = "Failed to upload image. Please try again."
@@ -454,7 +457,8 @@ class ProfileViewModel @Inject constructor(
 
     fun setSelectedImageFile(imageUri: Uri?) {
         selectedImageFileUri.value = imageUri
-        selectedImageUri.value = imageUri?.toString() // Set the URI string for immediate display
+        // Don't set selectedImageUri here - it should only be set after successful upload
+        // This ensures we show the local file URI immediately for preview
         shopImage.text = imageUri?.toString() ?: ""
     }
     

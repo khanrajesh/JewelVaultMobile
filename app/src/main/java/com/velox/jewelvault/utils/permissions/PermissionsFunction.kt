@@ -43,3 +43,27 @@ fun getBackupRestorePermissions(): List<String> {
     
     return permissions
 }
+
+fun hasConnectPermission(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        ContextCompat.checkSelfPermission(
+            context, Manifest.permission.BLUETOOTH_CONNECT
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    } else true
+}
+
+fun hasScanPermission(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        ContextCompat.checkSelfPermission(
+            context, Manifest.permission.BLUETOOTH_SCAN
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    } else true
+}
+
+fun hasFineLocation(context: Context): Boolean {
+    return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    } else true
+}

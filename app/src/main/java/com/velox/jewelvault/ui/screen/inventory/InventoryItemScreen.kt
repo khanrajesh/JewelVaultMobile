@@ -767,7 +767,6 @@ private fun AddItemSection(
                         modifier = Modifier.weight(2f),
                         state = viewModel.huid,
                         placeholderText = "H-UID",
-                        keyboardType = KeyboardType.Number,
                     )
                     Spacer(Modifier.height(5.dp))
                 }
