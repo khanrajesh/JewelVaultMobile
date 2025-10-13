@@ -177,14 +177,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideBluetoothReceiver(
-        @ApplicationContext context: Context,dataStoreManager: DataStoreManager
+        @ApplicationContext context: Context
     ): BleManager {
-        return BleManager(context,dataStoreManager)
+        return BleManager(context)
     }
-
-    //endregion
-
-
     //endregion
 
 }

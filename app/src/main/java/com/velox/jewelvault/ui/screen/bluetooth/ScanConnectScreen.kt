@@ -55,6 +55,7 @@ import com.velox.jewelvault.ui.screen.bluetooth.components.ConnectingDeviceCard
 import com.velox.jewelvault.ui.screen.bluetooth.components.DiscoveredDeviceCard
 import com.velox.jewelvault.ui.screen.bluetooth.components.PairedDeviceCard
 import com.velox.jewelvault.ui.screen.bluetooth.components.PossiblePrinterCard
+import com.velox.jewelvault.ui.screen.bluetooth.components.SavedPrinterCard
 import com.velox.jewelvault.ui.screen.bluetooth.components.isPrinterDevice
 import com.velox.jewelvault.utils.LocalSubNavController
 import kotlinx.coroutines.launch
@@ -77,6 +78,7 @@ fun ScanConnectScreen(
     val connectingDevices by viewModel.connectingDevices.collectAsStateWithLifecycle()
     val unconnectedPairedDevices by viewModel.unconnectedPairedDevices.collectAsStateWithLifecycle()
     val allDiscoveredDevices by viewModel.allDiscoveredDevices.collectAsStateWithLifecycle()
+    val savedPrintersWithStatus by viewModel.savedPrintersWithStatus.collectAsStateWithLifecycle()
 
     val bleState by bluetoothManager.bluetoothStateChanged.collectAsStateWithLifecycle()
     val isBluetoothEnabled = (bleState.currentState == BluetoothAdapter.STATE_ON)
@@ -211,11 +213,19 @@ fun ScanConnectScreen(
                 }
 
                 items(connectedDevices) { device ->
-                    ConnectedDeviceCard(device = device, onManagePrinter = {
-                        if (isPrinterDevice(device)) {
-                            navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                    ConnectedDeviceCard(
+                        device = device, 
+                        savedPrinters = savedPrintersWithStatus.map { it.first },
+                        onClick = {
+                            if (isPrinterDevice(device, savedPrintersWithStatus.map { it.first })) {
+                                navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                            }
+                        }, 
+                        onDisconnect = { viewModel.disconnectDevice(device.address) },
+                        onAddAsPrinter = { device ->
+                            viewModel.addDeviceAsPrinter(device)
                         }
-                    }, onDisconnect = { viewModel.disconnectDevice(device.address) })
+                    )
                 }
             }
 
@@ -239,6 +249,34 @@ fun ScanConnectScreen(
                 }
             }
 
+            // Saved Printers (not already shown in connected)
+            val savedPrintersNotConnected = savedPrintersWithStatus.filter { (printer, isConnected) ->
+                !isConnected && !connectedDevices.any { it.address == printer.address }
+            }
+            if (savedPrintersNotConnected.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Saved Printers (${savedPrintersNotConnected.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(savedPrintersNotConnected) { (printer, isConnected) ->
+                    SavedPrinterCard(
+                        printer = printer,
+                        isConnected = isConnected,
+                        onClick = {
+                            navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                        }
+                    )
+                }
+            }
+
             // Paired Devices (not connected)
             if (unconnectedPairedDevices.isNotEmpty()) {
                 item {
@@ -255,7 +293,7 @@ fun ScanConnectScreen(
 
                 items(unconnectedPairedDevices) { device ->
                     PairedDeviceCard(device = device, onConnect = {
-                        viewModel.connectToDevice(device.address)
+                        viewModel.connectToDevice(device.address, isPrinterDevice(device))
                         scope.launch { listState.animateScrollToItem(0) }
                     }, onForget = { viewModel.forgetDevice(device.address) })
                 }
@@ -276,7 +314,7 @@ fun ScanConnectScreen(
                 }
 
                 // Highlight likely printer devices first
-                val possiblePrinters = allDiscoveredDevices.filter { isPrinterDevice(it) }
+                val possiblePrinters = allDiscoveredDevices.filter { isPrinterDevice(it, savedPrintersWithStatus.map { it.first }) }
                 if (possiblePrinters.isNotEmpty()) {
                     item {
                         Card(
@@ -298,7 +336,7 @@ fun ScanConnectScreen(
                     items(possiblePrinters) { device ->
                         PossiblePrinterCard(
                             device = device, onPairAndConnect = {
-                                viewModel.pairDevice(device.address)
+                                viewModel.pairDevice(device.address,isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
                                 scope.launch { listState.animateScrollToItem(0) }
                             })
                     }
@@ -307,11 +345,11 @@ fun ScanConnectScreen(
                     item { Spacer(modifier = Modifier.height(12.dp)) }
                 }
 
-                val nonPrinters = allDiscoveredDevices.filterNot { isPrinterDevice(it) }
+                val nonPrinters = allDiscoveredDevices.filterNot { isPrinterDevice(it, savedPrintersWithStatus.map { it.first }) }
                 items(nonPrinters) { device ->
                     DiscoveredDeviceCard(
                         device = device, onPairAndConnect = {
-                            viewModel.pairDevice(device.address)
+                            viewModel.pairDevice(device.address,isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
                             scope.launch { listState.animateScrollToItem(0) }
                         })
                 }

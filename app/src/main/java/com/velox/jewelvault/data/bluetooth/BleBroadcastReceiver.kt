@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.ParcelUuid
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
+import com.velox.jewelvault.data.bluetooth.BleUtils.logDevice
 import com.velox.jewelvault.utils.log
 import kotlin.collections.set
 
@@ -201,7 +202,9 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
                     val rssi =
                         intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
                     val name = intent.getStringExtra(BluetoothDevice.EXTRA_NAME) ?: device?.name
-                    cLog("BleManager: onReceive: Found device - name: $name, rssi: $rssi, address: ${device?.address}")
+                    cLog("")
+                    logDevice("BleManager: onReceive: Found device - name: $name, rssi: $rssi, address: ${device?.address}",device)
+
                     val event = manager.buildBluetoothDevice(device, action = "ACTION_FOUND").copy(name = name, rssi = rssi)
 
                     // Add to classic discovered devices list
@@ -272,7 +275,8 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
             // - Scope: Both Classic and BLE devices
             BluetoothDevice.ACTION_ACL_DISCONNECTED, BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED -> {
                 val device = intent.getDevice()
-                cLog("BleManager: onReceive: ACL device - address: ${device?.address}, name: ${device?.name}")
+
+                logDevice("BleManager: onReceive: ACL device - address: ${device?.address}, name: ${device?.name}",device)
                 val event = manager.buildBluetoothDevice(device, action = intent.action?:"NA")
                 //todo do proper impl
                 device?.address?.let { manager.aclConnected.remove(it) }
@@ -298,6 +302,7 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
         }
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun handleBondingStateChange(intent: Intent) {
         when (intent.action) {
             // ACTION_BOND_STATE_CHANGED: Broadcast when device bonding/pairing state changes
@@ -350,8 +355,7 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
                             "pairingVariant" to variant.toString(), "pairingKey" to key.toString()
                         )
                     )
-                cLog("BleManager: onReceive: ACTION_PAIRING_REQUEST event: $event")
-                cLog("BleManager: onReceive: Emitted PAIRING_REQUEST event for device: ${device?.address}")
+                logDevice("BleManager: onReceive: ACTION_PAIRING_REQUEST event: $event",device)
                 //todo current doing nothing with this event
             }
         }
@@ -433,6 +437,7 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
         try {
             appContext.unregisterReceiver(this)
             isReceiverRegistered = false
+            onComplete()
             manager.cLog("BluetoothBroadcastReceiver unregistered")
         } catch (e: IllegalArgumentException) {
             manager.cLog("Receiver not registered while trying to unregister: ${e.message}")
