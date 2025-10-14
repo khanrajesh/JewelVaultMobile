@@ -217,9 +217,14 @@ fun ScanConnectScreen(
                         device = device, 
                         savedPrinters = savedPrintersWithStatus.map { it.first },
                         onClick = {
-                            if (isPrinterDevice(device, savedPrintersWithStatus.map { it.first })) {
+                            val isPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
+                            println("DEBUG: Device ${device.name} (${device.address}) - isPrinter: $isPrinter")
+//                            if (isPrinter) {
+                                println("DEBUG: Navigating to ManagePrintersScreen")
                                 navController.navigate(SubScreens.BluetoothManagePrinters.route)
-                            }
+//                            } else {
+//                                println("DEBUG: Device is not a printer, not navigating")
+//                            }
                         }, 
                         onDisconnect = { viewModel.disconnectDevice(device.address) },
                         onAddAsPrinter = { device ->
@@ -244,7 +249,10 @@ fun ScanConnectScreen(
 
                 items(connectingDevices) { device ->
                     ConnectingDeviceCard(
-                        device = device
+                        device = device,
+                        onCancelConnection = {
+                            viewModel.cancelConnection(device.address)
+                        }
                     )
                 }
             }

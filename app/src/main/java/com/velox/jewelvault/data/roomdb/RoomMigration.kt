@@ -348,4 +348,21 @@ object RoomMigration {
             // Let Room handle index creation automatically
         }
     }
+
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create printer table for storing printer information
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS printer (
+                    address TEXT PRIMARY KEY NOT NULL,
+                    name TEXT,
+                    method TEXT NOT NULL,
+                    isDefault INTEGER NOT NULL,
+                    lastConnectedAt INTEGER,
+                    supportedLanguages TEXT,
+                    currentLanguage TEXT
+                )
+            """)
+        }
+    }
 }

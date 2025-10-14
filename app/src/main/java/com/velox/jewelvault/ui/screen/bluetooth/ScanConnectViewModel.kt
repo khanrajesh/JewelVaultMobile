@@ -9,8 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
-import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.bluetooth.PrinterInfo
+import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
 import com.velox.jewelvault.ui.screen.bluetooth.components.isPrinterDevice
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,16 +19,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Named
 
 @HiltViewModel
 class ScanConnectViewModel @Inject constructor(
     private val bleManager: BleManager,
-    private val dataStoreManager: DataStoreManager,
+    private val appDatabase: AppDatabase,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>
 ) : ViewModel() {
@@ -41,15 +43,17 @@ class ScanConnectViewModel @Inject constructor(
     val connectedDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.connectedDevices.asStateFlow()
     val connectingDevices: StateFlow<List<BluetoothDeviceDetails>> = bleManager.connectingDevices.asStateFlow()
 
-    // Saved printers from DataStore
-    val savedPrinters: StateFlow<List<PrinterInfo>> = dataStoreManager.readPrinters().stateIn(
+    private val json = Json { ignoreUnknownKeys = true }
+    
+    // Saved printers from Room database
+    val savedPrinters: StateFlow<List<PrinterEntity>> = appDatabase.printerDao().getAllPrinters().stateIn(
         scope = viewModelScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
         initialValue = emptyList()
     )
 
     // Saved printers with connection status
-    val savedPrintersWithStatus: StateFlow<List<Pair<PrinterInfo, Boolean>>> = combine(
+    val savedPrintersWithStatus: StateFlow<List<Pair<PrinterEntity, Boolean>>> = combine(
         savedPrinters,
         connectedDevices
     ) { saved, connected ->
@@ -81,15 +85,16 @@ class ScanConnectViewModel @Inject constructor(
     val unconnectedPairedDevices: StateFlow<List<BluetoothDeviceDetails>> = combine(
         bleManager.bondedDevices,
         bleManager.connectedDevices,
-        bleManager.connectingDevices
-    ) { bonded, connected, connecting ->
+        bleManager.connectingDevices,
+        savedPrinters
+    ) { bonded, connected, connecting, savedPrintersList ->
         val connectedAddresses = connected.map { it.address }.toSet()
         val connectingAddresses = connecting.map { it.address }.toSet()
         val unconnected = bonded.filter { it.address !in connectedAddresses && it.address !in connectingAddresses }
 
         // Separate printers and non-printers, then prioritize printers
-        val printers = unconnected.filter { isPrinterDevice(it) }
-        val nonPrinters = unconnected.filterNot { isPrinterDevice(it) }
+        val printers = unconnected.filter { isPrinterDevice(it, savedPrintersList) }
+        val nonPrinters = unconnected.filterNot { isPrinterDevice(it, savedPrintersList) }
 
         // Sort printers and non-printers alphabetically by name
         val sortedPrinters = printers.sortedBy { it.name?.lowercase() ?: "~" }
@@ -151,22 +156,42 @@ class ScanConnectViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 _snackBarState.value = if (isPrinter) "Connecting to printer..." else "Connecting to device..."
 
+                // Add timeout mechanism to prevent infinite waiting
+                var connectionCompleted = false
+                val timeoutJob = launch {
+                    delay(45000) // 45 second timeout
+                    if (!connectionCompleted) {
+                        log("CONNECT_VIEWMODEL: Connection timeout for $deviceAddress")
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        _snackBarState.value = "Connection timeout. Please try again."
+                        connectionCompleted = true
+                    }
+                }
+
                 bleManager.connect(
                     address = deviceAddress,
                     onConnect = { device ->
-                        _uiState.value = _uiState.value.copy(isLoading = false)
-                        _snackBarState.value = if (isPrinter) "Connected to printer: ${device.name ?: device.address}" else "Connected to ${device.name ?: device.address}"
-                        log("CONNECT_VIEWMODEL: Connected to device: ${device.address}")
-                        
-                        // Save printer info if it's a printer
-                        if (isPrinter) {
-                            savePrinterInfo(device)
+                        if (!connectionCompleted) {
+                            connectionCompleted = true
+                            timeoutJob.cancel()
+                            _uiState.value = _uiState.value.copy(isLoading = false)
+                            _snackBarState.value = if (isPrinter) "Connected to printer: ${device.name ?: device.address}" else "Connected to ${device.name ?: device.address}"
+                            log("CONNECT_VIEWMODEL: Connected to device: ${device.address}")
+                            
+                            // Save printer info if it's a printer
+                            if (isPrinter) {
+                                savePrinterInfo(device)
+                            }
                         }
                     },
                     onFailure = { t ->
-                        _uiState.value = _uiState.value.copy(isLoading = false)
-                        _snackBarState.value = "Failed to connect: ${t.message ?: "Unknown error"}"
-                        log("CONNECT_VIEWMODEL: Connection failed: ${t.message}")
+                        if (!connectionCompleted) {
+                            connectionCompleted = true
+                            timeoutJob.cancel()
+                            _uiState.value = _uiState.value.copy(isLoading = false)
+                            _snackBarState.value = "Failed to connect: ${t.message ?: "Unknown error"}"
+                            log("CONNECT_VIEWMODEL: Connection failed: ${t.message}")
+                        }
                     }
                 )
             } catch (e: Exception) {
@@ -186,6 +211,19 @@ class ScanConnectViewModel @Inject constructor(
             } catch (e: Exception) {
                 log("Error disconnecting from device: ${e.message}")
                 _snackBarState.value = "Failed to disconnect: ${e.message}"
+            }
+        }
+    }
+
+    fun cancelConnection(deviceAddress: String) {
+        viewModelScope.launch {
+            try {
+                log("Canceling connection to device: $deviceAddress")
+                bleManager.cancelConnection(deviceAddress) // This will cancel the connection job
+                _snackBarState.value = "Connection canceled"
+            } catch (e: Exception) {
+                log("Error canceling connection: ${e.message}")
+                _snackBarState.value = "Failed to cancel connection: ${e.message}"
             }
         }
     }
@@ -344,25 +382,21 @@ class ScanConnectViewModel @Inject constructor(
             try {
                 log("addDeviceAsPrinter: Adding device ${device.address} (${device.name}) as printer")
                 
-                val printerInfo = PrinterInfo(
+                // Check if this is the first printer being saved
+                val existingPrinters = appDatabase.printerDao().getAllPrinters().first()
+                val isFirstPrinter = existingPrinters.isEmpty()
+                
+                val printerEntity = PrinterEntity(
                     name = device.name,
                     address = device.address,
                     method = device.extraInfo["connectionMethod"] ?: "UNKNOWN",
-                    isDefault = false, // Will be set if no default exists
-                    lastConnectedAt = System.currentTimeMillis()
+                    isDefault = isFirstPrinter, // Set as default if first printer
+                    lastConnectedAt = System.currentTimeMillis(),
+                    supportedLanguages = null, // Will be set later when testing protocols
+                    currentLanguage = null
                 )
                 
-                // Check if this is the first printer being saved
-                val existingPrinters = dataStoreManager.readPrinters().first()
-                val isFirstPrinter = existingPrinters.isEmpty()
-                
-                val finalPrinterInfo = if (isFirstPrinter) {
-                    printerInfo.copy(isDefault = true)
-                } else {
-                    printerInfo
-                }
-                
-                dataStoreManager.upsertPrinter(finalPrinterInfo)
+                appDatabase.printerDao().insertPrinter(printerEntity)
                 
                 if (isFirstPrinter) {
                     log("addDeviceAsPrinter: Set ${device.address} as default printer (first printer)")
@@ -405,32 +439,28 @@ class ScanConnectViewModel @Inject constructor(
     }
 
     /**
-     * Save printer info to DataStore when a printer connects
+     * Save printer info to Room database when a printer connects
      */
     private fun savePrinterInfo(device: BluetoothDeviceDetails) {
         viewModelScope.launch {
             try {
                 log("savePrinterInfo: Saving printer ${device.address} (${device.name})")
                 
-                val printerInfo = PrinterInfo(
+                // Check if this is the first printer being saved
+                val existingPrinters = appDatabase.printerDao().getAllPrinters().first()
+                val isFirstPrinter = existingPrinters.isEmpty()
+                
+                val printerEntity = PrinterEntity(
                     name = device.name,
                     address = device.address,
                     method = device.extraInfo["connectionMethod"] ?: "UNKNOWN",
-                    isDefault = false, // Will be set if no default exists
-                    lastConnectedAt = System.currentTimeMillis()
+                    isDefault = isFirstPrinter, // Set as default if first printer
+                    lastConnectedAt = System.currentTimeMillis(),
+                    supportedLanguages = null, // Will be set later when testing protocols
+                    currentLanguage = null
                 )
                 
-                // Check if this is the first printer being saved
-                val existingPrinters = dataStoreManager.readPrinters().first()
-                val isFirstPrinter = existingPrinters.isEmpty()
-                
-                val finalPrinterInfo = if (isFirstPrinter) {
-                    printerInfo.copy(isDefault = true)
-                } else {
-                    printerInfo
-                }
-                
-                dataStoreManager.upsertPrinter(finalPrinterInfo)
+                appDatabase.printerDao().insertPrinter(printerEntity)
                 
                 if (isFirstPrinter) {
                     log("savePrinterInfo: Set ${device.address} as default printer (first printer)")

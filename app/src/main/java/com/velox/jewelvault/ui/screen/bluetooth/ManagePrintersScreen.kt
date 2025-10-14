@@ -147,7 +147,7 @@ fun ManagePrintersScreen(
 
 @Composable
 fun PrinterManagementCard(
-    printer: com.velox.jewelvault.data.bluetooth.PrinterInfo,
+    printer: com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity,
     isConnected: Boolean,
     isDefault: Boolean,
     onSetDefault: () -> Unit,
@@ -158,6 +158,15 @@ fun PrinterManagementCard(
     onTestPrint: (String) -> Unit,
     onTestResult: (String, Boolean) -> Unit
 ) {
+    // Language support information
+    val supportedLanguagesList = printer.supportedLanguages?.let { 
+        try {
+            kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    } ?: emptyList()
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -243,8 +252,7 @@ fun PrinterManagementCard(
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                     
-                    // Language support information
-                    if (printer.supportedLanguages.isNotEmpty() || printer.currentLanguage != null) {
+                    if (supportedLanguagesList.isNotEmpty() || printer.currentLanguage != null) {
                         Spacer(modifier = Modifier.size(4.dp))
                         
                         Row(
@@ -260,9 +268,9 @@ fun PrinterManagementCard(
                                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                             
-                            if (printer.supportedLanguages.isNotEmpty()) {
+                            if (supportedLanguagesList.isNotEmpty()) {
                                 Text(
-                                    text = printer.supportedLanguages.joinToString(", "),
+                                    text = supportedLanguagesList.joinToString(", "),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (isConnected) 
                                         MaterialTheme.colorScheme.primary 
@@ -382,7 +390,7 @@ fun PrinterManagementCard(
                 if (isConnected) {
                     TestPrintSection(
                         printerAddress = printer.address,
-                        supportedLanguages = printer.supportedLanguages,
+                        supportedLanguages = supportedLanguagesList,
                         onTestPrint = onTestPrint,
                         onTestResult = onTestResult
                     )

@@ -64,6 +64,9 @@ class BleManager @Inject constructor(
 
     // Active GATT connections tracked by address
     private val gattMap = mutableMapOf<String, BluetoothGatt>()
+    
+    // Track ongoing connection jobs to allow cancellation
+    private val connectionJobs = mutableMapOf<String, kotlinx.coroutines.Job>()
 
     // Live transport state tracking for enrichment
     val aclConnected = mutableSetOf<String>()
@@ -214,6 +217,43 @@ class BleManager @Inject constructor(
     fun disconnectAll() {
         val keys = gattMap.keys.toList()
         keys.forEach { disconnectDevice(it) }
+    }
+
+    /**
+     * Cancels an ongoing connection attempt for a specific device
+     */
+    fun cancelConnection(address: String) {
+        cLog("BleManager: cancelConnection: Canceling connection for device: $address")
+        
+        // Cancel the connection job if it exists
+        connectionJobs[address]?.let { job ->
+            job.cancel()
+            connectionJobs.remove(address)
+            cLog("BleManager: cancelConnection: Cancelled connection job for $address")
+        }
+        
+        // Also disconnect the device to clean up any partial connections
+        try {
+            disconnectDevice(address)
+        } catch (e: Exception) {
+            cLog("BleManager: cancelConnection: Error during disconnect cleanup: ${e.message}")
+        }
+    }
+
+    /**
+     * Stores a connection job for tracking and potential cancellation
+     */
+    fun storeConnectionJob(address: String, job: kotlinx.coroutines.Job) {
+        connectionJobs[address] = job
+        cLog("BleManager: storeConnectionJob: Stored connection job for $address")
+    }
+
+    /**
+     * Removes a connection job from tracking (called when connection completes or fails)
+     */
+    fun removeConnectionJob(address: String) {
+        connectionJobs.remove(address)
+        cLog("BleManager: removeConnectionJob: Removed connection job for $address")
     }
 
     // ----------------- Device List Management Functions -----------------

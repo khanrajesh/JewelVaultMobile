@@ -27,18 +27,31 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
+import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
 
-// Helper function to check if device is a printer
-fun isPrinterDevice(device: BluetoothDeviceDetails, savedPrinters: List<com.velox.jewelvault.data.bluetooth.PrinterInfo> = emptyList()): Boolean {
+/**
+ * Unified function to determine if a device is a printer
+ * Checks both saved printers and device characteristics
+ */
+fun isPrinterDevice(device: BluetoothDeviceDetails, savedPrinters: List<PrinterEntity> = emptyList()): Boolean {
     // First check if device is already saved as a printer
-    if (savedPrinters.any { it.address == device.address }) {
+    val isSavedPrinter = savedPrinters.any { it.address == device.address }
+    println("DEBUG: isPrinterDevice - Device: ${device.name} (${device.address})")
+    println("DEBUG: isPrinterDevice - Saved printers count: ${savedPrinters.size}")
+    println("DEBUG: isPrinterDevice - Is saved printer: $isSavedPrinter")
+    
+    if (isSavedPrinter) {
+        println("DEBUG: isPrinterDevice - Device is saved as printer, returning true")
         return true
     }
     
-    // Then check based on device name or type
-    return device.name?.contains("printer", ignoreCase = true) == true ||
-            device.name?.contains("print", ignoreCase = true) == true ||
-            device.bluetoothClass?.contains("printer", ignoreCase = true) == true
+    // Then check based on device characteristics
+    val deviceType = getDeviceType(device)
+    val isPrinterByType = deviceType == DeviceType.PRINTER
+    println("DEBUG: isPrinterDevice - Device type: $deviceType")
+    println("DEBUG: isPrinterDevice - Is printer by type: $isPrinterByType")
+    
+    return isPrinterByType
 }
 
 
@@ -61,20 +74,59 @@ enum class DeviceType(val label: String) {
     OTHER("device")
 }
 
-// Heuristic-based device type inference using name and bluetooth class hints
-fun inferDeviceType(device: BluetoothDeviceDetails): DeviceType {
-    if (isPrinterDevice(device)) return DeviceType.PRINTER
-
+/**
+ * Unified function to determine device type based on name, characteristics, and MAC address
+ * This replaces the old inferDeviceType function and provides comprehensive device detection
+ */
+fun getDeviceType(device: BluetoothDeviceDetails): DeviceType {
     val name = device.name?.lowercase() ?: ""
+    val address = device.address.lowercase()
     val cls = device.bluetoothClass?.lowercase() ?: ""
+    
+    println("DEBUG: getDeviceType - Device: ${device.name} (${device.address})")
+    println("DEBUG: getDeviceType - Name: '$name', Address: '$address', Class: '$cls'")
+    println("DEBUG: getDeviceType - Device type: ${device.type}")
+
+    // Printer detection with comprehensive patterns
+    val printerNamePatterns = listOf(
+        "printer", "print", "thermal", "pos", "receipt", "label", "zebra",
+        "epson", "canon", "hp", "brother", "citizen", "tsc", "bixolon",
+        "star", "citizen", "dymo", "rollo", "munbyn", "phomemo"
+    )
+    
+    val printerMacPrefixes = listOf(
+        "00:11:22", "00:12:34", "00:15:83", "00:16:6c", "00:17:61",
+        "00:18:39", "00:19:2f", "00:1a:92", "00:1b:63", "00:1c:42"
+    )
+    
+    val hasPrinterName = printerNamePatterns.any { pattern -> name.contains(pattern) }
+    val hasPrinterMac = printerMacPrefixes.any { prefix -> address.startsWith(prefix) }
+    val isBlePrinter = (device.type == BluetoothDevice.DEVICE_TYPE_LE || device.type == BluetoothDevice.DEVICE_TYPE_DUAL) && (
+        name.contains("printer") || name.contains("thermal") || name.contains("pos") ||
+        device.extraInfo["serviceUuids"]?.toString()?.contains("printer") == true
+    )
+    
+    println("DEBUG: getDeviceType - Printer name patterns check: $hasPrinterName")
+    println("DEBUG: getDeviceType - Printer MAC prefixes check: $hasPrinterMac")
+    println("DEBUG: getDeviceType - BLE printer check: $isBlePrinter")
+    println("DEBUG: getDeviceType - Service UUIDs: ${device.extraInfo["serviceUuids"]}")
+    
+    if (hasPrinterName || hasPrinterMac || isBlePrinter) {
+        println("DEBUG: getDeviceType - Detected as PRINTER")
+        return DeviceType.PRINTER
+    }
 
     // Headphones / earbuds
-    if (listOf("headset", "headphone", "earbud", "earbuds", "earphone", "airpods", "buds").any { hint -> name.contains(hint) || cls.contains(hint) }) {
+    if (listOf("headset", "headphone", "earbud", "earbuds", "earphone", "airpods", "buds").any { hint -> 
+        name.contains(hint) || cls.contains(hint) 
+    }) {
         return DeviceType.HEADPHONE
     }
 
     // Speakers / soundbars
-    if (listOf("speaker", "soundbar", "boom").any { hint -> name.contains(hint) || cls.contains(hint) }) {
+    if (listOf("speaker", "soundbar", "boom").any { hint -> 
+        name.contains(hint) || cls.contains(hint) 
+    }) {
         return DeviceType.SPEAKER
     }
 
@@ -97,18 +149,23 @@ fun inferDeviceType(device: BluetoothDeviceDetails): DeviceType {
     // Controllers / cameras / computers
     if (name.contains("gamepad") || name.contains("controller") || cls.contains("gamepad") || cls.contains("controller")) return DeviceType.GAMEPAD
     if (name.contains("camera") || cls.contains("camera")) return DeviceType.CAMERA
-    if (listOf("pc", "mac", "laptop", "notebook", "desktop", "imac", "macbook").any { hint -> name.contains(hint) || cls.contains(hint) }) {
+    if (listOf("pc", "mac", "laptop", "notebook", "desktop", "imac", "macbook").any { hint -> 
+        name.contains(hint) || cls.contains(hint) 
+    }) {
+        println("DEBUG: getDeviceType - Detected as COMPUTER")
         return DeviceType.COMPUTER
     }
 
+    println("DEBUG: getDeviceType - Detected as OTHER (default)")
     return DeviceType.OTHER
 }
 
 
 @Composable
-fun TypeTags(device: BluetoothDeviceDetails) {
+fun TypeTags(device: BluetoothDeviceDetails, savedPrinters: List<PrinterEntity> = emptyList()) {
+    val deviceType = getDeviceType(device)
     val tags = buildList {
-        if (isPrinterDevice(device)) add("Printer")
+        if (isPrinterDevice(device, savedPrinters)) add("Printer")
         when (device.type) {
             BluetoothDevice.DEVICE_TYPE_CLASSIC -> add("Classic")
             BluetoothDevice.DEVICE_TYPE_LE -> add("LE")
@@ -135,22 +192,31 @@ fun TypeTags(device: BluetoothDeviceDetails) {
 }
 
 @Composable
-fun getDeviceIcon(device: BluetoothDeviceDetails): ImageVector {
-    val name = device.name?.lowercase() ?: ""
-    val cls = device.bluetoothClass?.lowercase() ?: ""
-    return when {
-        isPrinterDevice(device) -> Icons.Default.Print
-        name.contains("headset") || name.contains("headphone") || cls.contains("headset") || cls.contains("headphone") -> Icons.Default.Headset
-        name.contains("speaker") || cls.contains("speaker") -> Icons.Default.Speaker
-        name.contains("keyboard") || cls.contains("keyboard") -> Icons.Default.Keyboard
-        name.contains("mouse") || cls.contains("mouse") -> Icons.Default.Mouse
-        name.contains("watch") || cls.contains("watch") -> Icons.Default.DeviceHub
-        name.contains("phone") || name.contains("iphone") || cls.contains("phone") -> Icons.Default.Smartphone
-        device.type == BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.Filled.BluetoothSearching
-        device.type == BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.Default.Bluetooth
-        device.type == BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.Default.Devices
-        device.type == BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.Default.DeviceHub
-        else -> Icons.Default.DeviceHub
+fun getDeviceIcon(device: BluetoothDeviceDetails, savedPrinters: List<PrinterEntity> = emptyList()): ImageVector {
+    val deviceType = getDeviceType(device)
+    
+    return when (deviceType) {
+        DeviceType.PRINTER -> Icons.Default.Print
+        DeviceType.HEADPHONE -> Icons.Default.Headset
+        DeviceType.SPEAKER -> Icons.Default.Speaker
+        DeviceType.KEYBOARD -> Icons.Default.Keyboard
+        DeviceType.MOUSE -> Icons.Default.Mouse
+        DeviceType.WATCH -> Icons.Default.DeviceHub
+        DeviceType.SMARTPHONE -> Icons.Default.Smartphone
+        DeviceType.TABLET -> Icons.Default.Smartphone
+        DeviceType.TV -> Icons.Default.DeviceHub
+        DeviceType.CAR -> Icons.Default.DeviceHub
+        DeviceType.WEARABLE -> Icons.Default.DeviceHub
+        DeviceType.GAMEPAD -> Icons.Default.DeviceHub
+        DeviceType.CAMERA -> Icons.Default.DeviceHub
+        DeviceType.COMPUTER -> Icons.Default.DeviceHub
+        DeviceType.OTHER -> when (device.type) {
+            BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.Filled.BluetoothSearching
+            BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.Default.Bluetooth
+            BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.Default.Devices
+            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.Default.DeviceHub
+            else -> Icons.Default.DeviceHub
+        }
     }
 }
 

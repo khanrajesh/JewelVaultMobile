@@ -7,14 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
-import com.velox.jewelvault.data.bluetooth.PrinterInfo
 import com.velox.jewelvault.utils.ioScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 class DataStoreManager @Inject constructor(
@@ -78,10 +75,6 @@ class DataStoreManager @Inject constructor(
 
         // Backup Settings
         val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
-
-        // Printer Settings
-        val SAVED_PRINTERS_JSON = stringPreferencesKey("saved_printers_json")
-        val DEFAULT_PRINTER_ADDRESS = stringPreferencesKey("default_printer_address")
 
 
         private val CL_USER_NAME_KEY = stringPreferencesKey("cl_user_name")
@@ -224,177 +217,4 @@ class DataStoreManager @Inject constructor(
             e.printStackTrace()
         }
     }
-
-    // Printer management methods
-    private val json = Json { ignoreUnknownKeys = true }
-
-    /**
-     * Read all saved printers from DataStore
-     */
-    fun readPrinters(): Flow<List<PrinterInfo>> {
-        return dataStore.data.map { prefs ->
-            try {
-                val jsonString = prefs[SAVED_PRINTERS_JSON] ?: "[]"
-                kotlinx.serialization.json.Json.decodeFromString<List<PrinterInfo>>(jsonString)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                emptyList()
-            }
-        }
-    }
-
-    /**
-     * Save list of printers to DataStore
-     */
-    suspend fun savePrinters(printers: List<PrinterInfo>) {
-        try {
-            val jsonString = kotlinx.serialization.json.Json.encodeToString(kotlinx.serialization.serializer<List<PrinterInfo>>(), printers)
-            setValue(SAVED_PRINTERS_JSON, jsonString)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Add or update a printer in the saved list
-     */
-    suspend fun upsertPrinter(printer: PrinterInfo) {
-        try {
-            val currentPrinters = readPrinters().first().toMutableList()
-            
-            // Remove existing printer with same address
-            currentPrinters.removeAll { it.address == printer.address }
-            
-            // Add updated printer
-            currentPrinters.add(printer)
-            
-            savePrinters(currentPrinters)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Remove a printer from saved list
-     */
-    suspend fun removePrinter(address: String) {
-        try {
-            val currentPrinters = readPrinters().first().toMutableList()
-            currentPrinters.removeAll { it.address == address }
-            savePrinters(currentPrinters)
-            
-            // If removed printer was default, clear default
-            val currentDefault = getValue(DEFAULT_PRINTER_ADDRESS).first()
-            if (currentDefault == address) {
-                setValue(DEFAULT_PRINTER_ADDRESS, "")
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Set a printer as default (clears others)
-     */
-    suspend fun setDefaultPrinter(address: String) {
-        try {
-            var currentPrinters = readPrinters().first().toMutableList()
-            
-            // Clear all default flags
-            currentPrinters = currentPrinters.map { it.copy(isDefault = false) }.toMutableList()
-            
-            // Set specified printer as default
-            val printerIndex = currentPrinters.indexOfFirst { it.address == address }
-            if (printerIndex >= 0) {
-                currentPrinters[printerIndex] = currentPrinters[printerIndex].copy(isDefault = true)
-                savePrinters(currentPrinters)
-                setValue(DEFAULT_PRINTER_ADDRESS, address)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Get the default printer
-     */
-    fun getDefaultPrinter(): Flow<PrinterInfo?> {
-        return combine(
-            readPrinters(),
-            getValue(DEFAULT_PRINTER_ADDRESS)
-        ) { printers, defaultAddress ->
-            printers.find { it.address == defaultAddress }
-        }
-    }
-
-    /**
-     * Add a supported language to a printer
-     */
-    suspend fun addSupportedLanguage(printerAddress: String, language: String) {
-        try {
-            val currentPrinters = readPrinters().first().toMutableList()
-            val printerIndex = currentPrinters.indexOfFirst { it.address == printerAddress }
-            
-            if (printerIndex >= 0) {
-                val printer = currentPrinters[printerIndex]
-                val updatedSupportedLanguages = if (language in printer.supportedLanguages) {
-                    printer.supportedLanguages
-                } else {
-                    printer.supportedLanguages + language
-                }
-                
-                currentPrinters[printerIndex] = printer.copy(
-                    supportedLanguages = updatedSupportedLanguages,
-                    currentLanguage = language
-                )
-                savePrinters(currentPrinters)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Set current language for a printer
-     */
-    suspend fun setPrinterCurrentLanguage(printerAddress: String, language: String) {
-        try {
-            val currentPrinters = readPrinters().first().toMutableList()
-            val printerIndex = currentPrinters.indexOfFirst { it.address == printerAddress }
-            
-            if (printerIndex >= 0) {
-                val printer = currentPrinters[printerIndex]
-                currentPrinters[printerIndex] = printer.copy(currentLanguage = language)
-                savePrinters(currentPrinters)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    /**
-     * Remove a supported language from a printer
-     */
-    suspend fun removeSupportedLanguage(printerAddress: String, language: String) {
-        try {
-            val currentPrinters = readPrinters().first().toMutableList()
-            val printerIndex = currentPrinters.indexOfFirst { it.address == printerAddress }
-            
-            if (printerIndex >= 0) {
-                val printer = currentPrinters[printerIndex]
-                val updatedSupportedLanguages = printer.supportedLanguages.filter { it != language }
-                val updatedCurrentLanguage = if (printer.currentLanguage == language) null else printer.currentLanguage
-                
-                currentPrinters[printerIndex] = printer.copy(
-                    supportedLanguages = updatedSupportedLanguages,
-                    currentLanguage = updatedCurrentLanguage
-                )
-                savePrinters(currentPrinters)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 }
-
-//

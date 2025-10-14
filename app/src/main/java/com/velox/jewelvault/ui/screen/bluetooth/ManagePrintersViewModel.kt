@@ -4,38 +4,41 @@ import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.velox.jewelvault.data.bluetooth.BleManager
-import com.velox.jewelvault.data.bluetooth.PrinterInfo
-import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import javax.inject.Inject
 import javax.inject.Named
 
 @HiltViewModel
 class ManagePrintersViewModel @Inject constructor(
     private val bleManager: BleManager,
-    private val dataStoreManager: DataStoreManager,
+    private val appDatabase: AppDatabase,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>
 ) : ViewModel() {
     
     val currentScreenHeadingState = _currentScreenHeadingState
     
-    // Saved printers from DataStore
-    val savedPrinters: StateFlow<List<PrinterInfo>> = dataStoreManager.readPrinters().stateIn(
+    // Saved printers from Room database
+    val savedPrinters: StateFlow<List<PrinterEntity>> = appDatabase.printerDao().getAllPrinters().stateIn(
         scope = viewModelScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
         initialValue = emptyList()
     )
     
     // Default printer
-    val defaultPrinter: StateFlow<PrinterInfo?> = dataStoreManager.getDefaultPrinter().stateIn(
+    val defaultPrinter: StateFlow<PrinterEntity?> = appDatabase.printerDao().getDefaultPrinter().stateIn(
         scope = viewModelScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
         initialValue = null
@@ -91,7 +94,7 @@ class ManagePrintersViewModel @Inject constructor(
                 
                 if (passed) {
                     // Add protocol as supported language for this printer
-                    dataStoreManager.addSupportedLanguage(address, protocol)
+                    addSupportedLanguage(address, protocol)
                     _snackBarState.value = "✅ $protocol added as supported language for $printerName"
                     log("Added $protocol as supported language for $address")
                 } else {
@@ -229,7 +232,8 @@ class ManagePrintersViewModel @Inject constructor(
     fun setDefaultPrinter(address: String) {
         viewModelScope.launch {
             try {
-                dataStoreManager.setDefaultPrinter(address)
+                appDatabase.printerDao().clearAllDefaults()
+                appDatabase.printerDao().setDefaultPrinter(address)
                 val printerName = savedPrinters.value.find { it.address == address }?.name ?: address
                 _snackBarState.value = "Set $printerName as default printer"
                 log("Set default printer: $address")
@@ -247,7 +251,7 @@ class ManagePrintersViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val printerName = savedPrinters.value.find { it.address == address }?.name ?: address
-                dataStoreManager.removePrinter(address)
+                appDatabase.printerDao().deletePrinterByAddress(address)
                 _snackBarState.value = "Removed $printerName from saved printers"
                 log("Removed printer: $address")
             } catch (e: Exception) {
@@ -319,6 +323,28 @@ class ManagePrintersViewModel @Inject constructor(
             } catch (e: Exception) {
                 log("Error disconnecting printer: ${e.message}")
                 _snackBarState.value = "Failed to disconnect printer: ${e.message}"
+            }
+        }
+    }
+    
+    /**
+     * Add a supported language to a printer
+     */
+    private suspend fun addSupportedLanguage(printerAddress: String, language: String) {
+        val printer = appDatabase.printerDao().getPrinterByAddress(printerAddress)
+        if (printer != null) {
+            val currentLanguages = printer.supportedLanguages?.let {
+                try {
+                    kotlinx.serialization.json.Json.decodeFromString<List<String>>(it).toMutableList()
+                } catch (e: Exception) {
+                    mutableListOf()
+                }
+            } ?: mutableListOf()
+            
+            if (!currentLanguages.contains(language)) {
+                currentLanguages.add(language)
+                val updatedLanguages = kotlinx.serialization.json.Json.encodeToString(ListSerializer(String.serializer()), currentLanguages)
+                appDatabase.printerDao().updateSupportedLanguages(printerAddress, updatedLanguages)
             }
         }
     }

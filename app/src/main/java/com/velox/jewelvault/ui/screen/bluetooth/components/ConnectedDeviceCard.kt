@@ -39,12 +39,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
-import com.velox.jewelvault.data.bluetooth.PrinterInfo
+import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
 
 @Composable
 fun ConnectedDeviceCard(
     device: BluetoothDeviceDetails,
-    savedPrinters: List<PrinterInfo> = emptyList(),
+    savedPrinters: List<PrinterEntity> = emptyList(),
     onClick: () -> Unit,
     onDisconnect: () -> Unit,
     onAddAsPrinter: (BluetoothDeviceDetails) -> Unit

@@ -25,16 +25,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.velox.jewelvault.data.bluetooth.PrinterInfo
+import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
 
 @Composable
 fun SavedPrinterCard(
-    printer: PrinterInfo,
+    printer: PrinterEntity,
     isConnected: Boolean,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
@@ -45,13 +45,13 @@ fun SavedPrinterCard(
         )
     ) {
         Row(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.Companion.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(
@@ -60,12 +60,12 @@ fun SavedPrinterCard(
                         else
                             MaterialTheme.colorScheme.surfaceVariant
                     ),
-                contentAlignment = Alignment.Companion.Center
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Print,
                     contentDescription = null,
-                    modifier = Modifier.Companion.size(24.dp),
+                    modifier = Modifier.size(24.dp),
                     tint = if (isConnected)
                         MaterialTheme.colorScheme.onPrimary
                     else
@@ -73,11 +73,11 @@ fun SavedPrinterCard(
                 )
             }
 
-            Spacer(modifier = Modifier.Companion.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-            Column(modifier = Modifier.Companion.weight(1f)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    verticalAlignment = Alignment.Companion.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
@@ -93,7 +93,7 @@ fun SavedPrinterCard(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = "Default Printer",
-                            modifier = Modifier.Companion.size(16.dp),
+                            modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -118,11 +118,19 @@ fun SavedPrinterCard(
                 )
                 
                 // Language support information
-                if (printer.supportedLanguages.isNotEmpty() || printer.currentLanguage != null) {
-                    Spacer(modifier = Modifier.Companion.size(4.dp))
+                val supportedLanguagesList = printer.supportedLanguages?.let { 
+                    try {
+                        kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                } ?: emptyList()
+                
+                if (supportedLanguagesList.isNotEmpty() || printer.currentLanguage != null) {
+                    Spacer(modifier = Modifier.size(4.dp))
                     
                     Row(
-                        verticalAlignment = Alignment.Companion.CenterVertically,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
@@ -134,9 +142,9 @@ fun SavedPrinterCard(
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         
-                        if (printer.supportedLanguages.isNotEmpty()) {
+                        if (supportedLanguagesList.isNotEmpty()) {
                             Text(
-                                text = printer.supportedLanguages.joinToString(", "),
+                                text = supportedLanguagesList.joinToString(", "),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isConnected)
                                     MaterialTheme.colorScheme.primary
