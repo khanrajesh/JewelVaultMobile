@@ -386,15 +386,13 @@ fun PrinterManagementCard(
                     }
                 }
                 
-                // Test Print section (only show if connected)
-                if (isConnected) {
-                    TestPrintSection(
-                        printerAddress = printer.address,
-                        supportedLanguages = supportedLanguagesList,
-                        onTestPrint = onTestPrint,
-                        onTestResult = onTestResult
-                    )
-                }
+                // Test Print section (always show)
+                TestPrintSection(
+                    printerAddress = printer.address,
+                    supportedLanguages = supportedLanguagesList,
+                    onTestPrint = onTestPrint,
+                    onTestResult = onTestResult
+                )
             }
         }
     }

@@ -330,6 +330,54 @@ class ScanConnectViewModel @Inject constructor(
         }
     }
 
+    fun connectToPrinterUsingSavedMethod(address: String, savedMethod: String) {
+        viewModelScope.launch {
+            try {
+                log("CONNECT_PRINTER: Starting connection to printer: $address using method: $savedMethod")
+                _uiState.value = _uiState.value.copy(isLoading = true, message = "Connecting to printer using saved method: $savedMethod...")
+
+                // Add timeout mechanism to prevent infinite waiting
+                var connectionCompleted = false
+                val timeoutJob = launch {
+                    delay(45000) // 45 second timeout
+                    if (!connectionCompleted) {
+                        log("CONNECT_PRINTER: Connection timeout for $address")
+                        _uiState.value = _uiState.value.copy(isLoading = false, message = "Connection timeout. Please try again.")
+                        connectionCompleted = true
+                    }
+                }
+
+                bleManager.connectToPrinterUsingSavedMethod(
+                    address = address,
+                    savedMethod = savedMethod,
+                    onConnect = { device ->
+                        if (!connectionCompleted) {
+                            connectionCompleted = true
+                            timeoutJob.cancel()
+                            _uiState.value = _uiState.value.copy(isLoading = false, message = "Connected to printer: ${device.name ?: device.address}")
+                            log("CONNECT_PRINTER: Connected to printer: ${device.address}")
+                            // Refresh device lists to update UI
+                            bleManager.refreshAllDeviceLists()
+                        }
+                    },
+                    onFailure = { t ->
+                        if (!connectionCompleted) {
+                            connectionCompleted = true
+                            timeoutJob.cancel()
+                            _uiState.value = _uiState.value.copy(isLoading = false, message = "Failed to connect to printer: ${t.message ?: "Unknown error"}")
+                            log("CONNECT_PRINTER: Connection failed: ${t.message}")
+                            // Refresh device lists even on failure to update UI
+                            bleManager.refreshAllDeviceLists()
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                log("CONNECT_PRINTER: Error connecting to printer: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false, message = "Failed to connect to printer: ${e.message}")
+            }
+        }
+    }
+
 
     fun forgetDevice(deviceAddress: String) {
         viewModelScope.launch {
@@ -415,6 +463,10 @@ class ScanConnectViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
+    }
+
+    fun showNotPrinterMessage() {
+        _uiState.value = _uiState.value.copy(message = "This device is not a saved printer")
     }
 
     /**

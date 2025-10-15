@@ -126,7 +126,7 @@ fun ProtocolTestButton(
                 TestState.Fail -> Color(0xFFF44336) // Red
             }
         ),
-        enabled = testState != TestState.Testing && !isAlreadySupported
+        enabled = testState != TestState.Testing
     ) {
         when (testState) {
             TestState.Idle -> {
