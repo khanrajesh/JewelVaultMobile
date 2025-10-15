@@ -277,9 +277,9 @@ fun UnifiedDeviceCard(
                 }
 
                 // Center Button (Main Action)
+                if (onCenterButtonClick != null)
                 IconButton(
-                    onClick = { onCenterButtonClick?.invoke() },
-                    enabled = onCenterButtonClick != null
+                    onClick = { onCenterButtonClick.invoke() },
                 ) {
                     Icon(
                         imageVector = when (category) {
