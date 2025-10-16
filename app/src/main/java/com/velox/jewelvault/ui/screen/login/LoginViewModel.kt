@@ -22,6 +22,7 @@ import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.fcm.FCMTokenManager
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
@@ -47,7 +48,8 @@ class LoginViewModel @Inject constructor(
     private val _auth: FirebaseAuth,
     private val _fireStore: FirebaseFirestore,
     private val _remoteConfigManager: RemoteConfigManager,
-    private val _appUpdateManager: AppUpdateManager
+    private val _appUpdateManager: AppUpdateManager,
+    private val _fcmTokenManager: FCMTokenManager
 ) : ViewModel() {
 
     val snackBarState = _snackBarState
@@ -396,98 +398,108 @@ class LoginViewModel @Inject constructor(
     fun uploadAdminUser(
         pin: String, onSuccess: () -> Unit, onFailure: () -> Unit
     ) {
-        log("LOGIN: uploadAdminUser called")
-        if (_loadingState.value) {
-            log("LOGIN: uploadAdminUser ignored - loading in progress")
-            return
-        }
-        // Validate PIN
-        if (!InputValidator.isValidPin(pin)) {
-            _snackBarState.value = "PIN must be 4-6 digits"
-            onFailure()
-            return
-        }
+
+        return ioLaunch {
+            log("LOGIN: uploadAdminUser called")
+            if (_loadingState.value) {
+                log("LOGIN: uploadAdminUser ignored - loading in progress")
+                return@ioLaunch
+            }
+            // Validate PIN
+            if (!InputValidator.isValidPin(pin)) {
+                _snackBarState.value = "PIN must be 4-6 digits"
+                onFailure()
+                return@ioLaunch
+            }
 
 
-        val uid = firebaseUser.value?.uid
-        val phone = firebaseUser.value?.phoneNumber?.replace("+91", "")?.filter { it.isDigit() }
+            val uid = firebaseUser.value?.uid
+            val phone = firebaseUser.value?.phoneNumber?.replace("+91", "")?.filter { it.isDigit() }
 
-        if (uid != null && phone != null) {
-            // Hash the PIN before storing
-            val hashedPin = SecurityUtils.hashPin(pin)
-            val userMap = hashMapOf(
-                "phone" to phone,
-                "uid" to uid,
-                "pin" to hashedPin,
-                "otpVerifiedAt" to System.currentTimeMillis(),
-                "role" to "admin"
-            )
-            _loadingState.value = true
-            _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
-                ioScope {
-                    try {
-                        // Check if user already exists in database
-                        val existingUser = _appDatabase.userDao().getUserByMobile(phone)
-                        val userCount = _appDatabase.userDao().getUserCount()
+            if (uid != null && phone != null) {
+                // Hash the PIN before storing
+                val hashedPin = SecurityUtils.hashPin(pin)
 
-                        if (existingUser != null) {
-                            log("LOGIN: updating existing local admin user for $phone")
-                            // User exists with same phone, update the existing user
-                            val updatedUser = existingUser.copy(
-                                pin = hashedPin
-                            )
-                            val updateResult = _appDatabase.userDao().updateUser(updatedUser)
-                            if (updateResult > 0) {
-                                log("LOGIN: local admin user updated for $phone")
-                                onSuccess()
+                // Get FCM token for first-time login
+                val fcmToken = _fcmTokenManager.getAndSaveFCMToken()
+                log("LOGIN: FCM token obtained: ${fcmToken?.take(20)}...")
+
+                val userMap = hashMapOf(
+                    "phone" to phone,
+                    "uid" to uid,
+                    "pin" to hashedPin,
+                    "otpVerifiedAt" to System.currentTimeMillis(),
+                    "role" to "admin",
+                    "fcmToken" to (fcmToken ?: "")
+                )
+                _loadingState.value = true
+                _fireStore.collection("users").document(phone).set(userMap).addOnSuccessListener {
+                    ioScope {
+                        try {
+                            // Check if user already exists in database
+                            val existingUser = _appDatabase.userDao().getUserByMobile(phone)
+                            val userCount = _appDatabase.userDao().getUserCount()
+
+                            if (existingUser != null) {
+                                log("LOGIN: updating existing local admin user for $phone")
+                                // User exists with same phone, update the existing user
+                                val updatedUser = existingUser.copy(
+                                    pin = hashedPin
+                                )
+                                val updateResult = _appDatabase.userDao().updateUser(updatedUser)
+                                if (updateResult > 0) {
+                                    log("LOGIN: local admin user updated for $phone")
+                                    onSuccess()
+                                } else {
+                                    log("LOGIN: local admin user update failed for $phone")
+                                    onFailure()
+                                }
+                            } else if (userCount == 0) {
+                                log("LOGIN: inserting new local admin user for $phone")
+                                // No user exists, create new user
+                                val newUser = UsersEntity(
+                                    userId = uid,
+                                    name = phone,
+                                    mobileNo = phone,
+                                    pin = hashedPin,
+                                    role = "admin"
+                                )
+                                val insertResult = _appDatabase.userDao().insertUser(newUser)
+                                if (insertResult != -1L) {
+                                    log("LOGIN: local admin user inserted for $phone")
+                                    onSuccess()
+                                } else {
+                                    log("LOGIN: local admin user insert failed for $phone")
+                                    onFailure()
+                                }
                             } else {
-                                log("LOGIN: local admin user update failed for $phone")
+                                // User exists but with different phone number - this should not happen due to OTP check
+                                _snackBarState.value =
+                                    "This device is already registered with a different phone number. Cannot proceed."
+                                log("LOGIN: local admin user conflict for $phone")
                                 onFailure()
                             }
-                        } else if (userCount == 0) {
-                            log("LOGIN: inserting new local admin user for $phone")
-                            // No user exists, create new user
-                            val newUser = UsersEntity(
-                                userId = uid,
-                                name = phone,
-                                mobileNo = phone,
-                                pin = hashedPin,
-                                role = "admin"
-                            )
-                            val insertResult = _appDatabase.userDao().insertUser(newUser)
-                            if (insertResult != -1L) {
-                                log("LOGIN: local admin user inserted for $phone")
-                                onSuccess()
-                            } else {
-                                log("LOGIN: local admin user insert failed for $phone")
-                                onFailure()
-                            }
-                        } else {
-                            // User exists but with different phone number - this should not happen due to OTP check
-                            _snackBarState.value =
-                                "This device is already registered with a different phone number. Cannot proceed."
-                            log("LOGIN: local admin user conflict for $phone")
+                            _loadingState.value = false
+                        } catch (e: Exception) {
+                            _loadingState.value = false
+                            log("LOGIN: uploadAdminUser exception -> ${e.message}")
                             onFailure()
                         }
-                        _loadingState.value = false
-                    } catch (e: Exception) {
-                        _loadingState.value = false
-                        log("LOGIN: uploadAdminUser exception -> ${e.message}")
-                        onFailure()
                     }
+                }.addOnFailureListener { it ->
+                    _loadingState.value = false
+                    _snackBarState.value = "Fire store upload failed"
+                    log("LOGIN: Firestore set failed for $phone -> ${it.message}")
+                    onFailure()
                 }
-            }.addOnFailureListener { it ->
+            }else{
                 _loadingState.value = false
                 _snackBarState.value = "Fire store upload failed"
-                log("LOGIN: Firestore set failed for $phone -> ${it.message}")
+                log("LOGIN: Firestore set failed for $phone ,uid: $uid invalid")
                 onFailure()
             }
-        }else{
-            _loadingState.value = false
-            _snackBarState.value = "Fire store upload failed"
-            log("LOGIN: Firestore set failed for $phone ,uid: $uid invalid")
-            onFailure()
         }
+
     }
 
     fun logInUser(
