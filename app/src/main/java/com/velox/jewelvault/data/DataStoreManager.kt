@@ -76,8 +76,6 @@ class DataStoreManager @Inject constructor(
         // Backup Settings
         val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
 
-        // Printer Settings
-        val SAVED_PRINTERS = stringPreferencesKey("saved_printers") // JSON string of printer list
 
         private val CL_USER_NAME_KEY = stringPreferencesKey("cl_user_name")
         private val CL_USER_ID_KEY = stringPreferencesKey("cl_user_id")
@@ -174,56 +172,6 @@ class DataStoreManager @Inject constructor(
         }
     }
 
-    // Printer management methods
-    suspend fun savePrinter(printerInfo: PrinterInfo) {
-        val currentPrinters = getSavedPrinters()
-        val updatedPrinters = currentPrinters.filter { it.address != printerInfo.address } + printerInfo
-        val jsonString = updatedPrinters.joinToString("|") { "${it.address}:${it.name}:${it.connectionMethod}:${it.connectionTime}" }
-        setValue(SAVED_PRINTERS, jsonString)
-    }
-
-    fun getSavedPrinters(): List<PrinterInfo> {
-        val prefs = runBlocking { dataStore.data.first() }
-        val jsonString = prefs[SAVED_PRINTERS] ?: ""
-        return if (jsonString.isBlank()) {
-            emptyList()
-        } else {
-            try {
-                jsonString.split("|").mapNotNull { printerString ->
-                    val parts = printerString.split(":")
-                    if (parts.size >= 4) {
-                        PrinterInfo(
-                            address = parts[0],
-                            name = parts[1],
-                            connectionMethod = parts[2],
-                            connectionTime = parts[3].toLongOrNull() ?: System.currentTimeMillis()
-                        )
-                    } else if (parts.size == 3) {
-                        // Handle old format without connectionMethod (backward compatibility)
-                        PrinterInfo(
-                            address = parts[0],
-                            name = parts[1],
-                            connectionMethod = "UNKNOWN", // Default for old saved printers
-                            connectionTime = parts[2].toLongOrNull() ?: System.currentTimeMillis()
-                        )
-                    } else null
-                }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        }
-    }
-
-    suspend fun removePrinter(address: String) {
-        val currentPrinters = getSavedPrinters()
-        val updatedPrinters = currentPrinters.filter { it.address != address }
-        val jsonString = updatedPrinters.joinToString("|") { "${it.address}:${it.name}:${it.connectionMethod}:${it.connectionTime}" }
-        setValue(SAVED_PRINTERS, jsonString)
-    }
-
-    fun isPrinterSaved(address: String): Boolean {
-        return getSavedPrinters().any { it.address == address }
-    }
 
     // Convenience methods for common settings
     suspend fun setContinuousNetworkCheck(enabled: Boolean) {
@@ -270,11 +218,3 @@ class DataStoreManager @Inject constructor(
         }
     }
 }
-
-// Data class for storing printer information
-    data class PrinterInfo(
-        val address: String,
-        val name: String,
-        val connectionMethod: String, // GATT, RFComm, A2DP, HEADSET, HID_HOST, etc.
-        val connectionTime: Long = System.currentTimeMillis()
-    )

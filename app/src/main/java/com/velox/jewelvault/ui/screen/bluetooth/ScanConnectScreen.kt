@@ -1,9 +1,8 @@
 package com.velox.jewelvault.ui.screen.bluetooth
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,66 +15,57 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Mouse
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Speaker
-import androidx.compose.material.icons.filled.Watch
-import androidx.compose.material.icons.filled.DeviceHub
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.BluetoothDisabled
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
-import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import com.velox.jewelvault.ui.components.PermissionRequester
+import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
-import com.velox.jewelvault.ui.screen.bluetooth.components.ConnectedDeviceCard
-import com.velox.jewelvault.ui.screen.bluetooth.components.ConnectingDeviceCard
-import com.velox.jewelvault.ui.screen.bluetooth.components.DiscoveredDeviceCard
-import com.velox.jewelvault.ui.screen.bluetooth.components.PairedDeviceCard
-import com.velox.jewelvault.ui.screen.bluetooth.components.PossiblePrinterCard
+import com.velox.jewelvault.ui.screen.bluetooth.components.UnifiedDeviceCard
+import com.velox.jewelvault.ui.screen.bluetooth.components.DeviceCategory
+import com.velox.jewelvault.ui.screen.bluetooth.components.DeviceDetailsDialog
 import com.velox.jewelvault.ui.screen.bluetooth.components.isPrinterDevice
 import com.velox.jewelvault.utils.LocalSubNavController
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,19 +73,25 @@ fun ScanConnectScreen(
     viewModel: ScanConnectViewModel = hiltViewModel()
 ) {
     val navController = LocalSubNavController.current
-    val context = LocalContext.current
+    LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
+    // Dialog states
+    var showAddPrinterDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
+    var selectedDevice by remember { mutableStateOf<BluetoothDeviceDetails?>(null) }
+
     val uiState by viewModel.uiState.collectAsState()
     val bluetoothManager = viewModel.bluetoothReceiver
-    
+
     // Device lists from ViewModel
     val connectedDevices by viewModel.connectedDevices.collectAsStateWithLifecycle()
     val connectingDevices by viewModel.connectingDevices.collectAsStateWithLifecycle()
     val unconnectedPairedDevices by viewModel.unconnectedPairedDevices.collectAsStateWithLifecycle()
     val allDiscoveredDevices by viewModel.allDiscoveredDevices.collectAsStateWithLifecycle()
-    
+    val savedPrintersWithStatus by viewModel.savedPrintersWithStatus.collectAsStateWithLifecycle()
+
     val bleState by bluetoothManager.bluetoothStateChanged.collectAsStateWithLifecycle()
     val isBluetoothEnabled = (bleState.currentState == BluetoothAdapter.STATE_ON)
 
@@ -106,7 +102,7 @@ fun ScanConnectScreen(
         // Screen is active - start 5-second monitoring
         bluetoothManager.setScanConnectScreenActive(true)
     }
-    
+
     // Cleanup when screen is disposed
     DisposableEffect(Unit) {
         onDispose {
@@ -133,7 +129,9 @@ fun ScanConnectScreen(
             .padding(5.dp)
     ) {
 
-        Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+            ) {
             Card(
                 modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(
                     containerColor = when {
@@ -144,7 +142,8 @@ fun ScanConnectScreen(
                 )
             ) {
                 Row(
-                    modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = when {
@@ -175,65 +174,42 @@ fun ScanConnectScreen(
                 }
             }
 
-                Button(
-                    onClick = { if (isDiscovering) viewModel.stopScanning() else viewModel.startScanning() },
-                    modifier = Modifier,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDiscovering) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (isDiscovering) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = if (isDiscovering) "Stop Scan" else "Start Scan"
-                    )
-
-                }
-
-                OutlinedButton(
-                    onClick = { viewModel.refreshDevices() }, modifier = Modifier
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                OutlinedButton(
-                    onClick = { viewModel.refreshConnectedDevices() }, modifier = Modifier
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Link,
-                        contentDescription = "Refresh Connected Devices",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+            Button(
+                onClick = { if (isDiscovering) viewModel.stopScanning() else viewModel.startScanning() },
+                modifier = Modifier,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDiscovering) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = if (isDiscovering) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
 
                 Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = { navController.navigate(SubScreens.BluetoothManagePrinters.route) }) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Manage Printers",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
 
+                Text(
+                    text = if (isDiscovering) "Stop Scan" else "Start Scan"
+                )
+
+            }
+
+
+            OutlinedButton(
+                onClick = { viewModel.refreshAllDeviceLists() }, modifier = Modifier
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Link,
+                    contentDescription = "Refresh Connected Devices",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
 
         LazyColumn(
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            state = listState, verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Connected Devices (at the top)
             if (connectedDevices.isNotEmpty()) {
@@ -249,14 +225,42 @@ fun ScanConnectScreen(
                 }
 
                 items(connectedDevices) { device ->
-                    ConnectedDeviceCard(
-                        device = device, 
-                        onManagePrinter = {
-                            if (isPrinterDevice(device)) {
+                    UnifiedDeviceCard(
+                        device = device,
+                        category = DeviceCategory.CONNECTED,
+                        isSavedPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first }),
+                        rssi = device.extraInfo["rssi"]?.toIntOrNull(),
+                        connectionMethod = device.extraInfo["connectionMethod"],
+                        onLeftButtonClick = null, // Gone
+                        onCenterButtonClick = {
+                            val isPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
+                            if (isPrinter) {
                                 navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                            } else {
+                                viewModel.showNotPrinterMessage()
                             }
-                        }, 
-                        onDisconnect = { viewModel.disconnectDevice(device.address) }
+                        },
+                        onRightButtonClick = { viewModel.disconnectDevice(device.address) },
+                        modifier = Modifier
+                            .bounceClick {
+                                val isPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
+                                if (isPrinter) {
+                                    navController.navigate(SubScreens.BluetoothManagePrinters.route)
+                                } else {
+                                    viewModel.showNotPrinterMessage()
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        val isPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
+                                        if (!isPrinter) {
+                                            selectedDevice = device
+                                            showAddPrinterDialog = true
+                                        }
+                                    }
+                                )
+                            }
                     )
                 }
             }
@@ -275,8 +279,75 @@ fun ScanConnectScreen(
                 }
 
                 items(connectingDevices) { device ->
-                    ConnectingDeviceCard(
-                        device = device
+                    UnifiedDeviceCard(
+                        device = device,
+                        category = DeviceCategory.CONNECTING,
+                        isSavedPrinter = false,
+                        rssi = device.extraInfo["rssi"]?.toIntOrNull(),
+                        connectionMethod = device.extraInfo["connectionMethod"],
+                        onLeftButtonClick = null, // Disabled
+                        onCenterButtonClick = null, // Disabled - use right button for cancel
+                        onRightButtonClick = { viewModel.cancelConnection(device.address) },
+                        modifier = Modifier
+                    )
+                }
+            }
+
+            // Saved Printers (not already shown in connected)
+            val savedPrintersNotConnected = savedPrintersWithStatus.filter { (printer, isConnected) ->
+                !isConnected && !connectedDevices.any { it.address == printer.address }
+            }
+            if (savedPrintersNotConnected.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Saved Printers (${savedPrintersNotConnected.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                items(savedPrintersNotConnected) { (printer, isConnected) ->
+                    // Convert PrinterEntity to BluetoothDeviceDetails for UnifiedDeviceCard
+                    val deviceDetails = BluetoothDeviceDetails(
+                        address = printer.address,
+                        device = null, // Dummy device - printer entity doesn't have actual BluetoothDevice
+                        action = "DISCONNECTED",
+                        name = printer.name,
+                        bondState = 12, // BOND_BONDED
+                        state = "DISCONNECTED",
+                        type = 1, // DEVICE_TYPE_CLASSIC
+                        bluetoothClass = null,
+                        extraInfo = mapOf("connectionMethod" to printer.method)
+                    )
+                    
+                    UnifiedDeviceCard(
+                        device = deviceDetails,
+                        category = DeviceCategory.SAVED_PRINTER,
+                        isSavedPrinter = true,
+                        rssi = null,
+                        connectionMethod = printer.method,
+                        onLeftButtonClick = null, // Disabled
+                        onCenterButtonClick = { 
+                            println("DEBUG: Clicked on saved printer: ${printer.address}, method: ${printer.method}")
+                            viewModel.connectToPrinterUsingSavedMethod(printer.address, printer.method)
+                            scope.launch { listState.animateScrollToItem(0) }
+                        },
+                        onRightButtonClick = null, // Disabled
+                        modifier = Modifier
+                            .bounceClick {
+                                println("DEBUG: Clicked on saved printer: ${printer.address}, method: ${printer.method}")
+                                viewModel.connectToPrinterUsingSavedMethod(printer.address, printer.method)
+                                scope.launch { listState.animateScrollToItem(0) }
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = { navController.navigate(SubScreens.BluetoothManagePrinters.route) }
+                                )
+                            }
                     )
                 }
             }
@@ -296,13 +367,34 @@ fun ScanConnectScreen(
                 }
 
                 items(unconnectedPairedDevices) { device ->
-                    PairedDeviceCard(
+                    UnifiedDeviceCard(
                         device = device,
-                        onConnect = { 
-                            viewModel.connectToDevice(device.address)
+                        category = DeviceCategory.PAIRED,
+                        isSavedPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first }),
+                        rssi = device.extraInfo["rssi"]?.toIntOrNull(),
+                        connectionMethod = null, // Not connected yet
+                        onLeftButtonClick = {
+                            selectedDevice = device
+                            showAddPrinterDialog = true
+                        },
+                        onCenterButtonClick = { 
+                            viewModel.connectToDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
                             scope.launch { listState.animateScrollToItem(0) }
                         },
-                        onForget = { viewModel.forgetDevice(device.address) }
+                        onRightButtonClick = { viewModel.forgetDevice(device.address) },
+                        modifier = Modifier
+                            .bounceClick {
+                                viewModel.connectToDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
+                                scope.launch { listState.animateScrollToItem(0) }
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        selectedDevice = device
+                                        showDetailsDialog = true
+                                    }
+                                )
+                            }
                     )
                 }
             }
@@ -322,7 +414,7 @@ fun ScanConnectScreen(
                 }
 
                 // Highlight likely printer devices first
-                val possiblePrinters = allDiscoveredDevices.filter { isPrinterDevice(it) }
+                val possiblePrinters = allDiscoveredDevices.filter { isPrinterDevice(it, savedPrintersWithStatus.map { it.first }) }
                 if (possiblePrinters.isNotEmpty()) {
                     item {
                         Card(
@@ -342,12 +434,31 @@ fun ScanConnectScreen(
                     }
 
                     items(possiblePrinters) { device ->
-                        PossiblePrinterCard(
+                        UnifiedDeviceCard(
                             device = device,
-                            onPairAndConnect = {
-                                viewModel.pairDevice(device.address)
+                            category = DeviceCategory.DISCOVERED,
+                            isSavedPrinter = false,
+                            rssi = device.extraInfo["rssi"]?.toIntOrNull(),
+                            connectionMethod = null, // Not connected yet
+                            onLeftButtonClick = null, // Disabled
+                            onCenterButtonClick = {
+                                viewModel.pairDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
                                 scope.launch { listState.animateScrollToItem(0) }
-                            }
+                            },
+                            onRightButtonClick = null, // Disabled
+                            modifier = Modifier
+                                .bounceClick {
+                                    viewModel.pairDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
+                                    scope.launch { listState.animateScrollToItem(0) }
+                                }
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            selectedDevice = device
+                                            showDetailsDialog = true
+                                        }
+                                    )
+                                }
                         )
                     }
 
@@ -355,22 +466,40 @@ fun ScanConnectScreen(
                     item { Spacer(modifier = Modifier.height(12.dp)) }
                 }
 
-                val nonPrinters = allDiscoveredDevices.filterNot { isPrinterDevice(it) }
+                val nonPrinters = allDiscoveredDevices.filterNot { isPrinterDevice(it, savedPrintersWithStatus.map { it.first }) }
                 items(nonPrinters) { device ->
-                    DiscoveredDeviceCard(
+                    UnifiedDeviceCard(
                         device = device,
-                        onPairAndConnect = {
-                            viewModel.pairDevice(device.address)
+                        category = DeviceCategory.DISCOVERED,
+                        isSavedPrinter = false,
+                        rssi = device.extraInfo["rssi"]?.toIntOrNull(),
+                        connectionMethod = null, // Not connected yet
+                        onLeftButtonClick = null, // Disabled
+                        onCenterButtonClick = {
+                            viewModel.pairDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
                             scope.launch { listState.animateScrollToItem(0) }
-                        }
+                        },
+                        onRightButtonClick = null, // Disabled
+                        modifier = Modifier
+                            .bounceClick {
+                                viewModel.pairDevice(device.address, isPrinterDevice(device, savedPrintersWithStatus.map { it.first }))
+                                scope.launch { listState.animateScrollToItem(0) }
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        selectedDevice = device
+                                        showDetailsDialog = true
+                                    }
+                                )
+                            }
                     )
                 }
             } else if (connectedDevices.isEmpty() && connectingDevices.isEmpty() && unconnectedPairedDevices.isEmpty()) {
                 item {
                     // No devices message
                     Card(
-                        modifier = Modifier.fillMaxWidth(), 
-                        colors = CardDefaults.cardColors(
+                        modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
@@ -427,6 +556,103 @@ fun ScanConnectScreen(
             viewModel.clearMessage()
         }
     }
+
+    // Add Printer Dialog
+    if (showAddPrinterDialog && selectedDevice != null) {
+        val device = selectedDevice!!
+        AddPrinterDialog(
+            device = device,
+            onConfirm = {
+                viewModel.addDeviceAsPrinter(device)
+                showAddPrinterDialog = false
+                selectedDevice = null
+            },
+            onDismiss = {
+                showAddPrinterDialog = false
+                selectedDevice = null
+            }
+        )
+    }
+
+    // Device Details Dialog
+    if (showDetailsDialog) {
+        DeviceDetailsDialog(
+            device = selectedDevice,
+            onDismiss = {
+                showDetailsDialog = false
+                selectedDevice = null
+            }
+        )
+    }
+}
+
+@Composable
+fun AddPrinterDialog(
+    device: BluetoothDeviceDetails,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Add as Printer",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Do you want to add this device as a printer?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                Spacer(modifier = Modifier.size(8.dp))
+                
+                Text(
+                    text = "Device: ${device.name ?: "Unknown Device"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Text(
+                    text = "Address: ${device.address}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.size(8.dp))
+                
+                Text(
+                    text = "You can test different printer protocols after adding it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.size(4.dp))
+                Text("Add Printer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 

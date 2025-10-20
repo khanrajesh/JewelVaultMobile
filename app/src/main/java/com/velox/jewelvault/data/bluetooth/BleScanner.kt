@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import androidx.core.util.size
+import com.velox.jewelvault.data.bluetooth.BleUtils.logDevice
 
 /**
  * Handles Bluetooth scanning logic (classic + BLE) so the receiver can delegate scanning concerns
@@ -173,22 +174,6 @@ class BleScanner(
         stopClassicDiscovery()
     }
 
-    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun startContinuousScan(scanSettings: ScanSettings? = null, scanFilters: List<ScanFilter>? = null) {
-        startBleScan(scanSettings, scanFilters)
-        startClassicDiscovery()
-        manager.updateBondedDevices()
-        manager.updateConnectedDevices()
-    }
-
-    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun restartScan() {
-        stopUnifiedScan()
-        manager.bleManagerScope.launch {
-            delay(500)
-            startUnifiedScan()
-        }
-    }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun handleBleResult(result: ScanResult) {
@@ -208,6 +193,7 @@ class BleScanner(
                 svcMap[uuid.uuid] = bytes
             }
 
+            logDevice("record: $record, manuMap: $manuMap, svcMap: $svcMap, result: $result",device)
             val details = manager.buildBluetoothDevice(
                 device,
                 device?.address,

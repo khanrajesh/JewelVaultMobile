@@ -30,4 +30,7 @@ object TableNames {
     const val PURCHASE_ORDER = "purchase_order"
     const val PURCHASE_ORDER_ITEM = "purchase_order_item"
     const val METAL_EXCHANGE = "metal_exchange"
+    
+    // Printer related tables
+    const val PRINTER = "printer"
 }

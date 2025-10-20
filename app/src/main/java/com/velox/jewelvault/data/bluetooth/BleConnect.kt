@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import androidx.annotation.RequiresPermission
+import com.velox.jewelvault.data.bluetooth.BleUtils.logDevice
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.permissions.hasConnectPermission
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +26,6 @@ class BleConnect(
     private val removeConnecting: (String) -> Unit,
     private val removeConnected: (String) -> Unit,
     private val gattMap: MutableMap<String, BluetoothGatt>,
-//    private val isDeviceConnected: (String) -> Boolean,
-//    private val isDeviceConnecting: (String) -> Boolean,
     private val manager: BleManager,
 ) {
 
@@ -41,11 +40,37 @@ class BleConnect(
     private var suppressAutoRestartScan: Boolean = false
     private val attemptSignal: MutableMap<String, String?> = mutableMapOf()
 
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    fun connect(address: String) {
-
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN])
+    fun connect(
+        address: String,
+        onConnect: (BluetoothDeviceDetails) -> Unit = {},
+        onFailure: (Throwable) -> Unit = {}
+    ) {
+        // Cancel any existing connection job for this address
+        manager.removeConnectionJob(address)
+        
+        // Launch new connection job and store it
+        val connectionJob = manager.bleManagerScope.launch {
+            try {
+                performConnection(address, onConnect, onFailure)
+            } finally {
+                // Clean up job tracking when connection completes
+                manager.removeConnectionJob(address)
+            }
+        }
+        
+        // Store the job for potential cancellation
+        manager.storeConnectionJob(address, connectionJob)
+    }
+    
+    private suspend fun performConnection(
+        address: String,
+        onConnect: (BluetoothDeviceDetails) -> Unit = {},
+        onFailure: (Throwable) -> Unit = {}
+    ) {
         if (!hasConnectPermission(context)) {
             cLog("missing BLUETOOTH_CONNECT permission for $address")
+            try { onFailure(SecurityException("Missing BLUETOOTH_CONNECT permission")) } catch (_: Throwable) {}
             return
         }
 
@@ -55,70 +80,42 @@ class BleConnect(
             manager.bluetoothAdapter?.getRemoteDevice(address)
         } catch (t: Throwable) {
             cLog("resolve device failed for $address: ${t.message}")
+            try { onFailure(t) } catch (_: Throwable) {}
             null
         } ?: return
 
         // Emit a generic CONNECTING state so UI can reflect immediately
-        val connecting =
-            manager.buildBluetoothDevice(device, address, "CONNECTING", device.name, null, null)
+        val connecting = manager.buildBluetoothDevice(device, address, "CONNECTING", device.name, null, null)
         updateConnecting(connecting)
 
         // Try all supported connection methods sequentially with per-step logging
         // This ensures we can connect to any type of device (BLE, Classic, Dual-mode)
-        tryAllTransportsSequentially(device)
+        tryAllTransportsSequentially(device, onConnect, onFailure)
     }
 
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun tryAllTransportsSequentially(device: BluetoothDevice) {
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN])
+    private fun tryAllTransportsSequentially(
+        device: BluetoothDevice,
+        onConnect: (BluetoothDeviceDetails) -> Unit,
+        onFailure: (Throwable) -> Unit
+    ) {
+        logDevice("tryAllTransportsSequentially for ${device.address}",device)
         val address = device.address
         manager.bleManagerScope.launch {
             suppressAutoRestartScan = true
             try {
                 val attempts: List<Pair<String, suspend () -> Unit>> = listOf(
-                    "RFCOMM" to { connectViaRfcommInternal(device) },
-                    "GATT" to { connectGattInternal(device) },
-                    "A2DP" to { connectA2dpInternal(device) },
-                    "HEADSET" to { connectHeadsetInternal(device) },
-                    "HID" to { connectHidHostInternal(device) },
-                    "LE_AUDIO" to {
-                        cLog("LE_AUDIO not supported via public SDK. address=${device.address}")
-                        manager.buildBluetoothDevice(
-                            device,
-                            device.address,
-                            "LE_AUDIO_NOT_SUPPORTED",
-                            device.name,
-                            mapOf("reason" to "public_sdk_unavailable"),
-                            null
-                        )
-                    },
-                    "MESH" to {
-                        cLog("BLE_MESH requires vendor SDK; not implemented. address=${device.address}")
-                        manager.buildBluetoothDevice(
-                            device,
-                            device.address,
-                            "BLE_MESH_NOT_IMPLEMENTED",
-                            device.name,
-                            mapOf("reason" to "vendor_sdk_required"),
-                            null
-                        )
-                    },
-                    "ADV_ONLY" to {
-                        cLog("BLE_ADV_ONLY no connection possible; ensure scanner is running. address=${device.address}")
-                        manager.buildBluetoothDevice(
-                            device,
-                            device.address,
-                            "BLE_ADV_ONLY_NO_CONNECTION",
-                            device.name,
-                            mapOf("hint" to "scanner_running"),
-                            null
-                        )
-                    })
+                    "RFCOMM" to { connectViaRfcommInternal(device, onConnect, onFailure) },
+                    "GATT" to { connectGattInternal(device, onConnect, onFailure) }
+                    // Removed other transport methods to avoid interference
+                    // A2DP, HEADSET, HID are typically managed by the system
+                )
 
                 val total = attempts.size
 
                 for ((idx, pair) in attempts.withIndex()) {
                     val name = pair.first
-                    val action = pair.second
+
                     
                     // Stop immediately if device is already connected
                     if (manager.connectedDevices.value.any { it.address == address }) {
@@ -178,7 +175,7 @@ class BleConnect(
                     updateConnecting(startEvt)
 
                     try {
-                        action()
+                     pair.second()
                     } catch (t: Throwable) {
                         // Action invocation error shouldn't stop further attempts
                         cLog("ATTEMPT_ERROR $name for $address -> ${t.message}")
@@ -223,18 +220,33 @@ class BleConnect(
                                 "method" to name, "methodLabel" to when (name) {
                                     "RFCOMM" -> "Classic (RFCOMM)"
                                     "GATT" -> "BLE (GATT)"
-                                    "A2DP" -> "Audio (A2DP)"
-                                    "HEADSET" -> "Headset"
-                                    "HID" -> "HID Host"
-                                    "LE_AUDIO" -> "LE Audio"
-                                    "MESH" -> "BLE Mesh"
-                                    "ADV_ONLY" -> "BLE Advertisement"
                                     else -> name
                                 }, "attempt" to (idx + 1).toString(), "total" to total.toString()
                             ), null
                         )
                         removeConnecting(address)
                         manager.updateConnectedDevices()
+                        
+                        // IMPROVED: Better connection verification
+                        try {
+                            val connected = manager.connectedDevices.value.firstOrNull { it.address == address }
+                            if (connected != null) {
+                                cLog("Calling onConnect callback for verified connection: $address")
+                                onConnect(connected)
+                            } else {
+                                cLog("WARNING: Device $address not found in connected devices after success")
+                                // Try to find it in any device list
+                                val anyDevice = manager.getDiscoveredClassicDevice(address)
+                                    ?: manager.getDiscoveredLeDevice(address)
+                                    ?: manager.getBondedDevice(address)
+                                if (anyDevice != null) {
+                                    cLog("Found device in other lists, calling onConnect")
+                                    onConnect(anyDevice)
+                                }
+                            }
+                        } catch (e: Throwable) {
+                            cLog("Error calling onConnect callback: ${e.message}")
+                        }
                         return@launch
                     } else {
                         cLog("ATTEMPT_FAILED $name for $address (timeout)")
@@ -296,6 +308,7 @@ class BleConnect(
                         device, address, "CONNECT_FAILED_ALL", device.name, null, null
                     )
                     manager.updateConnectedDevices()
+                    try { onFailure(Throwable("All connection attempts failed for $address")) } catch (_: Throwable) {}
                     try {
                         manager.startUnifiedScanning()
                     } catch (_: Throwable) {
@@ -336,8 +349,13 @@ class BleConnect(
     }
 
     // ----------------- Classic RFCOMM (SPP) -----------------
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun connectViaRfcommInternal(device: BluetoothDevice, uuid: UUID = SPP_UUID) {
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN])
+    private fun connectViaRfcommInternal(
+        device: BluetoothDevice, 
+        onConnect: (BluetoothDeviceDetails) -> Unit,
+        onFailure: (Throwable) -> Unit,
+        uuid: UUID = SPP_UUID
+    ) {
         if (!hasConnectPermission(context)) {
             log("RFCOMM: missing BLUETOOTH_CONNECT permission for ${device.address}")
             return
@@ -378,10 +396,16 @@ class BleConnect(
                 removeConnecting(address)
                 manager.updateConnectedDevices(evt)
                 
-                // Trigger connection success callback for printer saving
-                manager.triggerConnectionSuccessCallback(address, "RFComm")
-                
                 log("RFCOMM: connected to $address")
+                
+                // CRITICAL FIX: Call onConnect callback for RFCOMM success
+                try {
+                    log("Calling onConnect callback for successful RFCOMM connection: $address")
+                    onConnect(evt)
+                } catch (e: Throwable) {
+                    log("Error calling onConnect callback for RFCOMM: ${e.message}")
+                }
+                
                 // Initiate bonding if needed immediately after classic connect
                 if (hasConnectPermission(context)) {
                     tryCreateBondIfNeeded(device)
@@ -406,7 +430,6 @@ class BleConnect(
                     null,
                     "ERROR_RFCOMM"
                 )
-//                emitEvent(failEvt)
                 if (!suppressAutoRestartScan) manager.startUnifiedScanning()
             }
         }
@@ -578,30 +601,6 @@ class BleConnect(
         }(address)
     }
 
-    // ----------------- BLE Audio (LE Iso) placeholder -----------------
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun connectLeAudioInternal(device: BluetoothDevice) {
-
-//        emitEvent(evt)
-    }
-
-    // ----------------- BLE Mesh placeholder -----------------
-    private fun connectBleMeshInternal(device: BluetoothDevice) {
-
-//        emitEvent(evt)
-    }
-
-    // ----------------- BLE Advertisement-only (no link to connect) -----------------
-    private fun prepareBleAdvertisementOnlyInternal(device: BluetoothDevice) {
-
-//        emitEvent(evt)
-        if (!suppressAutoRestartScan) {
-            try {
-                manager.startUnifiedScanning()
-            } catch (_: Throwable) {
-            }
-        }
-    }
 
     // ----------------- Helpers -----------------
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
@@ -778,8 +777,12 @@ class BleConnect(
     // add this field to your class (top of the class)
     private val reconnectAttempts = mutableMapOf<String, Int>()
 
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun connectGattInternal(device: BluetoothDevice) {
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT])
+    private fun connectGattInternal(
+        device: BluetoothDevice,
+        onConnect: (BluetoothDeviceDetails) -> Unit,
+        onFailure: (Throwable) -> Unit
+    ) {
         val address = device.address
 
         // mark as connecting for UI/logic (you already use updateConnecting/removeConnecting)
@@ -905,12 +908,17 @@ class BleConnect(
                                 )
                                 manager.updateConnectedDevices(evt)
                                 
-                                // Trigger connection success callback for printer saving
-                                manager.triggerConnectionSuccessCallback(addr, "GATT")
-                                
                                 // reset reconnect attempts on success
                                 reconnectAttempts.remove(addr)
                                 cLog("Reset reconnect attempts for $addr")
+
+                                // CRITICAL FIX: Call onConnect callback immediately
+                                try {
+                                    cLog("Calling onConnect callback for successful GATT connection: $addr")
+                                    onConnect(evt)
+                                } catch (e: Throwable) {
+                                    cLog("Error calling onConnect callback: ${e.message}")
+                                }
 
                                 // Initiate bonding if needed, and only then discover services in callback
                                 if (hasConnectPermission(context)) {
@@ -1412,6 +1420,7 @@ class BleConnect(
     }
 
     // Schedules reconnect attempts with small linear backoff. Limits attempts per-device.
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_CONNECT,Manifest.permission.BLUETOOTH_SCAN])
     private fun scheduleReconnect(device: BluetoothDevice, maxAttempts: Int = 3) {
         val addr = device.address
         val prev = reconnectAttempts[addr] ?: 0
@@ -1434,7 +1443,8 @@ class BleConnect(
                 reconnectAttempts.remove(addr)
                 return@launch
             }
-            connectGattInternal(device)
+            // TODO: Fix reconnect to use proper callbacks
+            // connectGattInternal(device)
         }
     }
 

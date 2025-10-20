@@ -1,9 +1,0 @@
-orderId;userId;storeId;customerId;orderDate;totalAmount;discount;taxAmount;finalAmount;paymentStatus;orderStatus;notes;createdDate;lastUpdated
-ORD001;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;CUST001;2025-01-20;150000.0;5000.0;13050.0;158050.0;Paid;Delivered;Wedding jewelry set;2025-01-20;2025-01-22
-ORD002;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;CUST002;2025-01-21;75000.0;2500.0;6525.0;79025.0;Paid;Delivered;Anniversary gift;2025-01-21;2025-01-23
-ORD003;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;CUST003;2025-01-22;45000.0;1500.0;3915.0;47415.0;Pending;Processing;Birthday gift;2025-01-22;2025-01-22
-ORD004;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;CUST004;2025-01-23;120000.0;8000.0;10440.0;122440.0;Paid;Shipped;Festival purchase;2025-01-23;2025-01-24
-ORD005;HjArvC8eS6N1ALwafHSJhxaVkgB2;ZPAxaeW8f2b2SNeIZgDx;CUST005;2025-01-24;85000.0;3000.0;7380.0;89380.0;Paid;Processing;Custom design;2025-01-24;2025-01-24
-
-
-

@@ -14,12 +14,12 @@ import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.UpdateInfo
+import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.BiometricAuthManager
 import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.ioLaunch
@@ -333,8 +333,7 @@ class LoginViewModel @Inject constructor(
 
                         // Auto-retry for reCAPTCHA failures
                         if (e.message?.contains(
-                                "reCAPTCHA",
-                                ignoreCase = true
+                                "reCAPTCHA", ignoreCase = true
                             ) == true && retryCount < 2
                         ) {
                             log("Retrying phone verification due to reCAPTCHA failure. Attempt: ${retryCount + 1}")
@@ -482,7 +481,7 @@ class LoginViewModel @Inject constructor(
                 log("LOGIN: Firestore set failed for $phone -> ${it.message}")
                 onFailure()
             }
-        }else{
+        } else {
             _loadingState.value = false
             _snackBarState.value = "Fire store upload failed"
             log("LOGIN: Firestore set failed for $phone ,uid: $uid invalid")
@@ -509,6 +508,14 @@ class LoginViewModel @Inject constructor(
             onFailure("PIN must be 4-6 digits")
             return
         }
+
+
+        val success = {
+            //get the admin user mobile no from the datastore then feature list from firebase
+
+        }
+
+
         ioScope {
             log("logInUser called with phone: $phone, pin: $pin, savePhone: $savePhone")
             val user = _appDatabase.userDao().getUserByMobile(phone)
@@ -528,7 +535,7 @@ class LoginViewModel @Inject constructor(
                         }
                     }
                     log("LOGIN: admin login success for $phone")
-                    onSuccess()
+                    success()
                 }, onFailure)
             } else {
                 log("LOGIN: attempting user login for $phone")
@@ -540,7 +547,7 @@ class LoginViewModel @Inject constructor(
                             }
                         }
                         log("LOGIN: user login success for $phone")
-                        onSuccess()
+                        success()
                     }, onFailure
                 )
             }
