@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Folder
@@ -60,7 +59,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import java.io.File
-import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
@@ -68,18 +66,12 @@ import com.velox.jewelvault.ui.components.TabNavigationDrawer
 import com.velox.jewelvault.ui.components.rememberTabDrawerState
 import com.velox.jewelvault.ui.nav.SubAppNavigation
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
-import com.velox.jewelvault.utils.isLandscape
 import kotlinx.coroutines.launch
 
-
-@Composable
-@VaultPreview
-fun MainScreenPreview() {
-    MainScreen()
-}
 
 // Function to show file manager dialog with options
 fun showFileManagerDialog(context: android.content.Context, navController: NavHostController, inputIconStates: List<InputIconState>) {
@@ -265,7 +257,7 @@ fun openFileManager(context: android.content.Context, navController: NavHostCont
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(inventoryViewModel: InventoryViewModel) {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
     val subNavController = rememberNavController()
@@ -359,7 +351,7 @@ fun MainScreen() {
     }
 
 //    if (isLandscape()) {
-        LandscapeDashboardScreen(inputIconStates, subNavController)
+        LandscapeDashboardScreen(inputIconStates, subNavController,inventoryViewModel)
 //    } else {
 //        PortraitDashboardScreen(inputIconStates)
 //    }
@@ -411,7 +403,9 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
 @SuppressLint("SuspiciousIndentation")
 @Composable
 private fun LandscapeDashboardScreen(
-    inputIconStates: List<InputIconState>, subNavController: NavHostController
+    inputIconStates: List<InputIconState>,
+    subNavController: NavHostController,
+    inventoryViewModel: InventoryViewModel
 ) {
     val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
     val navHost = LocalNavController.current
@@ -426,7 +420,8 @@ private fun LandscapeDashboardScreen(
                 subNavController,
                 navHost,
                 baseViewModel,
-                startDestination = SubScreens.Dashboard.route
+                startDestination = SubScreens.Dashboard.route,
+                inventoryViewModel
             )
         },
         onProfileClick = {

@@ -66,6 +66,8 @@ fun AppNavigation(
         LocalBaseViewModel provides baseViewModel,
     ) {
         val invoiceViewModel = hiltViewModel<InvoiceViewModel>()
+        val inventoryViewModel = hiltViewModel<InventoryViewModel>()
+
 
         NavHost(navController = navController, startDestination = startDestination) {
             composable(Screens.Splash.route) {
@@ -75,7 +77,7 @@ fun AppNavigation(
                 LoginScreen(hiltViewModel<LoginViewModel>())
             }
             composable(Screens.Main.route) {
-                MainScreen()
+                MainScreen(inventoryViewModel)
             }
             composable(Screens.SellInvoice.route) {
                 SellInvoiceScreen(invoiceViewModel)
@@ -84,7 +86,7 @@ fun AppNavigation(
                 SellPreviewScreen(invoiceViewModel)
             }
             composable(Screens.QrScanScreen.route) {
-                QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>())
+                QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>(),inventoryViewModel)
             }
             composable(Screens.Purchase.route) {
                 PurchaseScreen(hiltViewModel<PurchaseViewModel>())
@@ -101,10 +103,10 @@ fun SubAppNavigation(
     subNavController: NavHostController,
     navController: NavHostController,
     baseViewModel: BaseViewModel,
-    startDestination: String = SubScreens.Dashboard.route
+    startDestination: String = SubScreens.Dashboard.route,
+    inventoryViewModel: InventoryViewModel
 ) {
 
-    val inventoryViewModel = hiltViewModel<InventoryViewModel>()
 
     CompositionLocalProvider(
         LocalSubNavController provides subNavController,
