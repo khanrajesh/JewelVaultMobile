@@ -852,6 +852,6 @@ fun SubCategoryItem(
             fontSize = 20.sp
         )
         Text("Qty: ${subCategoryEntity.quantity}")
-        Text("Gs Wt: ${subCategoryEntity.gsWt}gm")
+        Text("Gs Wt: ${subCategoryEntity.gsWt.to3FString()}gm")
     }
 }
