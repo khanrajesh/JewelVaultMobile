@@ -184,6 +184,7 @@ dependencies {
     implementation(libs.firebase.config)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
     
     // SafetyNet/Play Integrity API for reCAPTCHA verification

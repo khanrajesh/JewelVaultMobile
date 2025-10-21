@@ -26,6 +26,7 @@ import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.backup.BackupManager
+import com.velox.jewelvault.utils.fcm.FCMTokenManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -95,6 +96,15 @@ object AppModule {
     @Singleton
     fun provideSessionManager(dataStoreManager: DataStoreManager): SessionManager {
         return SessionManager(dataStoreManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFCMTokenManager(
+        @ApplicationContext context: Context,
+        dataStoreManager: DataStoreManager
+    ): FCMTokenManager {
+        return FCMTokenManager(context, dataStoreManager)
     }
 
     // ✅ Room Database
