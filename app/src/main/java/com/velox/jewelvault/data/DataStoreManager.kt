@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
@@ -82,6 +83,12 @@ class DataStoreManager @Inject constructor(
         private val CL_USER_MOBILE_KEY = stringPreferencesKey("cl_user_mobile")
         private val CL_USER_ROLE_KEY = stringPreferencesKey("cl_user_role")
 
+        val FCM_TOKEN_KEY = stringPreferencesKey("fcm_token")
+
+
+        val METAL_FETCH_DATE = stringPreferencesKey("metal_fetch_date")
+        val METAL_GOLD_24K = doublePreferencesKey("metal_gold_24k")
+        val METAL_SILVER_KG = doublePreferencesKey("metal_silver_kg")
     }
 
     suspend fun saveAdminInfo(userName: String, userId: String, mobileNo: String) {

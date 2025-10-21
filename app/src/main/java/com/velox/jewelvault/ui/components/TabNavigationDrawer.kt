@@ -317,7 +317,7 @@ fun TabNavigationDrawer(
                                 modifier = Modifier
                                     .bounceClick {
                                         ioScope.launch {
-                                            baseViewModel.refreshMetalRates(context = context)
+                                            baseViewModel.refreshOnlineMetalRates(context = context)
                                         }
                                     }
                                     .padding(top = 5.dp))

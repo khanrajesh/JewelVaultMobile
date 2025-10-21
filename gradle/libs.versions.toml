@@ -8,7 +8,7 @@ coil = "2.5.0"
 commonsCollections4 = "4.5.0"
 core = "3.5.3"
 coreVersion = "1.6.1"
-datastorePreferences = "1.0.0"
+datastorePreferences = "1.1.1"
 exp4j = "0.4.8"
 firebaseBom = "33.7.0"
 googleApiClientAndroid = "2.2.0"
@@ -79,7 +79,6 @@ commons-collections4 = { module = "org.apache.commons:commons-collections4", ver
 core = { module = "com.google.zxing:core", version.ref = "core" }
 exp4j = { module = "net.objecthunter:exp4j", version.ref = "exp4j" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
-firebase-analytics-ktx = { module = "com.google.firebase:firebase-analytics-ktx" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-config = { group = "com.google.firebase", name = "firebase-config", version.ref = "firebaseConfig" }

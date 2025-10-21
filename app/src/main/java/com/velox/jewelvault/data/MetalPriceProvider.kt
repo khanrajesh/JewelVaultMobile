@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Environment
 import android.util.Log
-
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -57,18 +56,22 @@ import androidx.compose.ui.window.DialogProperties
 import com.velox.jewelvault.ui.components.CalculatorScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.toCustomFormat
+import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.toCustomFormatDate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import org.jsoup.Jsoup
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import org.jsoup.Jsoup
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 
@@ -82,18 +85,14 @@ fun MetalRatesTicker(
     val baseViewModel = LocalBaseViewModel.current
     val infiniteTransition = rememberInfiniteTransition()
     val animatedOffsetX by infiniteTransition.animateFloat(
-        initialValue = 1.5f,
-        targetValue = -1.5f,
-        animationSpec = infiniteRepeatable(
+        initialValue = 1.5f, targetValue = -1.5f, animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         )
     )
 
     // Combine all metal rates into a single string
-    val tickerText = baseViewModel.metalRates
-        .groupBy { it.source }
-        .map { (source, rates) ->
+    val tickerText = baseViewModel.metalRates.groupBy { it.source }.map { (_, rates) ->
             val dateTime =
                 rates.first().updatedDate // assuming all rates for a source have the same date
 //            val sourceText = "$source (Fetched on $dateTime) :"
@@ -102,8 +101,7 @@ fun MetalRatesTicker(
                 "${rate.metal} ${rate.caratOrPurity}: ₹${rate.price}"
             }
             "$sourceText $ratesText"
-        }
-        .joinToString(separator = "   •   ")
+        }.joinToString(separator = "   •   ")
 
     Box(
         modifier = modifier
@@ -113,16 +111,13 @@ fun MetalRatesTicker(
                 detectTapGestures(
                     onLongPress = {
                         showEditDialog.value = true
-                    }
-                )
-            }
-    ) {
+                    })
+            }) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically
         ) {
             if (baseViewModel.metalRatesLoading.value) {
                 CircularProgressIndicator(Modifier.size(20.dp), color = Color.Black)
@@ -135,13 +130,12 @@ fun MetalRatesTicker(
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 maxLines = 1,
-                modifier = Modifier
-                    .offset(x = animatedOffsetX.dp * 1000) // smooth move right to left
+                modifier = Modifier.offset(x = animatedOffsetX.dp * 1000) // smooth move right to left
             )
         }
-        
+
         // Left fade gradient (start of scroll)
-        if (backgroundColor != Color.Transparent){
+        if (backgroundColor != Color.Transparent) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -190,7 +184,7 @@ fun MetalRatesTicker(
 fun EditMetalRatesDialog(
     showDialog: MutableState<Boolean>
 ) {
-    val context = LocalContext.current
+    LocalContext.current
     val viewModel = LocalBaseViewModel.current
     val editedRates = remember { mutableStateListOf(*viewModel.metalRates.toTypedArray()) }
 
@@ -214,8 +208,7 @@ fun EditMetalRatesDialog(
                         Modifier
                             .weight(0.6f)
                             .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(16.dp)
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)
                             )
                             .padding(10.dp)
                     )
@@ -238,11 +231,15 @@ fun EditMetalRatesDialog(
                                     onValueChange = {
                                         try {
                                             if (metalRate.metal == "Gold" && metalRate.caratOrPurity == "24K") {
-                                                updateConjugateMetalPrice(editedRates, it.toDouble())
+                                                updateConjugateMetalPrice(
+                                                    editedRates,
+                                                    it.toDouble()
+                                                )
                                             } else if (metalRate.metal != "Gold") {
                                                 editedRates[index] = metalRate.copy(price = it)
                                             } else {
-                                                viewModel.snackBarState = "Currently you can only edit 24K Gold and Silver"
+                                                viewModel.snackBarState =
+                                                    "Currently you can only edit 24K Gold and Silver"
                                             }
                                         } catch (e: Exception) {
                                             viewModel.snackBarState = "Invalid input"
@@ -272,6 +269,27 @@ fun EditMetalRatesDialog(
                         }
                         viewModel.metalRates.clear()
                         viewModel.metalRates.addAll(editedRates)
+                        // Persist 3 fields when user updates from dialog:
+                        // 1) GOLD 24K (per gram) as Double
+                        // 2) SILVER 1 Kg as Double (compute from 1 g if needed)
+                        // 3) METAL_FETCH_DATE as yyyy-MM-dd
+                        ioScope {
+                            try {
+                                val todayIso = java.time.LocalDate.now().toString()
+                                val gold24k = editedRates.firstOrNull { it.metal == "Gold" && it.caratOrPurity.equals("24K", true) }?.price?.replace(",", "")?.toDoubleOrNull()
+
+                                // Compute silver 1 Kg from edited rates if provided; do not overwrite if user didn't change
+                                val computedSilverKg = computeSilverKgFromRates(editedRates)
+
+                                if (gold24k != null) {
+                                    viewModel.dataStoreManager.setValue(DataStoreManager.METAL_GOLD_24K, gold24k)
+                                }
+                                if (computedSilverKg != null) {
+                                    viewModel.dataStoreManager.setValue(DataStoreManager.METAL_SILVER_KG, computedSilverKg)
+                                }
+                                viewModel.dataStoreManager.setValue(DataStoreManager.METAL_FETCH_DATE, todayIso)
+                            } catch (_: Exception) { }
+                        }
                         showDialog.value = false
 
                     }) {
@@ -288,8 +306,7 @@ fun EditMetalRatesDialog(
 
 @SuppressLint("DefaultLocale")
 fun updateConjugateMetalPrice(
-    editedRates: SnapshotStateList<MetalRate>,
-    value24k: Double
+    editedRates: SnapshotStateList<MetalRate>, value24k: Double
 ) {
     val gold100 = (100 / 99.9) * value24k
 //  val gold100 = value24k
@@ -323,14 +340,78 @@ data class MetalRate(
     val updatedDate: String  // Example: "2025-04-27" (today's date)
 )
 
+private fun computeSilverKgFromRates(rates: List<MetalRate>): Double? {
+    // Priority:
+    //  - Explicit per-kg (/kg, per kg)
+    //  - Explicit per-gram (/g, /gm, /gram, /grams)
+    //  - 1 Kg / 1000 g
+    //  - 100 g, 10 g, 1 g
+    fun String.n(): Double? = this.replace("₹", "").replace(",", "").trim().toDoubleOrNull()
+    val silverRates = rates.filter { it.metal.equals("Silver", true) }
+
+    val perKgPattern = Regex("(?i)(/|per)\\s*kg\\b")
+    val oneKgPattern = Regex("(?i)\\b1\\s*kg\\b|\\b1000\\s*g(?:m|ms|ram|rams)?\\b")
+
+
+    // /kg or per kg
+    val perKg = silverRates.firstOrNull { perKgPattern.containsMatchIn(it.caratOrPurity.lowercase()) }?.price?.n()
+    if (perKg != null) return perKg
+
+    // 1 Kg or 1000 g
+    val kg = silverRates.firstOrNull { oneKgPattern.containsMatchIn(it.caratOrPurity) }?.price?.n()
+   return kg
+
+}
+
 suspend fun fetchAllMetalRates(
     state: String,
     context: Context,
-    metalRatesLoading: MutableState<Boolean>
+    metalRatesLoading: MutableState<Boolean>,
+    dataStoreManager: DataStoreManager
 ): List<MetalRate> = withContext(Dispatchers.IO) {
+
+
+    val storeDate = dataStoreManager.getValue(DataStoreManager.METAL_FETCH_DATE).first()
+
+    // yyyy-MM-dd
+    val todayDate = LocalDate.now().toString()
+
+    if (todayDate != storeDate) {
+        metalRates(metalRatesLoading, state, context, dataStoreManager)
+    } else {
+
+        val gold24k = dataStoreManager.getValue(DataStoreManager.METAL_GOLD_24K).first()
+        val silverKg = dataStoreManager.getValue(DataStoreManager.METAL_SILVER_KG).first()
+        val updated = LocalDateTime.now().toCustomFormat()
+
+        val out = mutableListOf<MetalRate>()
+        if (gold24k != null) {
+            val gold100 = (100 / 99.9) * gold24k
+            out.add(MetalRate("Cache", "Gold", "24K", String.format("%.0f", gold24k), updated))
+            out.add(MetalRate("Cache", "Gold", "22K", String.format("%.0f", gold100 * 0.916), updated))
+            out.add(MetalRate("Cache", "Gold", "18K", String.format("%.0f", gold100 * 0.750), updated))
+        }
+        if (silverKg != null) {
+            out.add(MetalRate("Cache", "Silver", "1 Kg", String.format("%.0f", silverKg), updated))
+            out.add(MetalRate("Cache", "Silver", "1 g", String.format("%.0f", silverKg / 1000.0), updated))
+        }
+        metalRatesLoading.value = false
+        return@withContext out
+    }
+
+
+}
+
+suspend fun metalRates(
+    metalRatesLoading: MutableState<Boolean>,
+    state: String,
+    context: Context,
+    dataStoreManager: DataStoreManager,
+): MutableList<MetalRate> {
+    val todayDate = LocalDate.now().toString()
     val combinedRates = mutableListOf<MetalRate>()
     metalRatesLoading.value = true
-    
+
     // Fetch gold rates from GoodReturns with separate error handling
     try {
 //        val goldRates = fetchGoldPricesGoodReturns(state, context)
@@ -398,10 +479,96 @@ suspend fun fetchAllMetalRates(
             )
         )
     }
-    metalRatesLoading.value = false
+    // Persist today's 24K gold (per gram) and Silver 1 Kg into DataStore
+    try {
+        val gold24k = combinedRates.firstOrNull {
+            it.metal == "Gold" && it.caratOrPurity.equals(
+                "24K",
+                true
+            )
+        }?.price?.replace(",", "")?.toDoubleOrNull()
+        val silverKg = computeSilverKgFromRates(combinedRates)
 
+        if (gold24k != null) {
+            dataStoreManager.setValue(DataStoreManager.METAL_GOLD_24K, gold24k)
+        }
+        if (silverKg != null) {
+            dataStoreManager.setValue(DataStoreManager.METAL_SILVER_KG, silverKg)
+        }
+        dataStoreManager.setValue(DataStoreManager.METAL_FETCH_DATE, todayDate)
+    } catch (_: Exception) {
+    }
+
+    metalRatesLoading.value = false
+    try {
+        val todayIso = LocalDate.now().toString()
+        val gold24k = combinedRates.firstOrNull {
+            it.metal == "Gold" && it.caratOrPurity.equals(
+                "24K",
+                true
+            )
+        }?.price?.replace(",", "")?.toDoubleOrNull()
+
+        fun isSilver1Kg(label: String): Boolean =
+            label.contains("1kg", true) || label.contains("1 kg", true) || label.contains(
+                "1000 g",
+                true
+            )
+
+        fun isSilver1g(label: String): Boolean =
+            label.contains("1 g", true) || label.contains("1g", true)
+
+        val silverKg = computeSilverKgFromRates(combinedRates)
+
+        if (gold24k != null) {
+            dataStoreManager.setValue(DataStoreManager.METAL_GOLD_24K, gold24k)
+        }
+        if (silverKg != null) {
+            dataStoreManager.setValue(DataStoreManager.METAL_SILVER_KG, silverKg)
+        }
+        dataStoreManager.setValue(DataStoreManager.METAL_FETCH_DATE, todayIso)
+        // Also ensure display always includes Silver 1 Kg and 1 g entries
+        val updatedTs = LocalDateTime.now().toCustomFormat()
+        if (silverKg != null) {
+            val hasKg = combinedRates.any {
+                it.metal == "Silver" && it.caratOrPurity.contains(
+                    "1 Kg",
+                    true
+                )
+            }
+            val hasG = combinedRates.any {
+                it.metal == "Silver" && (it.caratOrPurity.contains(
+                    "1 g",
+                    true
+                ) || it.caratOrPurity.contains("1g", true))
+            }
+            if (!hasKg) {
+                combinedRates.add(
+                    MetalRate(
+                        source = "Computed",
+                        metal = "Silver",
+                        caratOrPurity = "1 Kg",
+                        price = String.format("%.0f", silverKg),
+                        updatedDate = updatedTs
+                    )
+                )
+            }
+            if (!hasG) {
+                combinedRates.add(
+                    MetalRate(
+                        source = "Computed",
+                        metal = "Silver",
+                        caratOrPurity = "1 g",
+                        price = String.format("%.0f", silverKg / 1000.0),
+                        updatedDate = updatedTs
+                    )
+                )
+            }
+        }
+    } catch (_: Exception) {
+    }
     // Return the combined list of rates, even if some fetches failed
-    return@withContext combinedRates
+    return combinedRates
 }
 
 
@@ -449,11 +616,7 @@ suspend fun fetchGoldPricesGoodReturns(state: String, context: Context): List<Me
 
             if (prices.isEmpty()) listOf(
                 MetalRate(
-                    "GoodReturns",
-                    "Gold",
-                    "Error",
-                    "No data",
-                    todayDate
+                    "GoodReturns", "Gold", "Error", "No data", todayDate
                 )
             )
             else prices
@@ -482,10 +645,10 @@ suspend fun fetchGoldPricesAngelOne(state: String, context: Context): List<Metal
 
             // Look for table rows containing gold prices
             val tableRows = doc.select("tr.MuiTableRow-root")
-            
+
             for (row in tableRows) {
                 val cells = row.select("td.MuiTableCell-root")
-                
+
                 if (cells.size >= 4) {
                     val gramText = cells[0].text().trim()
                     val price24kText = cells[1].select("div").text().trim()
@@ -539,9 +702,9 @@ suspend fun fetchGoldPricesAngelOne(state: String, context: Context): List<Metal
             // If no table rows found, try alternative selectors
             if (prices.isEmpty()) {
                 // Try to find the main price display elements
-                val price24kElement = doc.selectFirst("div:contains(24K Gold)")
-                val price22kElement = doc.selectFirst("div:contains(22K Gold)")
-                val price18kElement = doc.selectFirst("div:contains(18K Gold)")
+                doc.selectFirst("div:contains(24K Gold)")
+                doc.selectFirst("div:contains(22K Gold)")
+                doc.selectFirst("div:contains(18K Gold)")
 
                 // Look for price patterns in the document
                 val pricePattern = Regex("₹[0-9,]+")
@@ -582,11 +745,7 @@ suspend fun fetchGoldPricesAngelOne(state: String, context: Context): List<Metal
             if (prices.isEmpty()) {
                 listOf(
                     MetalRate(
-                        "AngelOne",
-                        "Gold",
-                        "Error",
-                        "No data found",
-                        todayDate
+                        "AngelOne", "Gold", "Error", "No data found", todayDate
                     )
                 )
             } else {
@@ -639,11 +798,7 @@ suspend fun fetchSilverPricesGoodReturns(state: String, context: Context): List<
 
             if (prices.isEmpty()) listOf(
                 MetalRate(
-                    "GoodReturns",
-                    "Silver",
-                    "Error",
-                    "No data",
-                    todayDate
+                    "GoodReturns", "Silver", "Error", "No data", todayDate
                 )
             )
             else prices
@@ -760,10 +915,7 @@ suspend fun registerAndFetchRates(): String = withContext(Dispatchers.IO) {
     val registerRequestBody =
         registerBody.toString().toRequestBody("application/json".toMediaTypeOrNull())
 
-    val registerRequest = Request.Builder()
-        .url(registerUrl)
-        .post(registerRequestBody)
-        .build()
+    val registerRequest = Request.Builder().url(registerUrl).post(registerRequestBody).build()
 
     try {
         Log.d("RegisterAndFetch", "Sending registration request to $registerUrl")
@@ -771,14 +923,12 @@ suspend fun registerAndFetchRates(): String = withContext(Dispatchers.IO) {
         if (!registerResponse.isSuccessful) {
             val errorResponse = registerResponse.body?.string() ?: "Unknown error"
             Log.e(
-                "RegisterAndFetch",
-                "Registration failed: ${registerResponse.code}, $errorResponse"
+                "RegisterAndFetch", "Registration failed: ${registerResponse.code}, $errorResponse"
             )
             return@withContext "Registration failed: ${registerResponse.code}, $errorResponse"
         }
         Log.d(
-            "RegisterAndFetch",
-            "Registration successful, response code: ${registerResponse.code}"
+            "RegisterAndFetch", "Registration successful, response code: ${registerResponse.code}"
         )
     } catch (e: Exception) {
         Log.e("RegisterAndFetch", "Error during registration: ${e.localizedMessage}")
@@ -787,10 +937,8 @@ suspend fun registerAndFetchRates(): String = withContext(Dispatchers.IO) {
 
     // Step 2: Fetch rates (This can stay the same as the previous example)
     val fetchUrl = "http://kdbullion.in/WebService/WebService.asmx/GetRateByClient"
-    val fetchRequest = Request.Builder()
-        .url(fetchUrl)
-        .post("".toRequestBody("application/json".toMediaTypeOrNull()))
-        .build()
+    val fetchRequest = Request.Builder().url(fetchUrl)
+        .post("".toRequestBody("application/json".toMediaTypeOrNull())).build()
 
     try {
         Log.d("RegisterAndFetch", "Sending request to fetch rates from $fetchUrl")
@@ -798,8 +946,7 @@ suspend fun registerAndFetchRates(): String = withContext(Dispatchers.IO) {
         if (!fetchResponse.isSuccessful) {
             val errorResponse = fetchResponse.body?.string() ?: "Unknown error"
             Log.e(
-                "RegisterAndFetch",
-                "Fetching rates failed: ${fetchResponse.code}, $errorResponse"
+                "RegisterAndFetch", "Fetching rates failed: ${fetchResponse.code}, $errorResponse"
             )
             return@withContext "Fetching rates failed: ${fetchResponse.code}, $errorResponse"
         }
@@ -876,11 +1023,7 @@ suspend fun fetchPricesKDBullionrr(context: Context): List<MetalRate> =
 
             if (prices.isEmpty()) listOf(
                 MetalRate(
-                    "KDBullion",
-                    "Unknown",
-                    "Error",
-                    "No data",
-                    todayDate
+                    "KDBullion", "Unknown", "Error", "No data", todayDate
                 )
             )
             else prices
@@ -898,7 +1041,12 @@ suspend fun fetchPricesKDBullionrr(context: Context): List<MetalRate> =
         }
     }
 
-fun saveToRootStorage(context: Context, doc: org.jsoup.nodes.Document, fileName: String, onMessage: ((String) -> Unit)? = null) {
+fun saveToRootStorage(
+    context: Context,
+    doc: org.jsoup.nodes.Document,
+    fileName: String,
+    onMessage: ((String) -> Unit)? = null
+) {
     try {
         val rootPath = Environment.getExternalStorageDirectory()
         val folder = File(rootPath, "JewelVault")

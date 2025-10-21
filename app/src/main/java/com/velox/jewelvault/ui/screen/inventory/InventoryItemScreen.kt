@@ -67,6 +67,7 @@ import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
 import com.velox.jewelvault.utils.ChargeType
@@ -113,6 +114,7 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
 
 @Composable
 fun InventoryItemScreen(
+    managePrintersViewModel: ManagePrintersViewModel,
     inventoryViewModel: InventoryViewModel,
     catId: String,
     catName: String,
@@ -120,11 +122,12 @@ fun InventoryItemScreen(
     subCatName: String
 ) {
     inventoryViewModel.currentScreenHeadingState.value = "Sub Category Details"
-    LandscapeInventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
+    LandscapeInventoryItemScreen(managePrintersViewModel,inventoryViewModel, catId, catName, subCatId, subCatName)
 }
 
 @Composable
 fun LandscapeInventoryItemScreen(
+    managePrintersViewModel: ManagePrintersViewModel,
     inventoryViewModel: InventoryViewModel,
     catId: String,
     catName: String,

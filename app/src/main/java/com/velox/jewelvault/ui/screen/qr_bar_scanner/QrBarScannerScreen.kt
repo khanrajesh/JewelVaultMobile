@@ -94,7 +94,6 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color(0x33111111), RoundedCornerShape(8.dp))
                                             .padding(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {

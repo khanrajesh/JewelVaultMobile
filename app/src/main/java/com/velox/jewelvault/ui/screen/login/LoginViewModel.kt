@@ -525,7 +525,7 @@ class LoginViewModel @Inject constructor(
 
         val success = {
             //get the admin user mobile no from the datastore then feature list from firebase
-
+            onSuccess()
         }
 
 

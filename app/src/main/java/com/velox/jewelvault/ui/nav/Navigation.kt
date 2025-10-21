@@ -49,6 +49,7 @@ import com.velox.jewelvault.ui.screen.webview.PrivacyPolicyScreen
 import com.velox.jewelvault.ui.screen.webview.TermsAndConditionsScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ScanConnectScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersScreen
+import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -66,7 +67,6 @@ fun AppNavigation(
         LocalBaseViewModel provides baseViewModel,
     ) {
         val invoiceViewModel = hiltViewModel<InvoiceViewModel>()
-        val inventoryViewModel = hiltViewModel<InventoryViewModel>()
 
 
         NavHost(navController = navController, startDestination = startDestination) {
@@ -77,7 +77,7 @@ fun AppNavigation(
                 LoginScreen(hiltViewModel<LoginViewModel>())
             }
             composable(Screens.Main.route) {
-                MainScreen(inventoryViewModel)
+                MainScreen()
             }
             composable(Screens.SellInvoice.route) {
                 SellInvoiceScreen(invoiceViewModel)
@@ -86,7 +86,7 @@ fun AppNavigation(
                 SellPreviewScreen(invoiceViewModel)
             }
             composable(Screens.QrScanScreen.route) {
-                QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>(),inventoryViewModel)
+                QrBarScannerScreen(hiltViewModel<QrBarScannerViewModel>(),hiltViewModel<InventoryViewModel>())
             }
             composable(Screens.Purchase.route) {
                 PurchaseScreen(hiltViewModel<PurchaseViewModel>())
@@ -104,9 +104,10 @@ fun SubAppNavigation(
     navController: NavHostController,
     baseViewModel: BaseViewModel,
     startDestination: String = SubScreens.Dashboard.route,
-    inventoryViewModel: InventoryViewModel
 ) {
 
+    val inventoryViewModel = hiltViewModel<InventoryViewModel>()
+    val managePrintersViewModel = hiltViewModel<ManagePrintersViewModel>()
 
     CompositionLocalProvider(
         LocalSubNavController provides subNavController,
@@ -148,7 +149,7 @@ fun SubAppNavigation(
                 val subCatId = backStackEntry.arguments?.getString("subCatId") ?: return@composable
                 val subCatName =
                     backStackEntry.arguments?.getString("subCatName") ?: return@composable
-                InventoryItemScreen(inventoryViewModel, catId, catName, subCatId, subCatName)
+                InventoryItemScreen(managePrintersViewModel,inventoryViewModel, catId, catName, subCatId, subCatName)
             }
 
 
@@ -217,11 +218,8 @@ fun SubAppNavigation(
                 ScanConnectScreen()
             }
             composable(SubScreens.BluetoothManagePrinters.route) {
-                ManagePrintersScreen()
+                ManagePrintersScreen(managePrintersViewModel)
             }
-            
-
-            
         }
     }
 }

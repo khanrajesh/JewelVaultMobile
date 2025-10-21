@@ -9,8 +9,9 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.velox.jewelvault.MainActivity
 import com.velox.jewelvault.R
-import com.velox.jewelvault.ui.MainActivity
+import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -58,9 +59,11 @@ class JewelVaultFirebaseMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         log("FCM: New token generated: $token")
-        
-        // Save the new token
-        fcmTokenManager.saveFCMToken(token)
+
+        ioScope {
+            // Save the new token
+            fcmTokenManager.saveFCMToken(token)
+        }
     }
 
     private fun createNotificationChannel() {

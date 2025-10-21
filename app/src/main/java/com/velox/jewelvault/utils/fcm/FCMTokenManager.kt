@@ -16,9 +16,6 @@ class FCMTokenManager @Inject constructor(
     private val dataStoreManager: DataStoreManager
 ) {
 
-    companion object {
-        private const val FCM_TOKEN_KEY = "fcm_token"
-    }
 
     /**
      * Get the current FCM token
@@ -39,7 +36,7 @@ class FCMTokenManager @Inject constructor(
      */
     suspend fun saveFCMToken(token: String) {
         try {
-            dataStoreManager.setValue(FCM_TOKEN_KEY, token)
+            dataStoreManager.setValue(DataStoreManager.FCM_TOKEN_KEY, token)
             log("FCM: Token saved to DataStore: $token")
         } catch (e: Exception) {
             log("FCM: Failed to save token to DataStore: ${e.message}")
@@ -51,8 +48,8 @@ class FCMTokenManager @Inject constructor(
      */
     suspend fun getSavedFCMToken(): String? {
         return try {
-            val token = dataStoreManager.getValue(FCM_TOKEN_KEY, "").first()
-            if (token.isBlank()) null else token
+            val token = dataStoreManager.getValue(DataStoreManager.FCM_TOKEN_KEY, "").first()
+            if (token.isNullOrBlank()) null else token
         } catch (e: Exception) {
             log("FCM: Failed to get saved token: ${e.message}")
             null
@@ -89,7 +86,7 @@ class FCMTokenManager @Inject constructor(
      */
     suspend fun deleteFCMToken() {
         try {
-            dataStoreManager.setValue(FCM_TOKEN_KEY, "")
+            dataStoreManager.setValue(DataStoreManager.FCM_TOKEN_KEY, "")
             log("FCM: Token deleted from DataStore")
         } catch (e: Exception) {
             log("FCM: Failed to delete token: ${e.message}")

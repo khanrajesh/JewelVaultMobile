@@ -257,7 +257,7 @@ fun openFileManager(context: android.content.Context, navController: NavHostCont
 }
 
 @Composable
-fun MainScreen(inventoryViewModel: InventoryViewModel) {
+fun MainScreen() {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
     val subNavController = rememberNavController()
@@ -351,7 +351,7 @@ fun MainScreen(inventoryViewModel: InventoryViewModel) {
     }
 
 //    if (isLandscape()) {
-        LandscapeDashboardScreen(inputIconStates, subNavController,inventoryViewModel)
+        LandscapeDashboardScreen(inputIconStates, subNavController)
 //    } else {
 //        PortraitDashboardScreen(inputIconStates)
 //    }
@@ -405,7 +405,6 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
 private fun LandscapeDashboardScreen(
     inputIconStates: List<InputIconState>,
     subNavController: NavHostController,
-    inventoryViewModel: InventoryViewModel
 ) {
     val drawerState = rememberTabDrawerState(TabDrawerValue.Closed)
     val navHost = LocalNavController.current
@@ -421,7 +420,7 @@ private fun LandscapeDashboardScreen(
                 navHost,
                 baseViewModel,
                 startDestination = SubScreens.Dashboard.route,
-                inventoryViewModel
+
             )
         },
         onProfileClick = {

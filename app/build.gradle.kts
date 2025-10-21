@@ -179,12 +179,11 @@ dependencies {
     //firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
-    implementation(libs.firebase.analytics.ktx)
+    implementation("com.google.firebase:firebase-messaging")
     implementation(libs.firebase.auth)
     implementation(libs.firebase.config)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.firestore.ktx)
-    implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
     
     // SafetyNet/Play Integrity API for reCAPTCHA verification
@@ -204,12 +203,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.kotlin.reflect)
 
-    // Import the BoM for the Firebase platform
-    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
-
-    // Add the dependencies for the Crashlytics NDK and Analytics libraries
-    // When using the BoM, you don't specify versions in Firebase library dependencies
+    // Crashlytics NDK (kept separate; version managed by the BoM above)
     implementation("com.google.firebase:firebase-crashlytics-ndk")
-    implementation("com.google.firebase:firebase-analytics")
 
 }

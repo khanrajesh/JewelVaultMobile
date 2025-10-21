@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,6 +106,7 @@ fun LandscapeMainScreen(
     val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val isRefreshing = remember { mutableStateOf(false) }
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing.value, onRefresh = {
@@ -126,6 +128,9 @@ fun LandscapeMainScreen(
     // Check for updates on dashboard load
     LaunchedEffect(Unit) {
         baseViewModel.checkForUpdates(context)
+        // Ensure keyboard is hidden on entering dashboard
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
     }
 
     // Dialog state for time range selection
@@ -180,6 +185,7 @@ fun LandscapeMainScreen(
             //checking if the user setup the store or not
 
         }
+        focusManager.clearFocus(force = true)
         keyboardController?.hide()
 
     }

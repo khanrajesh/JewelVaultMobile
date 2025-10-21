@@ -19,6 +19,7 @@ import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
+import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.backup.BackupManager
 import com.velox.jewelvault.utils.backup.BackupService
@@ -99,8 +100,15 @@ class BaseViewModel @Inject constructor(
 
     suspend fun refreshMetalRates(state: String = "visakhapatnam", context: Context) {
         metalRates.clear()
-        metalRates.addAll(fetchAllMetalRates(state, context,metalRatesLoading))
+        metalRates.addAll(fetchAllMetalRates(state, context,metalRatesLoading,_dataStoreManager))
     }
+
+    suspend fun refreshOnlineMetalRates(state: String = "visakhapatnam", context: Context) {
+        metalRates.clear()
+        metalRates.addAll(metalRates(metalRatesLoading,state, context,_dataStoreManager))
+    }
+
+
 
     fun loadStoreImage() {
         ioLaunch {

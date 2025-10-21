@@ -89,6 +89,11 @@ fun LocalDateTime.toCustomFormat(): String {
     return this.format(formatter)
 }
 
+fun LocalDateTime.toCustomFormatDate(): String {
+    val formatter = DateTimeFormatter.ofPattern("dd-MM")
+    return this.format(formatter)
+}
+
 inline fun <reified T> T.log(message: String) {
     val tag = T::class.java.simpleName
     Log.d(tag, message)

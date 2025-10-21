@@ -53,7 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun ManagePrintersScreen(
-    viewModel: ManagePrintersViewModel = hiltViewModel()
+    viewModel: ManagePrintersViewModel
 ) {
     val savedPrinters by viewModel.savedPrinters.collectAsStateWithLifecycle()
     val defaultPrinter by viewModel.defaultPrinter.collectAsStateWithLifecycle()
