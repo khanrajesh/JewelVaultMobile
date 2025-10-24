@@ -2,6 +2,7 @@ package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -48,21 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Intent
-import android.net.Uri
-import android.os.Environment
-import android.provider.MediaStore
-import android.content.ContentValues
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.delay
-import android.print.PrintAttributes
-import android.print.PrintManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.TextListView
@@ -79,11 +67,15 @@ import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.PrintUtils
-import kotlinx.coroutines.delay
+import com.velox.jewelvault.utils.FileManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import org.apache.poi.hssf.usermodel.HeaderFooter.fontSize
 import java.sql.Timestamp
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
 
 // Helper function to convert ItemEntity to List<String>
 private fun ItemEntity.toListString(index: Int): List<String> = listOf(
@@ -266,6 +258,33 @@ fun LandscapeInventoryItemScreen(
         }
 
         if (showDialog.value && selectedItem.value != null) {
+            val itemForDialog = selectedItem.value!!
+            val qrBitmap = remember(itemForDialog.itemId) { PrintUtils.generateQRCode(itemForDialog.itemId, 128) }
+            var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
+            val logoUri = remember { FileManager.getLogoFileUri(context) }
+            var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
+            LaunchedEffect(qrBitmap) {
+                if (qrBitmap != null) {
+                    try {
+                        val cacheFile = File(context.cacheDir, "qr_${itemForDialog.itemId}.png")
+                        FileOutputStream(cacheFile).use { out ->
+                            qrBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                        }
+                        qrUri = Uri.fromFile(cacheFile)
+                    } catch (_: Exception) { }
+                } else {
+                    qrUri = null
+                }
+            }
+            LaunchedEffect(logoUri) {
+                if (logoUri != null) {
+                    try {
+                        context.contentResolver.openInputStream(logoUri)?.use { ins ->
+                            logoBitmap = BitmapFactory.decodeStream(ins)
+                        }
+                    } catch (_: Exception) { logoBitmap = null }
+                } else logoBitmap = null
+            }
             AlertDialog(
                 onDismissRequest = { showDialog.value = false },
                 title = { Text("Item Details") },
@@ -277,6 +296,18 @@ fun LandscapeInventoryItemScreen(
                         Text("Quantity: ${selectedItem.value?.quantity}")
                         Text("Net Weight: ${selectedItem.value?.gsWt}")
                         // Add more fields as needed...
+                        if (qrBitmap != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("QR Preview:")
+                            Spacer(Modifier.height(4.dp))
+                            Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR", modifier = Modifier.width(80.dp).height(80.dp))
+                        }
+                        if (logoBitmap != null) {
+                            Spacer(Modifier.height(8.dp))
+                            Text("Store Logo:")
+                            Spacer(Modifier.height(4.dp))
+                            Image(bitmap = logoBitmap!!.asImageBitmap(), contentDescription = "Logo", modifier = Modifier.width(80.dp).height(80.dp))
+                        }
                     }
                 },
                 confirmButton = {
@@ -333,9 +364,8 @@ fun LandscapeInventoryItemScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                PrintUtils.printThermalLabel(context, selectedItem.value!!) {
-                                    showDialog.value = false
-                                }
+                                 managePrintersViewModel.printItemLabel(selectedItem.value!!,context, qrUri, logoUri)
+                                showDialog.value = false
                             }
                         }) {
                             Text("Direct Print", color = MaterialTheme.colorScheme.secondary)

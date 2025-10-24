@@ -327,6 +327,24 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
                 when (state) {
                     BluetoothDevice.BOND_BONDED -> {
                         manager.addOrUpdateDevice(manager.bondedDevices, event)
+                        // Auto-connect via RFCOMM once bonded
+                        try {
+                            val addr = device?.address
+                            if (!addr.isNullOrBlank()) {
+                                manager.connect(
+                                    address = addr,
+                                    onConnect = { dev ->
+                                        val method = dev.extraInfo["connectionMethod"] ?: "UNKNOWN"
+                                        manager.cLog("Auto-connect after bonding succeeded for " + addr + " via " + method)
+                                    },
+                                    onFailure = { err ->
+                                        manager.cLog("Auto-connect after bonding failed for " + addr + ": " + (err.message ?: "unknown"))
+                                    }
+                                )
+                            }
+                        } catch (t: Throwable) {
+                            manager.cLog("Auto-connect after bonding error: ${'$'}{t.message}")
+                        }
                     }
 
                     BluetoothDevice.BOND_NONE -> {

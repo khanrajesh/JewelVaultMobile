@@ -1096,8 +1096,16 @@ class BleManager @Inject constructor(
             if (rfcommSocket != null && rfcommSocket.isConnected) {
                 cLog("sendPrintData: Using RFCOMM for $address")
                 val outputStream = rfcommSocket.outputStream
-                outputStream.write(data)
-                outputStream.flush()
+                // Chunked write to avoid printer buffer overruns
+                val chunkSize = 1024
+                var offset = 0
+                while (offset < data.size) {
+                    val end = kotlin.math.min(offset + chunkSize, data.size)
+                    outputStream.write(data, offset, end - offset)
+                    outputStream.flush()
+                    offset = end
+                    try { Thread.sleep(10) } catch (_: InterruptedException) {}
+                }
                 cLog("sendPrintData: RFCOMM data sent successfully to $address (no print completion confirmation available)")
                 return true
             }

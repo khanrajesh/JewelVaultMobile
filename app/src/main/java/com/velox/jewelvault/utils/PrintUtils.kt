@@ -24,6 +24,8 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Utility functions for printing item details
@@ -263,7 +265,7 @@ object PrintUtils {
     /**
      * Generate QR code bitmap from itemId
      */
-    private fun generateQRCode(itemId: String, size: Int = 100): Bitmap? {
+    fun generateQRCode(itemId: String, size: Int = 100): Bitmap? {
         return try {
             val writer = QRCodeWriter()
             val bitMatrix = writer.encode(itemId, BarcodeFormat.QR_CODE, size, size)
@@ -283,6 +285,720 @@ object PrintUtils {
         }
     }
 
+    /**
+     * Build a TSPL BITMAP command string for a given bitmap.
+     * - Crops to square optionally
+     * - Scales to target square size in mm (assumes 203dpi ≈ 8 dots/mm for TSPL)
+     * - Thresholds to monochrome and returns hex payload
+     */
+    fun buildTsplBitmapCommand(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        targetSizeMm: Int = 8,
+        cropToSquare: Boolean = false,
+        threshold: Int = 128,
+        bitOrderMsbFirst: Boolean = true,
+        blackIsOne: Boolean = true,
+        dither: Boolean = false
+    ): String {
+        log("TSPL: start build bitmap: src=${source.width}x${source.height}, x=$xDots,y=$yDots, sizeMm=$targetSizeMm, crop=$cropToSquare, th=$threshold, msb=$bitOrderMsbFirst, black1=$blackIsOne, dith=$dither")
+        val dotsPerMm = 8
+        val targetDots = targetSizeMm * dotsPerMm
+        // Ensure width is multiple of 8 to avoid line distortion on some printers
+        val widthDots = ((targetDots + 7) / 8) * 8
+
+        val baseBitmap = if (cropToSquare && source.width != source.height) {
+            val cropSize = kotlin.math.min(source.width, source.height)
+            val cropX = (source.width - cropSize) / 2
+            val cropY = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cropX, cropY, cropSize, cropSize)
+        } else {
+            source
+        }
+
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, false)
+        log("TSPL: scaled=${scaled.width}x${scaled.height}, bytesPerRow=${(scaled.width + 7) / 8}")
+
+        // Convert to pure black/white bitmap first (threshold or Floyd–Steinberg dithering)
+        val width = scaled.width
+        val height = scaled.height
+        val isBlack = BooleanArray(width * height)
+        if (dither) {
+            val lum = FloatArray(width * height)
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val p = scaled.getPixel(x, y)
+                    val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3f
+                    lum[y * width + x] = gray
+                }
+            }
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val idxPix = y * width + x
+                    val old = lum[idxPix]
+                    val newVal = if (old < 128f) 0f else 255f
+                    isBlack[idxPix] = newVal == 0f
+                    val err = old - newVal
+                    // distribute error
+                    if (x + 1 < width) lum[idxPix + 1] += err * 7f / 16f
+                    if (y + 1 < height) {
+                        if (x > 0) lum[idxPix + width - 1] += err * 3f / 16f
+                        lum[idxPix + width] += err * 5f / 16f
+                        if (x + 1 < width) lum[idxPix + width + 1] += err * 1f / 16f
+                    }
+                }
+            }
+        } else {
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val p = scaled.getPixel(x, y)
+                    val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3
+                    isBlack[y * width + x] = gray < threshold
+                }
+            }
+        }
+
+        val bytesPerRow = (width + 7) / 8
+        val buffer = ByteArray(bytesPerRow * height)
+        var idx = 0
+        for (y in 0 until height) {
+            var byteVal = 0
+            var bitPos = 0
+            if (bitOrderMsbFirst) {
+                var bitCount = 0
+                for (x in 0 until width) {
+                    var bit = if (isBlack[y * width + x]) 1 else 0
+                    if (!blackIsOne) bit = 1 - bit
+                    byteVal = (byteVal shl 1) or bit
+                    bitCount++
+                    if (bitCount == 8) {
+                        buffer[idx++] = byteVal.toByte()
+                        byteVal = 0
+                        bitCount = 0
+                    }
+                }
+                if (bitCount != 0) {
+                    byteVal = byteVal shl (8 - bitCount)
+                    buffer[idx++] = byteVal.toByte()
+                }
+            } else {
+                // LSB-first packing
+                for (x in 0 until width) {
+                    var bit = if (isBlack[y * width + x]) 1 else 0
+                    if (!blackIsOne) bit = 1 - bit
+                    byteVal = byteVal or (bit shl bitPos)
+                    bitPos++
+                    if (bitPos == 8) {
+                        buffer[idx++] = byteVal.toByte()
+                        byteVal = 0
+                        bitPos = 0
+                    }
+                }
+                if (bitPos != 0) {
+                    buffer[idx++] = byteVal.toByte()
+                }
+            }
+        }
+
+        val hex = buffer.joinToString("") { String.format("%02X", it.toInt() and 0xFF) }
+        log("TSPL: hexLen=${hex.length}, rows=$height, bytesPerRow=$bytesPerRow")
+        return "BITMAP $xDots,$yDots,$bytesPerRow,${height},0,$hex"
+    }
+
+    /**
+     * Alternative approach: TSPL DOWNLOAD to RAM as Gxxx, then PUT to draw. This is often more reliable.
+     */
+    fun buildTsplImageViaDownload(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        name: String = "G000",
+        targetSizeMm: Int = 8,
+        threshold: Int = 140,
+        dpi: Int = 203
+    ): String {
+        log("TSPL: download image start src=${source.width}x${source.height}")
+
+        // Accurate dots/mm conversion
+        val dotsPerMm = dpi / 25.4
+        val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
+        val widthDots = ((targetDots + 7) / 8) * 8 // make sure divisible by 8
+
+        // Crop to square if needed
+        val baseBitmap = if (source.width != source.height) {
+            val cropSize = min(source.width, source.height)
+            val cropX = (source.width - cropSize) / 2
+            val cropY = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cropX, cropY, cropSize, cropSize)
+        } else source
+
+        // Scale to correct size
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, false)
+        val width = scaled.width
+        val height = scaled.height
+        val bytesPerRow = (width + 7) / 8
+        val totalBytes = bytesPerRow * height
+
+        val buffer = ByteArray(totalBytes)
+        var idx = 0
+
+        for (y in 0 until height) {
+            var byteVal = 0
+            var bitCount = 0
+            for (x in 0 until width) {
+                val p = scaled.getPixel(x, y)
+                val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3
+                val bit = if (gray < threshold) 1 else 0 // ✅ Black=1, White=0
+                byteVal = (byteVal shl 1) or bit
+                bitCount++
+                if (bitCount == 8) {
+                    buffer[idx++] = byteVal.toByte()
+                    byteVal = 0
+                    bitCount = 0
+                }
+            }
+            if (bitCount != 0) {
+                byteVal = byteVal shl (8 - bitCount)
+                buffer[idx++] = byteVal.toByte()
+            }
+        }
+
+        val hex = buffer.joinToString("") { String.format("%02X", it.toInt() and 0xFF) }
+
+        log("TSPL: download hexLen=${hex.length}, bytes=$totalBytes, bpr=$bytesPerRow, rows=$height")
+
+        // TSPL DOWNLOAD B expects byte count and binary data (but we use hex-safe string)
+        return buildString {
+            append("DOWNLOAD \"$name\",$totalBytes,")
+            append(hex)
+            append("\nPUTBMP $xDots,$yDots,\"$name\"\n")
+        }
+    }
+
+    /**
+     * Build a TSPL DOWNLOAD + PUTBMP command with a valid 1-bit BMP payload (binary-safe bytes).
+     * Some printers require actual BMP bytes for DOWNLOAD; hex strings may cause artifacts.
+     */
+    fun buildTsplDownloadBmpCommandBytes(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        name: String = "LOGO.BMP",
+        targetSizeMm: Int = 8,
+        threshold: Int = 140,
+        dpi: Int = 203,
+        dither: Boolean = false,
+        cropToSquare: Boolean = false
+    ): ByteArray {
+        val dotsPerMm = dpi / 25.4
+        val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
+        val widthDots = ((targetDots + 7) / 8) * 8
+
+        val baseBitmap = if (cropToSquare && source.width != source.height) {
+            val cropSize = min(source.width, source.height)
+            val cx = (source.width - cropSize) / 2
+            val cy = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cx, cy, cropSize, cropSize)
+        } else source
+
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, false)
+        val width = scaled.width
+        val height = scaled.height
+
+        // Monochrome classification (optionally with dithering)
+        val isBlack = BooleanArray(width * height)
+        if (dither) {
+            val lum = FloatArray(width * height)
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val p = scaled.getPixel(x, y)
+                    val gray = 0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p)
+                    lum[y * width + x] = gray
+                }
+            }
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val i = y * width + x
+                    val old = lum[i]
+                    val newVal = if (old < threshold) 0f else 255f
+                    isBlack[i] = newVal == 0f
+                    val err = old - newVal
+                    if (x + 1 < width) lum[i + 1] += err * 7f / 16f
+                    if (y + 1 < height) {
+                        if (x > 0) lum[i + width - 1] += err * 3f / 16f
+                        lum[i + width] += err * 5f / 16f
+                        if (x + 1 < width) lum[i + width + 1] += err * 1f / 16f
+                    }
+                }
+            }
+        } else {
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val p = scaled.getPixel(x, y)
+                    val gray = (0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p))
+                    isBlack[y * width + x] = gray < threshold
+                }
+            }
+        }
+
+        // Build a valid 1bpp BMP file in memory (bottom-up rows, MSB first, 4-byte row alignment)
+        val rowBytes = ((width + 31) / 32) * 4 // 1bpp rows aligned to 4 bytes
+        val imageSize = rowBytes * height
+        val fileHeaderSize = 14
+        val infoHeaderSize = 40
+        val paletteSize = 8 // 2 colors * 4 bytes
+        val pixelDataOffset = fileHeaderSize + infoHeaderSize + paletteSize
+        val fileSize = pixelDataOffset + imageSize
+
+        val bmp = ByteArray(fileSize)
+        var o = 0
+        // BITMAPFILEHEADER
+        bmp[o++] = 0x42 // 'B'
+        bmp[o++] = 0x4D.toByte() // 'M'
+        writeIntLE(bmp, o, fileSize); o += 4
+        writeShortLE(bmp, o, 0); o += 2
+        writeShortLE(bmp, o, 0); o += 2
+        writeIntLE(bmp, o, pixelDataOffset); o += 4
+        // BITMAPINFOHEADER
+        writeIntLE(bmp, o, infoHeaderSize); o += 4
+        writeIntLE(bmp, o, width); o += 4
+        writeIntLE(bmp, o, height); o += 4 // bottom-up
+        writeShortLE(bmp, o, 1); o += 2 // planes
+        writeShortLE(bmp, o, 1); o += 2 // 1 bpp
+        writeIntLE(bmp, o, 0); o += 4 // BI_RGB
+        writeIntLE(bmp, o, imageSize); o += 4
+        writeIntLE(bmp, o, 0); o += 4 // x ppm
+        writeIntLE(bmp, o, 0); o += 4 // y ppm
+        writeIntLE(bmp, o, 2); o += 4 // colors used
+        writeIntLE(bmp, o, 2); o += 4 // important
+        // Palette: index 0 = white, index 1 = black, to make bit 1 = black
+        bmp[o++] = 0xFF.toByte(); bmp[o++] = 0xFF.toByte(); bmp[o++] = 0xFF.toByte(); bmp[o++] = 0x00
+        bmp[o++] = 0x00; bmp[o++] = 0x00; bmp[o++] = 0x00; bmp[o++] = 0x00
+        // Pixel data
+        for (y in height - 1 downTo 0) { // bottom-up
+            var byteVal = 0
+            var bitCount = 0
+            var rowStart = o
+            for (x in 0 until width) {
+                val bit = if (isBlack[y * width + x]) 1 else 0 // 1=black -> palette index 1
+                byteVal = (byteVal shl 1) or bit // MSB-first in BMP
+                bitCount++
+                if (bitCount == 8) {
+                    bmp[o++] = byteVal.toByte()
+                    byteVal = 0
+                    bitCount = 0
+                }
+            }
+            if (bitCount != 0) {
+                byteVal = byteVal shl (8 - bitCount)
+                bmp[o++] = byteVal.toByte()
+            }
+            // pad to 4-byte boundary
+            val written = o - rowStart
+            val pad = (4 - (written % 4)) % 4
+            repeat(pad) { bmp[o++] = 0x00 }
+        }
+
+        // Compose TSPL command bytes: DOWNLOAD <name>,<size>,<binary> then PUTBMP
+        val baos = java.io.ByteArrayOutputStream()
+        baos.write("DOWNLOAD \"$name\",$fileSize\r\n".toByteArray(Charsets.UTF_8))
+        baos.write(bmp)
+        baos.write("\r\n".toByteArray(Charsets.UTF_8))
+        baos.write("PUTBMP $xDots,$yDots,\"$name\"\r\n".toByteArray(Charsets.UTF_8))
+        return baos.toByteArray()
+    }
+
+    private fun writeIntLE(arr: ByteArray, offset: Int, value: Int) {
+        arr[offset] = (value and 0xFF).toByte()
+        arr[offset + 1] = ((value shr 8) and 0xFF).toByte()
+        arr[offset + 2] = ((value shr 16) and 0xFF).toByte()
+        arr[offset + 3] = ((value shr 24) and 0xFF).toByte()
+    }
+
+    private fun writeShortLE(arr: ByteArray, offset: Int, value: Int) {
+        arr[offset] = (value and 0xFF).toByte()
+        arr[offset + 1] = ((value shr 8) and 0xFF).toByte()
+    }
+
+    /**
+     * Build a TSPL DOWNLOAD + PUTPCX command bytes with a 1-bit PCX (RLE) payload.
+     */
+    fun buildTsplDownloadPcxCommandBytes(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        name: String = "LOGO.PCX",
+        targetSizeMm: Int = 8,
+        threshold: Int = 140,
+        dpi: Int = 203
+    ): ByteArray {
+        val dotsPerMm = dpi / 25.4
+        val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
+        val widthDots = ((targetDots + 7) / 8) * 8
+
+        val baseBitmap = if (source.width != source.height) {
+            val cropSize = min(source.width, source.height)
+            val cx = (source.width - cropSize) / 2
+            val cy = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cx, cy, cropSize, cropSize)
+        } else source
+
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, false)
+        val width = scaled.width
+        val height = scaled.height
+
+        // Pack MSB-first 1bpp bytes per scanline
+        val bytesPerLineRaw = (width + 7) / 8
+        val bytesPerLine = if (bytesPerLineRaw % 2 == 0) bytesPerLineRaw else bytesPerLineRaw + 1 // PCX requires even
+
+        fun packLine(y: Int): ByteArray {
+            var byteVal = 0
+            var bitCount = 0
+            val tmp = java.io.ByteArrayOutputStream()
+            for (x in 0 until width) {
+                val p = scaled.getPixel(x, y)
+                val gray = 0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p)
+                val bit = if (gray < threshold) 1 else 0
+                byteVal = (byteVal shl 1) or bit
+                bitCount++
+                if (bitCount == 8) {
+                    tmp.write(byteVal)
+                    byteVal = 0
+                    bitCount = 0
+                }
+            }
+            if (bitCount != 0) {
+                byteVal = byteVal shl (8 - bitCount)
+                tmp.write(byteVal)
+            }
+            // pad to even length
+            while (tmp.size() < bytesPerLine) tmp.write(0x00)
+            return tmp.toByteArray()
+        }
+
+        // PCX header (128 bytes)
+        val header = ByteArray(128)
+        header[0] = 0x0A // manufacturer
+        header[1] = 5 // version
+        header[2] = 1 // encoding = RLE
+        header[3] = 1 // bitsPerPixel
+        writeShortLE(header, 4, 0) // xmin
+        writeShortLE(header, 6, 0) // ymin
+        writeShortLE(header, 8, width - 1)
+        writeShortLE(header, 10, height - 1)
+        writeShortLE(header, 12, dpi) // hDPI
+        writeShortLE(header, 14, dpi) // vDPI
+        // 16..63 colormap (48 bytes) remain zeros
+        header[64] = 0 // reserved
+        header[65] = 1 // nPlanes
+        writeShortLE(header, 66, bytesPerLine)
+        writeShortLE(header, 68, 1) // palette info: 1=color/BW
+        // 70..127 filler zeros
+
+        // RLE encode scanlines (top to bottom)
+        val dataOut = java.io.ByteArrayOutputStream()
+        for (y in 0 until height) {
+            val line = packLine(y)
+            // PCX RLE: 0xC0 | count when count>=2 or when value>=0xC0
+            var i = 0
+            while (i < line.size) {
+                val value = line[i].toInt() and 0xFF
+                var run = 1
+                while (i + run < line.size && run < 63 && (line[i + run].toInt() and 0xFF) == value) {
+                    run++
+                }
+                if (run > 1 || value >= 0xC0) {
+                    dataOut.write(0xC0 or run)
+                    dataOut.write(value)
+                } else {
+                    dataOut.write(value)
+                }
+                i += run
+            }
+        }
+
+        val pcx = java.io.ByteArrayOutputStream()
+        pcx.write(header)
+        pcx.write(dataOut.toByteArray())
+        val pcxBytes = pcx.toByteArray()
+
+        // Compose TSPL stream
+        val baos = java.io.ByteArrayOutputStream()
+        baos.write("DOWNLOAD \"$name\",${pcxBytes.size}\r\n".toByteArray(Charsets.UTF_8))
+        baos.write(pcxBytes)
+        baos.write("\r\n".toByteArray(Charsets.UTF_8))
+        baos.write("PUTPCX $xDots,$yDots,\"$name\"\r\n".toByteArray(Charsets.UTF_8))
+        return baos.toByteArray()
+    }
+
+    /**
+     * Same as buildTsplDownloadPcxCommandBytes but stores in FLASH (F:) and prints from there.
+     */
+    fun buildTsplDownloadPcxFlashCommandBytes(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        name: String = "LOGO.PCX",
+        targetSizeMm: Int = 8,
+        threshold: Int = 140,
+        dpi: Int = 203
+    ): ByteArray {
+        val ram = buildTsplDownloadPcxCommandBytes(
+            source = source,
+            xDots = xDots,
+            yDots = yDots,
+            name = name,
+            targetSizeMm = targetSizeMm,
+            threshold = threshold,
+            dpi = dpi
+        )
+
+        // Re-encode PCX only once: extract the PCX bytes from the RAM builder
+        // The RAM builder emits: DOWNLOAD "name"... CRLF <pcx> CRLF PUTPCX ...
+        // We'll regenerate PCX similarly but target FLASH.
+
+        val dotsPerMm = dpi / 25.4
+        val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
+        val widthDots = ((targetDots + 7) / 8) * 8
+        val baseBitmap = if (source.width != source.height) {
+            val cropSize = min(source.width, source.height)
+            val cx = (source.width - cropSize) / 2
+            val cy = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cx, cy, cropSize, cropSize)
+        } else source
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, true)
+        val width = scaled.width
+        val height = scaled.height
+        val bytesPerLineRaw = (width + 7) / 8
+        val bytesPerLine = if (bytesPerLineRaw % 2 == 0) bytesPerLineRaw else bytesPerLineRaw + 1
+
+        fun packLine(y: Int): ByteArray {
+            var byteVal = 0
+            var bitCount = 0
+            val tmp = java.io.ByteArrayOutputStream()
+            for (x in 0 until width) {
+                val p = scaled.getPixel(x, y)
+                val gray = 0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p)
+                val bit = if (gray < threshold) 1 else 0
+                byteVal = (byteVal shl 1) or bit
+                bitCount++
+                if (bitCount == 8) {
+                    tmp.write(byteVal)
+                    byteVal = 0
+                    bitCount = 0
+                }
+            }
+            if (bitCount != 0) {
+                byteVal = byteVal shl (8 - bitCount)
+                tmp.write(byteVal)
+            }
+            while (tmp.size() < bytesPerLine) tmp.write(0x00)
+            return tmp.toByteArray()
+        }
+
+        val header = ByteArray(128)
+        header[0] = 0x0A
+        header[1] = 5
+        header[2] = 1
+        header[3] = 1
+        writeShortLE(header, 4, 0)
+        writeShortLE(header, 6, 0)
+        writeShortLE(header, 8, width - 1)
+        writeShortLE(header, 10, height - 1)
+        writeShortLE(header, 12, dpi)
+        writeShortLE(header, 14, dpi)
+        header[64] = 0
+        header[65] = 1
+        writeShortLE(header, 66, bytesPerLine)
+        writeShortLE(header, 68, 1)
+
+        val dataOut = java.io.ByteArrayOutputStream()
+        for (y in 0 until height) {
+            val line = packLine(y)
+            var i = 0
+            while (i < line.size) {
+                val value = line[i].toInt() and 0xFF
+                var run = 1
+                while (i + run < line.size && run < 63 && (line[i + run].toInt() and 0xFF) == value) {
+                    run++
+                }
+                if (run > 1 || value >= 0xC0) {
+                    dataOut.write(0xC0 or run)
+                    dataOut.write(value)
+                } else {
+                    dataOut.write(value)
+                }
+                i += run
+            }
+        }
+
+        val pcx = java.io.ByteArrayOutputStream()
+        pcx.write(header)
+        pcx.write(dataOut.toByteArray())
+        val pcxBytes = pcx.toByteArray()
+
+        val baos = java.io.ByteArrayOutputStream()
+        baos.write("DOWNLOAD \"$name\",${pcxBytes.size}\r\n".toByteArray(Charsets.UTF_8))
+        baos.write(pcxBytes)
+        baos.write("\r\n".toByteArray(Charsets.UTF_8))
+        baos.write("PUTPCX $xDots,$yDots,\"$name\"\r\n".toByteArray(Charsets.UTF_8))
+        return baos.toByteArray()
+    }
+
+    /**
+     * Fully standalone inline BITMAP builder for logos (no reuse of other builders).
+     * - Crop to square, scale to target mm using dpi
+     * - Pack MSB-first, black=1
+     */
+    fun buildTsplLogoInlineBitmap(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        targetSizeMm: Int = 8,
+        threshold: Int = 140,
+        dpi: Int = 203,
+        invert: Boolean = false
+    ): String {
+        log("TSPL: inline logo start src=${source.width}x${source.height}")
+        val dotsPerMm = dpi / 25.4
+        val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
+        val widthDots = ((targetDots + 7) / 8) * 8
+
+        val baseBitmap = if (source.width != source.height) {
+            val cropSize = min(source.width, source.height)
+            val cx = (source.width - cropSize) / 2
+            val cy = (source.height - cropSize) / 2
+            Bitmap.createBitmap(source, cx, cy, cropSize, cropSize)
+        } else source
+
+        val scaled = Bitmap.createScaledBitmap(baseBitmap, widthDots, targetDots, true)
+        val width = scaled.width
+        val height = scaled.height
+        val bytesPerRow = (width + 7) / 8
+        log("TSPL: inline logo scaled=${width}x${height}, bpr=$bytesPerRow")
+
+        val buffer = ByteArray(bytesPerRow * height)
+        var idx = 0
+        for (y in 0 until height) {
+            var byteVal = 0
+            var bitCount = 0
+            for (x in 0 until width) {
+                val p = scaled.getPixel(x, y)
+                val gray = 0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p)
+                var bit = if (gray < threshold) 1 else 0 // black=1, white=0
+                if (invert) bit = 1 - bit
+                // Pack MSB-first as required by TSPL BITMAP hex format
+                byteVal = (byteVal shl 1) or bit
+                bitCount++
+                if (bitCount == 8) {
+                    buffer[idx++] = byteVal.toByte()
+                    byteVal = 0
+                    bitCount = 0
+                }
+            }
+            if (bitCount != 0) {
+                byteVal = byteVal shl (8 - bitCount)
+                buffer[idx++] = byteVal.toByte()
+            }
+        }
+
+        val hex = buffer.joinToString("") { String.format("%02X", it.toInt() and 0xFF) }
+        log("TSPL: inline logo hexLen=${hex.length}, rows=$height, bpr=$bytesPerRow")
+        return "BITMAP $xDots,$yDots,$bytesPerRow,${height},0,$hex"
+    }
+
+
+
+    /**
+     * Produce a simple diagnostic BITMAP payload without image processing.
+     * width and height should be multiples compatible with TSPL; width must be divisible by 8.
+     * Types: "black", "vstripes", "hstripes", "checker".
+     */
+    fun buildTsplTestPattern(
+        xDots: Int,
+        yDots: Int,
+        width: Int = 64,
+        height: Int = 64,
+        type: String = "black"
+    ): String {
+        val bytesPerRow = (width + 7) / 8
+        val buffer = ByteArray(bytesPerRow * height)
+        var idx = 0
+        for (y in 0 until height) {
+            for (b in 0 until bytesPerRow) {
+                val value = when (type.lowercase(Locale.getDefault())) {
+                    "black" -> 0xFF
+                    "vstripes" -> if ((b % 2) == 0) 0xAA else 0x55 // 1010 vs 0101 per byte columns
+                    "hstripes" -> if ((y % 2) == 0) 0xFF else 0x00
+                    "checker" -> if (((y / 1) % 2) == 0) { if ((b % 2) == 0) 0xAA else 0x55 } else { if ((b % 2) == 0) 0x55 else 0xAA }
+                    else -> 0xFF
+                }
+                buffer[idx++] = value.toByte()
+            }
+        }
+        val hex = buffer.joinToString("") { String.format("%02X", it.toInt() and 0xFF) }
+        return "BITMAP $xDots,$yDots,$bytesPerRow,${height},0,$hex"
+    }
+
+    /**
+     * Build a TSPL BITMAP command from an already scaled/cropped bitmap without further scaling.
+     * If width is not divisible by 8, right-side padding is applied.
+     */
+    fun buildTsplBitmapFromBitmap(
+        source: Bitmap,
+        xDots: Int,
+        yDots: Int,
+        threshold: Int = 150,
+        bitOrderMsbFirst: Boolean = true,
+        blackIsOne: Boolean = true
+    ): String {
+        val width = source.width
+        val height = source.height
+        val bytesPerRow = (width + 7) / 8
+        val buffer = ByteArray(bytesPerRow * height)
+        var idx = 0
+        for (y in 0 until height) {
+            var byteVal = 0
+            var bitCount = 0
+            var bitPos = 0
+            for (x in 0 until width) {
+                val p = source.getPixel(x, y)
+                val gray = (0.299f * Color.red(p) + 0.587f * Color.green(p) + 0.114f * Color.blue(p))
+                var bit = if (gray < threshold) 1 else 0
+                if (!blackIsOne) bit = 1 - bit
+                if (bitOrderMsbFirst) {
+                    byteVal = (byteVal shl 1) or bit
+                    bitCount++
+                    if (bitCount == 8) {
+                        buffer[idx++] = byteVal.toByte()
+                        byteVal = 0
+                        bitCount = 0
+                    }
+                } else {
+                    byteVal = byteVal or (bit shl bitPos)
+                    bitPos++
+                    if (bitPos == 8) {
+                        buffer[idx++] = byteVal.toByte()
+                        byteVal = 0
+                        bitPos = 0
+                    }
+                }
+            }
+            if (bitOrderMsbFirst) {
+                if (bitCount != 0) {
+                    byteVal = byteVal shl (8 - bitCount)
+                    buffer[idx++] = byteVal.toByte()
+                }
+            } else {
+                if (bitPos != 0) {
+                    buffer[idx++] = byteVal.toByte()
+                }
+            }
+        }
+        val hex = buffer.joinToString("") { String.format("%02X", it.toInt() and 0xFF) }
+        return "BITMAP $xDots,$yDots,$bytesPerRow,${height},0,$hex"
+    }
     /**
      * Convert bitmap to base64 string for HTML embedding
      */

@@ -106,7 +106,7 @@ class BleConnect(
             try {
                 val attempts: List<Pair<String, suspend () -> Unit>> = listOf(
                     "RFCOMM" to { connectViaRfcommInternal(device, onConnect, onFailure) },
-                    "GATT" to { connectGattInternal(device, onConnect, onFailure) }
+//                    "GATT" to { connectGattInternal(device, onConnect, onFailure) }
                     // Removed other transport methods to avoid interference
                     // A2DP, HEADSET, HID are typically managed by the system
                 )
@@ -155,7 +155,7 @@ class BleConnect(
                     cLog("ATTEMPT_START $name for $address")
                     val startEvt = manager.buildBluetoothDevice(
                         device, address, "CONNECT_ATTEMPT_START_${name}", device.name, mapOf(
-                            "method" to name,
+                            "connectionMethod" to name,
                             "methodLabel" to when (name) {
                                 "RFCOMM" -> "Classic (RFCOMM)"
                                 "GATT" -> "BLE (GATT)"
@@ -183,7 +183,7 @@ class BleConnect(
                             device, address, "CONNECT_ATTEMPT_FAILED_${name}", device.name, mapOf(
                                 "reason" to "exception",
                                 "error" to (t.message ?: "unknown"),
-                                "method" to name,
+                                "connectionMethod" to name,
                                 "methodLabel" to when (name) {
                                     "RFCOMM" -> "Classic (RFCOMM)"
                                     "GATT" -> "BLE (GATT)"
@@ -217,7 +217,7 @@ class BleConnect(
                         cLog("ATTEMPT_SUCCESS $name for $address")
                         manager.buildBluetoothDevice(
                             device, address, "CONNECT_ATTEMPT_SUCCESS_${name}", device.name, mapOf(
-                                "method" to name, "methodLabel" to when (name) {
+                                "connectionMethod" to name, "methodLabel" to when (name) {
                                     "RFCOMM" -> "Classic (RFCOMM)"
                                     "GATT" -> "BLE (GATT)"
                                     else -> name
@@ -278,7 +278,7 @@ class BleConnect(
                         val failEvt = manager.buildBluetoothDevice(
                             device, address, "CONNECT_ATTEMPT_FAILED_${name}", device.name, mapOf(
                                 "reason" to "timeout",
-                                "method" to name,
+                                "connectionMethod" to name,
                                 "methodLabel" to when (name) {
                                     "RFCOMM" -> "Classic (RFCOMM)"
                                     "GATT" -> "BLE (GATT)"
@@ -375,16 +375,64 @@ class BleConnect(
 
         manager.bleManagerScope.launch(Dispatchers.IO) {
             try {
+                // If not bonded yet, initiate bonding and defer connect to bond callback
+                val bonded = try { device.bondState == BluetoothDevice.BOND_BONDED } catch (_: Throwable) { false }
+                if (!bonded) {
+                    log("RFCOMM: device ${device.address} not bonded, initiating bonding and deferring RFCOMM connect")
+                    // show connecting placeholder with method
+                    updateConnecting(manager.buildBluetoothDevice(
+                        device, address, "CONNECTING_RFCOMM_WAIT_BOND", device.name, mapOf(
+                            "connectionMethod" to "RFCOMM",
+                            "note" to "waiting_bond"
+                        ), null, "CONNECTING"
+                    ))
+                    tryCreateBondIfNeeded(device)
+                    return@launch
+                }
+
                 // Cancel discovery which slows down a connection
                 try {
                     manager.bluetoothAdapter?.cancelDiscovery()
                 } catch (_: Throwable) {
                 }
 
-                val socket = device.createRfcommSocketToServiceRecord(uuid)
-                log("RFCOMM: connecting socket to $address uuid=$uuid")
-                socket.connect()
-                rfcommSockets[address] = socket
+                // Attempt secure RFCOMM first
+                var connected = false
+                var lastError: Throwable? = null
+                try {
+                    val socket = device.createRfcommSocketToServiceRecord(uuid)
+                    log("RFCOMM: connecting SECURE socket to $address uuid=$uuid")
+                    socket.connect()
+                    rfcommSockets[address] = socket
+                    connected = true
+                } catch (t1: Throwable) {
+                    lastError = t1
+                    try { manager.bluetoothAdapter?.cancelDiscovery() } catch (_: Throwable) {}
+                    // Attempt insecure RFCOMM
+                    try {
+                        val insecure = device.createInsecureRfcommSocketToServiceRecord(uuid)
+                        log("RFCOMM: connecting INSECURE socket to $address uuid=$uuid")
+                        insecure.connect()
+                        rfcommSockets[address] = insecure
+                        connected = true
+                    } catch (t2: Throwable) {
+                        lastError = t2
+                        try { manager.bluetoothAdapter?.cancelDiscovery() } catch (_: Throwable) {}
+                        // Reflection fallback on channel 1
+                        try {
+                            val m = device.javaClass.getMethod("createRfcommSocket", Int::class.java)
+                            val refSock = m.invoke(device, 1) as android.bluetooth.BluetoothSocket
+                            log("RFCOMM: connecting REFLECTION socket (channel 1) to $address")
+                            refSock.connect()
+                            rfcommSockets[address] = refSock
+                            connected = true
+                        } catch (t3: Throwable) {
+                            lastError = t3
+                        }
+                    }
+                }
+
+                if (!connected) throw lastError ?: RuntimeException("RFCOMM connect failed")
 
                 val evt = manager.buildBluetoothDevice(
                     device, address, "CLASSIC_RFCOMM_CONNECTED", device.name, mapOf(
@@ -406,10 +454,7 @@ class BleConnect(
                     log("Error calling onConnect callback for RFCOMM: ${e.message}")
                 }
                 
-                // Initiate bonding if needed immediately after classic connect
-                if (hasConnectPermission(context)) {
-                    tryCreateBondIfNeeded(device)
-                }
+                // Already bonded before connecting; no extra bonding here
             } catch (t: Throwable) {
                 log("RFCOMM: connect failed for $address -> ${t.message}")
                 try {
