@@ -18,6 +18,8 @@ import com.velox.jewelvault.data.roomdb.dao.StoreDao
 import com.velox.jewelvault.data.roomdb.dao.SubCategoryDao
 import com.velox.jewelvault.data.roomdb.dao.UsersDao
 import com.velox.jewelvault.data.roomdb.dao.UserAdditionalInfoDao
+import com.velox.jewelvault.data.roomdb.dao.LabelTemplateDao
+import com.velox.jewelvault.data.roomdb.dao.LabelElementDao
 import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
@@ -37,6 +39,8 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 import com.velox.jewelvault.utils.Converters
+import com.velox.jewelvault.data.roomdb.entity.label.LabelTemplateEntity
+import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
 
 
 
@@ -59,9 +63,11 @@ import com.velox.jewelvault.utils.Converters
         PurchaseOrderEntity::class,
         PurchaseOrderItemEntity::class,
         MetalExchangeEntity::class,
-        PrinterEntity::class
+        PrinterEntity::class,
+        LabelTemplateEntity::class,
+        LabelElementEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -81,4 +87,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun orderDao(): OrderDao
     abstract fun purchaseDao(): PurchaseDao
     abstract fun printerDao(): PrinterDao
+    abstract fun labelTemplateDao(): LabelTemplateDao
+    abstract fun labelElementDao(): LabelElementDao
 }

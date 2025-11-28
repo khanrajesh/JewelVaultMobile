@@ -1,5 +1,7 @@
 package com.velox.jewelvault.ui.nav
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -219,6 +221,37 @@ fun SubAppNavigation(
             }
             composable(SubScreens.BluetoothManagePrinters.route) {
                 ManagePrintersScreen(managePrintersViewModel)
+            }
+            
+            // Label template screens
+            composable(SubScreens.LabelTemplateList.route) {
+                com.velox.jewelvault.ui.screen.label.LabelTemplateListScreen(
+                    viewModel = hiltViewModel<com.velox.jewelvault.ui.screen.label.LabelTemplateViewModel>(),
+                    onNavigateToDesigner = { templateId ->
+                        if (templateId != null) {
+                            subNavController.navigate("${SubScreens.LabelDesigner.route}/$templateId")
+                        } else {
+                            subNavController.navigate(SubScreens.LabelDesigner.route)
+                        }
+                    },
+                    onNavigateBack = { subNavController.popBackStack() }
+                )
+            }
+            
+            // Label designer (new template)
+            composable(SubScreens.LabelDesigner.route) {
+                com.velox.jewelvault.ui.screen.label.LabelDesignerScreen()
+            }
+
+            // Label designer (edit existing template)
+            composable(
+                route = "${SubScreens.LabelDesigner.route}/{templateId}",
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val templateId = backStackEntry.arguments?.getString("templateId")
+                com.velox.jewelvault.ui.screen.label.LabelDesignerScreen(templateId = templateId)
             }
         }
     }

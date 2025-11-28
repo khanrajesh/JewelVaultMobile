@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,11 +51,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.velox.jewelvault.utils.LocalSubNavController
 
 @Composable
 fun ManagePrintersScreen(
     viewModel: ManagePrintersViewModel
 ) {
+    val subNavController = LocalSubNavController.current
     val savedPrinters by viewModel.savedPrinters.collectAsStateWithLifecycle()
     val defaultPrinter by viewModel.defaultPrinter.collectAsStateWithLifecycle()
     val printerStatuses by viewModel.printerStatuses.collectAsStateWithLifecycle()
@@ -66,12 +69,27 @@ fun ManagePrintersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text(
-            text = "Manage Printers",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Manage Printers",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold
+            )
+            
+            // Navigate to Label Templates
+            Button(
+                onClick = { subNavController.navigate("label_template_list") }
+            ) {
+                Icon(Icons.Default.Label, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Templates")
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 

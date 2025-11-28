@@ -74,6 +74,7 @@ import java.sql.Timestamp
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.velox.jewelvault.utils.LocalSubNavController
 import java.io.File
 import java.io.FileOutputStream
 
@@ -125,7 +126,8 @@ fun LandscapeInventoryItemScreen(
     catName: String,
     subCatId: String,
     subCatName: String
-) {
+) { 
+    val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     LaunchedEffect(true) {
         delay(200)
@@ -364,11 +366,20 @@ fun LandscapeInventoryItemScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                 managePrintersViewModel.printItemLabel(selectedItem.value!!,context, qrUri, logoUri)
+                                managePrintersViewModel.printItemLabel(selectedItem.value!!, context, qrUri, logoUri)
                                 showDialog.value = false
                             }
                         }) {
                             Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            if (selectedItem.value != null) {
+                                managePrintersViewModel.printItemWithDefaultTemplate(selectedItem.value!!, context)
+                                showDialog.value = false
+                            }
+                        }) {
+                            Text("Print with Template", color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 },
