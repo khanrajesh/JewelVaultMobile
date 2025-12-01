@@ -17,14 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.twotone.Label
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Link
+import androidx.compose.material.icons.twotone.LinkOff
+import androidx.compose.material.icons.twotone.Print
+import androidx.compose.material.icons.twotone.Star
+import androidx.compose.material.icons.twotone.StarBorder
+import androidx.compose.material.icons.twotone.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,11 +51,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.velox.jewelvault.utils.LocalSubNavController
 
 @Composable
 fun ManagePrintersScreen(
     viewModel: ManagePrintersViewModel
 ) {
+    val subNavController = LocalSubNavController.current
     val savedPrinters by viewModel.savedPrinters.collectAsStateWithLifecycle()
     val defaultPrinter by viewModel.defaultPrinter.collectAsStateWithLifecycle()
     val printerStatuses by viewModel.printerStatuses.collectAsStateWithLifecycle()
@@ -66,12 +69,27 @@ fun ManagePrintersScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text(
-            text = "Manage Printers",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontWeight = FontWeight.SemiBold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Manage Printers",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.SemiBold
+            )
+            
+            // Navigate to Label Templates
+            Button(
+                onClick = { subNavController.navigate("label_template_list") }
+            ) {
+                Icon(Icons.AutoMirrored.TwoTone.Label, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Templates")
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -88,7 +106,7 @@ fun ManagePrintersScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Print,
+                        imageVector = Icons.TwoTone.Print,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -197,7 +215,7 @@ fun PrinterManagementCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Print,
+                        imageVector = Icons.TwoTone.Print,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
                         tint = if (isConnected) 
@@ -226,7 +244,7 @@ fun PrinterManagementCard(
                         
                         if (isDefault) {
                             Icon(
-                                imageVector = Icons.Default.Star,
+                                imageVector = Icons.TwoTone.Star,
                                 contentDescription = "Default Printer",
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -322,7 +340,7 @@ fun PrinterManagementCard(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.StarBorder,
+                                imageVector = Icons.TwoTone.StarBorder,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -337,7 +355,7 @@ fun PrinterManagementCard(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = Icons.TwoTone.CheckCircle,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -357,7 +375,7 @@ fun PrinterManagementCard(
                         )
                     ) {
                         Icon(
-                            imageVector = if (isConnected) Icons.Default.LinkOff else Icons.Default.Link,
+                            imageVector = if (isConnected) Icons.TwoTone.LinkOff else Icons.TwoTone.Link,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -377,7 +395,7 @@ fun PrinterManagementCard(
                         )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
+                            imageVector = Icons.TwoTone.Delete,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

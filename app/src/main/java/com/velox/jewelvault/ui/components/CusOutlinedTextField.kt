@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.twotone.DateRange
+import androidx.compose.material.icons.twotone.KeyboardArrowDown
+import androidx.compose.material.icons.twotone.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -220,7 +220,7 @@ fun CusOutlinedTextField(
                     when {
                         isDatePicker -> {
                             Icon(
-                                imageVector = Icons.Default.DateRange,
+                                imageVector = Icons.TwoTone.DateRange,
                                 contentDescription = "Pick Date",
                                 modifier = Modifier
                                     .clickable { showDatePicker() }
@@ -229,7 +229,7 @@ fun CusOutlinedTextField(
                         }
                         dropdownItems.isNotEmpty() -> {
                             Icon(
-                                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                imageVector = if (expanded) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                                 contentDescription = if (expanded) "Collapse dropdown" else "Expand dropdown",
                                 modifier = Modifier
                                     .clickable { expanded = !expanded }

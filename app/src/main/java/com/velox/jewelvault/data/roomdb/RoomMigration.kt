@@ -365,4 +365,61 @@ object RoomMigration {
             """)
         }
     }
+    
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create label_template table for storing label templates
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS label_template (
+                    templateId TEXT PRIMARY KEY NOT NULL,
+                    templateName TEXT NOT NULL,
+                    templateType TEXT NOT NULL,
+                    labelWidth REAL NOT NULL,
+                    labelHeight REAL NOT NULL,
+                    gapWidth REAL NOT NULL,
+                    gapHeight REAL NOT NULL,
+                    printDensity INTEGER NOT NULL,
+                    orientation TEXT NOT NULL,
+                    printLanguage TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    modifiedAt INTEGER NOT NULL,
+                    isDefault INTEGER NOT NULL,
+                    description TEXT
+                )
+            """)
+            
+            // Create label_element table for storing label elements (no FK per entity definition)
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS label_element (
+                    elementId TEXT PRIMARY KEY NOT NULL,
+                    templateId TEXT NOT NULL,
+                    elementType TEXT NOT NULL,
+                    x REAL NOT NULL,
+                    y REAL NOT NULL,
+                    width REAL NOT NULL,
+                    height REAL NOT NULL,
+                    rotation REAL NOT NULL,
+                    zIndex INTEGER NOT NULL,
+                    properties TEXT NOT NULL,
+                    dataBinding TEXT,
+                    isVisible INTEGER NOT NULL
+                )
+            """)
+        }
+    }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE label_template ADD COLUMN printSpeed INTEGER NOT NULL DEFAULT 2")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN printDirection INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN referenceX REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN referenceY REAL NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE label_template ADD COLUMN labelPadding REAL NOT NULL DEFAULT 1.5")
+        }
+    }
 }

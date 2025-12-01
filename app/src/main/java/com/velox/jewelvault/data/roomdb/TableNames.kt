@@ -33,4 +33,8 @@ object TableNames {
     
     // Printer related tables
     const val PRINTER = "printer"
+
+    // Label designer related tables
+    const val LABEL_TEMPLATE = "label_template"
+    const val LABEL_ELEMENT = "label_element"
 }

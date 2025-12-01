@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -131,7 +131,7 @@ fun IconPermissionDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Verified,
+                                imageVector = Icons.TwoTone.Verified,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
@@ -157,7 +157,7 @@ fun IconPermissionDialog(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = Icons.TwoTone.Check,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -186,33 +186,33 @@ enum class PermissionType(
     val description: String
 ) {
     STORAGE(
-        icon = Icons.Default.Folder,
-        detailIcon = Icons.Default.Storage,
+        icon = Icons.TwoTone.Folder,
+        detailIcon = Icons.TwoTone.Storage,
         description = "• Save and read backup files\n• Import data from Excel files\n• Export data to local storage"
     ),
     NOTIFICATION(
-        icon = Icons.Default.Notifications,
-        detailIcon = Icons.Default.NotificationsActive,
+        icon = Icons.TwoTone.Notifications,
+        detailIcon = Icons.TwoTone.NotificationsActive,
         description = "• Show backup/restore progress\n• Display completion notifications\n• Alert you about important events"
     ),
     CAMERA(
-        icon = Icons.Default.CameraAlt,
-        detailIcon = Icons.Default.QrCodeScanner,
+        icon = Icons.TwoTone.CameraAlt,
+        detailIcon = Icons.TwoTone.QrCodeScanner,
         description = "• Scan QR codes and barcodes\n• Capture product images\n• Read product information"
     ),
     LOCATION(
-        icon = Icons.Default.LocationOn,
-        detailIcon = Icons.Default.MyLocation,
+        icon = Icons.TwoTone.LocationOn,
+        detailIcon = Icons.TwoTone.MyLocation,
         description = "• Find nearby shops\n• Get location-based recommendations\n• Improve service accuracy"
     ),
     CONTACTS(
-        icon = Icons.Default.Contacts,
-        detailIcon = Icons.Default.People,
+        icon = Icons.TwoTone.Contacts,
+        detailIcon = Icons.TwoTone.People,
         description = "• Import customer contacts\n• Sync with phone contacts\n• Invite friends to the app"
     ),
     MICROPHONE(
-        icon = Icons.Default.Mic,
-        detailIcon = Icons.Default.RecordVoiceOver,
+        icon = Icons.TwoTone.Mic,
+        detailIcon = Icons.TwoTone.RecordVoiceOver,
         description = "• Voice search functionality\n• Audio notes for items\n• Voice commands"
     )
 }

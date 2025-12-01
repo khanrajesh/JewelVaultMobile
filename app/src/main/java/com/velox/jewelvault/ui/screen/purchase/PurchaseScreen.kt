@@ -20,9 +20,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.Refresh
+import androidx.compose.material.icons.twotone.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -117,7 +117,7 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
                     }
                 }) {
                     Icon(
-                        imageVector = Icons.Default.Refresh, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
                 }
 
@@ -132,7 +132,7 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
 
                 }) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.MoreVert, contentDescription = "Refresh"
                     )
                 }
             }
@@ -289,7 +289,7 @@ fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableSt
                 CusOutlinedTextField(viewModel.firmMobile,
                     placeholderText = "Firm Mobile No",
                     modifier = Modifier.weight(1f),
-                    trailingIcon = Icons.Default.Search,
+                    trailingIcon = Icons.TwoTone.Search,
                     onTrailingIconClick = {
                         viewModel.getFirmByFirmMobile()
                     },
@@ -347,7 +347,7 @@ private fun FirmDetailsExtra(
             CusOutlinedTextField(viewModel.sellerMobile,
                 placeholderText = "Seller Mobile No",
                 modifier = Modifier.weight(1f),
-                trailingIcon = Icons.Default.Search,
+                trailingIcon = Icons.TwoTone.Search,
                 onTrailingIconClick = {
                     viewModel.getFirmBySellerMobile()
                 },

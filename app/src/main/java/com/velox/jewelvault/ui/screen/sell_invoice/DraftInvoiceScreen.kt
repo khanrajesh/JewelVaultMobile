@@ -7,8 +7,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
@@ -62,7 +62,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                     }
                 }) {
                     Icon(
-                        imageVector = Icons.Default.Refresh, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
                 }
                 MetalRatesTicker(
@@ -76,7 +76,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                     showOption.value = !showOption.value
                 }) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert, contentDescription = "Options"
+                        imageVector = Icons.TwoTone.MoreVert, contentDescription = "Options"
                     )
                 }
             }

@@ -103,6 +103,7 @@ class InventoryViewModel @Inject constructor(
     val billDate = InputFieldState()
     val billNo = InputFieldState()
     val billItemDetails = mutableStateOf("")
+    val prefilledItemId = mutableStateOf<String?>(null)
 
     // Enhanced filter states
     val categoryFilter = InputFieldState()
@@ -753,9 +754,27 @@ class InventoryViewModel @Inject constructor(
         billNo.clear()
         billItemDetails.value = ""
         isSelf.value = true
+        prefilledItemId.value = null
         // Clear errors from InputFieldState
         purity.error = ""
         fnWt.error = ""
+    }
+
+    /**
+     * Prefill add-item fields from a scanned QR payload. Missing values stay blank for manual entry.
+     */
+    fun prefillAddItemFromQr(payload: com.velox.jewelvault.utils.QrItemPayload) {
+        mainScope {
+            prefilledItemId.value = payload.id
+            addToName.text = addToName.text.ifBlank { payload.id }
+            qty.text = qty.text.ifBlank { "1" }
+            grWt.text = payload.gs?.to3FString() ?: grWt.text
+            ntWt.text = payload.nt?.to3FString() ?: ntWt.text.ifBlank { payload.gs?.to3FString().orEmpty() }
+            fnWt.text = payload.fn?.to3FString() ?: fnWt.text
+            purity.text = payload.purity ?: purity.text
+            chargeType.text = payload.mcType ?: chargeType.text
+            charge.text = payload.mc?.to3FString() ?: charge.text
+        }
     }
 
     fun refreshAndFilterItems() {

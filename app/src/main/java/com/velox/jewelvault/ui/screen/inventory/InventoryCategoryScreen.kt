@@ -22,8 +22,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -155,7 +155,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
 
                             Spacer(Modifier.weight(1f))
 
-                            Icon(Icons.Default.Refresh,"",
+                            Icon(Icons.TwoTone.Refresh,"",
                                 modifier = Modifier.bounceClick{
                                 inventoryViewModel.updateCatAndSubQtyAndWt()
                             },
@@ -237,6 +237,21 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                             Modifier
                                 .clickable {
                                     subNavController.navigate(SubScreens.ImportItems.route)
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(10.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "Scan & Add",
+                            Modifier
+                                .clickable {
+                                    subNavController.navigate(SubScreens.ScanAddItem.route)
                                 }
                                 .background(
                                     MaterialTheme.colorScheme.primary,
@@ -773,7 +788,7 @@ fun CategoryItem(
                 }
                 Spacer(Modifier.weight(1f))
 
-                Icon(Icons.Default.MoreVert, null, modifier = Modifier.clickable {
+                Icon(Icons.TwoTone.MoreVert, null, modifier = Modifier.clickable {
                     showOption.value = !showOption.value
                 })
 

@@ -27,8 +27,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 13
-        versionName = "0.0.13-test"
+        versionCode = 14
+        versionName = "0.0.14-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -82,6 +82,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -179,7 +180,7 @@ dependencies {
     //firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
-    implementation("com.google.firebase:firebase-messaging")
+    implementation(libs.google.firebase.messaging)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.config)
     implementation(libs.firebase.storage)
@@ -204,6 +205,6 @@ dependencies {
     implementation(libs.kotlin.reflect)
 
     // Crashlytics NDK (kept separate; version managed by the BoM above)
-    implementation("com.google.firebase:firebase-crashlytics-ndk")
+    implementation(libs.firebase.crashlytics.ndk)
 
 }

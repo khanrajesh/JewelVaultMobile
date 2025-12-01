@@ -1,5 +1,7 @@
 package com.velox.jewelvault.ui.nav
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -17,6 +19,7 @@ import com.velox.jewelvault.ui.screen.inventory.InventoryFilterScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryItemScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.ui.screen.inventory.ImportItemsScreen
+import com.velox.jewelvault.ui.screen.inventory.ScanAddItemScreen
 import com.velox.jewelvault.ui.screen.inventory.ImportItemsViewModel
 import com.velox.jewelvault.ui.screen.login.LoginScreen
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
@@ -50,6 +53,8 @@ import com.velox.jewelvault.ui.screen.webview.TermsAndConditionsScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ScanConnectScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
+import com.velox.jewelvault.ui.screen.guide.GuideScreen
+import com.velox.jewelvault.ui.screen.guide.GuideViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -118,6 +123,9 @@ fun SubAppNavigation(
             composable(SubScreens.Setting.route) {
                 SettingScreen()
             }
+            composable(SubScreens.Guide.route) {
+                GuideScreen(hiltViewModel<GuideViewModel>())
+            }
             composable(SubScreens.UserManagement.route) {
                 UserManagementScreen()
             }
@@ -161,6 +169,9 @@ fun SubAppNavigation(
                 ImportItemsScreen(
                     viewModel = hiltViewModel<ImportItemsViewModel>()
                 )
+            }
+            composable(SubScreens.ScanAddItem.route) {
+                ScanAddItemScreen(inventoryViewModel = inventoryViewModel)
             }
 
             composable(SubScreens.Customers.route) {
@@ -220,9 +231,37 @@ fun SubAppNavigation(
             composable(SubScreens.BluetoothManagePrinters.route) {
                 ManagePrintersScreen(managePrintersViewModel)
             }
+            
+            // Label template screens
+            composable(SubScreens.LabelTemplateList.route) {
+                com.velox.jewelvault.ui.screen.label.LabelTemplateListScreen(
+                    viewModel = hiltViewModel<com.velox.jewelvault.ui.screen.label.LabelTemplateViewModel>(),
+                    onNavigateToDesigner = { templateId ->
+                        if (templateId != null) {
+                            subNavController.navigate("${SubScreens.LabelDesigner.route}/$templateId")
+                        } else {
+                            subNavController.navigate(SubScreens.LabelDesigner.route)
+                        }
+                    },
+                    onNavigateBack = { subNavController.popBackStack() }
+                )
+            }
+            
+            // Label designer (new template)
+            composable(SubScreens.LabelDesigner.route) {
+                com.velox.jewelvault.ui.screen.label.LabelDesignerScreen()
+            }
+
+            // Label designer (edit existing template)
+            composable(
+                route = "${SubScreens.LabelDesigner.route}/{templateId}",
+                arguments = listOf(
+                    navArgument("templateId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val templateId = backStackEntry.arguments?.getString("templateId")
+                com.velox.jewelvault.ui.screen.label.LabelDesignerScreen(templateId = templateId)
+            }
         }
     }
 }
-
-
-

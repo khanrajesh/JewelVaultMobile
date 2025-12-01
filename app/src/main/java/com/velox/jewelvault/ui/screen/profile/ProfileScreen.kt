@@ -19,16 +19,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.twotone.AddAPhoto
+import androidx.compose.material.icons.twotone.Edit
+import androidx.compose.material.icons.twotone.Storefront
+import androidx.compose.material.icons.twotone.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -156,7 +159,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     val isLoading by profileViewModel.isLoading
                     if (!isEditable.value && !isLoading) {
                         Icon(
-                            Icons.Default.Sync,
+                            Icons.TwoTone.Sync,
                             contentDescription = "Sync from Cloud",
                             modifier = Modifier
                                 .bounceClick {
@@ -183,7 +186,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         )
                     }
                     
-                    if (!isEditable.value) Icon(Icons.Default.Edit,
+                    if (!isEditable.value) Icon(Icons.TwoTone.Edit,
                         null,
                         modifier = Modifier.bounceClick { isEditable.value = true })
                 }
@@ -397,11 +400,12 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
         // Image upload box
         Box(
             Modifier
-                .size(250.dp)
+                .sizeIn(maxWidth = 250.dp, maxHeight = 250.dp)
+                .aspectRatio(1f, matchHeightConstraintsFirst = true)
                 .offset(x = 50.dp)
-                .shadow(2.dp, RoundedCornerShape(18.dp), spotColor = Color.LightGray)
-                .background(Color.White, RoundedCornerShape(18.dp))
-                .padding(5.dp)
+                .shadow(2.dp, CircleShape, spotColor = Color.LightGray)
+                .background(Color.White, CircleShape)
+                .padding(6.dp)
         ) {
             val imagePickerLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.GetContent()
@@ -414,14 +418,14 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(CircleShape)
                     .clickable(enabled = isEditable.value) {
                         imagePickerLauncher.launch("image/*")
                     }
                     .border(
                         width = 2.dp,
                         color = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray,
-                        shape = RoundedCornerShape(16.dp)
+                        shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -431,7 +435,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            imageVector = if (isEditable.value) Icons.Default.Add else Icons.Outlined.Add,
+                            imageVector = if (isEditable.value) Icons.TwoTone.AddAPhoto else Icons.TwoTone.Storefront,
                             contentDescription = "Add Store Image",
                             modifier = Modifier.size(48.dp),
                             tint = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray
@@ -518,7 +522,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 )
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    imageVector = Icons.TwoTone.Edit,
                                     contentDescription = "Edit Image",
                                     modifier = Modifier.size(32.dp),
                                     tint = Color.White

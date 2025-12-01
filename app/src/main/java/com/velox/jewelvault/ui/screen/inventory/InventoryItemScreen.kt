@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -74,6 +74,7 @@ import java.sql.Timestamp
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.velox.jewelvault.utils.LocalSubNavController
 import java.io.File
 import java.io.FileOutputStream
 
@@ -125,7 +126,8 @@ fun LandscapeInventoryItemScreen(
     catName: String,
     subCatId: String,
     subCatName: String
-) {
+) { 
+    val subNavController = LocalSubNavController.current
     val context = LocalContext.current
     LaunchedEffect(true) {
         delay(200)
@@ -166,7 +168,7 @@ fun LandscapeInventoryItemScreen(
                     addItem.value = true
                 })
                 Spacer(Modifier.width(10.dp))
-                Icon(Icons.Default.MoreVert, null, modifier = Modifier.clickable {
+                Icon(Icons.TwoTone.MoreVert, null, modifier = Modifier.clickable {
                     showOption.value = !showOption.value
                 })
             }
@@ -259,7 +261,9 @@ fun LandscapeInventoryItemScreen(
 
         if (showDialog.value && selectedItem.value != null) {
             val itemForDialog = selectedItem.value!!
-            val qrBitmap = remember(itemForDialog.itemId) { PrintUtils.generateQRCode(itemForDialog.itemId, 128) }
+            val qrBitmap = remember(itemForDialog.itemId) {
+                PrintUtils.generateQRCode(PrintUtils.buildItemQrPayload(itemForDialog), 128)
+            }
             var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
             val logoUri = remember { FileManager.getLogoFileUri(context) }
             var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -364,11 +368,20 @@ fun LandscapeInventoryItemScreen(
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                 managePrintersViewModel.printItemLabel(selectedItem.value!!,context, qrUri, logoUri)
+                                managePrintersViewModel.printItemLabel(selectedItem.value!!, context, qrUri, logoUri)
                                 showDialog.value = false
                             }
                         }) {
                             Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = {
+                            if (selectedItem.value != null) {
+                                managePrintersViewModel.printItemWithDefaultTemplate(selectedItem.value!!, context)
+                                showDialog.value = false
+                            }
+                        }) {
+                            Text("Print with Template", color = MaterialTheme.colorScheme.tertiary)
                         }
                     }
                 },
@@ -952,7 +965,7 @@ private fun AddItemSection(
                                     }
                                     // Add new item
                                     val newItem = ItemEntity(
-                                        itemId = generateId(),
+                                        itemId = viewModel.prefilledItemId.value?.takeIf { it.isNotBlank() } ?: generateId(),
                                         itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
                                         userId = userId,
                                         storeId = storeId,
@@ -1014,4 +1027,3 @@ private fun AddItemSection(
         }
     }
 }
-

@@ -18,12 +18,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.twotone.Close
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.PictureAsPdf
+import androidx.compose.material.icons.twotone.Refresh
+import androidx.compose.material.icons.twotone.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -126,7 +126,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.MoreVert,
+                                Icons.TwoTone.MoreVert,
                                 contentDescription = "More options",
                                 modifier = Modifier.padding(end = 8.dp)
                             )
@@ -138,7 +138,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                             DropdownMenuItem(text = {
                                 Row {
                                     Icon(
-                                        Icons.Default.Delete,
+                                        Icons.TwoTone.Delete,
                                         contentDescription = null,
                                         modifier = Modifier.padding(end = 8.dp)
                                     )
@@ -260,7 +260,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                     MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp)
                                 )
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom/Pan")
+                            Icon(Icons.TwoTone.Refresh, contentDescription = "Reset Zoom/Pan")
                         }
                     }
                 }
@@ -293,7 +293,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                 contentColor = MaterialTheme.colorScheme.onSecondary
                             )
                         ) {
-                            Icon(Icons.Default.Share, contentDescription = null)
+                            Icon(Icons.TwoTone.Share, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Share PDF")
                         }
@@ -306,7 +306,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = null)
+                            Icon(Icons.TwoTone.Close, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Close PDF")
                         }
@@ -712,7 +712,7 @@ fun OrderSummaryCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Generating PDF...")
             } else {
-                Icon(Icons.Default.PictureAsPdf, contentDescription = null)
+                Icon(Icons.TwoTone.PictureAsPdf, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Generate PDF")
             }

@@ -12,6 +12,7 @@ import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.withIo
 import com.velox.jewelvault.utils.CalculationUtils
+import com.velox.jewelvault.utils.parseQrItemPayload
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,10 +26,16 @@ class QrBarScannerViewModel @Inject constructor(
 
     val selectedItemList = mutableStateListOf<Pair<String, ItemSelectedModel?>>()
 
-    fun processScan(id: String, metalRates: SnapshotStateList<MetalRate>) {
+    fun processScan(raw: String, metalRates: SnapshotStateList<MetalRate>) {
         viewModelScope.launch {
+            val id = extractItemId(raw)
             checkAndAddList(id, metalRates)
         }
+    }
+
+    private fun extractItemId(raw: String): String {
+        val parsed = parseQrItemPayload(raw)
+        return parsed?.id ?: raw
     }
 
     private suspend fun checkAndAddList(

@@ -19,14 +19,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Pending
+import androidx.compose.material.icons.twotone.AccountBalance
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Book
+import androidx.compose.material.icons.twotone.Calculate
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Edit
+import androidx.compose.material.icons.twotone.Pending
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -100,10 +100,10 @@ fun KhataBookPlansScreen(
 
             Row {
                 IconButton(onClick = { showCalculatorDialog = true }) {
-                    Icon(Icons.Default.Calculate, contentDescription = "Calculator")
+                    Icon(Icons.TwoTone.Calculate, contentDescription = "Calculator")
                 }
                 IconButton(onClick = { showAddPlanDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Plan")
+                    Icon(Icons.TwoTone.Add, contentDescription = "Add Plan")
                 }
             }
         }
@@ -225,25 +225,25 @@ fun KhataBookStatisticsCard(viewModel: CustomerViewModel) {
                 modifier = Modifier.weight(1f),
                 label = "Active",
                 value = viewModel.activeKhataBookCustomers.size.toString(),
-                icon = Icons.Default.Book
+                icon = Icons.TwoTone.Book
             )
             KhataBookStatisticItem(
                 modifier = Modifier.weight(1f),
                 label = "Total",
                 value = formatCurrency(viewModel.totalKhataBookAmount.value),
-                icon = Icons.Default.AccountBalance
+                icon = Icons.TwoTone.AccountBalance
             )
             KhataBookStatisticItem(
                 modifier = Modifier.weight(1f),
                 label = "Matured",
                 value = viewModel.maturedKhataBookPlans.size.toString(),
-                icon = Icons.Default.CheckCircle
+                icon = Icons.TwoTone.CheckCircle
             )
             KhataBookStatisticItem(
                 modifier = Modifier.weight(1f),
                 label = "Pending",
                 value = formatCurrency(viewModel.pendingKhataBookAmount.value),
-                icon = Icons.Default.Pending
+                icon = Icons.TwoTone.Pending
             )
         }
     }
@@ -304,12 +304,12 @@ fun KhataBookPlanCard(
                     IconButton(
                         onClick = onEdit,
                         modifier = Modifier.semantics { contentDescription = "Edit Plan" }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Plan")
+                        Icon(Icons.TwoTone.Edit, contentDescription = "Edit Plan")
                     }
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier.semantics { contentDescription = "Delete Plan" }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Plan")
+                        Icon(Icons.TwoTone.Delete, contentDescription = "Delete Plan")
                     }
                 }
             }

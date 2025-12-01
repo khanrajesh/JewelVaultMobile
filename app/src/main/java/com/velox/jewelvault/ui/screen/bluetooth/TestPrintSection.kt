@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Error
+import androidx.compose.material.icons.twotone.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -131,7 +131,7 @@ fun ProtocolTestButton(
         when (testState) {
             TestState.Idle -> {
                 Icon(
-                    imageVector = Icons.Default.Print,
+                    imageVector = Icons.TwoTone.Print,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -157,7 +157,7 @@ fun ProtocolTestButton(
             }
             TestState.Pass -> {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Icons.TwoTone.CheckCircle,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = Color.White
@@ -172,7 +172,7 @@ fun ProtocolTestButton(
             }
             TestState.Fail -> {
                 Icon(
-                    imageVector = Icons.Default.Error,
+                    imageVector = Icons.TwoTone.Error,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = Color.White
@@ -240,7 +240,7 @@ fun TestResultConfirmationDialog(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Icons.TwoTone.CheckCircle,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -256,7 +256,7 @@ fun TestResultConfirmationDialog(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Error,
+                    imageVector = Icons.TwoTone.Error,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

@@ -17,16 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -59,6 +50,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import java.io.File
+import android.os.Build
+import android.provider.DocumentsContract
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.ReceiptLong
 import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
@@ -122,135 +117,52 @@ fun openFileManager(context: android.content.Context, navController: NavHostCont
         if (!jewelVaultFolder.exists()) {
             jewelVaultFolder.mkdirs()
         }
-        
+
         android.util.Log.d("FileManager", "JewelVault folder path: ${jewelVaultFolder.absolutePath}")
         android.util.Log.d("FileManager", "JewelVault folder exists: ${jewelVaultFolder.exists()}")
-        
-        // Method 1: Try to open specific folder with file:// URI
-        try {
-            val intent = Intent(Intent.ACTION_VIEW)
-            val uri = Uri.fromFile(jewelVaultFolder)
-            intent.setDataAndType(uri, "resource/folder")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            android.util.Log.d("FileManager", "Trying file URI: $uri")
-            context.startActivity(intent)
-            
-            // Update selection state to dashboard
-            inputIconStates.forEach { it.selected = false }
-            inputIconStates.find { it.text == "Dashboard" }?.selected = true
-            
-            // Ensure user returns to dashboard when they come back
-            navController.navigate(SubScreens.Dashboard.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-            return
-        } catch (e: Exception) {
-            android.util.Log.d("FileManager", "File URI method failed: ${e.message}")
+
+        // Preferred: open system picker with initial location
+        val initialUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Uri.parse("content://com.android.externalstorage.documents/document/primary:Download")
+        } else {
+            null
         }
-        
-        // Method 2: Try with content:// URI for DocumentsUI
-        try {
-            val intent = Intent(Intent.ACTION_VIEW)
-            // Try different URI formats
-            val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload%2FJewelVault")
-            intent.setData(uri)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            android.util.Log.d("FileManager", "Trying content URI: $uri")
-            context.startActivity(intent)
-            
-            // Update selection state to dashboard
-            inputIconStates.forEach { it.selected = false }
-            inputIconStates.find { it.text == "Dashboard" }?.selected = true
-            
-            // Ensure user returns to dashboard when they come back
-            navController.navigate(SubScreens.Dashboard.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
+
+        val pickerIntent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+            initialUri?.let {
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, it)
             }
-            return
-        } catch (e: Exception) {
-            android.util.Log.d("FileManager", "Content URI method failed: ${e.message}")
         }
-        
-        // Method 3: Try with different content URI format
+
+        val fallbackIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "*/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
         try {
-            val intent = Intent(Intent.ACTION_VIEW)
-            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ADownload%2FJewelVault")
-            intent.setData(uri)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            android.util.Log.d("FileManager", "Trying tree URI: $uri")
-            context.startActivity(intent)
-            
-            // Update selection state to dashboard
-            inputIconStates.forEach { it.selected = false }
-            inputIconStates.find { it.text == "Dashboard" }?.selected = true
-            
-            // Ensure user returns to dashboard when they come back
-            navController.navigate(SubScreens.Dashboard.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-            return
+            context.startActivity(pickerIntent)
         } catch (e: Exception) {
-            android.util.Log.d("FileManager", "Tree URI method failed: ${e.message}")
+            android.util.Log.d("FileManager", "Document tree picker failed: ${e.message}")
+            context.startActivity(Intent.createChooser(fallbackIntent, "Select a file"))
         }
-        
-        // Method 4: Try to open Downloads folder as fallback
-        try {
-            val downloadsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val intent = Intent(Intent.ACTION_VIEW)
-            val uri = Uri.fromFile(downloadsFolder)
-            intent.setDataAndType(uri, "resource/folder")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            android.util.Log.d("FileManager", "Trying Downloads folder: $uri")
-            context.startActivity(intent)
-            
-            // Update selection state to dashboard
-            inputIconStates.forEach { it.selected = false }
-            inputIconStates.find { it.text == "Dashboard" }?.selected = true
-            
-            // Ensure user returns to dashboard when they come back
-            navController.navigate(SubScreens.Dashboard.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
+
+        // Update selection state to dashboard
+        inputIconStates.forEach { it.selected = false }
+        inputIconStates.find { it.text == "Dashboard" }?.selected = true
+
+        // Ensure user returns to dashboard when they come back
+        navController.navigate(SubScreens.Dashboard.route) {
+            popUpTo(SubScreens.Dashboard.route) {
+                inclusive = true
             }
-            return
-        } catch (e: Exception) {
-            android.util.Log.d("FileManager", "Downloads folder method failed: ${e.message}")
         }
-        
-        // Method 5: Try with generic file manager
-        try {
-            val intent = Intent(Intent.ACTION_GET_CONTENT)
-            intent.type = "*/*"
-            intent.addCategory(Intent.CATEGORY_OPENABLE)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            android.util.Log.d("FileManager", "Trying generic file manager")
-            context.startActivity(Intent.createChooser(intent, "Open File Manager"))
-            
-            // Update selection state to dashboard
-            inputIconStates.forEach { it.selected = false }
-            inputIconStates.find { it.text == "Dashboard" }?.selected = true
-            
-            // Ensure user returns to dashboard when they come back
-            navController.navigate(SubScreens.Dashboard.route) {
-                popUpTo(SubScreens.Dashboard.route) {
-                    inclusive = true
-                }
-            }
-            return
-        } catch (e: Exception) {
-            android.util.Log.d("FileManager", "Generic file manager method failed: ${e.message}")
-        }
-        
-        // If all methods fail, show error
-        android.util.Log.e("FileManager", "All file manager methods failed")
-        
     } catch (e: Exception) {
         android.util.Log.e("FileManager", "Error opening file manager: ${e.message}")
     }
@@ -265,7 +177,7 @@ fun MainScreen() {
 
     val inputIconStates = mutableListOf(
         InputIconState(
-            "Dashboard", Icons.Default.Dashboard,
+            "Dashboard", Icons.TwoTone.Dashboard,
             selected = true
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
@@ -275,7 +187,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Inventory", Icons.Default.Inventory
+            "Inventory", Icons.TwoTone.Warehouse
         ) {
             subNavController.navigate(SubScreens.Inventory.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -284,7 +196,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Customers", Icons.Default.People
+            "Customers", Icons.TwoTone.People
         ) {
             subNavController.navigate(SubScreens.Customers.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -293,7 +205,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Ledger", Icons.Default.AccountBalance
+            "Ledger", Icons.AutoMirrored.TwoTone.ReceiptLong
         ) {
             subNavController.navigate(SubScreens.OrderAndPurchase.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -302,7 +214,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Audit", Icons.Default.QrCodeScanner
+            "Audit", Icons.TwoTone.AssuredWorkload
         ) {
             subNavController.navigate(SubScreens.Audit.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -311,12 +223,12 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "File Manager", Icons.Default.Folder
+            "File Manager", Icons.TwoTone.RuleFolder
         ) {
             // This will be handled after inputIconStates is created
         },
         InputIconState(
-            "Bluetooth Printing", Icons.Default.Print
+            "Device", Icons.TwoTone.Print
         ) {
             subNavController.navigate(SubScreens.BluetoothScanConnect.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -325,7 +237,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Setting", Icons.Default.Settings
+            "Setting", Icons.TwoTone.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -381,7 +293,7 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
                             drawerState.open() // Open drawer on button click
                         }
                     }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        Icon(Icons.TwoTone.Menu, contentDescription = "Menu")
                     }
                 }, colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -414,6 +326,14 @@ private fun LandscapeDashboardScreen(
 
     TabNavigationDrawer(
         drawerState = drawerState,
+        onGuideClick = {
+            inputIconStates.forEach { it.selected = false }
+            baseViewModel.currentScreenHeading = "Guide & Feedback"
+            subNavController.navigate(SubScreens.Guide.route) {
+                popUpTo(SubScreens.Dashboard.route) { inclusive = false }
+                launchSingleTop = true
+            }
+        },
         content = {
             SubAppNavigation(
                 subNavController,

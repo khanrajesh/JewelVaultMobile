@@ -16,15 +16,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.twotone.ArrowForward
+import androidx.compose.material.icons.twotone.AccountBalance
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Book
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Clear
+import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Search
+import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -107,22 +107,22 @@ fun CustomerScreen(
                 placeholderText = "Search By No",
                 modifier = Modifier.width(300.dp),
                 keyboardType = KeyboardType.Phone,
-                trailingIcon = Icons.Default.Search,
+                trailingIcon = Icons.TwoTone.Search,
                 onTrailingIconClick = {
                     viewModel.searchCustomers(searchQuery.text)
                 },
                 validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
-                leadingIcon = Icons.Default.Clear,
+                leadingIcon = Icons.TwoTone.Clear,
                 onLeadingIconClick = {
                     searchQuery.text = ""
                     viewModel.loadCustomerData()
                 })
 
             IconButton(onClick = { showKhataBookPlans = true }) {
-                Icon(Icons.Default.Book, contentDescription = "Khata Book Plans")
+                Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
             }
             IconButton(onClick = { showAddCustomerDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Customer")
+                Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
             }
         }
         LazyColumn(
@@ -200,27 +200,27 @@ fun CustomerStatisticsCard(modifier: Modifier, viewModel: CustomerViewModel) {
                 StatisticItem(
                     label = "Customers",
                     value = viewModel.totalCustomers.value.toString(),
-                    icon = Icons.Default.People
+                    icon = Icons.TwoTone.People
                 )
                 StatisticItem(
                     label = "Outstanding Balance",
                     value = formatCurrency(viewModel.totalOutstandingAmount.value),
-                    icon = Icons.Default.AccountBalance
+                    icon = Icons.TwoTone.AccountBalance
                 )
                 StatisticItem(
                     label = "Month's Expected Khata",
                     value = formatCurrency(viewModel.currentMonthKhataBookPayments.value),
-                    icon = Icons.Default.CheckCircle
+                    icon = Icons.TwoTone.CheckCircle
                 )
                 StatisticItem(
                     label = "Total Khata Paid",
                     value = formatCurrency(viewModel.totalKhataBookPaidAmount.value),
-                    icon = Icons.Default.Book
+                    icon = Icons.TwoTone.Book
                 )
                 StatisticItem(
                     label = "Active Khata",
                     value = viewModel.activeKhataBookCustomersCount.value.toString(),
-                    icon = Icons.Default.Warning
+                    icon = Icons.TwoTone.Warning
                 )
             }
         }
@@ -373,7 +373,7 @@ fun CustomerCard(
                     Column {
                         if (customer.outstandingBalance > 0) {
                             Icon(
-                                imageVector = Icons.Default.Warning,
+                                imageVector = Icons.TwoTone.Warning,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)
@@ -383,7 +383,7 @@ fun CustomerCard(
 
                         if (customer.hasKhataBook) {
                             Icon(
-                                imageVector = Icons.Default.Book,
+                                imageVector = Icons.TwoTone.Book,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(16.dp)
@@ -396,7 +396,7 @@ fun CustomerCard(
                 Spacer(modifier = Modifier.width(4.dp))
 
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    imageVector = Icons.AutoMirrored.TwoTone.ArrowForward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)

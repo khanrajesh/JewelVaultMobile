@@ -7,18 +7,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CloudCircle
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.twotone.DeleteForever
+import androidx.compose.material.icons.twotone.Lock
+import androidx.compose.material.icons.twotone.Refresh
+import androidx.compose.material.icons.twotone.Sms
+import androidx.compose.material.icons.twotone.Settings
+import androidx.compose.material.icons.twotone.Business
+import androidx.compose.material.icons.twotone.Wifi
+import androidx.compose.material.icons.twotone.Security
+import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.ChevronRight
+import androidx.compose.material.icons.twotone.CloudCircle
+import androidx.compose.material.icons.twotone.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,14 +56,13 @@ fun SettingScreen() {
             }
         }
     }
-
     // Handle data wipe completion
-    LaunchedEffect(baseViewModel.snackBarState) {
-        if (baseViewModel.snackBarState.contains("All data wiped successfully")) {
-            // Navigate to login screen after successful data wipe
+    LaunchedEffect(baseViewModel.wipeCompleted.value) {
+        if (baseViewModel.wipeCompleted.value) {
             mainNavController.navigate(Screens.Login.route) {
                 popUpTo(0) { inclusive = true }
             }
+            baseViewModel.wipeCompleted.value = false
         }
     }
     
@@ -94,7 +93,7 @@ fun SettingScreen() {
             ) {
                 // Network Settings
                 item {
-                    SettingsSectionHeader("Network & Connectivity", Icons.Default.Wifi)
+                    SettingsSectionHeader("Network & Connectivity", Icons.TwoTone.Wifi)
                 }
                 
                 item {
@@ -126,7 +125,7 @@ fun SettingScreen() {
 
                 // Business Settings
                 item {
-                    SettingsSectionHeader("Business Settings", Icons.Default.Business)
+                    SettingsSectionHeader("Business Settings", Icons.TwoTone.Business)
                 }
                 
                 item {
@@ -158,7 +157,7 @@ fun SettingScreen() {
 
                 // Security Settings
                 item {
-                    SettingsSectionHeader("Security", Icons.Default.Security)
+                    SettingsSectionHeader("Security", Icons.TwoTone.Security)
                 }
                 
                 item {
@@ -192,13 +191,13 @@ fun SettingScreen() {
 
                 // Data Management
                 item {
-                    SettingsSectionHeader("Data Management", Icons.Default.Settings)
+                    SettingsSectionHeader("Data Management", Icons.TwoTone.Settings)
                 }
                 item {
                     SettingsActionItem(
                         title = "Export App Data",
                         subtitle = "Export all data to xlsx file",
-                        icon = Icons.Default.CloudCircle,
+                        icon = Icons.TwoTone.CloudCircle,
                         onClick = {
                             subNavController.navigate(SubScreens.BackUpSetting.route)
                         }
@@ -209,7 +208,7 @@ fun SettingScreen() {
                     SettingsActionItem(
                         title = "Reset App Preferences",
                         subtitle = "Reset all settings to default",
-                        icon = Icons.Default.Refresh,
+                        icon = Icons.TwoTone.Refresh,
                         onClick = {
                             baseViewModel.resetAppPreferences()
                         }
@@ -220,7 +219,7 @@ fun SettingScreen() {
                     SettingsActionItem(
                         title = "Wipe All Data",
                         subtitle = "Delete all data and return to login",
-                        icon = Icons.Default.DeleteForever,
+                        icon = Icons.TwoTone.DeleteForever,
                         onClick = { baseViewModel.showDataWipeConfirmation.value = true },
                         isDestructive = true
                     )
@@ -228,14 +227,14 @@ fun SettingScreen() {
 
                 // Legal & Support
                 item {
-                    SettingsSectionHeader("Legal & Support", Icons.Default.Info)
+                    SettingsSectionHeader("Legal & Support", Icons.TwoTone.Info)
                 }
                 
                 item {
                     SettingsActionItem(
                         title = "Privacy Policy",
                         subtitle = "View our privacy policy",
-                        icon = Icons.Default.Security,
+                        icon = Icons.TwoTone.Security,
                         onClick = {
                             subNavController.navigate(SubScreens.PrivacyPolicy.route)
                         }
@@ -246,7 +245,7 @@ fun SettingScreen() {
                     SettingsActionItem(
                         title = "Terms & Conditions",
                         subtitle = "View terms and conditions",
-                        icon = Icons.Default.Description,
+                        icon = Icons.TwoTone.Description,
                         onClick = {
                             subNavController.navigate(SubScreens.TermsAndConditions.route)
                         }
@@ -255,7 +254,7 @@ fun SettingScreen() {
                 
                 // About & Support
                 item {
-                    SettingsSectionHeader("About & Support", Icons.Default.Info)
+                    SettingsSectionHeader("About & Support", Icons.TwoTone.Info)
                 }
                 
                 item {
@@ -269,7 +268,7 @@ fun SettingScreen() {
                     SettingsActionItem(
                         title = "Check for Updates",
                         subtitle = "Check for app updates",
-                        icon = Icons.Default.Refresh,
+                        icon = Icons.TwoTone.Refresh,
                         onClick = { 
                             baseViewModel.checkForUpdates(context, forceCheck = true)
                         }
@@ -316,6 +315,7 @@ fun SettingScreen() {
         OtpVerificationDialog(
             onOtpSubmit = { otp -> baseViewModel.verifyOtpForWipe(otp) },
             onDismiss = { baseViewModel.showOtpVerificationDialog.value = false },
+            onResend = { baseViewModel.resendOtpForWipe() },
             isLoading = baseViewModel.isWipeInProgress.value
         )
     }
@@ -530,7 +530,7 @@ fun SettingsActionItem(
                 )
             }
             Icon(
-                imageVector = Icons.Filled.ChevronRight,
+                imageVector = Icons.TwoTone.ChevronRight,
                 contentDescription = "Navigate",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -595,7 +595,7 @@ fun PinVerificationDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    imageVector = Icons.Default.Lock,
+                    imageVector = Icons.TwoTone.Lock,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -679,6 +679,7 @@ fun PinVerificationDialog(
 fun OtpVerificationDialog(
     onOtpSubmit: (String) -> Unit,
     onDismiss: () -> Unit,
+    onResend: () -> Unit,
     isLoading: Boolean
 ) {
     var otp by remember { mutableStateOf("") }
@@ -705,7 +706,7 @@ fun OtpVerificationDialog(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Filled.Sms,
+                        imageVector = Icons.TwoTone.Sms,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary
@@ -757,6 +758,13 @@ fun OtpVerificationDialog(
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    TextButton(
+                        onClick = onResend,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Resend OTP")
+                    }
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),

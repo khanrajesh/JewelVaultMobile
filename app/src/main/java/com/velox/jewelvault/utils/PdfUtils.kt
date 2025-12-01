@@ -46,6 +46,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.CalculationUtils
 
 // PdfUtils.kt
 
@@ -2116,12 +2117,12 @@ fun generateEstimatePdf(
     tableCellRightAlignPaint.isFakeBoldText = true // Make totals bold
 
     // Calculate total Qty (if applicable), Taxable, CGST, SGST, Grand Total
-    val totalQty = items.sumOf { it.gsWt } // Example: sum of weights
-    val totalTaxableValue =
-        items.sumOf { it.price - (it.cgst + it.sgst) } // Recalculate if price includes tax - TODO: Use CalculationUtils
+    val totalQty = items.sumOf { it.gsWt }
+    val summaryTotals = CalculationUtils.summaryTotals(items)
+    val totalTaxableValue = summaryTotals.totalPriceBeforeTax
     val totalCGST = items.sumOf { it.cgst }
     val totalSGST = items.sumOf { it.sgst }
-    val grandTotal = items.sumOf { it.price }
+    val grandTotal = summaryTotals.grandTotal
 
 
     currentX = margin + colWidths[0] + colWidths[1] + colWidths[2] // Start after HSN

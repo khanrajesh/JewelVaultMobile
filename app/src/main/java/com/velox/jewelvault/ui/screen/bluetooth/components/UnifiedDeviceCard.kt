@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Bluetooth
+import androidx.compose.material.icons.twotone.Close
+import androidx.compose.material.icons.twotone.LinkOff
+import androidx.compose.material.icons.twotone.Print
+import androidx.compose.material.icons.twotone.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -109,7 +109,7 @@ fun UnifiedDeviceCard(
                     // Saved Printer Badge
                     if (isSavedPrinter) {
                         Icon(
-                            imageVector = Icons.Default.Star,
+                            imageVector = Icons.TwoTone.Star,
                             contentDescription = "Saved Printer",
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
@@ -265,7 +265,7 @@ fun UnifiedDeviceCard(
                             enabled = true
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Print,
+                                imageVector = Icons.TwoTone.Print,
                                 contentDescription = "Add as Printer",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -283,11 +283,11 @@ fun UnifiedDeviceCard(
                 ) {
                     Icon(
                         imageVector = when (category) {
-                            DeviceCategory.CONNECTED -> Icons.Default.Bluetooth
-                            DeviceCategory.CONNECTING -> Icons.Default.Close
-                            DeviceCategory.SAVED_PRINTER -> Icons.Default.Bluetooth
-                            DeviceCategory.PAIRED -> Icons.Default.Bluetooth
-                            DeviceCategory.DISCOVERED -> Icons.Default.Add
+                            DeviceCategory.CONNECTED -> Icons.TwoTone.Bluetooth
+                            DeviceCategory.CONNECTING -> Icons.TwoTone.Close
+                            DeviceCategory.SAVED_PRINTER -> Icons.TwoTone.Bluetooth
+                            DeviceCategory.PAIRED -> Icons.TwoTone.Bluetooth
+                            DeviceCategory.DISCOVERED -> Icons.TwoTone.Add
                         },
                         contentDescription = when (category) {
                             DeviceCategory.CONNECTED -> "Manage Device"
@@ -314,7 +314,7 @@ fun UnifiedDeviceCard(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.TwoTone.Close,
                                 contentDescription = "Disconnect",
                                 tint = when {
                                     isSavedPrinter -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -329,7 +329,7 @@ fun UnifiedDeviceCard(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                imageVector = Icons.TwoTone.Close,
                                 contentDescription = "Cancel Connection",
                                 tint = MaterialTheme.colorScheme.error
                             )
@@ -344,7 +344,7 @@ fun UnifiedDeviceCard(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.LinkOff,
+                                imageVector = Icons.TwoTone.LinkOff,
                                 contentDescription = "Forget Device",
                                 tint = MaterialTheme.colorScheme.error
                             )

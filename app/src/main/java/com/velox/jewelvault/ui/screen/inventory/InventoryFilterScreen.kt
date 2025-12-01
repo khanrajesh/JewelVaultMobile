@@ -23,9 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.twotone.KeyboardArrowDown
+import androidx.compose.material.icons.twotone.KeyboardArrowUp
+import androidx.compose.material.icons.twotone.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -68,7 +68,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.twotone.Sort
 import androidx.compose.runtime.MutableState
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
@@ -539,7 +539,7 @@ private fun HeaderSection(
 
                 IconButton(onClick = onSortMenuToggle) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Sort,
+                        imageVector = Icons.AutoMirrored.TwoTone.Sort,
                         contentDescription = "Sort",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -597,7 +597,7 @@ private fun HeaderSection(
                     )
                     Spacer(Modifier.width(20.dp))
                     Icon(
-                        imageVector = if (isFilterPanelExpanded.value) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        imageVector = if (isFilterPanelExpanded.value) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                         contentDescription = if (isFilterPanelExpanded.value) "Collapse filters" else "Expand filters",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -622,7 +622,7 @@ private fun HeaderSection(
                         onClick = { onPrint(exportedFileUri!!) }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Print,
+                            imageVector = Icons.TwoTone.Print,
                             contentDescription = "Print",
                             modifier = Modifier.padding(end = 4.dp)
                         )

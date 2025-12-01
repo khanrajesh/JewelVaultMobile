@@ -10,13 +10,17 @@ import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
+import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
+import com.velox.jewelvault.data.roomdb.entity.label.LabelTemplateEntity
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.PrintUtils
+import com.velox.jewelvault.utils.label.LabelPrintGenerator
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -61,6 +65,36 @@ class ManagePrintersViewModel @Inject constructor(
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
         initialValue = emptyMap()
     )
+
+    /**
+     * Print a label template (current canvas) to the connected printer
+     */
+    fun printLabelTemplate(
+        context: Context,
+        template: LabelTemplateEntity,
+        elements: List<LabelElementEntity>,
+        data: Map<String, Any> = emptyMap()
+    ) {
+        viewModelScope.launch {
+            val connected = bleManager.connectedDevices.value.firstOrNull()
+            if (connected == null) {
+                _snackBarState.value = "No connected printer found"
+                return@launch
+            }
+            val address = connected.address
+            val printerName = savedPrinters.value.find { it.address == address }?.name ?: address
+            _snackBarState.value = "Printing test label on $printerName..."
+            try {
+                val generator = LabelPrintGenerator(context.applicationContext)
+                val payload = generator.generatePrintData(template, elements, data, template.printLanguage)
+                val success = bleManager.sendPrintData(address, payload)
+                _snackBarState.value = if (success) "Test label sent to $printerName" else "Failed to send label to $printerName"
+            } catch (e: Exception) {
+                log("printLabelTemplate error: ${e.message}")
+                _snackBarState.value = "Error printing: ${e.message}"
+            }
+        }
+    }
 
     /**
      * Test print with different protocols
@@ -151,6 +185,7 @@ class ManagePrintersViewModel @Inject constructor(
         item.addDesValue
 
         val context = context1.applicationContext
+        val qrData = PrintUtils.buildItemQrPayload(item)
         // Build TSPL content: prefer native QRCODE when QR is provided
         val qrCommand = try {
             log("generateTsplItemLabel: logo uri=$qrUri")
@@ -175,8 +210,9 @@ class ManagePrintersViewModel @Inject constructor(
                         val qrX = 340
                         val qrY = mm(1)
                         // Use widely-supported TSPL syntax: QRCODE x,y,M,cell,A,rotation,"data"
-                        val cell = 4
-                        val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"${item.itemId}\""
+                        // Keep physical size small (approx 10mm) by using a small cell size
+                        val cell = 3
+                        val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"$qrData\""
                         log("generateTsplItemLabel: using native QRCODE command: ${qrCmd.length} chars")
                         qrCmd
                     } else {
@@ -187,14 +223,22 @@ class ManagePrintersViewModel @Inject constructor(
                             xDots = qrX,
                             yDots = qrY,
                             name = "GQR",
-                            targetSizeMm = 8,
+                            targetSizeMm = 10,
                             threshold = 140
                         )
                         log("generateTsplItemLabel: qr bitmap fallback cmd length=${cmd.length}")
                         cmd
                     }
                 } else ""
-            } else ""
+            } else {
+                val qrX = 340
+                val qrY = mm(1)
+                // Small cell size to keep within ~10mm
+                val cell = 3
+                val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"$qrData\""
+                log("generateTsplItemLabel: using native QRCODE command (no bitmap): ${qrCmd.length} chars")
+                qrCmd
+            }
         } catch (t: Throwable) {
             log("generateTsplItemLabel: logo error=${t.message}")
             ""
@@ -512,6 +556,126 @@ class ManagePrintersViewModel @Inject constructor(
             } catch (e: Exception) {
                 log("Error disconnecting printer: ${e.message}")
                 _snackBarState.value = "Failed to disconnect printer: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Print label using a template
+     */
+    fun printLabelWithTemplate(
+        template: LabelTemplateEntity,
+        elements: List<LabelElementEntity>,
+        item: ItemEntity,
+        context1: Context
+    ) {
+        viewModelScope.launch {
+            try {
+                val connected = bleManager.connectedDevices.value.firstOrNull()
+                if (connected == null) {
+                    _snackBarState.value = "No connected printer found"
+                    return@launch
+                }
+                val address = connected.address
+                val printerName = savedPrinters.value.find { it.address == address }?.name ?: address
+                _snackBarState.value = "Printing label on $printerName..."
+
+                val printGenerator = LabelPrintGenerator(context1.applicationContext)
+
+                // Determine best language for this printer
+                val preferred = resolvePrinterLanguage(address, template.printLanguage)
+                val candidates = linkedSetOf(
+                    preferred.uppercase(),
+                    template.printLanguage.uppercase(),
+                    "TSPL", "CPCL", "PPLB", "ESC"
+                )
+
+                var sent = false
+                var usedLanguage: String? = null
+                // Load a store for bindings (first store if any)
+                val store = try { appDatabase.storeDao().getAllStores().firstOrNull() } catch (_: Exception) { null }
+
+                for (lang in candidates) {
+                    val data = printGenerator.generatePrintData(
+                        template = template,
+                        elements = elements,
+                        data = buildMap<String, Any> {
+                            put("item", item)
+                            if (store != null) put("store", store)
+                        },
+                        language = lang
+                    )
+                    val ok = bleManager.sendPrintData(address, data)
+                    if (ok) {
+                        sent = true
+                        usedLanguage = lang
+                        break
+                    }
+                }
+
+                if (sent && usedLanguage != null) {
+                    // Remember working language for this printer
+                    try {
+                        addSupportedLanguage(address, usedLanguage)
+                        appDatabase.printerDao().updateCurrentLanguage(address, usedLanguage)
+                    } catch (_: Exception) {}
+                    _snackBarState.value = "✅ Label sent to $printerName ($usedLanguage)"
+                } else {
+                    _snackBarState.value = "❌ Failed to print on $printerName. Try another language."
+                }
+            } catch (e: Exception) {
+                log("Error printing label: ${e.message}")
+                _snackBarState.value = "❌ Error printing label: ${e.message}"
+            }
+        }
+    }
+
+    private suspend fun resolvePrinterLanguage(address: String, templateLanguage: String): String {
+        val printer = appDatabase.printerDao().getPrinterByAddress(address)
+        printer?.currentLanguage?.let { return it }
+        val supported = try {
+            printer?.supportedLanguages?.let {
+                kotlinx.serialization.json.Json.decodeFromString<List<String>>(it)
+            }
+        } catch (_: Exception) { null } ?: emptyList()
+
+        val normalized = supported.map { it.uppercase() }
+        val templateLang = templateLanguage.uppercase()
+        return when {
+            normalized.contains(templateLang) -> templateLang
+            normalized.contains("TSPL") -> "TSPL"
+            normalized.contains("CPCL") -> "CPCL"
+            normalized.contains("PPLB") -> "PPLB"
+            normalized.contains("ESC") -> "ESC"
+            else -> templateLang
+        }
+    }
+
+    /**
+     * Print item using the default template. If only one template exists, treat it as default.
+     */
+    fun printItemWithDefaultTemplate(item: ItemEntity, context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val templates = appDatabase.labelTemplateDao().getAllTemplates().first()
+                if (templates.isEmpty()) {
+                    _snackBarState.value = "No label templates found"
+                    return@launch
+                }
+                val chosen = templates.firstOrNull { it.isDefault } ?: if (templates.size == 1) templates[0] else null
+                if (chosen == null) {
+                    _snackBarState.value = "Select a default template first"
+                    return@launch
+                }
+                val elements = appDatabase.labelElementDao().getElementsByTemplateIdSync(chosen.templateId)
+                if (elements.isEmpty()) {
+                    _snackBarState.value = "Template has no elements"
+                    return@launch
+                }
+                printLabelWithTemplate(chosen, elements, item, context)
+            } catch (e: Exception) {
+                log("Error printing with default template: ${e.message}")
+                _snackBarState.value = "Failed to print: ${e.message}"
             }
         }
     }

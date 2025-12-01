@@ -8,16 +8,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.DeviceHub
-import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Mouse
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.Smartphone
-import androidx.compose.material.icons.filled.Speaker
+import androidx.compose.material.icons.automirrored.twotone.BluetoothSearching
+import androidx.compose.material.icons.twotone.Bluetooth
+import androidx.compose.material.icons.twotone.DeviceHub
+import androidx.compose.material.icons.twotone.Devices
+import androidx.compose.material.icons.twotone.Headset
+import androidx.compose.material.icons.twotone.Keyboard
+import androidx.compose.material.icons.twotone.Mouse
+import androidx.compose.material.icons.twotone.Print
+import androidx.compose.material.icons.twotone.Smartphone
+import androidx.compose.material.icons.twotone.Speaker
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -196,26 +196,26 @@ fun getDeviceIcon(device: BluetoothDeviceDetails, savedPrinters: List<PrinterEnt
     val deviceType = getDeviceType(device)
     
     return when (deviceType) {
-        DeviceType.PRINTER -> Icons.Default.Print
-        DeviceType.HEADPHONE -> Icons.Default.Headset
-        DeviceType.SPEAKER -> Icons.Default.Speaker
-        DeviceType.KEYBOARD -> Icons.Default.Keyboard
-        DeviceType.MOUSE -> Icons.Default.Mouse
-        DeviceType.WATCH -> Icons.Default.DeviceHub
-        DeviceType.SMARTPHONE -> Icons.Default.Smartphone
-        DeviceType.TABLET -> Icons.Default.Smartphone
-        DeviceType.TV -> Icons.Default.DeviceHub
-        DeviceType.CAR -> Icons.Default.DeviceHub
-        DeviceType.WEARABLE -> Icons.Default.DeviceHub
-        DeviceType.GAMEPAD -> Icons.Default.DeviceHub
-        DeviceType.CAMERA -> Icons.Default.DeviceHub
-        DeviceType.COMPUTER -> Icons.Default.DeviceHub
+        DeviceType.PRINTER -> Icons.TwoTone.Print
+        DeviceType.HEADPHONE -> Icons.TwoTone.Headset
+        DeviceType.SPEAKER -> Icons.TwoTone.Speaker
+        DeviceType.KEYBOARD -> Icons.TwoTone.Keyboard
+        DeviceType.MOUSE -> Icons.TwoTone.Mouse
+        DeviceType.WATCH -> Icons.TwoTone.DeviceHub
+        DeviceType.SMARTPHONE -> Icons.TwoTone.Smartphone
+        DeviceType.TABLET -> Icons.TwoTone.Smartphone
+        DeviceType.TV -> Icons.TwoTone.DeviceHub
+        DeviceType.CAR -> Icons.TwoTone.DeviceHub
+        DeviceType.WEARABLE -> Icons.TwoTone.DeviceHub
+        DeviceType.GAMEPAD -> Icons.TwoTone.DeviceHub
+        DeviceType.CAMERA -> Icons.TwoTone.DeviceHub
+        DeviceType.COMPUTER -> Icons.TwoTone.DeviceHub
         DeviceType.OTHER -> when (device.type) {
-            BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.Filled.BluetoothSearching
-            BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.Default.Bluetooth
-            BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.Default.Devices
-            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.Default.DeviceHub
-            else -> Icons.Default.DeviceHub
+            BluetoothDevice.DEVICE_TYPE_LE -> Icons.AutoMirrored.TwoTone.BluetoothSearching
+            BluetoothDevice.DEVICE_TYPE_CLASSIC -> Icons.TwoTone.Bluetooth
+            BluetoothDevice.DEVICE_TYPE_DUAL -> Icons.TwoTone.Devices
+            BluetoothDevice.DEVICE_TYPE_UNKNOWN -> Icons.TwoTone.DeviceHub
+            else -> Icons.TwoTone.DeviceHub
         }
     }
 }

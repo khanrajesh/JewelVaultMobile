@@ -33,10 +33,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.twotone.Clear
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.Refresh
+import androidx.compose.material.icons.twotone.Search
 import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.CameraAlt
 import androidx.compose.material3.ButtonDefaults
@@ -86,7 +86,6 @@ import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
-import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 import kotlinx.coroutines.launch
 
@@ -155,7 +154,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
                         )
                         Spacer(Modifier.weight(1f))
                         Icon(
-                            Icons.Default.Clear, null, modifier = Modifier
+                            Icons.TwoTone.Clear, null, modifier = Modifier
                                 .bounceClick {
                                     showQrBarScanner.value = false
                                 }
@@ -207,7 +206,7 @@ fun SellInvoiceLandscape(
                     }
                 }) {
                     Icon(
-                        imageVector = Icons.Default.Refresh, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
                 }
 
@@ -222,7 +221,7 @@ fun SellInvoiceLandscape(
                     showOption.value = !showOption.value
                 }) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.MoreVert, contentDescription = "Refresh"
                     )
                 }
             }
@@ -1239,7 +1238,7 @@ fun CustomerDetails(viewModel: InvoiceViewModel) {
                     viewModel.customerMobile,
                     placeholderText = "Mobile No",
                     modifier = Modifier.weight(1f),
-                    trailingIcon = Icons.Default.Search,
+                    trailingIcon = Icons.TwoTone.Search,
                     onTrailingIconClick = {
                         viewModel.getCustomerByMobile()
                     },
