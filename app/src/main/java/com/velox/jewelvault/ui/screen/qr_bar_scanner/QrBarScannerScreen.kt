@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.twotone.Clear
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -77,7 +77,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                     )
 
                     Icon(
-                        Icons.Default.Clear,
+                        Icons.TwoTone.Clear,
                         null,
                         modifier = Modifier
                             .bounceClick { navHost.popBackStack() }
@@ -86,7 +86,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                     Spacer(Modifier.width(8.dp))
                     Box {
                         Icon(
-                            Icons.Default.MoreVert,
+                            Icons.TwoTone.MoreVert,
                             contentDescription = "More",
                             modifier = Modifier
                                 .size(32.dp)
@@ -138,7 +138,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                                     ) {
                                         if (deleteModeEnabled) {
                                             Icon(
-                                                Icons.Default.Delete,
+                                                Icons.TwoTone.Delete,
                                                 null,
                                                 modifier = Modifier
                                                     .bounceClick {

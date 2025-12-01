@@ -22,13 +22,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.twotone.BugReport
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Email
+import androidx.compose.material.icons.twotone.KeyboardArrowDown
+import androidx.compose.material.icons.twotone.KeyboardArrowUp
+import androidx.compose.material.icons.twotone.Lightbulb
+import androidx.compose.material.icons.twotone.Phone
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -103,7 +103,7 @@ fun GuideScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Lightbulb,
+                    imageVector = Icons.TwoTone.Lightbulb,
                     contentDescription = "Feedback toggle",
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -123,7 +123,7 @@ fun GuideScreen(
                 Spacer(Modifier.weight(1f))
                 Icon(
                     imageVector = if (feedbackExpandedState.value)
-                        Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                     contentDescription = null
                 )
             }
@@ -182,7 +182,7 @@ private fun FeedbackCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Lightbulb,
+                    imageVector = Icons.TwoTone.Lightbulb,
                     contentDescription = "Feedback",
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -238,7 +238,7 @@ private fun FeedbackCard(
                         leadingIcon = {
                             if (type.contains("Crash")) {
                                 Icon(
-                                    imageVector = Icons.Default.BugReport,
+                                    imageVector = Icons.TwoTone.BugReport,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -283,7 +283,7 @@ private fun FeedbackCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = Icons.TwoTone.CheckCircle,
                         contentDescription = "Questionnaire",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -350,7 +350,7 @@ private fun ContactUsCard() {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Phone,
+                        imageVector = Icons.TwoTone.Phone,
                         contentDescription = "Phone",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -365,7 +365,7 @@ private fun ContactUsCard() {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Email,
+                        imageVector = Icons.TwoTone.Email,
                         contentDescription = "Email",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(18.dp)
@@ -409,7 +409,7 @@ private fun GuideSectionCard(
                     modifier = Modifier.weight(1f)
                 )
                 Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (expanded) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                     contentDescription = if (expanded) "Collapse" else "Expand"
                 )
             }

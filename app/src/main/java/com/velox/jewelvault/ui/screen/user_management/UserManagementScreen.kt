@@ -13,11 +13,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Edit
+import androidx.compose.material.icons.twotone.Person
+import androidx.compose.material.icons.twotone.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,7 +77,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
             IconButton(
                 onClick = { userManagementViewModel.syncUsersFromFirestore() }
             ) {
-                Icon(Icons.Default.Sync, contentDescription = "Sync from Cloud")
+                Icon(Icons.TwoTone.Sync, contentDescription = "Sync from Cloud")
             }
             IconButton(
                 onClick = {
@@ -86,7 +86,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
                     showAddEditDialog = true
                 }
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add User")
+                Icon(Icons.TwoTone.Add, contentDescription = "Add User")
             }
         }
 
@@ -215,7 +215,7 @@ fun UserCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Person,
+                        imageVector = Icons.TwoTone.Person,
                         contentDescription = null,
                         modifier = Modifier
                             .size(40.dp)
@@ -278,7 +278,7 @@ fun UserCard(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.TwoTone.Edit,
                                 contentDescription = "Edit",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
@@ -312,7 +312,7 @@ fun UserCard(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Delete,
+                                imageVector = Icons.TwoTone.Delete,
                                 contentDescription = "Delete",
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)

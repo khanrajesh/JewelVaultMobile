@@ -19,9 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.automirrored.twotone.BluetoothSearching
+import androidx.compose.material.icons.automirrored.twotone.Label
+import androidx.compose.material.icons.twotone.Bluetooth
+import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,10 +43,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.twotone.BluetoothDisabled
+import androidx.compose.material.icons.twotone.Link
+import androidx.compose.material.icons.twotone.PlayArrow
+import androidx.compose.material.icons.twotone.Stop
+import androidx.compose.material.icons.twotone.Label
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -147,9 +149,9 @@ fun ScanConnectScreen(
                 ) {
                     Icon(
                         imageVector = when {
-                            !isBluetoothEnabled -> Icons.Default.BluetoothDisabled
-                            isDiscovering -> Icons.AutoMirrored.Filled.BluetoothSearching
-                            else -> Icons.Default.Bluetooth
+                            !isBluetoothEnabled -> Icons.TwoTone.BluetoothDisabled
+                            isDiscovering -> Icons.AutoMirrored.TwoTone.BluetoothSearching
+                            else -> Icons.TwoTone.Bluetooth
                         }, contentDescription = null, modifier = Modifier.size(24.dp), tint = when {
                             !isBluetoothEnabled -> MaterialTheme.colorScheme.onErrorContainer
                             isDiscovering -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -183,7 +185,7 @@ fun ScanConnectScreen(
                 )
             ) {
                 Icon(
-                    imageVector = if (isDiscovering) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    imageVector = if (isDiscovering) Icons.TwoTone.Stop else Icons.TwoTone.PlayArrow,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -201,7 +203,7 @@ fun ScanConnectScreen(
                 onClick = { viewModel.refreshAllDeviceLists() }, modifier = Modifier
             ) {
                 Icon(
-                    imageVector = Icons.Default.Link,
+                    imageVector = Icons.TwoTone.Link,
                     contentDescription = "Refresh Connected Devices",
                     modifier = Modifier.size(18.dp)
                 )
@@ -212,16 +214,13 @@ fun ScanConnectScreen(
                 modifier = Modifier
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.AutoMirrored.TwoTone.Label,
                     contentDescription = "Label Templates",
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Labels")
             }
- 
-            
-
         }
 
         LazyColumn(
@@ -526,7 +525,7 @@ fun ScanConnectScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.BluetoothSearching,
+                                imageVector = Icons.AutoMirrored.TwoTone.BluetoothSearching,
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -655,7 +654,7 @@ fun AddPrinterDialog(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.TwoTone.Add,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )

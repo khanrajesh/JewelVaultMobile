@@ -2,7 +2,7 @@ package com.velox.jewelvault.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.twotone.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,7 +43,7 @@ fun BiometricAuthDialog(
             ) {
                 // Fingerprint Icon
                 Icon(
-                    imageVector = Icons.Default.Fingerprint,
+                    imageVector = Icons.TwoTone.Fingerprint,
                     contentDescription = "Biometric",
                     modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary

@@ -5,9 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.twotone.Close
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -90,7 +90,7 @@ fun ExchangeItemDialog(
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.TwoTone.Close, contentDescription = "Close")
                     }
                 }
                 
@@ -164,7 +164,7 @@ fun ExchangeItemDialog(
                                         }
                                     ) {
                                         Icon(
-                                            Icons.Default.Edit,
+                                            Icons.TwoTone.Edit,
                                             contentDescription = "Edit",
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -176,7 +176,7 @@ fun ExchangeItemDialog(
                                         }
                                     ) {
                                         Icon(
-                                            Icons.Default.Delete,
+                                            Icons.TwoTone.Delete,
                                             contentDescription = "Delete",
                                             tint = Color.Red
                                         )

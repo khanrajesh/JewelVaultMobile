@@ -23,12 +23,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Pentagon
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.automirrored.twotone.TrendingUp
+import androidx.compose.material.icons.twotone.Analytics
+import androidx.compose.material.icons.twotone.Category
+import androidx.compose.material.icons.twotone.Pentagon
+import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Scale
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -268,7 +268,7 @@ fun LandscapeMainScreen(
                         }
 
                         Icon(
-                            imageVector = Icons.Default.Pentagon,
+                            imageVector = Icons.TwoTone.Pentagon,
                             contentDescription = null,
                             modifier = Modifier
                                 .bounceClick {
@@ -390,7 +390,7 @@ fun CategorySales(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.Category,
+                imageVector = Icons.TwoTone.Category,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -477,7 +477,7 @@ fun TopFiveSales(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                imageVector = Icons.AutoMirrored.TwoTone.TrendingUp,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -584,7 +584,7 @@ fun FlowOverView(
         ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.Analytics,
+                imageVector = Icons.TwoTone.Analytics,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -657,7 +657,7 @@ fun CustomerOverview(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.People,
+                imageVector = Icons.TwoTone.People,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
                 tint = MaterialTheme.colorScheme.primary
@@ -694,7 +694,7 @@ fun CustomerOverview(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.People,
+                                imageVector = Icons.TwoTone.People,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -875,7 +875,7 @@ fun TimeRangeSelectionDialog(
                         )
                         if (isSelected) {
                             Icon(
-                                imageVector = Icons.Default.Pentagon,
+                                imageVector = Icons.TwoTone.Pentagon,
                                 contentDescription = "Selected",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
@@ -936,7 +936,7 @@ fun RecentItemSold(
                 .padding(vertical = 10.dp, horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Scale, contentDescription = null, tint = Color.White)
+            Icon(Icons.TwoTone.Scale, contentDescription = null, tint = Color.White)
             Spacer(Modifier.width(8.dp))
             Text(
                 "Recent Sells", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp

@@ -9,7 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
@@ -98,7 +98,7 @@ fun BackupSettingsScreen(
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
                                 ) {
-                                    Icon(Icons.Default.CloudUpload, contentDescription = null)
+                                    Icon(Icons.TwoTone.CloudUpload, contentDescription = null)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Backup Now")
                                 }
@@ -108,7 +108,7 @@ fun BackupSettingsScreen(
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
                                 ) {
-                                    Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    Icon(Icons.TwoTone.CloudDownload, contentDescription = null)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Restore")
                                 }
@@ -224,7 +224,7 @@ fun BackupSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        if (uiState.lastBackupSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                                        if (uiState.lastBackupSuccess) Icons.TwoTone.CheckCircle else Icons.TwoTone.Error,
                                         contentDescription = null,
                                         tint = if (uiState.lastBackupSuccess) 
                                             MaterialTheme.colorScheme.primary 
@@ -269,7 +269,7 @@ fun BackupSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.Info,
+                                    Icons.TwoTone.Info,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -379,7 +379,7 @@ private fun EnhancedBackupDialog(
                     )
                     if (!isLoading) {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.TwoTone.Close, contentDescription = "Close")
                         }
                     }
                 }
@@ -421,7 +421,7 @@ private fun EnhancedBackupDialog(
                             onClick = onBackupRequested,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null)
+                            Icon(Icons.TwoTone.CloudUpload, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Create Backup")
                         }
@@ -429,7 +429,7 @@ private fun EnhancedBackupDialog(
                             onClick = { /* Refresh backup list */ },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Icon(Icons.TwoTone.Refresh, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Refresh")
                         }
@@ -454,7 +454,7 @@ private fun EnhancedBackupDialog(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Icon(
-                                    Icons.Default.CloudOff,
+                                    Icons.TwoTone.CloudOff,
                                     contentDescription = null,
                                     modifier = Modifier.size(48.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -497,7 +497,7 @@ private fun EnhancedBackupDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Warning,
+                                Icons.TwoTone.Warning,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -560,7 +560,7 @@ private fun BackupItem(
                     containerColor = MaterialTheme.colorScheme.secondary
                 )
             ) {
-                Icon(Icons.Default.CloudDownload, contentDescription = null)
+                Icon(Icons.TwoTone.CloudDownload, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Restore")
             }
@@ -620,7 +620,7 @@ private fun RestoreModeDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                Icons.TwoTone.Add,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -664,7 +664,7 @@ private fun RestoreModeDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Warning,
+                                Icons.TwoTone.Warning,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.error
                             )

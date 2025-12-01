@@ -21,14 +21,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Payment
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Check
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.History
+import androidx.compose.material.icons.twotone.Payment
+import androidx.compose.material.icons.twotone.Receipt
+import androidx.compose.material.icons.twotone.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -442,7 +442,7 @@ fun CompactCustomerInfoCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Visibility,
+                        imageVector = Icons.TwoTone.Visibility,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(32.dp)
@@ -473,7 +473,7 @@ fun CompactCustomerInfoCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Payment,
+                            imageVector = Icons.TwoTone.Payment,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
@@ -499,13 +499,13 @@ fun CompactCustomerInfoCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (customer?.mobileNo != null) {
-                        InfoChip(Icons.Default.Receipt, customer.mobileNo)
+                        InfoChip(Icons.TwoTone.Receipt, customer.mobileNo)
                     }
                     if (!customer?.gstin_pan.isNullOrEmpty()) {
-                        InfoChip(Icons.Default.History, customer?.gstin_pan ?: "")
+                        InfoChip(Icons.TwoTone.History, customer?.gstin_pan ?: "")
                     }
                     if (!customer?.address.isNullOrEmpty()) {
-                        InfoChip(Icons.Default.Add, customer?.address ?: "")
+                        InfoChip(Icons.TwoTone.Add, customer?.address ?: "")
                     }
                 }
 
@@ -547,7 +547,7 @@ private fun StatusChip(isActive: Boolean) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Default.Check,
+                imageVector = Icons.TwoTone.Check,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(14.dp)
@@ -717,7 +717,7 @@ fun CombinedPaymentsCard(
                         modifier = Modifier.height(32.dp)
                     ) {
                         Icon(
-                            Icons.Default.Add,
+                            Icons.TwoTone.Add,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -730,7 +730,7 @@ fun CombinedPaymentsCard(
                         modifier = Modifier.height(32.dp)
                     ) {
                         Icon(
-                            Icons.Default.Payment,
+                            Icons.TwoTone.Payment,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
@@ -805,7 +805,7 @@ fun CompactTransactionItemWithDelete(
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Icons.TwoTone.Delete,
                         contentDescription = "Delete Transaction",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error
@@ -859,7 +859,7 @@ fun KhataBookCard(
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
                         ) {
                             Icon(
-                                Icons.Default.Add,
+                                Icons.TwoTone.Add,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -872,7 +872,7 @@ fun KhataBookCard(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                Icons.Default.Visibility,
+                                Icons.TwoTone.Visibility,
                                 contentDescription = "View Details",
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.primary
@@ -1041,7 +1041,7 @@ fun KhataBookPlanItem(
                             modifier = Modifier.height(38.dp)
                         ) {
                             Icon(
-                                Icons.Default.Check,
+                                Icons.TwoTone.Check,
                                 contentDescription = "Complete Plan",
                                 modifier = Modifier.size(14.dp)
                             )
@@ -1776,7 +1776,7 @@ fun PaymentHistoryItem(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        Icons.TwoTone.Delete,
                         contentDescription = "Delete Transaction",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error
@@ -1812,7 +1812,7 @@ fun CustomerOrdersCard(
                     fontWeight = FontWeight.Bold
                 )
                 Icon(
-                    Icons.Default.Receipt,
+                    Icons.TwoTone.Receipt,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -2007,7 +2007,7 @@ fun MonthBox(
             // Payment indicator for paid months
             if (isPaid) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = Icons.TwoTone.Check,
                     contentDescription = "Paid",
                     modifier = Modifier
                         .size(8.dp) // Smaller icon
@@ -2077,7 +2077,7 @@ fun TransactionHistoryCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.TwoTone.History, contentDescription = null, modifier = Modifier.size(20.dp))
             }
 
             if (transactionHistory.isNotEmpty()) {
@@ -2191,7 +2191,7 @@ fun MonthPaymentDialog(
                 )
             } else {
                 Icon(
-                    Icons.Default.Payment,
+                    Icons.TwoTone.Payment,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp)
                 )
@@ -2238,7 +2238,7 @@ fun CompletedPlansCard(
                     fontWeight = FontWeight.Bold
                 )
                 Icon(
-                    Icons.Default.CheckCircle,
+                    Icons.TwoTone.CheckCircle,
                     contentDescription = "Completed Plans",
                     modifier = Modifier.size(20.dp),
                     tint = Color.Blue
@@ -2562,7 +2562,7 @@ fun CompletePlanConfirmationDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.TwoTone.CheckCircle,
                                 contentDescription = "Ready to Complete",
                                 tint = Color.Green,
                                 modifier = Modifier.size(24.dp)
@@ -2586,7 +2586,7 @@ fun CompletePlanConfirmationDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.CheckCircle,
+                                Icons.TwoTone.CheckCircle,
                                 contentDescription = "Not Ready",
                                 tint = Color.Red,
                                 modifier = Modifier.size(24.dp)
@@ -2616,7 +2616,7 @@ fun CompletePlanConfirmationDialog(
                     )
                 } else {
                     Icon(
-                        Icons.Default.Check,
+                        Icons.TwoTone.Check,
                         contentDescription = "Complete Plan",
                         modifier = Modifier.size(16.dp)
                     )
@@ -2751,7 +2751,7 @@ fun DeleteTransactionConfirmationDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
                 Icon(
-                    Icons.Default.Delete,
+                    Icons.TwoTone.Delete,
                     contentDescription = "Delete",
                     modifier = Modifier.size(16.dp)
                 )

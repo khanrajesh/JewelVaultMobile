@@ -16,18 +16,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.ArrowBack
+import androidx.compose.material.icons.twotone.AutoFixHigh
+import androidx.compose.material.icons.twotone.CheckCircle
+import androidx.compose.material.icons.twotone.Clear
+import androidx.compose.material.icons.twotone.Description
+import androidx.compose.material.icons.twotone.Download
+import androidx.compose.material.icons.twotone.Edit
+import androidx.compose.material.icons.twotone.Error
+import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.UploadFile
+import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.*
 import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.*
@@ -174,7 +174,7 @@ private fun ImportHeaderActions(
             modifier = Modifier
         ) {
             Icon(
-                imageVector = Icons.Default.Download,
+                imageVector = Icons.TwoTone.Download,
                 contentDescription = null
             )
             if (!fileImported) {
@@ -188,7 +188,7 @@ private fun ImportHeaderActions(
             modifier = Modifier
         ) {
             Icon(
-                imageVector = Icons.Default.UploadFile,
+                imageVector = Icons.TwoTone.UploadFile,
                 contentDescription = null
             )
             if (!fileImported) {
@@ -203,7 +203,7 @@ private fun ImportHeaderActions(
         ) {
 
             Icon(
-                imageVector = Icons.Default.Clear,
+                imageVector = Icons.TwoTone.Clear,
                 contentDescription = null
             )
             if (!fileImported) {
@@ -316,7 +316,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
+                        imageVector = Icons.TwoTone.CheckCircle,
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -328,7 +328,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Download,
+                        imageVector = Icons.TwoTone.Download,
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -344,7 +344,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importSummary.value.needsMappingRows > 0
             ) {
                 Icon(
-                    imageVector = Icons.Default.AutoFixHigh,
+                    imageVector = Icons.TwoTone.AutoFixHigh,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -364,7 +364,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importSummary.value.needsMappingRows > 0
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = Icons.TwoTone.CheckCircle,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -379,7 +379,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importedRows.isNotEmpty()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Description,
+                    imageVector = Icons.TwoTone.Description,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -428,7 +428,7 @@ private fun ImportedRowsList(
                 enabled = viewModel.isImportReady()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.TwoTone.Add,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -477,9 +477,9 @@ private fun ImportedRowItem(
     }
 
     val statusIcon = when (row.status) {
-        ImportRowStatus.VALID -> Icons.Default.CheckCircle
-        ImportRowStatus.NEEDS_MAPPING -> Icons.Default.Warning
-        ImportRowStatus.ERROR -> Icons.Default.Error
+        ImportRowStatus.VALID -> Icons.TwoTone.CheckCircle
+        ImportRowStatus.NEEDS_MAPPING -> Icons.TwoTone.Warning
+        ImportRowStatus.ERROR -> Icons.TwoTone.Error
     }
 
     Card(
@@ -1024,7 +1024,7 @@ private fun ImportedRowItem(
                             modifier = Modifier.wrapContentWidth()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.TwoTone.Edit,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -1045,7 +1045,7 @@ private fun ImportedRowItem(
                                 modifier = Modifier.wrapContentWidth()
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.AutoFixHigh,
+                                    imageVector = Icons.TwoTone.AutoFixHigh,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -1065,7 +1065,7 @@ private fun ImportedRowItem(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Clear,
+                        imageVector = Icons.TwoTone.Clear,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
@@ -1091,7 +1091,7 @@ private fun EmptyImportState() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.UploadFile,
+                imageVector = Icons.TwoTone.UploadFile,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant

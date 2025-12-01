@@ -23,17 +23,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Help
-import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.automirrored.twotone.Help
+import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowRight
+import androidx.compose.material.icons.twotone.AccountBalance
+import androidx.compose.material.icons.twotone.Dashboard
+import androidx.compose.material.icons.twotone.Help
+import androidx.compose.material.icons.twotone.Inventory
+import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Person
+import androidx.compose.material.icons.twotone.Settings
+import androidx.compose.material.icons.twotone.Update
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -80,12 +80,12 @@ fun TabNavigationDrawerPreview() {
                 4 -> "Profile"
                 else -> "Settings"
             }, initialIcon = when (index) {
-                0 -> Icons.Default.Dashboard
-                1 -> Icons.Default.Inventory
-                2 -> Icons.Default.People
-                3 -> Icons.Default.AccountBalance
-                4 -> Icons.Default.Person
-                else -> Icons.Default.Settings
+                0 -> Icons.TwoTone.Dashboard
+                1 -> Icons.TwoTone.Inventory
+                2 -> Icons.TwoTone.People
+                3 -> Icons.TwoTone.AccountBalance
+                4 -> Icons.TwoTone.Person
+                else -> Icons.TwoTone.Settings
             }, initialOnClick = {
                 println("Item ${index + 1} clicked")
             })
@@ -209,7 +209,8 @@ fun TabNavigationDrawer(
     }
 
     if (isLandscape()) {
-        val width = if (drawerState.isOpen) 200.dp else 60.dp
+        val isDrawerOpen = drawerState.isOpen
+        val width = if (isDrawerOpen) 200.dp else 60.dp
 
         Row(modifier.fillMaxSize()) {
             Column(
@@ -237,10 +238,10 @@ fun TabNavigationDrawer(
                             .clickable { onGuideClick() }
                             .padding(vertical = 6.dp, horizontal = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = if (isDrawerOpen) Arrangement.Start else Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Help,
+                            imageVector = Icons.AutoMirrored.TwoTone.Help,
                             contentDescription = "Help & Guide",
                             modifier = Modifier.size(28.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
@@ -266,8 +267,8 @@ fun TabNavigationDrawer(
                         horizontalArrangement = Arrangement.End) {
                         // Version info and update notification
                         Icon(
-                            if (drawerState.isOpen) Icons.AutoMirrored.Filled.KeyboardArrowLeft
-                            else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            if (drawerState.isOpen) Icons.AutoMirrored.TwoTone.KeyboardArrowLeft
+                            else Icons.AutoMirrored.TwoTone.KeyboardArrowRight,
                             contentDescription = if (drawerState.isOpen) "Close drawer" else "Open drawer",
                             modifier = Modifier.size(40.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
@@ -296,7 +297,7 @@ fun TabNavigationDrawer(
                                 modifier = Modifier.padding(bottom = 10.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Update,
+                                    imageVector = Icons.TwoTone.Update,
                                     contentDescription = "Update Available",
                                     modifier = Modifier.size(12.dp),
                                     tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
@@ -492,7 +493,7 @@ fun ProfileImage(onProfileClick: () -> Unit) {
                     ), contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    imageVector = Icons.TwoTone.Person,
                     contentDescription = "Profile",
                     modifier = Modifier.size(32.dp),
                     tint = MaterialTheme.colorScheme.onPrimary

@@ -17,12 +17,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.automirrored.twotone.Label
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Edit
+import androidx.compose.material.icons.twotone.Star
+import androidx.compose.material.icons.twotone.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -80,7 +80,7 @@ fun LabelTemplateListScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Label,
+                            imageVector = Icons.AutoMirrored.TwoTone.Label,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -121,7 +121,7 @@ fun LabelTemplateListScreen(
                 .padding(16.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.TwoTone.Add,
                 contentDescription = "Create Template"
             )
         }
@@ -164,7 +164,7 @@ fun LabelTemplateCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     if (template.isDefault) {
                         Icon(
-                            imageVector = Icons.Default.Star,
+                            imageVector = Icons.TwoTone.Star,
                             contentDescription = "Default",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -190,7 +190,7 @@ fun LabelTemplateCard(
                     onClick = onEdit,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.TwoTone.Edit, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Edit")
                 }
@@ -199,7 +199,7 @@ fun LabelTemplateCard(
                     onClick = onDelete,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.TwoTone.Delete, null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Delete")
                 }
@@ -209,7 +209,7 @@ fun LabelTemplateCard(
                         onClick = onSetDefault,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.StarBorder, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.TwoTone.StarBorder, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Set Default")
                     }

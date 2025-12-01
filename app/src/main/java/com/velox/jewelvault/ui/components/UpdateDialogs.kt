@@ -12,10 +12,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.twotone.Download
+import androidx.compose.material.icons.twotone.Info
+import androidx.compose.material.icons.twotone.Update
+import androidx.compose.material.icons.twotone.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -50,7 +50,7 @@ fun ForceUpdateDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Warning,
+                    imageVector = Icons.TwoTone.Warning,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
@@ -111,7 +111,7 @@ fun ForceUpdateDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Info,
+                                imageVector = Icons.TwoTone.Info,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(20.dp)
@@ -139,7 +139,7 @@ fun ForceUpdateDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Download,
+                    imageVector = Icons.TwoTone.Download,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
@@ -182,7 +182,7 @@ fun OptionalUpdateDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Update,
+                    imageVector = Icons.TwoTone.Update,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -243,7 +243,7 @@ fun OptionalUpdateDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Info,
+                                imageVector = Icons.TwoTone.Info,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.size(20.dp)
@@ -275,7 +275,7 @@ fun OptionalUpdateDialog(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Download,
+                        imageVector = Icons.TwoTone.Download,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -288,7 +288,7 @@ fun OptionalUpdateDialog(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Download,
+                        imageVector = Icons.TwoTone.Download,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -324,7 +324,7 @@ fun BackupBeforeUpdateDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = Icons.TwoTone.Info,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -359,7 +359,7 @@ fun BackupBeforeUpdateDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
-                    imageVector = Icons.Default.Download,
+                    imageVector = Icons.TwoTone.Download,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )

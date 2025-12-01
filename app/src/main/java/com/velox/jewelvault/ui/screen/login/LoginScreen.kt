@@ -15,10 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.twotone.Done
+import androidx.compose.material.icons.twotone.Fingerprint
+import androidx.compose.material.icons.twotone.Visibility
+import androidx.compose.material.icons.twotone.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -442,7 +442,7 @@ private fun AuthScreen(
                     placeholderText = "PIN",
                     keyboardType = KeyboardType.Password,
                     visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    trailingIcon = if (passwordVisible.value) Icons.TwoTone.Visibility else Icons.TwoTone.VisibilityOff,
                     onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(onDone = {
@@ -487,7 +487,7 @@ private fun AuthScreen(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next,
                         nextFocusRequester = if (loginViewModel.isOtpVerified.value) passwordFocusRequester else null,
-                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.Default.Done else null
+                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.TwoTone.Done else null
                     )
                 }
 
@@ -501,7 +501,7 @@ private fun AuthScreen(
                         placeholderText = "New PIN",
                         keyboardType = KeyboardType.Password,
                         visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        trailingIcon = if (passwordVisible.value) Icons.TwoTone.Visibility else Icons.TwoTone.VisibilityOff,
                         onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                         imeAction = ImeAction.Next,
                         nextFocusRequester = confirmPasswordFocusRequester
@@ -515,7 +515,7 @@ private fun AuthScreen(
                         placeholderText = "Confirm New PIN",
                         keyboardType = KeyboardType.Password,
                         visualTransformation = if (confirmPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = if (confirmPasswordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        trailingIcon = if (confirmPasswordVisible.value) Icons.TwoTone.Visibility else Icons.TwoTone.VisibilityOff,
                         onTrailingIconClick = { confirmPasswordVisible.value = !confirmPasswordVisible.value },
                         imeAction = ImeAction.Done
                     )
@@ -553,7 +553,7 @@ private fun AuthScreen(
                         state = otp,
                         placeholderText = "OTP",
                         keyboardType = KeyboardType.Number,
-                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.Default.Done else null,
+                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.TwoTone.Done else null,
                         imeAction = ImeAction.Next,
                         nextFocusRequester = if (loginViewModel.isOtpVerified.value) passwordFocusRequester else null,
                         keyboardActions = KeyboardActions(onNext = {
@@ -572,7 +572,7 @@ private fun AuthScreen(
                         placeholderText = "PIN",
                         keyboardType = KeyboardType.Password,
                         visualTransformation = if (passwordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = if (passwordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        trailingIcon = if (passwordVisible.value) Icons.TwoTone.Visibility else Icons.TwoTone.VisibilityOff,
                         onTrailingIconClick = { passwordVisible.value = !passwordVisible.value },
                         imeAction = ImeAction.Next,
                         nextFocusRequester = confirmPasswordFocusRequester
@@ -586,7 +586,7 @@ private fun AuthScreen(
                         placeholderText = "Confirm PIN",
                         keyboardType = KeyboardType.Password,
                         visualTransformation = if (confirmPasswordVisible.value) VisualTransformation.None else PasswordVisualTransformation(),
-                        trailingIcon = if (confirmPasswordVisible.value) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        trailingIcon = if (confirmPasswordVisible.value) Icons.TwoTone.Visibility else Icons.TwoTone.VisibilityOff,
                         onTrailingIconClick = { confirmPasswordVisible.value = !confirmPasswordVisible.value },
                         imeAction = ImeAction.Done,
                         keyboardActions = KeyboardActions(onDone = {
@@ -686,7 +686,7 @@ private fun AuthScreen(
                 }) {
                 if (isLogin.value && loginViewModel.isBiometricAvailable.value && loginViewModel.biometricAuthEnabled.value) {
                     Icon(
-                        imageVector = Icons.Default.Fingerprint,
+                        imageVector = Icons.TwoTone.Fingerprint,
                         contentDescription = "Biometric",
                         modifier = Modifier.padding(end = 8.dp)
                     )

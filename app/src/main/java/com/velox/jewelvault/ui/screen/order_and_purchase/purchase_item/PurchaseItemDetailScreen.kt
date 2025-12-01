@@ -19,11 +19,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.KeyboardArrowDown
+import androidx.compose.material.icons.twotone.KeyboardArrowUp
+import androidx.compose.material.icons.twotone.MoreVert
+import androidx.compose.material.icons.twotone.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -211,7 +211,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
                             Icon(
-                                Icons.Default.MoreVert,
+                                Icons.TwoTone.MoreVert,
                                 contentDescription = "More options",
                                 modifier = Modifier.padding(end = 8.dp)
                             )
@@ -225,7 +225,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                 text = {
                                     Row {
                                         Icon(
-                                            Icons.Default.Delete,
+                                            Icons.TwoTone.Delete,
                                             contentDescription = null,
                                             modifier = Modifier.padding(end = 8.dp)
                                         )
@@ -271,7 +271,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 Spacer(modifier = Modifier.weight(1f))
 
                 Icon(
-                    imageVector = if (isItemsAndExchangesExpanded.value) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (isItemsAndExchangesExpanded.value) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                     contentDescription = "Toggle Items and Exchanges",
                     modifier = Modifier.clickable {
                         isItemsAndExchangesExpanded.value = !isItemsAndExchangesExpanded.value
@@ -434,7 +434,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 Spacer(modifier = Modifier.width(16.dp))
 
                 Icon(
-                    imageVector = if (isItemsExpanded.value) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (isItemsExpanded.value) Icons.TwoTone.KeyboardArrowUp else Icons.TwoTone.KeyboardArrowDown,
                     contentDescription = "Toggle Items",
                     modifier = Modifier.clickable {
                         isItemsExpanded.value = !isItemsExpanded.value
@@ -478,7 +478,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 Spacer(modifier = Modifier.weight(1f))
 
                 Icon(
-                    imageVector = if (isItemsExpanded.value) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                    imageVector = if (isItemsExpanded.value) Icons.TwoTone.KeyboardArrowDown else Icons.TwoTone.KeyboardArrowUp,
                     contentDescription = "Toggle Sold Items",
                     modifier = Modifier.clickable {
                         isItemsExpanded.value = !isItemsExpanded.value

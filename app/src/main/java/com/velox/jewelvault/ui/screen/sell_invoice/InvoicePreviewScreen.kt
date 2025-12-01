@@ -23,7 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,7 +64,6 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.sharePdf
 import com.velox.jewelvault.utils.PdfRendererPreview
-import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 
@@ -580,7 +579,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                     RoundedCornerShape(18.dp)
                                 )
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Reset Zoom/Pan")
+                            Icon(Icons.TwoTone.Refresh, contentDescription = "Reset Zoom/Pan")
                         }
                     }
                 }

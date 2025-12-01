@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -168,7 +168,7 @@ fun LandscapeInventoryItemScreen(
                     addItem.value = true
                 })
                 Spacer(Modifier.width(10.dp))
-                Icon(Icons.Default.MoreVert, null, modifier = Modifier.clickable {
+                Icon(Icons.TwoTone.MoreVert, null, modifier = Modifier.clickable {
                     showOption.value = !showOption.value
                 })
             }

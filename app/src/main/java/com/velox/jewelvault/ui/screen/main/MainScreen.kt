@@ -17,16 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -61,11 +52,8 @@ import android.os.Environment
 import java.io.File
 import android.os.Build
 import android.provider.DocumentsContract
-import androidx.compose.material.icons.filled.AssuredWorkload
-import androidx.compose.material.icons.filled.RuleFolder
-import androidx.compose.material.icons.filled.TakeoutDining
-import androidx.compose.material.icons.filled.Warehouse
-import androidx.compose.material.icons.outlined.TakeoutDining
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.ReceiptLong
 import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
@@ -189,7 +177,7 @@ fun MainScreen() {
 
     val inputIconStates = mutableListOf(
         InputIconState(
-            "Dashboard", Icons.Default.Dashboard,
+            "Dashboard", Icons.TwoTone.Dashboard,
             selected = true
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
@@ -199,7 +187,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Inventory", Icons.Default.Warehouse
+            "Inventory", Icons.TwoTone.Warehouse
         ) {
             subNavController.navigate(SubScreens.Inventory.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -208,7 +196,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Customers", Icons.Default.People
+            "Customers", Icons.TwoTone.People
         ) {
             subNavController.navigate(SubScreens.Customers.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -217,7 +205,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Ledger", Icons.Outlined.TakeoutDining
+            "Ledger", Icons.AutoMirrored.TwoTone.ReceiptLong
         ) {
             subNavController.navigate(SubScreens.OrderAndPurchase.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -226,7 +214,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Audit", Icons.Default.AssuredWorkload
+            "Audit", Icons.TwoTone.AssuredWorkload
         ) {
             subNavController.navigate(SubScreens.Audit.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -235,12 +223,12 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "File Manager", Icons.Default.RuleFolder
+            "File Manager", Icons.TwoTone.RuleFolder
         ) {
             // This will be handled after inputIconStates is created
         },
         InputIconState(
-            "Device", Icons.Default.Print
+            "Device", Icons.TwoTone.Print
         ) {
             subNavController.navigate(SubScreens.BluetoothScanConnect.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -249,7 +237,7 @@ fun MainScreen() {
             }
         },
         InputIconState(
-            "Setting", Icons.Default.Settings
+            "Setting", Icons.TwoTone.Settings
         ) {
             subNavController.navigate(SubScreens.Setting.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -305,7 +293,7 @@ private fun PortraitDashboardScreen(inputIconStates: List<InputIconState>) {
                             drawerState.open() // Open drawer on button click
                         }
                     }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        Icon(Icons.TwoTone.Menu, contentDescription = "Menu")
                     }
                 }, colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary

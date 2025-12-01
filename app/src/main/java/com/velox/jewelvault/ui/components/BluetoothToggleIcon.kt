@@ -9,7 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.twotone.Bluetooth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -117,7 +117,7 @@ fun BluetoothToggleIcon(
         }, modifier = modifier
     ) {
         Icon(
-            imageVector = Icons.Default.Bluetooth,
+            imageVector = Icons.TwoTone.Bluetooth,
             contentDescription = getStateDescription(bluetoothState.currentState),
             tint = iconColor,
             modifier = Modifier.size(24.dp)

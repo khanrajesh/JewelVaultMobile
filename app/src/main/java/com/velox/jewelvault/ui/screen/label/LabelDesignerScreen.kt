@@ -35,25 +35,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.RotateRight
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.automirrored.twotone.Redo
+import androidx.compose.material.icons.automirrored.twotone.RotateRight
+import androidx.compose.material.icons.automirrored.twotone.Undo
+import androidx.compose.material.icons.twotone.CheckBox
+import androidx.compose.material.icons.twotone.CheckBoxOutlineBlank
+import androidx.compose.material.icons.twotone.ContentCopy
+import androidx.compose.material.icons.twotone.DateRange
+import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.ExpandLess
+import androidx.compose.material.icons.twotone.ExpandMore
+import androidx.compose.material.icons.twotone.Image
+import androidx.compose.material.icons.twotone.Lock
+import androidx.compose.material.icons.twotone.LockOpen
+import androidx.compose.material.icons.twotone.Print
+import androidx.compose.material.icons.twotone.QrCode
+import androidx.compose.material.icons.twotone.Remove
+import androidx.compose.material.icons.twotone.Save
+import androidx.compose.material.icons.twotone.SelectAll
+import androidx.compose.material.icons.twotone.Settings
+import androidx.compose.material.icons.twotone.TextFields
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -468,18 +469,15 @@ fun LabelDesignerScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ElementPalette(
-                modifier = Modifier.weight(1f),
-                onAddElement = { type ->
+                modifier = Modifier.weight(1f), onAddElement = { type ->
                     clearInlineEdit()
                     startAddElement(type)
-                }
-            )
+                })
             Spacer(modifier = Modifier.width(12.dp))
             ZoomControls(
                 zoom = zoom,
                 onZoomIn = { zoom = (zoom * 1.1f).coerceAtMost(5f) },
-                onZoomOut = { zoom = (zoom / 1.1f).coerceAtLeast(0.5f) }
-            )
+                onZoomOut = { zoom = (zoom / 1.1f).coerceAtLeast(0.5f) })
         }
 
         Row(
@@ -630,9 +628,7 @@ fun LabelDesignerScreen(
                     }
                     clearInlineEdit()
                 },
-                onInlineEditCancel = { clearInlineEdit() },
-                onZoomIn = { zoom = (zoom * 1.1f).coerceAtMost(5f) },
-                onZoomOut = { zoom = (zoom / 1.1f).coerceAtLeast(0.5f) })
+                onInlineEditCancel = { clearInlineEdit() })
 
             PropertiesPanel(
                 modifier = Modifier
@@ -731,7 +727,7 @@ private fun TemplateHeader(
             MetricChip("Language", template.printLanguage)
 
             Icon(
-                Icons.Default.Settings,
+                Icons.TwoTone.Settings,
                 contentDescription = null,
                 modifier = Modifier
                     .bounceClick { onOpenSettings() }
@@ -739,13 +735,13 @@ private fun TemplateHeader(
 
             Button(onClick = onTestPrint) {
                 Icon(
-                    Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp)
+                    Icons.TwoTone.Print, contentDescription = null, modifier = Modifier.size(16.dp)
                 )
             }
 
             Button(onClick = onSave) {
                 Icon(
-                    Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp)
+                    Icons.TwoTone.Save, contentDescription = null, modifier = Modifier.size(16.dp)
                 )
                 Spacer(Modifier.width(6.dp))
                 Text("Save")
@@ -798,48 +794,48 @@ private fun QuickActionsBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         ActionChipButton(
-            icon = if (multiSelectEnabled) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+            icon = if (multiSelectEnabled) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
             label = if (multiSelectEnabled) "Multi" else "Single",
             onClick = onToggleMultiSelect
         )
         ActionChipButton(
-            icon = Icons.Default.SelectAll,
+            icon = Icons.TwoTone.SelectAll,
             label = "Select all",
             onClick = onSelectAll,
             enabled = multiSelectEnabled
         )
         ActionChipButton(
-            icon = Icons.Default.ContentCopy,
+            icon = Icons.TwoTone.ContentCopy,
             label = "Duplicate",
             onClick = onDuplicate,
             enabled = selectedCount > 0
         )
         ActionChipButton(
-            icon = Icons.AutoMirrored.Filled.RotateRight,
+            icon = Icons.AutoMirrored.TwoTone.RotateRight,
             label = "Rotate 90�",
             onClick = onRotate,
             enabled = selectedCount > 0
         )
         ActionChipButton(
-            icon = if (anyLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+            icon = if (anyLocked) Icons.TwoTone.LockOpen else Icons.TwoTone.Lock,
             label = if (anyLocked) "Unlock" else "Lock",
             onClick = onLockToggle,
             enabled = selectedCount > 0
         )
         ActionChipButton(
-            icon = Icons.Default.Delete,
+            icon = Icons.TwoTone.Delete,
             label = "Delete",
             onClick = onDelete,
             enabled = selectedCount > 0
         )
         ActionChipButton(
-            icon = Icons.AutoMirrored.Filled.Undo,
+            icon = Icons.AutoMirrored.TwoTone.Undo,
             label = "Undo",
             onClick = onUndo,
             enabled = canUndo
         )
         ActionChipButton(
-            icon = Icons.AutoMirrored.Filled.Redo,
+            icon = Icons.AutoMirrored.TwoTone.Redo,
             label = "Redo",
             onClick = onRedo,
             enabled = canRedo
@@ -865,12 +861,12 @@ fun ElementPalette(
 ) {
     val context = LocalContext.current
     val elementTypes = listOf(
-        Triple("TEXT", "Text", Icons.Default.TextFields),
-        Triple("IMAGE", "Logo", Icons.Default.Image),
-        Triple("QR_CODE", "QR", Icons.Default.QrCode),
-        Triple("BARCODE", "Barcode", Icons.Default.QrCode),
-        Triple("DATE", "Date", Icons.Default.DateRange),
-        Triple("LINE", "Line", Icons.AutoMirrored.Filled.RotateRight)
+        Triple("TEXT", "Text", Icons.TwoTone.TextFields),
+        Triple("IMAGE", "Logo", Icons.TwoTone.Image),
+        Triple("QR_CODE", "QR", Icons.TwoTone.QrCode),
+        Triple("BARCODE", "Barcode", Icons.TwoTone.QrCode),
+        Triple("DATE", "Date", Icons.TwoTone.DateRange),
+        Triple("LINE", "Line", Icons.TwoTone.Remove)
     )
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
@@ -891,17 +887,14 @@ fun ElementPalette(
 
 @Composable
 private fun ZoomControls(
-    zoom: Float,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit
+    zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "-",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.clickable { onZoomOut() }
-        )
+            modifier = Modifier.clickable { onZoomOut() })
         Spacer(Modifier.width(10.dp))
         Text(
             text = "Zoom: ${(zoom * 100).roundToInt()}%",
@@ -913,8 +906,7 @@ private fun ZoomControls(
             text = "+",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.clickable { onZoomIn() }
-        )
+            modifier = Modifier.clickable { onZoomIn() })
     }
 }
 
@@ -940,8 +932,6 @@ fun LabelCanvas(
     onInlineEditChange: (String) -> Unit,
     onInlineEditCommit: (LabelElementEntity, String) -> Unit,
     onInlineEditCancel: () -> Unit,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit
 ) {
     val density = LocalDensity.current
     val dpi = density.density * 160f
@@ -961,8 +951,8 @@ fun LabelCanvas(
     val containerHeight = cardHeightDp
     val scaleThickness = 30.dp
 
-    val topRulerPaint = remember(density) { rulerPaint(density, android.graphics.Color.WHITE) }
-    val leftRulerPaint = remember(density) { rulerPaint(density, android.graphics.Color.WHITE) }
+    val topRulerPaint = remember(density) { rulerPaint(density, AndroidColor.WHITE) }
+    val leftRulerPaint = remember(density) { rulerPaint(density, AndroidColor.WHITE) }
     val primarySelection = elements.firstOrNull { selectedIds.contains(it.elementId) }
 
     Box(modifier = modifier) {
@@ -980,17 +970,17 @@ fun LabelCanvas(
                         val tickColor = Color.White
                         val guideColor = Color.Red
                         val paddingMm = template.labelPadding.coerceAtLeast(0f)
-                        topRulerPaint.color = android.graphics.Color.WHITE
+                        topRulerPaint.color = AndroidColor.WHITE
                         var idx = 0
                         while (idx.toFloat() <= maxMm + 0.001f) {
                             val mm = idx.toFloat()
                             // Move tick positions with pan/zoom but keep the ruler anchored
                             val x = (mmToPx(mm) * zoom) + pan.x
                             val isMajor = idx % 5 == 0
-                            val tickHeight =  size.height * 0.6f
-                            val stroke =  1.5f
+                            val tickHeight = size.height * 0.6f
+                            val stroke = 1.5f
                             drawLine(
-                                color =  tickColor,
+                                color = tickColor,
                                 start = Offset(x, size.height),
                                 end = Offset(x, tickHeight),
                                 strokeWidth = stroke
@@ -1027,8 +1017,7 @@ fun LabelCanvas(
             }
 
             Row(
-                verticalAlignment = Alignment.Top,
-                modifier = Modifier.height(cardHeightDp)
+                verticalAlignment = Alignment.Top, modifier = Modifier.height(cardHeightDp)
             ) {
                 // Left ruler
                 Box(
@@ -1041,17 +1030,17 @@ fun LabelCanvas(
                         val tickColor = Color.White
                         val guideColor = Color.Red
                         val paddingMm = template.labelPadding.coerceAtLeast(0f)
-                        leftRulerPaint.color = android.graphics.Color.WHITE
+                        leftRulerPaint.color = AndroidColor.WHITE
                         var idx = 0
                         while (idx.toFloat() <= maxMm + 0.001f) {
                             val mm = idx.toFloat()
                             // Move tick positions with pan/zoom but keep the ruler anchored
                             val y = (mmToPx(mm) * zoom) + pan.y
                             val isMajor = idx % 5 == 0
-                            val tickWidthPx =  size.width * 0.6f
+                            val tickWidthPx = size.width * 0.6f
                             val stroke = 1.5f
                             drawLine(
-                                color =  tickColor,
+                                color = tickColor,
                                 start = Offset(size.width, y),
                                 end = Offset(tickWidthPx, y),
                                 strokeWidth = stroke
@@ -1110,8 +1099,7 @@ fun LabelCanvas(
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                             modifier = Modifier.size(width = cardWidthDp, height = cardHeightDp)
-                        )
-                        {
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -1541,7 +1529,7 @@ fun ElementPropertiesForm(
             )
             Spacer(Modifier.weight(1f))
             Icon(
-                Icons.Default.Delete,
+                Icons.TwoTone.Delete,
                 contentDescription = "Delete Element",
                 modifier = Modifier.bounceClick { onDelete() })
 
@@ -1555,7 +1543,7 @@ fun ElementPropertiesForm(
                 readOnly = true,
                 trailingIcon = {
                     IconButton(onClick = { bindingMenuExpanded = !bindingMenuExpanded }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Choose Binding")
+                        Icon(Icons.TwoTone.Settings, contentDescription = "Choose Binding")
                     }
                 },
                 modifier = fieldModifier
@@ -1644,7 +1632,7 @@ fun ElementPropertiesForm(
                             pushUpdate()
                         }, label = { Text("$dpi dpi") }, leadingIcon = {
                             Icon(
-                                if (imageDpi == dpi) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (imageDpi == dpi) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                 contentDescription = null
                             )
                         })
@@ -1766,7 +1754,7 @@ private fun BindingPickerDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        imageVector = if (expanded) Icons.TwoTone.ExpandLess else Icons.TwoTone.ExpandMore,
                         contentDescription = null
                     )
                     Text(title, style = MaterialTheme.typography.labelMedium)
@@ -1915,7 +1903,7 @@ private fun TemplateSetupDialog(
                             label = { Text(lang) },
                             leadingIcon = {
                                 Icon(
-                                    if (selected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                    if (selected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                     contentDescription = null
                                 )
                             })
@@ -1931,7 +1919,7 @@ private fun TemplateSetupDialog(
                         label = { Text("0 � Normal") },
                         leadingIcon = {
                             Icon(
-                                if (isNormalSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (isNormalSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                 contentDescription = null
                             )
                         })
@@ -1941,7 +1929,7 @@ private fun TemplateSetupDialog(
                         label = { Text("1 � Reverse") },
                         leadingIcon = {
                             Icon(
-                                if (isReverseSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (isReverseSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                 contentDescription = null
                             )
                         })
@@ -2061,7 +2049,7 @@ fun TemplateSettingsDialog(
                             label = { Text(lang) },
                             leadingIcon = {
                                 Icon(
-                                    if (selected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                    if (selected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                     contentDescription = null
                                 )
                             })
@@ -2077,7 +2065,7 @@ fun TemplateSettingsDialog(
                         label = { Text("0 � Normal") },
                         leadingIcon = {
                             Icon(
-                                if (isNormalSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (isNormalSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                 contentDescription = null
                             )
                         })
@@ -2087,7 +2075,7 @@ fun TemplateSettingsDialog(
                         label = { Text("1 � Reverse") },
                         leadingIcon = {
                             Icon(
-                                if (isReverseSelected) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                                if (isReverseSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
                                 contentDescription = null
                             )
                         })
@@ -2532,7 +2520,10 @@ private fun setImageProps(
     }
 }
 
-private fun rulerPaint(density: androidx.compose.ui.unit.Density, colorInt: Int): android.graphics.Paint {
+private fun rulerPaint(
+    density: androidx.compose.ui.unit.Density,
+    colorInt: Int
+): android.graphics.Paint {
     return android.graphics.Paint().apply {
         color = colorInt
         textSize = 10 * density.density
