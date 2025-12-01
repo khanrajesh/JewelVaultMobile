@@ -63,6 +63,8 @@ class BaseViewModel @Inject constructor(
     val storeImage = mutableStateOf<String?>(null)
     val storeName = mutableStateOf<String?>(null)
     val localLogoUri = mutableStateOf<Uri?>(null)
+    val pendingNotificationRoute = mutableStateOf<String?>(null)
+    val pendingNotificationArg = mutableStateOf<String?>(null)
     
     // Update management
     val remoteConfigManager = _remoteConfigManager
@@ -677,5 +679,15 @@ fun dismissUpdateDialog() {
                 _snackBarState.value = "Error resetting preferences: ${e.message}"
             }
         }
+    }
+
+    fun setPendingNotificationNavigation(route: String?, arg: String?) {
+        pendingNotificationRoute.value = route
+        pendingNotificationArg.value = arg
+    }
+
+    fun clearPendingNotificationNavigation() {
+        pendingNotificationRoute.value = null
+        pendingNotificationArg.value = null
     }
 }
