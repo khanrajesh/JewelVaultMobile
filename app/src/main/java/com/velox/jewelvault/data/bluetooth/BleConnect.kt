@@ -1488,8 +1488,20 @@ class BleConnect(
                 reconnectAttempts.remove(addr)
                 return@launch
             }
-            // TODO: Fix reconnect to use proper callbacks
-            // connectGattInternal(device)
+            // Retry using unified connect flow so callbacks are honored
+            connect(
+                address = addr,
+                onConnect = {
+                    cLog("Reconnect success for $addr on attempt #$nextAttempt")
+                    reconnectAttempts.remove(addr)
+                },
+                onFailure = { err ->
+                    cLog("Reconnect failed for $addr on attempt #$nextAttempt -> ${err.message}")
+                    if (nextAttempt >= maxAttempts) {
+                        reconnectAttempts.remove(addr)
+                    }
+                }
+            )
         }
     }
 

@@ -248,6 +248,21 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
+                            "Scan & Add",
+                            Modifier
+                                .clickable {
+                                    subNavController.navigate(SubScreens.ScanAddItem.route)
+                                }
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(16.dp),
+                                )
+                                .padding(10.dp),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
                             "Add Category", 
                             Modifier
                                 .clickable {

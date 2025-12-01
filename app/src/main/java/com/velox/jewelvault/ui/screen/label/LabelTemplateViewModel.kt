@@ -8,6 +8,8 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
 import com.velox.jewelvault.data.roomdb.entity.label.LabelTemplateEntity
 import com.velox.jewelvault.utils.generateId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.room.withTransaction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -89,10 +91,15 @@ class LabelTemplateViewModel @Inject constructor(
     /**
      * Save elements for a template
      */
-    fun saveElements(elements: List<LabelElementEntity>) {
-        viewModelScope.launch {
+    fun saveElements(templateId: String, elements: List<LabelElementEntity>) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                appDatabase.labelElementDao().insertElements(elements)
+                appDatabase.withTransaction {
+                    appDatabase.labelElementDao().deleteElementsByTemplateId(templateId)
+                    if (elements.isNotEmpty()) {
+                        appDatabase.labelElementDao().insertElements(elements)
+                    }
+                }
                 _snackBarState.value = "Elements saved successfully"
             } catch (e: Exception) {
                 _snackBarState.value = "Failed to save elements: ${e.message}"
@@ -103,10 +110,15 @@ class LabelTemplateViewModel @Inject constructor(
     /**
      * Save elements without showing snack messages (for auto-save flows)
      */
-    fun saveElementsSilent(elements: List<LabelElementEntity>) {
-        viewModelScope.launch {
+    fun saveElementsSilent(templateId: String, elements: List<LabelElementEntity>) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                appDatabase.labelElementDao().insertElements(elements)
+                appDatabase.withTransaction {
+                    appDatabase.labelElementDao().deleteElementsByTemplateId(templateId)
+                    if (elements.isNotEmpty()) {
+                        appDatabase.labelElementDao().insertElements(elements)
+                    }
+                }
             } catch (_: Exception) {
             }
         }

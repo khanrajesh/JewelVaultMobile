@@ -19,6 +19,7 @@ import com.velox.jewelvault.ui.screen.inventory.InventoryFilterScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryItemScreen
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.ui.screen.inventory.ImportItemsScreen
+import com.velox.jewelvault.ui.screen.inventory.ScanAddItemScreen
 import com.velox.jewelvault.ui.screen.inventory.ImportItemsViewModel
 import com.velox.jewelvault.ui.screen.login.LoginScreen
 import com.velox.jewelvault.ui.screen.login.LoginViewModel
@@ -52,6 +53,8 @@ import com.velox.jewelvault.ui.screen.webview.TermsAndConditionsScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ScanConnectScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
+import com.velox.jewelvault.ui.screen.guide.GuideScreen
+import com.velox.jewelvault.ui.screen.guide.GuideViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -120,6 +123,9 @@ fun SubAppNavigation(
             composable(SubScreens.Setting.route) {
                 SettingScreen()
             }
+            composable(SubScreens.Guide.route) {
+                GuideScreen(hiltViewModel<GuideViewModel>())
+            }
             composable(SubScreens.UserManagement.route) {
                 UserManagementScreen()
             }
@@ -163,6 +169,9 @@ fun SubAppNavigation(
                 ImportItemsScreen(
                     viewModel = hiltViewModel<ImportItemsViewModel>()
                 )
+            }
+            composable(SubScreens.ScanAddItem.route) {
+                ScanAddItemScreen(inventoryViewModel = inventoryViewModel)
             }
 
             composable(SubScreens.Customers.route) {
@@ -256,6 +265,3 @@ fun SubAppNavigation(
         }
     }
 }
-
-
-

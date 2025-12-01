@@ -407,4 +407,19 @@ object RoomMigration {
             """)
         }
     }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE label_template ADD COLUMN printSpeed INTEGER NOT NULL DEFAULT 2")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN printDirection INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN referenceX REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE label_template ADD COLUMN referenceY REAL NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE label_template ADD COLUMN labelPadding REAL NOT NULL DEFAULT 1.5")
+        }
+    }
 }

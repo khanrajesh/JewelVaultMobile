@@ -23,10 +23,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
@@ -191,6 +193,7 @@ fun TabNavigationDrawer(
     modifier: Modifier = Modifier,
     drawerState: TabDrawerState = rememberTabDrawerState(TabDrawerValue.Closed),
     onProfileClick: () -> Unit = {},
+    onGuideClick: () -> Unit = {},
     notifierContent: @Composable () -> Unit = {},
     drawerContent: @Composable () -> Unit = {},
     content: @Composable () -> Unit
@@ -228,6 +231,31 @@ fun TabNavigationDrawer(
                 Column(
                     modifier = Modifier, horizontalAlignment = Alignment.Start
                 ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onGuideClick() }
+                            .padding(vertical = 6.dp, horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Help,
+                            contentDescription = "Help & Guide",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                        if (drawerState.isOpen) {
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "Guide",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+
                     Row(modifier = Modifier
                         .clickable {
                             drawerState.currentValue =
@@ -249,7 +277,7 @@ fun TabNavigationDrawer(
                     Text(
                         text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         fontWeight = FontWeight.Normal,
                         lineHeight = 10.sp
                     )

@@ -67,6 +67,36 @@ class ManagePrintersViewModel @Inject constructor(
     )
 
     /**
+     * Print a label template (current canvas) to the connected printer
+     */
+    fun printLabelTemplate(
+        context: Context,
+        template: LabelTemplateEntity,
+        elements: List<LabelElementEntity>,
+        data: Map<String, Any> = emptyMap()
+    ) {
+        viewModelScope.launch {
+            val connected = bleManager.connectedDevices.value.firstOrNull()
+            if (connected == null) {
+                _snackBarState.value = "No connected printer found"
+                return@launch
+            }
+            val address = connected.address
+            val printerName = savedPrinters.value.find { it.address == address }?.name ?: address
+            _snackBarState.value = "Printing test label on $printerName..."
+            try {
+                val generator = LabelPrintGenerator(context.applicationContext)
+                val payload = generator.generatePrintData(template, elements, data, template.printLanguage)
+                val success = bleManager.sendPrintData(address, payload)
+                _snackBarState.value = if (success) "Test label sent to $printerName" else "Failed to send label to $printerName"
+            } catch (e: Exception) {
+                log("printLabelTemplate error: ${e.message}")
+                _snackBarState.value = "Error printing: ${e.message}"
+            }
+        }
+    }
+
+    /**
      * Test print with different protocols
      */
     fun testPrint(address: String, protocol: String) {
@@ -155,6 +185,7 @@ class ManagePrintersViewModel @Inject constructor(
         item.addDesValue
 
         val context = context1.applicationContext
+        val qrData = PrintUtils.buildItemQrPayload(item)
         // Build TSPL content: prefer native QRCODE when QR is provided
         val qrCommand = try {
             log("generateTsplItemLabel: logo uri=$qrUri")
@@ -179,8 +210,9 @@ class ManagePrintersViewModel @Inject constructor(
                         val qrX = 340
                         val qrY = mm(1)
                         // Use widely-supported TSPL syntax: QRCODE x,y,M,cell,A,rotation,"data"
-                        val cell = 4
-                        val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"${item.itemId}\""
+                        // Keep physical size small (approx 10mm) by using a small cell size
+                        val cell = 3
+                        val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"$qrData\""
                         log("generateTsplItemLabel: using native QRCODE command: ${qrCmd.length} chars")
                         qrCmd
                     } else {
@@ -191,14 +223,22 @@ class ManagePrintersViewModel @Inject constructor(
                             xDots = qrX,
                             yDots = qrY,
                             name = "GQR",
-                            targetSizeMm = 8,
+                            targetSizeMm = 10,
                             threshold = 140
                         )
                         log("generateTsplItemLabel: qr bitmap fallback cmd length=${cmd.length}")
                         cmd
                     }
                 } else ""
-            } else ""
+            } else {
+                val qrX = 340
+                val qrY = mm(1)
+                // Small cell size to keep within ~10mm
+                val cell = 3
+                val qrCmd = "QRCODE $qrX,$qrY,M,$cell,A,0,\"$qrData\""
+                log("generateTsplItemLabel: using native QRCODE command (no bitmap): ${qrCmd.length} chars")
+                qrCmd
+            }
         } catch (t: Throwable) {
             log("generateTsplItemLabel: logo error=${t.message}")
             ""
@@ -547,7 +587,7 @@ class ManagePrintersViewModel @Inject constructor(
                 val candidates = linkedSetOf(
                     preferred.uppercase(),
                     template.printLanguage.uppercase(),
-                    "TSPL", "CPCL", "ESC"
+                    "TSPL", "CPCL", "PPLB", "ESC"
                 )
 
                 var sent = false
@@ -605,6 +645,7 @@ class ManagePrintersViewModel @Inject constructor(
             normalized.contains(templateLang) -> templateLang
             normalized.contains("TSPL") -> "TSPL"
             normalized.contains("CPCL") -> "CPCL"
+            normalized.contains("PPLB") -> "PPLB"
             normalized.contains("ESC") -> "ESC"
             else -> templateLang
         }

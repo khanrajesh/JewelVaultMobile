@@ -56,14 +56,13 @@ fun SettingScreen() {
             }
         }
     }
-
     // Handle data wipe completion
-    LaunchedEffect(baseViewModel.snackBarState) {
-        if (baseViewModel.snackBarState.contains("All data wiped successfully")) {
-            // Navigate to login screen after successful data wipe
+    LaunchedEffect(baseViewModel.wipeCompleted.value) {
+        if (baseViewModel.wipeCompleted.value) {
             mainNavController.navigate(Screens.Login.route) {
                 popUpTo(0) { inclusive = true }
             }
+            baseViewModel.wipeCompleted.value = false
         }
     }
     
@@ -316,6 +315,7 @@ fun SettingScreen() {
         OtpVerificationDialog(
             onOtpSubmit = { otp -> baseViewModel.verifyOtpForWipe(otp) },
             onDismiss = { baseViewModel.showOtpVerificationDialog.value = false },
+            onResend = { baseViewModel.resendOtpForWipe() },
             isLoading = baseViewModel.isWipeInProgress.value
         )
     }
@@ -679,6 +679,7 @@ fun PinVerificationDialog(
 fun OtpVerificationDialog(
     onOtpSubmit: (String) -> Unit,
     onDismiss: () -> Unit,
+    onResend: () -> Unit,
     isLoading: Boolean
 ) {
     var otp by remember { mutableStateOf("") }
@@ -757,6 +758,13 @@ fun OtpVerificationDialog(
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    TextButton(
+                        onClick = onResend,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Resend OTP")
+                    }
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),

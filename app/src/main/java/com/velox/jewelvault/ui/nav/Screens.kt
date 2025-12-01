@@ -32,10 +32,12 @@ sealed class SubScreens(val route:String) {
     data object TermsAndConditions : SubScreens("termsAndConditions")
     data object BluetoothScanConnect : SubScreens("bluetooth_scan_connect")
     data object BluetoothManagePrinters : SubScreens("bluetooth_manage_printers")
+    data object Guide : SubScreens("guide")
     
     // Label related screens
     data object LabelTemplateList : SubScreens("label_template_list")
     data object LabelDesigner : SubScreens("label_designer")
+    data object ScanAddItem : SubScreens("scanAddItem")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
 }

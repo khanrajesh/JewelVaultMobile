@@ -2,6 +2,8 @@ package com.velox.jewelvault
 
 import android.content.Context
 import android.net.Uri
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -26,6 +28,8 @@ import com.velox.jewelvault.utils.backup.BackupService
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -34,6 +38,7 @@ import javax.inject.Named
 
 @HiltViewModel
 class BaseViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val _dataStoreManager: DataStoreManager,
     private val _loadingState : MutableState<Boolean>,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
@@ -93,6 +98,8 @@ class BaseViewModel @Inject constructor(
     val otpForWipe = mutableStateOf("")
     val isWipeInProgress = mutableStateOf(false)
     val otpVerificationId = mutableStateOf<String?>(null)
+    private val otpResendToken = mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null)
+    val wipeCompleted = mutableStateOf(false)
 
     init {
         loadSettings()
@@ -124,7 +131,7 @@ class BaseViewModel @Inject constructor(
                 // If no local logo but there's a URL in database, download and cache it
                 if (!hasLocalLogo() && !store?.image.isNullOrBlank()) {
                     log("No local logo found, downloading from URL: ${store?.image}")
-                    downloadAndCacheLogo(android.app.Application(), store?.image ?: "")
+                    downloadAndCacheLogo(appContext, store?.image ?: "")
                 }
             } catch (e: Exception) {
                 log("Error loading store image: ${e.message}")
@@ -138,7 +145,7 @@ class BaseViewModel @Inject constructor(
     fun loadLocalLogo() {
         ioLaunch {
             try {
-                val logoUri = FileManager.getLogoFileUri(android.app.Application())
+                val logoUri = FileManager.getLogoFileUri(appContext)
                 localLogoUri.value = logoUri
                 log("Local logo URI loaded: $logoUri")
             } catch (e: Exception) {
@@ -151,7 +158,7 @@ class BaseViewModel @Inject constructor(
     /**
      * Download and cache logo from URL
      */
-    fun downloadAndCacheLogo(context: Context, imageUrl: String) {
+    fun downloadAndCacheLogo(context: Context = appContext, imageUrl: String) {
         ioLaunch {
             try {
                 log("Starting logo download and cache from: $imageUrl")
@@ -303,9 +310,15 @@ class BaseViewModel @Inject constructor(
         val info = updateInfo.value
         if (info != null) {
             try {
+                if (!hasBackupPermission(context)) {
+                    snackBarState = "Storage permission required to backup before updating"
+                    return
+                }
                 BackupService.startBackup(context)
-            }catch (e: Exception){
-
+                snackBarState = "Backup started before redirecting to update"
+            } catch (e: Exception) {
+                snackBarState = "Backup failed to start: ${e.message}"
+                return
             }
             log("📱 Opening Play Store with update info: $info")
             appUpdateManager.openPlayStore(context, info)
@@ -314,8 +327,8 @@ class BaseViewModel @Inject constructor(
             appUpdateManager.openPlayStore(context)
         }
     }
-    
-    fun dismissUpdateDialog() {
+
+fun dismissUpdateDialog() {
         showUpdateDialog.value = false
     }
     
@@ -447,6 +460,9 @@ class BaseViewModel @Inject constructor(
     }
 
     fun initiateDataWipe() {
+        wipeCompleted.value = false
+        otpVerificationId.value = null
+        otpResendToken.value = null
         showPinVerificationDialog.value = true
     }
 
@@ -501,6 +517,7 @@ class BaseViewModel @Inject constructor(
                                     token: PhoneAuthProvider.ForceResendingToken
                                 ) {
                                     otpVerificationId.value = verificationId
+                                    otpResendToken.value = token
                                     showOtpVerificationDialog.value = true
                                 }
                             })
@@ -514,6 +531,49 @@ class BaseViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _snackBarState.value = "Error sending OTP: ${e.message}"
+            }
+        }
+    }
+
+    fun resendOtpForWipe() {
+        ioLaunch {
+            try {
+                val token = otpResendToken.value
+                val userId = admin.first.first()
+                val currentUser = _appDatabase.userDao().getUserById(userId)
+                val phoneNumber = currentUser?.mobileNo ?: ""
+                if (token == null || phoneNumber.isEmpty()) {
+                    _snackBarState.value = "OTP not ready to resend"
+                    return@ioLaunch
+                }
+
+                val options = PhoneAuthOptions.newBuilder(_auth)
+                    .setPhoneNumber(phoneNumber)
+                    .setTimeout(60L, TimeUnit.SECONDS)
+                    .setForceResendingToken(token)
+                    .setCallbacks(object :
+                        PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                        override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                            verifyOtpForWipe(credential.smsCode ?: "")
+                        }
+
+                        override fun onVerificationFailed(e: com.google.firebase.FirebaseException) {
+                            _snackBarState.value = "OTP resend failed: ${e.message}"
+                        }
+
+                        override fun onCodeSent(
+                            verificationId: String,
+                            token: PhoneAuthProvider.ForceResendingToken
+                        ) {
+                            otpVerificationId.value = verificationId
+                            otpResendToken.value = token
+                            _snackBarState.value = "OTP resent successfully"
+                        }
+                    })
+                    .build()
+                PhoneAuthProvider.verifyPhoneNumber(options)
+            } catch (e: Exception) {
+                _snackBarState.value = "Error resending OTP: ${e.message}"
             }
         }
     }
@@ -551,6 +611,7 @@ class BaseViewModel @Inject constructor(
 
                 // Reset all state variables
                 resetAllSettings()
+                wipeCompleted.value = true
 
                 _snackBarState.value = "All data wiped successfully"
                 isWipeInProgress.value = false
@@ -575,6 +636,26 @@ class BaseViewModel @Inject constructor(
         defaultCgst.value = "1.5"
         defaultSgst.value = "1.5"
         defaultIgst.value = "0.0"
+    }
+
+    private fun hasBackupPermission(context: Context): Boolean {
+        val readLegacy = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+        val writeLegacy = ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasMedia =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || listOf(
+                android.Manifest.permission.READ_MEDIA_IMAGES,
+                android.Manifest.permission.READ_MEDIA_VIDEO,
+                android.Manifest.permission.READ_MEDIA_AUDIO
+            ).any { perm ->
+                ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+            }
+        return readLegacy || writeLegacy || hasMedia
     }
 
     fun getAppVersion(context: Context): String {

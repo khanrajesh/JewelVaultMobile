@@ -206,6 +206,22 @@ fun ScanConnectScreen(
                     modifier = Modifier.size(18.dp)
                 )
             }
+
+            OutlinedButton(
+                onClick = { navController.navigate(SubScreens.LabelTemplateList.route) },
+                modifier = Modifier
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Label Templates",
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Labels")
+            }
+ 
+            
+
         }
 
         LazyColumn(

@@ -261,7 +261,9 @@ fun LandscapeInventoryItemScreen(
 
         if (showDialog.value && selectedItem.value != null) {
             val itemForDialog = selectedItem.value!!
-            val qrBitmap = remember(itemForDialog.itemId) { PrintUtils.generateQRCode(itemForDialog.itemId, 128) }
+            val qrBitmap = remember(itemForDialog.itemId) {
+                PrintUtils.generateQRCode(PrintUtils.buildItemQrPayload(itemForDialog), 128)
+            }
             var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
             val logoUri = remember { FileManager.getLogoFileUri(context) }
             var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -963,7 +965,7 @@ private fun AddItemSection(
                                     }
                                     // Add new item
                                     val newItem = ItemEntity(
-                                        itemId = generateId(),
+                                        itemId = viewModel.prefilledItemId.value?.takeIf { it.isNotBlank() } ?: generateId(),
                                         itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
                                         userId = userId,
                                         storeId = storeId,
@@ -1025,4 +1027,3 @@ private fun AddItemSection(
         }
     }
 }
-

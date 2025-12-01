@@ -52,6 +52,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.cancel
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -60,6 +62,7 @@ import javax.inject.Inject
 class MainActivity : FragmentActivity() {
 
     private val speedMonitorJob: MutableState<Job?> = mutableStateOf(null)
+    private val sessionMonitorJob: MutableState<Job?> = mutableStateOf(null)
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Inject
@@ -108,13 +111,11 @@ class MainActivity : FragmentActivity() {
 
             // Check session validity on app start
             LaunchedEffect(Unit) {
-                coroutineScope.launch {
-                    if (!sessionManager.isSessionValid()) {
-                        // Session expired, navigate to login
-                        mainScope {
-                            navController.navigate(Screens.Login.route) {
-                                popUpTo(0) { inclusive = true }
-                            }
+                if (!sessionManager.isSessionValid()) {
+                    // Session expired, navigate to login
+                    mainScope {
+                        navController.navigate(Screens.Login.route) {
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 }
@@ -122,8 +123,9 @@ class MainActivity : FragmentActivity() {
 
             // Monitor session during app usage
             LaunchedEffect(Unit) {
-                coroutineScope.launch {
-                    while (true) {
+                sessionMonitorJob.value?.cancel()
+                sessionMonitorJob.value = launch(Dispatchers.IO) {
+                    while (isActive) {
                         delay(300000) // Check every 5 minutes
                         if (!sessionManager.isSessionValid()) {
                             mainScope {
@@ -265,6 +267,8 @@ class MainActivity : FragmentActivity() {
         // Stop Bluetooth service and unregister receiver when activity is destroyed
         bluetoothBroadcastReceiver.unregister()
         log("MainActivity: BluetoothService stopped and BluetoothBroadcastReceiver unregistered")
+        sessionMonitorJob.value?.cancel()
+        coroutineScope.cancel()
     }
 }
 

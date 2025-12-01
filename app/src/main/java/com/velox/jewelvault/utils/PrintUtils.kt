@@ -13,6 +13,8 @@ import android.util.Base64
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import kotlinx.coroutines.delay
@@ -31,6 +33,11 @@ import kotlin.math.roundToInt
  * Utility functions for printing item details
  */
 object PrintUtils {
+
+    /**
+     * Build the shared QR payload string for an item.
+     */
+    fun buildItemQrPayload(item: ItemEntity): String = item.toQrItemPayload().toCsvString()
 
     /**
      * Function to generate Excel for individual item and print it
@@ -265,17 +272,24 @@ object PrintUtils {
     /**
      * Generate QR code bitmap from itemId
      */
-    fun generateQRCode(itemId: String, size: Int = 100): Bitmap? {
+    fun generateQRCode(
+        itemId: String,
+        size: Int = 100,
+        margin: Int = 0,
+        trimWhitespace: Boolean = false
+    ): Bitmap? {
         return try {
             val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(itemId, BarcodeFormat.QR_CODE, size, size)
-            val width = bitMatrix.width
-            val height = bitMatrix.height
+            val hints = mapOf(EncodeHintType.MARGIN to margin.coerceAtLeast(0))
+            val initialMatrix = writer.encode(itemId, BarcodeFormat.QR_CODE, size, size, hints)
+            val matrix = if (trimWhitespace) trimMatrix(initialMatrix) ?: initialMatrix else initialMatrix
+            val width = matrix.width
+            val height = matrix.height
             val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
 
             for (x in 0 until width) {
                 for (y in 0 until height) {
-                    bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                    bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
                 }
             }
             bitmap
@@ -283,6 +297,33 @@ object PrintUtils {
             e.printStackTrace()
             null
         }
+    }
+
+    private fun trimMatrix(matrix: BitMatrix): BitMatrix? {
+        var minX = matrix.width
+        var minY = matrix.height
+        var maxX = -1
+        var maxY = -1
+        for (x in 0 until matrix.width) {
+            for (y in 0 until matrix.height) {
+                if (matrix[x, y]) {
+                    if (x < minX) minX = x
+                    if (y < minY) minY = y
+                    if (x > maxX) maxX = x
+                    if (y > maxY) maxY = y
+                }
+            }
+        }
+        if (maxX < minX || maxY < minY) return null
+        val newWidth = maxX - minX + 1
+        val newHeight = maxY - minY + 1
+        val trimmed = BitMatrix(newWidth, newHeight)
+        for (x in 0 until newWidth) {
+            for (y in 0 until newHeight) {
+                if (matrix[minX + x, minY + y]) trimmed.set(x, y)
+            }
+        }
+        return trimmed
     }
 
     /**
@@ -300,7 +341,9 @@ object PrintUtils {
         threshold: Int = 128,
         bitOrderMsbFirst: Boolean = true,
         blackIsOne: Boolean = true,
-        dither: Boolean = false
+        dither: Boolean = false,
+        ditherMode: String = "floyd",
+        invert: Boolean = false
     ): String {
         log("TSPL: start build bitmap: src=${source.width}x${source.height}, x=$xDots,y=$yDots, sizeMm=$targetSizeMm, crop=$cropToSquare, th=$threshold, msb=$bitOrderMsbFirst, black1=$blackIsOne, dith=$dither")
         val dotsPerMm = 8
@@ -324,7 +367,7 @@ object PrintUtils {
         val width = scaled.width
         val height = scaled.height
         val isBlack = BooleanArray(width * height)
-        if (dither) {
+        if (dither && ditherMode == "floyd") {
             val lum = FloatArray(width * height)
             for (y in 0 until height) {
                 for (x in 0 until width) {
@@ -337,7 +380,7 @@ object PrintUtils {
                 for (x in 0 until width) {
                     val idxPix = y * width + x
                     val old = lum[idxPix]
-                    val newVal = if (old < 128f) 0f else 255f
+                    val newVal = if (old < threshold.toFloat().coerceIn(0f, 255f)) 0f else 255f
                     isBlack[idxPix] = newVal == 0f
                     val err = old - newVal
                     // distribute error
@@ -349,12 +392,27 @@ object PrintUtils {
                     }
                 }
             }
+        } else if (dither && ditherMode == "ordered") {
+            val matrix = arrayOf(
+                intArrayOf(0, 8, 2, 10),
+                intArrayOf(12, 4, 14, 6),
+                intArrayOf(3, 11, 1, 9),
+                intArrayOf(15, 7, 13, 5)
+            )
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val p = scaled.getPixel(x, y)
+                    val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3f
+                    val bias = (matrix[y % 4][x % 4] / 15f) * 255f - 128f
+                    isBlack[y * width + x] = gray + bias < threshold.toFloat()
+                }
+            }
         } else {
             for (y in 0 until height) {
                 for (x in 0 until width) {
                     val p = scaled.getPixel(x, y)
                     val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3
-                    isBlack[y * width + x] = gray < threshold
+                    isBlack[y * width + x] = gray < threshold.toFloat()
                 }
             }
         }
@@ -369,6 +427,7 @@ object PrintUtils {
                 var bitCount = 0
                 for (x in 0 until width) {
                     var bit = if (isBlack[y * width + x]) 1 else 0
+                    if (invert) bit = 1 - bit
                     if (!blackIsOne) bit = 1 - bit
                     byteVal = (byteVal shl 1) or bit
                     bitCount++
@@ -386,6 +445,7 @@ object PrintUtils {
                 // LSB-first packing
                 for (x in 0 until width) {
                     var bit = if (isBlack[y * width + x]) 1 else 0
+                    if (invert) bit = 1 - bit
                     if (!blackIsOne) bit = 1 - bit
                     byteVal = byteVal or (bit shl bitPos)
                     bitPos++
@@ -416,7 +476,8 @@ object PrintUtils {
         name: String = "G000",
         targetSizeMm: Int = 8,
         threshold: Int = 140,
-        dpi: Int = 203
+        dpi: Int = 203,
+        invert: Boolean = false
     ): String {
         log("TSPL: download image start src=${source.width}x${source.height}")
 
@@ -449,7 +510,8 @@ object PrintUtils {
             for (x in 0 until width) {
                 val p = scaled.getPixel(x, y)
                 val gray = (Color.red(p) + Color.green(p) + Color.blue(p)) / 3
-                val bit = if (gray < threshold) 1 else 0 // ✅ Black=1, White=0
+                var bit = if (gray < threshold) 1 else 0 // Black=1, White=0
+                if (invert) bit = 1 - bit
                 byteVal = (byteVal shl 1) or bit
                 bitCount++
                 if (bitCount == 8) {
@@ -475,11 +537,6 @@ object PrintUtils {
             append("\nPUTBMP $xDots,$yDots,\"$name\"\n")
         }
     }
-
-    /**
-     * Build a TSPL DOWNLOAD + PUTBMP command with a valid 1-bit BMP payload (binary-safe bytes).
-     * Some printers require actual BMP bytes for DOWNLOAD; hex strings may cause artifacts.
-     */
     fun buildTsplDownloadBmpCommandBytes(
         source: Bitmap,
         xDots: Int,
@@ -489,7 +546,8 @@ object PrintUtils {
         threshold: Int = 140,
         dpi: Int = 203,
         dither: Boolean = false,
-        cropToSquare: Boolean = false
+        cropToSquare: Boolean = false,
+        invert: Boolean = false
     ): ByteArray {
         val dotsPerMm = dpi / 25.4
         val targetDots = (targetSizeMm * dotsPerMm).roundToInt()
@@ -581,7 +639,8 @@ object PrintUtils {
             var bitCount = 0
             var rowStart = o
             for (x in 0 until width) {
-                val bit = if (isBlack[y * width + x]) 1 else 0 // 1=black -> palette index 1
+                var bit = if (isBlack[y * width + x]) 1 else 0 // 1=black -> palette index 1
+                if (invert) bit = 1 - bit
                 byteVal = (byteVal shl 1) or bit // MSB-first in BMP
                 bitCount++
                 if (bitCount == 8) {
@@ -1052,7 +1111,12 @@ object PrintUtils {
         val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
 
         // Generate QR code for itemId (80px)
-        val qrCodeBitmap = generateQRCode(item.itemId, 80)
+        val qrCodeBitmap = generateQRCode(
+            buildItemQrPayload(item),
+            size = 80,
+            margin = 0,
+            trimWhitespace = true
+        )
         val qrCodeBase64 = qrCodeBitmap?.let { bitmapToBase64(it) } ?: ""
 
         // Format weights and purity
@@ -1138,8 +1202,8 @@ object PrintUtils {
                 }
                 
                 .qr-code {
-                    width: 12mm;
-                    height: 12mm;
+                    width: 10mm;
+                    height: 10mm;
                     object-fit: contain;
                     display: block;
                 }
@@ -1203,7 +1267,7 @@ object PrintUtils {
             if (qrCodeBase64.isNotEmpty()) {
                 """<img src="data:image/png;base64,$qrCodeBase64" class="qr-code" alt="QR Code">"""
             } else {
-                """<div style="width:12mm;height:12mm;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:2.2mm;color:#666;">QR</div>"""
+                """<div style="width:10mm;height:10mm;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:2.2mm;color:#666;">QR</div>"""
             }
         }
          
