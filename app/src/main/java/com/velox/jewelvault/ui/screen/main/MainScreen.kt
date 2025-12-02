@@ -65,6 +65,7 @@ import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
+import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.launch
 
 
@@ -260,6 +261,25 @@ fun MainScreen() {
             baseViewModel.refreshMetalRates(context = context)
         }
 
+    }
+
+    LaunchedEffect(
+        baseViewModel.pendingNotificationRoute.value,
+        baseViewModel.pendingNotificationArg.value
+    ) {
+        val targetRoute = baseViewModel.pendingNotificationRoute.value
+        if (!targetRoute.isNullOrBlank()) {
+            val arg = baseViewModel.pendingNotificationArg.value
+            val destination = if (arg.isNullOrBlank()) targetRoute else "$targetRoute/$arg"
+            runCatching {
+                subNavController.navigate(destination) {
+                    launchSingleTop = true
+                }
+            }.onFailure {
+                log("MainScreen: Failed to navigate from notification: ${it.message}")
+            }
+            baseViewModel.clearPendingNotificationNavigation()
+        }
     }
 
 //    if (isLandscape()) {

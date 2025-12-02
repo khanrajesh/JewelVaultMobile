@@ -1,5 +1,6 @@
 package com.velox.jewelvault
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -41,6 +42,8 @@ import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
 import com.velox.jewelvault.utils.SessionManager
+import com.velox.jewelvault.utils.fcm.NotificationConstants.EXTRA_TARGET_ARG
+import com.velox.jewelvault.utils.fcm.NotificationConstants.EXTRA_TARGET_ROUTE
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.monitorInternetConnection
@@ -49,11 +52,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -64,6 +69,7 @@ class MainActivity : FragmentActivity() {
     private val speedMonitorJob: MutableState<Job?> = mutableStateOf(null)
     private val sessionMonitorJob: MutableState<Job?> = mutableStateOf(null)
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val incomingIntents = MutableStateFlow<Intent?>(null)
 
     @Inject
     lateinit var bluetoothBroadcastReceiver: BleManager
@@ -78,6 +84,7 @@ class MainActivity : FragmentActivity() {
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingIntents.value = intent
         bluetoothBroadcastReceiver.registerReceiver()
         enableEdgeToEdge()
         setContent {
@@ -85,6 +92,12 @@ class MainActivity : FragmentActivity() {
             val navController = rememberNavController()
             val baseViewModel: BaseViewModel = hiltViewModel()
             val networkCheckEnabled = remember { mutableStateOf(true) }
+
+            LaunchedEffect(Unit) {
+                incomingIntents.collectLatest { navIntent ->
+                    navIntent?.let { handleNotificationIntent(it, baseViewModel) }
+                }
+            }
 
             // Check if network monitoring is enabled before starting it
             LaunchedEffect(Unit) {
@@ -237,6 +250,11 @@ class MainActivity : FragmentActivity() {
         bluetoothBroadcastReceiver.refreshSystemState()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        incomingIntents.value = intent
+    }
+
     override fun onPause() {
         super.onPause()
         // Note: We don't unregister on pause to maintain background functionality
@@ -269,6 +287,16 @@ class MainActivity : FragmentActivity() {
         log("MainActivity: BluetoothService stopped and BluetoothBroadcastReceiver unregistered")
         sessionMonitorJob.value?.cancel()
         coroutineScope.cancel()
+    }
+
+    private fun handleNotificationIntent(intent: Intent, baseViewModel: BaseViewModel) {
+        val targetRoute = intent.getStringExtra(EXTRA_TARGET_ROUTE)
+        val targetArg = intent.getStringExtra(EXTRA_TARGET_ARG)
+
+        if (!targetRoute.isNullOrBlank()) {
+            log("MainActivity: Received notification intent -> route=$targetRoute arg=$targetArg")
+            baseViewModel.setPendingNotificationNavigation(targetRoute, targetArg)
+        }
     }
 }
 
