@@ -1,4 +1,4 @@
-# JewelVault Mobile – Notification Handling Quick Reference
+ # JewelVault Mobile – Notification Handling Quick Reference
 
 ## Overview
 - FCM support is implemented via `utils/fcm/JewelVaultFirebaseMessagingService.kt` with channel routing, image support, and deep-link handoff through the login flow.
