@@ -1,8 +1,12 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.background
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +22,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -50,7 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.TextListView
@@ -60,23 +66,22 @@ import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.PrintUtils
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.to3FString
-import com.velox.jewelvault.utils.PrintUtils
-import com.velox.jewelvault.utils.FileManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.sql.Timestamp
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import com.velox.jewelvault.utils.LocalSubNavController
 import java.io.File
 import java.io.FileOutputStream
+import java.sql.Timestamp
 
 // Helper function to convert ItemEntity to List<String>
 private fun ItemEntity.toListString(index: Int): List<String> = listOf(
@@ -115,42 +120,96 @@ fun InventoryItemScreen(
     subCatName: String
 ) {
     inventoryViewModel.currentScreenHeadingState.value = "Sub Category Details"
-    LandscapeInventoryItemScreen(managePrintersViewModel,inventoryViewModel, catId, catName, subCatId, subCatName)
+
+    val baseViewModel = LocalBaseViewModel.current
+    val showOption = remember { mutableStateOf(false) }
+    val addItem = remember { mutableStateOf(false) }
+    val showDialog = remember { mutableStateOf(false) }
+    val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
+    val isUpdateMode = remember { mutableStateOf(false) }
+    val itemBeingUpdated = remember { mutableStateOf<ItemEntity?>(null) }
+    val context = LocalContext.current
+
+
+
+    Box(Modifier.fillMaxSize()) {
+
+        LandscapeInventoryItemScreen(
+            inventoryViewModel,
+            catId,
+            catName,
+            subCatId,
+            subCatName,
+            addItem,
+            showDialog,
+            selectedItem,
+            isUpdateMode,
+            itemBeingUpdated,
+            showOption
+        )
+
+
+        if (showOption.value) Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(y = 40.dp)
+                .wrapContentHeight()
+                .wrapContentWidth()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                .padding(8.dp)
+        ) {
+            Text(
+                "Options",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clickable {
+
+                })
+        }
+
+        PrintInfoDialog(
+            showDialog,
+            selectedItem,
+            context,
+            itemBeingUpdated,
+            inventoryViewModel,
+            subCatId,
+            addItem,
+            isUpdateMode,
+            baseViewModel,
+            managePrintersViewModel
+        )
+    }
 }
 
 @Composable
 fun LandscapeInventoryItemScreen(
-    managePrintersViewModel: ManagePrintersViewModel,
     inventoryViewModel: InventoryViewModel,
     catId: String,
     catName: String,
     subCatId: String,
-    subCatName: String
-) { 
-    val subNavController = LocalSubNavController.current
-    val context = LocalContext.current
+    subCatName: String,
+    addItem: MutableState<Boolean>,
+    showDialog: MutableState<Boolean>,
+    selectedItem: MutableState<ItemEntity?>,
+    isUpdateMode: MutableState<Boolean>,
+    itemBeingUpdated: MutableState<ItemEntity?>,
+    showOption: MutableState<Boolean>
+) {
+    LocalSubNavController.current
     LaunchedEffect(true) {
         delay(200)
         inventoryViewModel.categoryFilter.text = catName
         inventoryViewModel.subCategoryFilter.text = subCatName
         inventoryViewModel.startDateFilter.text = ""
         inventoryViewModel.endDateFilter.text = ""
-        
+
         // Call filterItems() which is async
         inventoryViewModel.filterItems()
     }
     val clipboardManager = LocalClipboardManager.current
 
-    val showOption = remember { mutableStateOf(false) }
 
-
-    val addItem = remember { mutableStateOf(false) }
-    val showDialog = remember { mutableStateOf(false) }
-    val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
-    val isUpdateMode = remember { mutableStateOf(false) }
-    val itemBeingUpdated = remember { mutableStateOf<ItemEntity?>(null) }
-
-    val baseViewModel = LocalBaseViewModel.current
     val haptic = LocalHapticFeedback.current
 
 
@@ -162,7 +221,7 @@ fun LandscapeInventoryItemScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth()) {
-                Text("$catName ($catId) > $subCatName ($subCatId)")
+                Text("$catName > $subCatName")
                 Spacer(Modifier.weight(1f))
                 Text("Add Item", modifier = Modifier.clickable {
                     addItem.value = true
@@ -190,7 +249,6 @@ fun LandscapeInventoryItemScreen(
                 isUpdateMode,
                 itemBeingUpdated.value
             )
-
 
 
             // Show loader while loading, otherwise show the list
@@ -241,87 +299,114 @@ fun LandscapeInventoryItemScreen(
             }
         }
 
-        if (showOption.value) Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .offset(y = 40.dp)
-                .wrapContentHeight()
-                .wrapContentWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
-                .padding(8.dp)
-        ) {
-            Text(
-                "Options",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clickable {
 
-                })
+    }
+
+
+}
+
+@Composable
+private fun PrintInfoDialog(
+    showDialog: MutableState<Boolean>,
+    selectedItem: MutableState<ItemEntity?>,
+    context: Context,
+    itemBeingUpdated: MutableState<ItemEntity?>,
+    inventoryViewModel: InventoryViewModel,
+    subCatId: String,
+    addItem: MutableState<Boolean>,
+    isUpdateMode: MutableState<Boolean>,
+    baseViewModel: BaseViewModel,
+    managePrintersViewModel: ManagePrintersViewModel
+) {
+    if (showDialog.value && selectedItem.value != null) {
+        val itemForDialog = selectedItem.value!!
+        val qrBitmap = remember(itemForDialog.itemId) {
+            PrintUtils.generateQRCode(PrintUtils.buildItemQrPayload(itemForDialog), 128)
         }
-
-        if (showDialog.value && selectedItem.value != null) {
-            val itemForDialog = selectedItem.value!!
-            val qrBitmap = remember(itemForDialog.itemId) {
-                PrintUtils.generateQRCode(PrintUtils.buildItemQrPayload(itemForDialog), 128)
-            }
-            var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
-            val logoUri = remember { FileManager.getLogoFileUri(context) }
-            var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
-            LaunchedEffect(qrBitmap) {
-                if (qrBitmap != null) {
-                    try {
-                        val cacheFile = File(context.cacheDir, "qr_${itemForDialog.itemId}.png")
-                        FileOutputStream(cacheFile).use { out ->
-                            qrBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                        }
-                        qrUri = Uri.fromFile(cacheFile)
-                    } catch (_: Exception) { }
-                } else {
-                    qrUri = null
+        var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
+        val logoUri = remember { FileManager.getLogoFileUri(context) }
+        var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
+        LaunchedEffect(qrBitmap) {
+            if (qrBitmap != null) {
+                try {
+                    val cacheFile = File(context.cacheDir, "qr_${itemForDialog.itemId}.png")
+                    FileOutputStream(cacheFile).use { out ->
+                        qrBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                    qrUri = Uri.fromFile(cacheFile)
+                } catch (_: Exception) {
                 }
+            } else {
+                qrUri = null
             }
-            LaunchedEffect(logoUri) {
-                if (logoUri != null) {
-                    try {
-                        context.contentResolver.openInputStream(logoUri)?.use { ins ->
-                            logoBitmap = BitmapFactory.decodeStream(ins)
-                        }
-                    } catch (_: Exception) { logoBitmap = null }
-                } else logoBitmap = null
-            }
-            AlertDialog(
-                onDismissRequest = { showDialog.value = false },
-                title = { Text("Item Details") },
-                text = {
-                    Column {
-                        Text("Name: ${selectedItem.value?.itemAddName}")
-                        Text("id: ${selectedItem.value?.itemId},cat: ${selectedItem.value?.catId},id: ${selectedItem.value?.subCatId}")
-                        Text("Purity: ${selectedItem.value?.purity}")
-                        Text("Quantity: ${selectedItem.value?.quantity}")
-                        Text("Net Weight: ${selectedItem.value?.gsWt}")
-                        // Add more fields as needed...
+        }
+        LaunchedEffect(logoUri) {
+            if (logoUri != null) {
+                try {
+                    context.contentResolver.openInputStream(logoUri)?.use { ins ->
+                        logoBitmap = BitmapFactory.decodeStream(ins)
+                    }
+                } catch (_: Exception) {
+                    logoBitmap = null
+                }
+            } else logoBitmap = null
+        }
+        AlertDialog(
+            onDismissRequest = { showDialog.value = false },
+            title = { Text("Item Details") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Name: ${selectedItem.value?.itemAddName}")
+                    Text("id: ${selectedItem.value?.itemId},cat: ${selectedItem.value?.catId},id: ${selectedItem.value?.subCatId}")
+                    Text("Purity: ${selectedItem.value?.purity}")
+                    Text("Quantity: ${selectedItem.value?.quantity}")
+                    Text("Net Weight: ${selectedItem.value?.gsWt}")
+                    // Add more fields as needed...
+
+                    Row {
                         if (qrBitmap != null) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("QR Preview:")
-                            Spacer(Modifier.height(4.dp))
-                            Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR", modifier = Modifier.width(80.dp).height(80.dp))
+                            Column {
+                                Spacer(Modifier.height(8.dp))
+                                Text("QR Preview:")
+                                Spacer(Modifier.height(4.dp))
+                                Image(
+                                    bitmap = qrBitmap.asImageBitmap(),
+                                    contentDescription = "QR",
+                                    modifier = Modifier
+                                        .width(80.dp)
+                                        .height(80.dp)
+                                )
+                            }
                         }
+
                         if (logoBitmap != null) {
-                            Spacer(Modifier.height(8.dp))
-                            Text("Store Logo:")
-                            Spacer(Modifier.height(4.dp))
-                            Image(bitmap = logoBitmap!!.asImageBitmap(), contentDescription = "Logo", modifier = Modifier.width(80.dp).height(80.dp))
+                            Column {
+                                Spacer(Modifier.height(8.dp))
+                                Text("Store Logo:")
+                                Spacer(Modifier.height(4.dp))
+                                Image(
+                                    bitmap = logoBitmap!!.asImageBitmap(),
+                                    contentDescription = "Logo",
+                                    modifier = Modifier
+                                        .width(80.dp)
+                                        .height(80.dp)
+                                )
+                            }
                         }
                     }
-                },
-                confirmButton = {
-                    Row {
+
+
+                }
+            },
+            confirmButton = {
+                Row {
+                    Column {
                         TextButton(onClick = {
                             ioScope {
                                 if (selectedItem.value != null) {
                                     itemBeingUpdated.value = selectedItem.value
                                     itemBeingUpdated.value?.let {
-                                        inventoryViewModel.populateUpdateFields(it, subCatId){
+                                        inventoryViewModel.populateUpdateFields(it, subCatId) {
                                             showDialog.value = false
                                             addItem.value = true
                                             isUpdateMode.value = true
@@ -332,7 +417,7 @@ fun LandscapeInventoryItemScreen(
                         }) {
                             Text("Update", color = MaterialTheme.colorScheme.primary)
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.height(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
                                 inventoryViewModel.safeDeleteItem(
@@ -355,48 +440,56 @@ fun LandscapeInventoryItemScreen(
                         }) {
                             Text("Delete", color = Color.Red)
                         }
-                        Spacer(Modifier.width(8.dp))
+
+                    }
+                    Spacer(Modifier.width(8.dp))
+
+                    Column {
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                PrintUtils.generateItemExcelAndPrint(context, selectedItem.value!!) {
+                                PrintUtils.generateItemExcelAndPrint(
+                                    context, selectedItem.value!!
+                                ) {
                                     showDialog.value = false
                                 }
                             }
                         }) {
                             Text("Print", color = MaterialTheme.colorScheme.primary)
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.height(8.dp))
                         TextButton(onClick = {
                             if (selectedItem.value != null) {
-                                managePrintersViewModel.printItemLabel(selectedItem.value!!, context, qrUri, logoUri)
+                                managePrintersViewModel.printItemLabel(
+                                    selectedItem.value!!, context, qrUri, logoUri
+                                )
                                 showDialog.value = false
                             }
                         }) {
                             Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
                         }
-                        Spacer(Modifier.width(8.dp))
-                        TextButton(onClick = {
-                            if (selectedItem.value != null) {
-                                managePrintersViewModel.printItemWithDefaultTemplate(selectedItem.value!!, context)
-                                showDialog.value = false
-                            }
-                        }) {
-                            Text("Print with Template", color = MaterialTheme.colorScheme.tertiary)
-                        }
+
                     }
-                },
-                dismissButton = {
+                    Spacer(Modifier.width(8.dp))
                     TextButton(onClick = {
-                        showDialog.value = false
+                        if (selectedItem.value != null) {
+                            managePrintersViewModel.printItemWithDefaultTemplate(
+                                selectedItem.value!!, context
+                            )
+                            showDialog.value = false
+                        }
                     }) {
-                        Text("Cancel")
+                        Text("Print with Template", color = MaterialTheme.colorScheme.tertiary)
                     }
-                })
-        }
-
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDialog.value = false
+                }) {
+                    Text("Cancel")
+                }
+            })
     }
-
-
 }
 
 @SuppressLint("DefaultLocale")
@@ -412,6 +505,7 @@ private fun AddItemSection(
     itemBeingUpdated: ItemEntity?
 ) {
 
+    val isLandscape = isLandscape()
 
     if (addItem.value) {
         Column(
@@ -419,6 +513,7 @@ private fun AddItemSection(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                 .padding(5.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 if (isUpdateMode.value) "Update Item" else "Add Item",
@@ -588,8 +683,9 @@ private fun AddItemSection(
             }
 
 
-                Spacer(Modifier.height(5.dp))
+            Spacer(Modifier.height(5.dp))
 
+            if (isLandscape) {
                 Row(Modifier.fillMaxWidth()) {
 
                     CusOutlinedTextField(
@@ -834,194 +930,435 @@ private fun AddItemSection(
                     )
 
                 }
-
-                Spacer(Modifier.height(5.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-
-                    val purItem =
-                        viewModel.purchaseItems.filter { it.subCatName.lowercase() == subCatName.lowercase() && it.purity == viewModel.purity.text }
-
-                    val text = purItem.joinToString(", ") {
-                        "${it.purity} - Gs.Wt${it.gsWt},  Fn.Wt: ${it.fnWt}/₹${it.fnRate},  wastage: ${it.wastagePercent}%"
-                    }
-
-                    if (!viewModel.isSelf.value) {
-                        Text(
-                            text, modifier = Modifier
-                                .weight(1f)
-                                .padding(5.dp), fontSize = 16.sp
-                        )
-
-                    } else {
-                        Spacer(Modifier.weight(1f))
-                    }
+            } else {
+                Column(Modifier.fillMaxWidth()) {
 
 
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.addToName,
+                        placeholderText = "Add to Name",
+                        keyboardType = KeyboardType.Text
+                    )
 
-                    Spacer(Modifier.width(5.dp))
-                    Text("Cancel", Modifier
-                        .bounceClick {
-                            viewModel.clearAddItemFields()
-                            isUpdateMode.value = false
-                            addItem.value = false
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.entryType,
+                        placeholderText = "Entry Type",
+                        dropdownItems = EntryType.list(),
+                        onDropdownItemSelected = { selected ->
+                            when (selected) {
+                                EntryType.Piece.type -> {
+                                    viewModel.qty.text = "1"
+                                }
+
+                                EntryType.Lot.type -> {
+
+                                }
+
+                                else -> {
+                                    viewModel.entryType.text = selected
+                                }
+                            }
+                            viewModel.entryType.text = selected
+                        })
+
+
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.qty,
+                        placeholderText = "Quantity",
+                        keyboardType = KeyboardType.Number,
+                    )
+
+
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.grWt,
+                        placeholderText = "Gs.Wt/gm",
+                        keyboardType = KeyboardType.Number,
+                        validation = { text ->
+                            if (text.isNotBlank()) {
+                                val grWtValue = text.toDoubleOrNull() ?: 0.0
+                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+
+                                if (ntWtValue > 0 && grWtValue < ntWtValue) {
+                                    "Gross weight cannot be less than net weight"
+                                } else null
+                            } else null
+                        },
+                        onTextChange = { text ->
+                            viewModel.grWt.text = text
+                            viewModel.ntWt.text = text
+
+                            // Recalculate fine weight if purity is already selected
+                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                val multiplier =
+                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                            }
+                        })
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.ntWt,
+                        placeholderText = "Nt.Wt/gm",
+                        keyboardType = KeyboardType.Number,
+                        validation = { text ->
+                            if (text.isNotBlank()) {
+                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
+
+                                if (grWtValue > 0 && ntWtValue > grWtValue) {
+                                    "Net weight cannot be greater than gross weight"
+                                } else null
+                            } else null
+                        },
+                        onTextChange = { text ->
+                            viewModel.ntWt.text = text
+
+                            // Recalculate fine weight if purity is already selected
+                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                                val multiplier =
+                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                            }
+                        })
+
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.purity,
+                        placeholderText = "Purity",
+                        dropdownItems = Purity.list(),
+                        onDropdownItemSelected = { selected ->
+                            if (viewModel.ntWt.text.isNotBlank()) {
+                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+                                val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                            }
+                            viewModel.purity.text = selected
+
+                            // Validate fine weight when purity changes
+                            if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                    .launch {
+                                        val error = viewModel.validateFineWeightInput(
+                                            viewModel.fnWt.text, selected, subCatName
+                                        )
+                                        viewModel.fnWt.error = error ?: ""
+                                    }
+                            } else {
+                                viewModel.fnWt.error = ""
+                            }
+                        })
+
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.fnWt,
+                        placeholderText = "Fn.Wt/gm",
+                        keyboardType = KeyboardType.Number
+                    )
+
+
+                    // Validate fine weight when it changes
+                    LaunchedEffect(
+                        viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value
+                    ) {
+                        if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
+                            val error = viewModel.validateFineWeightInput(
+                                viewModel.fnWt.text, viewModel.purity.text, subCatName
+                            )
+                            viewModel.fnWt.error = error ?: ""
+                        } else {
+                            viewModel.fnWt.error = ""
                         }
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(16.dp),
-                        )
-                        .padding(10.dp), fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(15.dp))
-                    Text(if (isUpdateMode.value) "Update" else "Add", Modifier
-                        .bounceClick {
+                    }
 
-                            return@bounceClick ioScope {
-                                if (purItem.isEmpty() && !viewModel.isSelf.value) {
-                                    viewModel.snackBarState.value =
-                                        "No corresponding item found in purchase order"
-                                    return@ioScope
-                                }
-
-                                if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
-                                    viewModel.snackBarState.value = "Invalid quantity"
-                                    return@ioScope
-                                }
-
-                                if (!InputValidator.isValidWeight(viewModel.grWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid gross weight"
-                                    return@ioScope
-                                }
-
-                                if (!InputValidator.isValidWeight(viewModel.ntWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid net weight"
-                                    return@ioScope
-                                }
-
-                                if (!InputValidator.isValidWeight(viewModel.fnWt.text)) {
-                                    viewModel.snackBarState.value = "Invalid fine weight"
-                                    return@ioScope
-                                }
-
-                                if (viewModel.purity.text.isBlank()) {
-                                    viewModel.snackBarState.value = "Purity is required"
-                                    return@ioScope
-                                }
-
-                                if (!InputValidator.isValidHUID(viewModel.huid.text)) {
-                                    viewModel.snackBarState.value = "Invalid HUID format"
-                                    return@ioScope
-                                }
+                    Spacer(Modifier.height(5.dp))
 
 
 
-                                val userId = viewModel.dataStoreManager.getAdminInfo().first.first()
-                                val storeId =
-                                    viewModel.dataStoreManager.getSelectedStoreInfo().first.first()
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.chargeType,
+                        placeholderText = "Charge Type",
+                        dropdownItems = ChargeType.list(),
+                    )
+                    Spacer(Modifier.height(5.dp))
 
-                                if (isUpdateMode.value) {
-                                    // Update existing item
-                                    val updatedItem = itemBeingUpdated?.copy(
-                                        itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
-                                        entryType = InputValidator.sanitizeText(viewModel.entryType.text),
-                                        quantity = viewModel.qty.text.toIntOrNull() ?: 1,
-                                        gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
-                                        ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
-                                        fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
-                                        purity = InputValidator.sanitizeText(viewModel.purity.text),
-                                        crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
-                                        crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
-                                        othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
-                                        othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
-                                        cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
-                                        sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
-                                        igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
-                                        addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
-                                        addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
-                                        huid = viewModel.huid.text.trim().uppercase(),
-                                        modifiedDate = Timestamp(System.currentTimeMillis())
-                                    )
-                                    updatedItem?.let {
-                                        viewModel.safeUpdateItem(it, onFailure = {
-                                            viewModel.snackBarState.value = "Update Item Failed"
-                                        }, onSuccess = {
-                                            // Refresh category data and filter items
-                                            viewModel.refreshAndFilterItems()
-                                            viewModel.clearAddItemFields()
-                                            isUpdateMode.value = false
-                                            viewModel.snackBarState.value =
-                                                "Item updated successfully"
-                                        })
-                                    }
-                                } else {
-                                    // Check validation errors for purchase order items
-                                    if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty()) {
-                                        val fnWtError = viewModel.validateFineWeightInput(
-                                            viewModel.fnWt.text, viewModel.purity.text, subCatName
-                                        )
-                                        if (fnWtError != null) {
-                                            viewModel.fnWt.error = fnWtError
-                                            viewModel.snackBarState.value = fnWtError
-                                            return@ioScope
-                                        }
-                                    }
-                                    // Add new item
-                                    val newItem = ItemEntity(
-                                        itemId = viewModel.prefilledItemId.value?.takeIf { it.isNotBlank() } ?: generateId(),
-                                        itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
-                                        userId = userId,
-                                        storeId = storeId,
-                                        catId = catId,
-                                        subCatId = subCatId,
-                                        catName = catName,
-                                        subCatName = subCatName,
-                                        entryType = InputValidator.sanitizeText(viewModel.entryType.text),
-                                        quantity = viewModel.qty.text.toIntOrNull() ?: 1,
-                                        gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
-                                        ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
-                                        fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
-                                        purity = InputValidator.sanitizeText(viewModel.purity.text),
-                                        crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
-                                        crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
-                                        othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
-                                        othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
-                                        cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
-                                        sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
-                                        igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
-                                        addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
-                                        addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
-                                        huid = viewModel.huid.text.trim().uppercase(),
-                                        addDate = Timestamp(System.currentTimeMillis()),
-                                        modifiedDate = Timestamp(System.currentTimeMillis()),
-                                        sellerFirmId = storeId,
-                                        purchaseOrderId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseOrderId,
-                                        purchaseItemId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseItemId,
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.charge,
+                        placeholderText = "charge",
+                        keyboardType = KeyboardType.Number,
+                    )
+                    Spacer(Modifier.height(5.dp))
 
-                                        )
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.otherChargeDes,
+                        placeholderText = "Oth Charge Des",
+                    )
+                    Spacer(Modifier.height(5.dp))
 
-                                    viewModel.safeInsertItem(newItem, onFailure = {
-                                        viewModel.snackBarState.value = "Add Item Failed"
-                                    }, onSuccess = { itemEntity, l ->
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.othCharge,
+                        placeholderText = "Oth Charge",
+                        keyboardType = KeyboardType.Number,
+                    )
 
-                                        // Refresh category data and filter items
-                                        viewModel.refreshAndFilterItems()
+                    Spacer(Modifier.height(5.dp))
 
-                                        viewModel.clearAddItemFields()
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.cgst,
+                        placeholderText = "CGST",
+                        keyboardType = KeyboardType.Number,
+                    )
+                    Spacer(Modifier.height(5.dp))
 
-//                                    inventoryViewModel.loadingState.value = false
-                                    })
-                                }
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.sgst,
+                        placeholderText = "SGST",
+                        keyboardType = KeyboardType.Number,
+                    )
+                    Spacer(Modifier.height(5.dp))
 
-                                addItem.value = false
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.igst,
+                        placeholderText = "IGST",
+                        keyboardType = KeyboardType.Number,
+                    )
+
+                    Spacer(Modifier.height(5.dp))
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.huid,
+                        placeholderText = "H-UID",
+                    )
+                    Spacer(Modifier.height(5.dp))
+
+
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.desKey,
+                        placeholderText = "Description",
+                        keyboardType = KeyboardType.Text,
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    CusOutlinedTextField(
+                        modifier = Modifier,
+                        state = viewModel.desValue,
+                        placeholderText = "Value",
+                        keyboardType = KeyboardType.Text,
+                    )
+                }
+            }
+
+
+
+            Spacer(Modifier.height(5.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+
+                val purItem =
+                    viewModel.purchaseItems.filter { it.subCatName.lowercase() == subCatName.lowercase() && it.purity == viewModel.purity.text }
+
+                val text = purItem.joinToString(", ") {
+                    "${it.purity} - Gs.Wt${it.gsWt},  Fn.Wt: ${it.fnWt}/₹${it.fnRate},  wastage: ${it.wastagePercent}%"
+                }
+
+                if (!viewModel.isSelf.value) {
+                    Text(
+                        text, modifier = Modifier
+                            .weight(1f)
+                            .padding(5.dp), fontSize = 16.sp
+                    )
+
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+
+
+
+                Spacer(Modifier.width(5.dp))
+                Text("Cancel", Modifier
+                    .bounceClick {
+                        viewModel.clearAddItemFields()
+                        isUpdateMode.value = false
+                        addItem.value = false
+                    }
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(16.dp),
+                    )
+                    .padding(10.dp), fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(15.dp))
+                Text(if (isUpdateMode.value) "Update" else "Add", Modifier
+                    .bounceClick {
+
+                        return@bounceClick ioScope {
+                            if (purItem.isEmpty() && !viewModel.isSelf.value) {
+                                viewModel.snackBarState.value =
+                                    "No corresponding item found in purchase order"
+                                return@ioScope
+                            }
+
+                            if (!InputValidator.isValidQuantity(viewModel.qty.text)) {
+                                viewModel.snackBarState.value = "Invalid quantity"
+                                return@ioScope
+                            }
+
+                            if (!InputValidator.isValidWeight(viewModel.grWt.text)) {
+                                viewModel.snackBarState.value = "Invalid gross weight"
+                                return@ioScope
+                            }
+
+                            if (!InputValidator.isValidWeight(viewModel.ntWt.text)) {
+                                viewModel.snackBarState.value = "Invalid net weight"
+                                return@ioScope
+                            }
+
+                            if (!InputValidator.isValidWeight(viewModel.fnWt.text)) {
+                                viewModel.snackBarState.value = "Invalid fine weight"
+                                return@ioScope
+                            }
+
+                            if (viewModel.purity.text.isBlank()) {
+                                viewModel.snackBarState.value = "Purity is required"
+                                return@ioScope
+                            }
+
+                            if (!InputValidator.isValidHUID(viewModel.huid.text)) {
+                                viewModel.snackBarState.value = "Invalid HUID format"
+                                return@ioScope
                             }
 
 
-                        }
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(16.dp),
-                        )
-                        .padding(10.dp), fontWeight = FontWeight.Bold)
-                }
+                            val userId = viewModel.dataStoreManager.getAdminInfo().first.first()
+                            val storeId =
+                                viewModel.dataStoreManager.getSelectedStoreInfo().first.first()
 
+                            if (isUpdateMode.value) {
+                                // Update existing item
+                                val updatedItem = itemBeingUpdated?.copy(
+                                    itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
+                                    entryType = InputValidator.sanitizeText(viewModel.entryType.text),
+                                    quantity = viewModel.qty.text.toIntOrNull() ?: 1,
+                                    gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
+                                    ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
+                                    fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
+                                    purity = InputValidator.sanitizeText(viewModel.purity.text),
+                                    crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
+                                    crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
+                                    othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
+                                    othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
+                                    cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
+                                    sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
+                                    igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
+                                    addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
+                                    addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
+                                    huid = viewModel.huid.text.trim().uppercase(),
+                                    modifiedDate = Timestamp(System.currentTimeMillis())
+                                )
+                                updatedItem?.let {
+                                    viewModel.safeUpdateItem(it, onFailure = {
+                                        viewModel.snackBarState.value = "Update Item Failed"
+                                    }, onSuccess = {
+                                        // Refresh category data and filter items
+                                        viewModel.refreshAndFilterItems()
+                                        viewModel.clearAddItemFields()
+                                        isUpdateMode.value = false
+                                        viewModel.snackBarState.value = "Item updated successfully"
+                                    })
+                                }
+                            } else {
+                                // Check validation errors for purchase order items
+                                if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty()) {
+                                    val fnWtError = viewModel.validateFineWeightInput(
+                                        viewModel.fnWt.text, viewModel.purity.text, subCatName
+                                    )
+                                    if (fnWtError != null) {
+                                        viewModel.fnWt.error = fnWtError
+                                        viewModel.snackBarState.value = fnWtError
+                                        return@ioScope
+                                    }
+                                }
+                                // Add new item
+                                val newItem = ItemEntity(
+                                    itemId = viewModel.prefilledItemId.value?.takeIf { it.isNotBlank() }
+                                        ?: generateId(),
+                                    itemAddName = InputValidator.sanitizeText(viewModel.addToName.text),
+                                    userId = userId,
+                                    storeId = storeId,
+                                    catId = catId,
+                                    subCatId = subCatId,
+                                    catName = catName,
+                                    subCatName = subCatName,
+                                    entryType = InputValidator.sanitizeText(viewModel.entryType.text),
+                                    quantity = viewModel.qty.text.toIntOrNull() ?: 1,
+                                    gsWt = viewModel.grWt.text.toDoubleOrNull() ?: 0.0,
+                                    ntWt = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0,
+                                    fnWt = viewModel.fnWt.text.toDoubleOrNull() ?: 0.0,
+                                    purity = InputValidator.sanitizeText(viewModel.purity.text),
+                                    crgType = InputValidator.sanitizeText(viewModel.chargeType.text),
+                                    crg = viewModel.charge.text.toDoubleOrNull() ?: 0.0,
+                                    othCrgDes = InputValidator.sanitizeText(viewModel.otherChargeDes.text),
+                                    othCrg = viewModel.othCharge.text.toDoubleOrNull() ?: 0.0,
+                                    cgst = viewModel.cgst.text.toDoubleOrNull() ?: 0.0,
+                                    sgst = viewModel.sgst.text.toDoubleOrNull() ?: 0.0,
+                                    igst = viewModel.igst.text.toDoubleOrNull() ?: 0.0,
+                                    addDesKey = InputValidator.sanitizeText(viewModel.desKey.text),
+                                    addDesValue = InputValidator.sanitizeText(viewModel.desValue.text),
+                                    huid = viewModel.huid.text.trim().uppercase(),
+                                    addDate = Timestamp(System.currentTimeMillis()),
+                                    modifiedDate = Timestamp(System.currentTimeMillis()),
+                                    sellerFirmId = storeId,
+                                    purchaseOrderId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseOrderId,
+                                    purchaseItemId = if (viewModel.isSelf.value) storeId else if (purItem.isEmpty()) storeId else purItem[0].purchaseItemId,
+
+                                    )
+
+                                viewModel.safeInsertItem(newItem, onFailure = {
+                                    viewModel.snackBarState.value = "Add Item Failed"
+                                }, onSuccess = { itemEntity, l ->
+
+                                    // Refresh category data and filter items
+                                    viewModel.refreshAndFilterItems()
+
+                                    viewModel.clearAddItemFields()
+
+//                                    inventoryViewModel.loadingState.value = false
+                                })
+                            }
+
+                            addItem.value = false
+                        }
+
+
+                    }
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        RoundedCornerShape(16.dp),
+                    )
+                    .padding(10.dp), fontWeight = FontWeight.Bold)
+            }
 
 
         }

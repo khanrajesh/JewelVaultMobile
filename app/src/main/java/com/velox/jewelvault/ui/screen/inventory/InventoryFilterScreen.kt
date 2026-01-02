@@ -129,10 +129,10 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val subCategories = remember { mutableStateListOf<SubCategoryEntity>() }
     var showSortMenu by remember { mutableStateOf(false) }
     val isFilterPanelExpanded = remember { mutableStateOf(true) }
-    
+
     // State to track exported file URI for print functionality
     var exportedFileUri by remember { mutableStateOf<String?>(null) }
-    
+
     // State for print dialog
     val showPrintDialog = remember { mutableStateOf(false) }
     val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
@@ -153,6 +153,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 RoundedCornerShape(topStart = 18.dp)
             )
             .padding(8.dp)
+
     ) {
         // Header with sort and action buttons
         HeaderSection(
@@ -197,10 +198,10 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 }
                 val fileName = "ItemExport_${System.currentTimeMillis()}.xlsx"
                 enqueueExportWorker(
-                    context, 
-                    lifecycleOwner, 
-                    fileName, 
-                    viewModel.itemHeaderList, 
+                    context,
+                    lifecycleOwner,
+                    fileName,
+                    viewModel.itemHeaderList,
                     rows,
                     onExportComplete = { fileUri ->
                         fileUri?.let { uri ->
@@ -458,7 +459,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
             )
         }
     }
-    
+
     // Print Dialog
     if (showPrintDialog.value && selectedItem.value != null) {
         AlertDialog(
@@ -617,7 +618,7 @@ private fun HeaderSection(
                 // Show print button only when file is exported
                 if (exportedFileUri != null) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Button(
                         onClick = { onPrint(exportedFileUri!!) }
                     ) {
@@ -631,7 +632,7 @@ private fun HeaderSection(
                 }
             }
 
-                
+
                 DropdownMenu(
                     expanded = showSortMenu,
                     onDismissRequest = onSortMenuToggle

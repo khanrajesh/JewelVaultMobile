@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Bluetooth
@@ -114,13 +116,13 @@ fun BluetoothToggleIcon(
                         "Bluetooth is currently ${getStateDescription(bluetoothState.currentState)}"
                 }
             }
-        }, modifier = modifier
+        }, modifier = modifier.size(25.dp).aspectRatio(1f)
     ) {
         Icon(
             imageVector = Icons.TwoTone.Bluetooth,
             contentDescription = getStateDescription(bluetoothState.currentState),
             tint = iconColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.fillMaxSize()
         )
     }
 }

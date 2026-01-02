@@ -47,6 +47,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.to3FString
 
 
@@ -94,7 +95,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     val showDeleteSubCatDialog = remember { mutableStateOf(false) }
     val subCatName = remember { InputFieldState("") }
     val subCatAdminPin = remember { InputFieldState("") }
-
+    val isLandscape = isLandscape()
     val subNavController = LocalSubNavController.current
 
     Box(
@@ -103,7 +104,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(top = 5.dp, start = 5.dp)
     ) {
-        LazyVerticalGrid(modifier = Modifier.fillMaxSize(), columns = GridCells.Fixed(2)) {
+        LazyVerticalGrid(modifier = Modifier.fillMaxSize(), columns = GridCells.Fixed(if (isLandscape) 2 else 1 )) {
 
             items(inventoryViewModel.catSubCatDto) {
                 CategoryItem(
@@ -757,6 +758,7 @@ fun CategoryItem(
     subCategoryLongClick: (SubCategoryEntity) -> Unit,
 ) {
 
+    val isLandscape = isLandscape()
     val showOption = remember { mutableStateOf(false) }
     Box(
         Modifier
@@ -795,10 +797,9 @@ fun CategoryItem(
             }
 
 
-
             Spacer(Modifier.height(10.dp))
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3)
+                columns = GridCells.Fixed(if (isLandscape) 3 else 2)
             ) {
                 items(catSubCatDto.subCategoryList) {
                     SubCategoryItem(

@@ -78,7 +78,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
     val isLogin = remember { mutableStateOf(true) }
 
     val mobileNo = remember { InputFieldState() }
-    val password = remember { InputFieldState() }
+    val password = remember { InputFieldState("0000") } //todo remove the init value
     val confirmPassword = remember { InputFieldState() }
 
     val savePhoneChecked = remember { mutableStateOf(false) }
@@ -240,7 +240,7 @@ private fun PortraitLoginScreen(
             painter = painterResource(id = R.drawable.logo_1),
             contentDescription = "Splash Logo",
             modifier = Modifier
-                .weight(1f)
+                .weight(0.4f)
                 .fillMaxSize(0.3f),
         )
 
@@ -623,7 +623,7 @@ private fun AuthScreen(
                         Checkbox(
                             checked = savePhoneChecked.value,
                             onCheckedChange = { savePhoneChecked.value = it })
-                        Text("Save phone number")
+                        Text("Save Number")
                     }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = {

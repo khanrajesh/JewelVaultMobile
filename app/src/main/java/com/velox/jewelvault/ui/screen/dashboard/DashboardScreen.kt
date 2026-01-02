@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.TrendingUp
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.twotone.Pentagon
 import androidx.compose.material.icons.twotone.People
 import androidx.compose.material.icons.twotone.Scale
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
@@ -42,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,8 +56,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,18 +94,11 @@ fun DashboardScreenPreview() {
     DashboardScreen(hiltViewModel<DashboardViewModel>())
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
     dashboardViewModel.currentScreenHeadingState.value = "Dashboard"
-    LandscapeMainScreen(dashboardViewModel)
-//    if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
-}
 
-@OptIn(ExperimentalMaterialApi::class)
-@Composable
-fun LandscapeMainScreen(
-    dashboardViewModel: DashboardViewModel
-) {
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
@@ -134,7 +132,7 @@ fun LandscapeMainScreen(
     }
 
     // Dialog state for time range selection
-    var showTimeRangeDialog by remember { mutableStateOf(false) }
+    val showTimeRangeDialog = remember { mutableStateOf(false) }
 
     // Handle back press
     BackHandler {
@@ -201,6 +199,73 @@ fun LandscapeMainScreen(
     }
 
 
+    Box(Modifier.fillMaxSize()) {
+        if (isLandscape()) LandscapeDashboardScreen(
+            dashboardViewModel, pullRefreshState, showTimeRangeDialog
+        )
+        else PortraitDashboardScreen(
+            dashboardViewModel, pullRefreshState, showTimeRangeDialog
+        )
+
+
+        // Pull to refresh indicator
+        PullRefreshIndicator(
+            refreshing = isRefreshing.value,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        // Time Range Selection Dialog
+        if (showTimeRangeDialog.value) {
+            TimeRangeSelectionDialog(
+                currentRange = dashboardViewModel.selectedRange.value,
+                onRangeSelected = { newRange ->
+                    dashboardViewModel.updateTimeRange(newRange)
+                    showTimeRangeDialog.value = false
+                },
+                onDismiss = {
+                    showTimeRangeDialog.value = false
+                })
+        }
+
+        // Show update dialogs if needed
+        if (baseViewModel.showUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                OptionalUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) },
+                    onDismiss = { baseViewModel.dismissUpdateDialog() },
+                    onBackupClick = { baseViewModel.onUpdateClick(context) })
+            }
+        }
+
+        if (baseViewModel.showForceUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                com.velox.jewelvault.ui.components.ForceUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) })
+            }
+        }
+
+    }
+
+
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun LandscapeDashboardScreen(
+    dashboardViewModel: DashboardViewModel,
+    pullRefreshState: PullRefreshState,
+    showTimeRangeDialog: MutableState<Boolean>,
+) {
+
+    val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+    LocalSubNavController.current
+    LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LocalFocusManager.current
 
     Box(
         Modifier
@@ -219,19 +284,26 @@ fun LandscapeMainScreen(
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                FlowOverView(dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                FlowOverView(Modifier
+                    .fillMaxHeight()
+                    .width(300.dp),dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
                 TopFiveSales(Modifier.weight(1f), dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                CategorySales(dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                CategorySales( Modifier
+                    .fillMaxHeight()
+                    .width(200.dp), dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                CustomerOverview(dashboardViewModel)
+                CustomerOverview(Modifier
+                    .fillMaxHeight()
+                    .width(200.dp),
+                    dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
 
                 Column(
@@ -331,58 +403,177 @@ fun LandscapeMainScreen(
             RecentItemSold(Modifier, dashboardViewModel.recentSellsItem)
         }
 
-        // Pull to refresh indicator
-        PullRefreshIndicator(
-            refreshing = isRefreshing.value,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
 
-        // Time Range Selection Dialog
-        if (showTimeRangeDialog) {
-            TimeRangeSelectionDialog(
-                currentRange = dashboardViewModel.selectedRange.value,
-                onRangeSelected = { newRange ->
-                    dashboardViewModel.updateTimeRange(newRange)
-                    showTimeRangeDialog = false
-                },
-                onDismiss = {
-                    showTimeRangeDialog = false
-                })
-        }
-
-        // Show update dialogs if needed
-        if (baseViewModel.showUpdateDialog.value) {
-            baseViewModel.updateInfo.value?.let { updateInfo ->
-                OptionalUpdateDialog(
-                    updateInfo = updateInfo,
-                    onUpdateClick = { baseViewModel.onUpdateClick(context) },
-                    onDismiss = { baseViewModel.dismissUpdateDialog() },
-                    onBackupClick = { baseViewModel.onUpdateClick(context) })
-            }
-        }
-
-        if (baseViewModel.showForceUpdateDialog.value) {
-            baseViewModel.updateInfo.value?.let { updateInfo ->
-                com.velox.jewelvault.ui.components.ForceUpdateDialog(
-                    updateInfo = updateInfo,
-                    onUpdateClick = { baseViewModel.onUpdateClick(context) })
-            }
-        }
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun PortraitMainScreen() {
+fun PortraitDashboardScreen(
+    dashboardViewModel: DashboardViewModel,
+    pullRefreshState: PullRefreshState,
+    showTimeRangeDialog: MutableState<Boolean>,
+) {
 
+    val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+    LocalSubNavController.current
+    LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LocalFocusManager.current
+
+    Box(
+        Modifier
+            .pullRefresh(pullRefreshState)
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(5.dp)
+    ) {
+        keyboardController?.hide()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            //cash flow over view\
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                    )
+                    .padding(5.dp), verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.SellInvoice.route)
+                        }
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Create Invoice",
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.surface,
+
+                            )
+                    }
+
+                    Icon(
+                        imageVector = Icons.TwoTone.Pentagon,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .bounceClick {
+                                navHost.navigate(Screens.DraftInvoice.route)
+                            }
+                            .align(Alignment.TopStart)
+                            .padding(2.dp)
+                            .fillMaxHeight()
+                            .size(30.dp)
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .padding(7.dp),
+                        )
+
+
+                }
+                Spacer(Modifier.height(5.dp))
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                ) {
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.QrScanScreen.route)
+                        }
+                        .weight(1f)
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text("Cam", textAlign = TextAlign.Center)
+                    }
+                    Spacer(Modifier.width(5.dp))
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            dashboardViewModel.getSubCategoryCount {
+                                if (it > 2) {
+                                    mainScope {
+                                        navHost.navigate(Screens.Purchase.route)
+                                    }
+                                } else {
+                                    baseViewModel.snackBarState = "Please add more sub categories."
+                                }
+                            }
+
+                        }
+                        .weight(1f)
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+
+            Spacer(Modifier.height(5.dp))
+            Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.Center) {
+                FlowOverView(Modifier
+                    .fillMaxSize().weight(1f),dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
+                }
+                Spacer(Modifier.width(5.dp))
+                CustomerOverview(Modifier
+                    .fillMaxSize().weight(1f), dashboardViewModel)
+            }
+            Spacer(Modifier.height(5.dp))
+            TopFiveSales(Modifier.fillMaxWidth().defaultMinSize(minHeight = 120.dp), dashboardViewModel) { showDialog ->
+                showTimeRangeDialog.value = showDialog
+            }
+            Spacer(Modifier.height(5.dp))
+            CategorySales( Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 120.dp),
+                dashboardViewModel) { showDialog ->
+                showTimeRangeDialog.value = showDialog
+            }
+
+            Spacer(Modifier.height(5.dp))
+            //Recent Item Sold
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                RecentItemSold(Modifier.fillMaxSize(), dashboardViewModel.recentSellsItem)
+            }
+        }
+
+
+    }
 }
+
 
 @Composable
 fun CategorySales(
-    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
+    modifier: Modifier = Modifier,dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
-        Modifier
+        modifier
             .fillMaxHeight()
             .width(200.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
@@ -471,7 +662,6 @@ fun TopFiveSales(
 ) {
     Column(
         modifier = modifier
-            .wrapContentWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
@@ -572,12 +762,10 @@ fun ItemViewItem(
 
 @Composable
 fun FlowOverView(
-    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
+    modifier: Modifier=Modifier, dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
-        Modifier
-            .fillMaxHeight()
-            .width(300.dp)
+        modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp),
 
@@ -646,12 +834,10 @@ fun FlowOverView(
 
 @Composable
 fun CustomerOverview(
-    dashboardViewModel: DashboardViewModel,
+    modifier: Modifier = Modifier, dashboardViewModel: DashboardViewModel,
 ) {
     Column(
-        Modifier
-            .fillMaxHeight()
-            .width(200.dp)
+        modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
