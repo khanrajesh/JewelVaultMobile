@@ -18,6 +18,7 @@ import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
+import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
@@ -49,7 +50,8 @@ class BaseViewModel @Inject constructor(
     private val _appUpdateManager: AppUpdateManager,
     private val _backupManager: BackupManager,
     private val _auth: FirebaseAuth,
-    private val _Internal_bluetoothManager: BleManager
+    private val _Internal_bluetoothManager: BleManager,
+    private val _repository: RepositoryImpl
     ) : ViewModel() {
 
     var loading by _loadingState
@@ -107,14 +109,14 @@ class BaseViewModel @Inject constructor(
         loadSettings()
     }
 
-    suspend fun refreshMetalRates(state: String = "visakhapatnam", context: Context) {
+    suspend fun refreshMetalRates(context: Context) {
         metalRates.clear()
-        metalRates.addAll(fetchAllMetalRates(state, context,metalRatesLoading,_dataStoreManager))
+        metalRates.addAll(fetchAllMetalRates(context, metalRatesLoading, _dataStoreManager, _repository))
     }
 
-    suspend fun refreshOnlineMetalRates(state: String = "visakhapatnam", context: Context) {
+    suspend fun refreshOnlineMetalRates(context: Context) {
         metalRates.clear()
-        metalRates.addAll(metalRates(metalRatesLoading,state, context,_dataStoreManager))
+        metalRates.addAll(metalRates(metalRatesLoading, context, _dataStoreManager, _repository))
     }
 
 

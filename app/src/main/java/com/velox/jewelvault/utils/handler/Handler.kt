@@ -1,5 +1,6 @@
 package com.velox.jewelvault.utils.handler
 
+import android.util.Log
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ResponseException
@@ -27,10 +28,12 @@ inline fun <reified T> handleNetworkResponse(crossinline call: suspend () -> Htt
             if (status == 200) {
                 emit(KtorResource.Success(response.body()))
             } else {
+                Log.e("Ktor", "ClientRequestException: ${response}")
                 emit(KtorResource.Error("Call Exception", response.body(), status))
             }
 
         } catch (e: ClientRequestException) {
+            Log.e("Ktor", "ClientRequestException: ${e.message}", e)
             emit(
                 KtorResource.Error(
                     "ClientRequestException",
@@ -39,6 +42,7 @@ inline fun <reified T> handleNetworkResponse(crossinline call: suspend () -> Htt
                 )
             )
         } catch (e: ServerResponseException) {
+            Log.e("Ktor", "ServerResponseException: ${e.message}", e)
             emit(
                 KtorResource.Error(
                     "ServerResponseException",
@@ -47,6 +51,7 @@ inline fun <reified T> handleNetworkResponse(crossinline call: suspend () -> Htt
                 )
             )
         } catch (e: ResponseException) {
+            Log.e("Ktor", "ResponseException: ${e.message}", e)
             emit(
                 KtorResource.Error(
                     "ResponseException",
@@ -55,6 +60,7 @@ inline fun <reified T> handleNetworkResponse(crossinline call: suspend () -> Htt
                 )
             )
         } catch (e: Exception) {
+            Log.e("Ktor", "Unknown network error", e)
             emit(KtorResource.Error(e.message ?: "Unknown Error"))
         }
 

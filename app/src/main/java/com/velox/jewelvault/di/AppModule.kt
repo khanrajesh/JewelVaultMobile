@@ -207,6 +207,16 @@ object AppModule {
     fun provideKtorClient(@Named("baseUrl") baseUrl: String): HttpClient {
         return HttpClient(CIO) {
             expectSuccess = false
+            engine {
+                https {
+                    trustManager = object : javax.net.ssl.X509TrustManager {
+                        override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+                        override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+                        override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+                    }
+                    serverName = java.net.URI(baseUrl).host
+                }
+            }
             install(Logging) {
                 level = LogLevel.INFO
                 logger = object : Logger {
@@ -227,9 +237,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMetalRateRemote(
-        client: HttpClient,
-        @Named("baseUrl") baseUrl: String
-    ): RepositoryImpl = RepositoryImpl(client, baseUrl)
+        client: HttpClient
+    ): RepositoryImpl = RepositoryImpl(client)
 
 
     // endregion
