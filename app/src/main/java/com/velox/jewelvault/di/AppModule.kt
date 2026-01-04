@@ -22,8 +22,17 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.RoomMigration
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
+import io.ktor.client.plugins.logging.Logging
+import io.ktor.serialization.kotlinx.json.json
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
+import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.backup.BackupManager
 import com.velox.jewelvault.utils.fcm.FCMTokenManager
@@ -39,6 +48,8 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    private const val BASE_URL = "https://jewelvaultbackend-44960140033.asia-south1.run.app/"
 
     @Provides
     @Singleton
@@ -183,6 +194,45 @@ object AppModule {
             dataStoreManager = dataStoreManager
         )
     }
+
+    // region Ktor
+
+    @Provides
+    @Singleton
+    @Named("baseUrl")
+    fun provideBaseUrl(): String = BASE_URL
+
+    @Provides
+    @Singleton
+    fun provideKtorClient(@Named("baseUrl") baseUrl: String): HttpClient {
+        return HttpClient(CIO) {
+            expectSuccess = false
+            install(Logging) {
+                level = LogLevel.INFO
+                logger = object : Logger {
+                    override fun log(message: String) {
+                        android.util.Log.d("Ktor", message)
+                    }
+                }
+            }
+            install(ContentNegotiation) {
+                json()
+            }
+            defaultRequest {
+                url(baseUrl)
+            }
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideMetalRateRemote(
+        client: HttpClient,
+        @Named("baseUrl") baseUrl: String
+    ): RepositoryImpl = RepositoryImpl(client, baseUrl)
+
+
+    // endregion
 
     //endregion
 
