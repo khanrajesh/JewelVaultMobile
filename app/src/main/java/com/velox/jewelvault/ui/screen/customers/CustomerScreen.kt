@@ -2,7 +2,9 @@ package com.velox.jewelvault.ui.screen.customers
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,9 +14,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.ArrowForward
 import androidx.compose.material.icons.twotone.AccountBalance
@@ -43,11 +48,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -55,6 +59,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.formatCurrency
+import com.velox.jewelvault.utils.isLandscape
 
 @Composable
 fun CustomerScreen(
@@ -94,58 +99,92 @@ fun CustomerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
-            .padding(5.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(5.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        Row(
-            modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
-        ) {
-            CustomerStatisticsCard(Modifier.weight(1f), viewModel)
-            Spacer(Modifier.width(10.dp))
-            CusOutlinedTextField(
-                state = searchQuery,
-                placeholderText = "Search By No",
-                modifier = Modifier.width(300.dp),
-                keyboardType = KeyboardType.Phone,
-                trailingIcon = Icons.TwoTone.Search,
-                onTrailingIconClick = {
-                    viewModel.searchCustomers(searchQuery.text)
-                },
-                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
-                leadingIcon = Icons.TwoTone.Clear,
-                onLeadingIconClick = {
-                    searchQuery.text = ""
-                    viewModel.loadCustomerData()
-                })
-
-            IconButton(onClick = { showKhataBookPlans = true }) {
-                Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
-            }
-            IconButton(onClick = { showAddCustomerDialog = true }) {
-                Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
-            }
-        }
-        LazyColumn(
-            Modifier.fillMaxWidth()
-        ) {
-
-
-            // Filter Chips
-            item {
-                FilterChips(selectedFilter = filterType.text, onFilterSelected = { filter ->
-                    filterType.text = filter
-                    viewModel.filterCustomers(filter)
-                })
-            }
-
-            // Customer List
-            items(viewModel.customerList) { customer ->
-                CustomerCard(
-                    customer = customer,
-                    onClick = { subNavController.navigate("${SubScreens.CustomersDetails.route}/${customer.mobileNo}") })
-            }
+        val onSearchByTrailing =  {
+            viewModel.searchCustomers(searchQuery.text)
         }
 
+        val onSearchByLeading = {
+            searchQuery.text = ""
+            viewModel.loadCustomerData()
+        }
+
+        if (isLandscape()){
+            Row(
+                modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomerStatisticsCard(Modifier.weight(1f), viewModel)
+                Spacer(Modifier.width(10.dp))
+                CusOutlinedTextField(
+                    state = searchQuery,
+                    placeholderText = "Search By No",
+                    modifier = Modifier.width(300.dp),
+                    keyboardType = KeyboardType.Phone,
+                    trailingIcon = Icons.TwoTone.Search,
+                    onTrailingIconClick = onSearchByTrailing,
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
+                    leadingIcon = Icons.TwoTone.Clear,
+                    onLeadingIconClick = onSearchByLeading)
+
+                IconButton(onClick = { showKhataBookPlans = true }) {
+                    Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
+                }
+                IconButton(onClick = { showAddCustomerDialog = true }) {
+                    Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
+                }
+            }
+        }else{
+            Column(Modifier.fillMaxWidth()) {
+                CustomerStatisticsCard(Modifier.wrapContentHeight().fillMaxWidth(), viewModel)
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CusOutlinedTextField(
+                        state = searchQuery,
+                        placeholderText = "Search By No",
+                        modifier = Modifier.width(300.dp),
+                        keyboardType = KeyboardType.Phone,
+                        trailingIcon = Icons.TwoTone.Search,
+                        onTrailingIconClick = onSearchByTrailing,
+                        validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
+                        leadingIcon = Icons.TwoTone.Clear,
+                        onLeadingIconClick = onSearchByLeading)
+
+                    IconButton(onClick = { showKhataBookPlans = true }) {
+                        Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
+                    }
+                    IconButton(onClick = { showAddCustomerDialog = true }) {
+                        Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
+                    }
+                }
+            }
+        }
+
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            LazyColumn(
+                Modifier.fillMaxWidth()
+            ) {
+
+
+                // Filter Chips
+                item {
+                    FilterChips(selectedFilter = filterType.text, onFilterSelected = { filter ->
+                        filterType.text = filter
+                        viewModel.filterCustomers(filter)
+                    })
+                }
+
+                // Customer List
+                items(viewModel.customerList) { customer ->
+                    CustomerCard(
+                        customer = customer,
+                        onClick = { subNavController.navigate("${SubScreens.CustomersDetails.route}/${customer.mobileNo}") })
+                }
+            }
+        }
     }
 
 
@@ -195,29 +234,35 @@ fun CustomerStatisticsCard(modifier: Modifier, viewModel: CustomerViewModel) {
             modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 StatisticItem(
+                    modifier = Modifier.weight(1f),
                     label = "Customers",
                     value = viewModel.totalCustomers.value.toString(),
                     icon = Icons.TwoTone.People
                 )
                 StatisticItem(
+                    modifier = Modifier.weight(1f),
                     label = "Outstanding Balance",
                     value = formatCurrency(viewModel.totalOutstandingAmount.value),
                     icon = Icons.TwoTone.AccountBalance
                 )
                 StatisticItem(
+                    modifier = Modifier.weight(1f),
                     label = "Month's Expected Khata",
                     value = formatCurrency(viewModel.currentMonthKhataBookPayments.value),
                     icon = Icons.TwoTone.CheckCircle
                 )
                 StatisticItem(
+                    modifier = Modifier.weight(1f),
                     label = "Total Khata Paid",
                     value = formatCurrency(viewModel.totalKhataBookPaidAmount.value),
                     icon = Icons.TwoTone.Book
                 )
                 StatisticItem(
+                    modifier = Modifier.weight(1f),
                     label = "Active Khata",
                     value = viewModel.activeKhataBookCustomersCount.value.toString(),
                     icon = Icons.TwoTone.Warning
@@ -229,9 +274,13 @@ fun CustomerStatisticsCard(modifier: Modifier, viewModel: CustomerViewModel) {
 
 @Composable
 fun StatisticItem(
-    label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
     Column(
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
@@ -244,12 +293,16 @@ fun StatisticItem(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
         )
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -419,7 +472,7 @@ fun AddCustomerDialog(
     var notes by remember { mutableStateOf("") }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add New Customer") }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
             CusOutlinedTextField(
                 state = InputFieldState(name),
                 onTextChange = { name = it },

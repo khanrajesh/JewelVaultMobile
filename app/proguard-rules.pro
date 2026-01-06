@@ -147,4 +147,7 @@
     @android.webkit.JavascriptInterface <methods>;
 }
 
+# Suppress missing SLF4J binding used by logging libraries (e.g., Ktor/OkHttp)
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+
 -dontwarn java.awt.Shape

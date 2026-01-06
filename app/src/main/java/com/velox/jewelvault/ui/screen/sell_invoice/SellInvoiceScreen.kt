@@ -116,11 +116,11 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
     }
 
     if (!showQrBarScanner.value) {
-        if (isLandscape()) {
+//        if (isLandscape()) {
             SellInvoiceLandscape(showQrBarScanner, invoiceViewModel, itemId)
-        } else {
-            SellInvoicePortrait()
-        }
+//        } else {
+//            SellInvoicePortrait()
+//        }
     } else {
         QrBarScannerPage(
             showPage = showQrBarScanner, scanAndClose = true,
