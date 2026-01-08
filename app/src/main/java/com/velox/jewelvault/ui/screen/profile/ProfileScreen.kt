@@ -16,11 +16,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +63,7 @@ import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.mainScope
@@ -78,6 +78,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     val isEditable = remember { mutableStateOf(false) }
     val context = LocalContext.current
     val subNavController = LocalSubNavController.current
+    val scrollState = rememberScrollState()
+    val configuration = LocalConfiguration.current
+    val isLandscape = isLandscape()
+    val imageSize =
+        if (isLandscape) 220.dp else (configuration.screenWidthDp.dp * 0.4f).coerceIn(120.dp, 180.dp)
     val store: Triple<Flow<String>, Flow<String>, Flow<String>> = profileViewModel.dataStoreManager.getSelectedStoreInfo()
     LaunchedEffect(Unit) {
         // Ensure store data and image are loaded on entry
@@ -108,53 +113,198 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     }
 
     Box(
-        Modifier.fillMaxWidth(), contentAlignment = Alignment.TopStart
+        Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart
     ) {
-        Column(Modifier.fillMaxSize()) {
-            Spacer(
-                Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .weight(4f)
                     .background(
                         MaterialTheme.colorScheme.surface,
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     )
                     .padding(10.dp)
             ) {
+                Spacer(Modifier.height(16.dp))
+
                 Row(
-                    Modifier.height(70.dp), verticalAlignment = Alignment.CenterVertically
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Spacer(Modifier.width(310.dp))
-                    BasicTextField(
-                        modifier = if (isEditable.value) {
-                            Modifier
+                    Box(
+                        Modifier
+                            .size(imageSize)
+                            .shadow(2.dp, CircleShape, spotColor = Color.LightGray)
+                            .background(Color.White, CircleShape)
+                            .padding(6.dp)
+                    ) {
+                        val imagePickerLauncher = rememberLauncherForActivityResult(
+                            contract = ActivityResultContracts.GetContent()
+                        ) { uri: Uri? ->
+                            uri?.let { selectedUri ->
+                                profileViewModel.setSelectedImageFile(selectedUri)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .clickable(enabled = isEditable.value) {
+                                    imagePickerLauncher.launch("image/*")
+                                }
                                 .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    RoundedCornerShape(5.dp)
-                                )
-                                .padding(5.dp)
-                        } else {
-                            Modifier
-                        },
-                        value = profileViewModel.shopName.text,
-                        onValueChange = {
-                            profileViewModel.shopName.textChange(it)
-                        },
-                        textStyle = TextStyle(
-                            fontSize = 36.sp,
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                    )
-                    Spacer(Modifier.weight(1f))
-                    
+                                    width = 2.dp,
+                                    color = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (profileViewModel.selectedImageUri.value.isNullOrBlank() && baseViewModel.getLogoUri() == null && (baseViewModel.storeImage.value.isNullOrBlank())) {
+                                // Show placeholder when no image
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = if (isEditable.value) Icons.TwoTone.AddAPhoto else Icons.TwoTone.Storefront,
+                                        contentDescription = "Add Store Image",
+                                        modifier = Modifier.size(48.dp),
+                                        tint = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = if (isEditable.value) "Add Store\nImage" else "Store Image",
+                                        textAlign = TextAlign.Center,
+                                        fontSize = 14.sp,
+                                        color = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray
+                                    )
+                                }
+                            } else {
+                                val imageData = when {
+                                    // If we have a newly selected image file, show it immediately
+                                    profileViewModel.selectedImageFileUri.value != null -> {
+                                        log("ProfileScreen: Using selectedImageFileUri: ${profileViewModel.selectedImageFileUri.value}")
+                                        profileViewModel.selectedImageFileUri.value
+                                    }
+                                    // Prefer remote URL if present
+                                    !profileViewModel.selectedImageUri.value.isNullOrBlank() -> {
+                                        log("ProfileScreen: Using selectedImageUri: ${profileViewModel.selectedImageUri.value}")
+                                        profileViewModel.selectedImageUri.value
+                                    }
+                                    !baseViewModel.storeImage.value.isNullOrBlank() -> {
+                                        log("ProfileScreen: Using storeImage: ${baseViewModel.storeImage.value}")
+                                        baseViewModel.storeImage.value
+                                    }
+                                    // Fallback to local logo file
+                                    baseViewModel.hasLocalLogo() -> {
+                                        log("ProfileScreen: Using local logo: ${baseViewModel.getLogoUri()}")
+                                        baseViewModel.getLogoUri()
+                                    }
+                                    else -> {
+                                        log("ProfileScreen: No image data available")
+                                        null
+                                    }
+                                }
+                                
+                                if (imageData != null) {
+                                    log("ProfileScreen: ImageData type: ${imageData::class.simpleName}, value: $imageData")
+                                    
+                                    // Create ImageRequest with proper configuration
+                                    val imageRequest = ImageRequest.Builder(context)
+                                        .data(imageData)
+                                        .crossfade(true)
+                                        .error(android.R.drawable.ic_menu_gallery)
+                                        .placeholder(android.R.drawable.ic_menu_gallery)
+                                        .listener(
+                                            onError = { request, result ->
+                                                log("ProfileScreen: Coil load error for ${request.data}: ${result.throwable.message}")
+                                            },
+                                            onSuccess = { request, _ ->
+                                                log("ProfileScreen: Coil load success for ${request.data}")
+                                            }
+                                        )
+                                        .build()
+                                    
+                                    Image(
+                                        painter = rememberAsyncImagePainter(imageRequest),
+                                        contentDescription = "Store Image",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                
+                                // Show edit overlay when in edit mode
+                                if (isEditable.value) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.3f))
+                                            .clickable {
+                                                imagePickerLauncher.launch("image/*")
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val isUploading by profileViewModel.isUploadingImage
+                                        if (isUploading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(32.dp),
+                                                color = Color.White,
+                                                strokeWidth = 3.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.TwoTone.Edit,
+                                                contentDescription = "Edit Image",
+                                                modifier = Modifier.size(32.dp),
+                                                tint = Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 70.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        BasicTextField(
+                            modifier = if (isEditable.value) {
+                                Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(5.dp)
+                                    )
+                                    .padding(5.dp)
+                            } else {
+                                Modifier
+                            },
+                            value = profileViewModel.shopName.text,
+                            onValueChange = {
+                                profileViewModel.shopName.textChange(it)
+                            },
+                            textStyle = TextStyle(
+                                fontSize = 36.sp,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+
                     // Sync button
                     val isLoading by profileViewModel.isLoading
                     if (!isEditable.value && !isLoading) {
@@ -175,7 +325,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 .padding(end = 8.dp)
                         )
                     }
-                    
+
                     // Loading indicator
                     if (isLoading) {
                         CircularProgressIndicator(
@@ -185,148 +335,279 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             strokeWidth = 2.dp
                         )
                     }
-                    
+
                     if (!isEditable.value) Icon(Icons.TwoTone.Edit,
                         null,
                         modifier = Modifier.bounceClick { isEditable.value = true })
                 }
 
-                Spacer(Modifier.height(50.dp))
+                Spacer(Modifier.height(32.dp))
 
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.propName,
-                            placeholderText = "Proprietor",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = !isEditable.value
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.userEmail,
-                            placeholderText = "Email",
-                            keyboardType = KeyboardType.Email,
-                            readOnly = !isEditable.value
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.userMobile,
-                            placeholderText = "Mobile No",
-                            keyboardType = KeyboardType.Phone,
-                            readOnly = !isEditable.value,
-                            validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
-                        )
-
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.address,
-                            placeholderText = "Address",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = !isEditable.value,
-                            maxLines = 3
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.registrationNo,
-                            placeholderText = "Registration No",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = !isEditable.value
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.gstinNo,
-                            placeholderText = "GSTIN No",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = !isEditable.value
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.panNumber,
-                            placeholderText = "PAN No",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = !isEditable.value
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        CusOutlinedTextField(
-                            modifier = Modifier
-                                .padding(vertical = 5.dp)
-                                .fillMaxWidth(),
-                            state = profileViewModel.upiId,
-                            placeholderText = "UPI ID (for QR payments)",
-                            keyboardType = KeyboardType.Email,
-                            readOnly = !isEditable.value
-                        )
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 10.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
+                if (isLandscape) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            CusOutlinedTextField(
                                 modifier = Modifier
-                                    .bounceClick{
-                                        subNavController.navigate(SubScreens.UserManagement.route)
-                                    }
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.propName,
+                                placeholderText = "Proprietor",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.userEmail,
+                                placeholderText = "Email",
+                                keyboardType = KeyboardType.Email,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.userMobile,
+                                placeholderText = "Mobile No",
+                                keyboardType = KeyboardType.Phone,
+                                readOnly = !isEditable.value,
+                                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
+                            )
+
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.address,
+                                placeholderText = "Address",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value,
+                                maxLines = 3
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.registrationNo,
+                                placeholderText = "Registration No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.gstinNo,
+                                placeholderText = "GSTIN No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.panNumber,
+                                placeholderText = "PAN No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.upiId,
+                                placeholderText = "UPI ID (for QR payments)",
+                                keyboardType = KeyboardType.Email,
+                                readOnly = !isEditable.value
+                            )
+
+                            Card(
+                                modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp)
+                                    .padding(vertical = 10.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
+                                Column(
+                                    modifier = Modifier
+                                        .bounceClick{
+                                            subNavController.navigate(SubScreens.UserManagement.route)
+                                        }
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                        Text(
+                                            text = "User Management",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
                                     Text(
-                                        text = "User Management",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
+                                        text = "Add, edit, or remove users from your store. Manage roles and permissions for different user types.",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                                     )
 
+                                    Spacer(modifier = Modifier.height(12.dp))
 
-                                Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        UserRoleChip("Admin", MaterialTheme.colorScheme.primary)
+                                        UserRoleChip("Manager", MaterialTheme.colorScheme.secondary)
+                                        UserRoleChip("Worker", MaterialTheme.colorScheme.tertiary)
+                                        UserRoleChip("Salesperson", MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
 
-                                Text(
-                                    text = "Add, edit, or remove users from your store. Manage roles and permissions for different user types.",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
+                        }
+                    }
+                } else {
+                    Column(
+                        Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.propName,
+                                placeholderText = "Proprietor",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.userEmail,
+                                placeholderText = "Email",
+                                keyboardType = KeyboardType.Email,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.userMobile,
+                                placeholderText = "Mobile No",
+                                keyboardType = KeyboardType.Phone,
+                                readOnly = !isEditable.value,
+                                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
+                            )
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.address,
+                                placeholderText = "Address",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value,
+                                maxLines = 3
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.registrationNo,
+                                placeholderText = "Registration No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.gstinNo,
+                                placeholderText = "GSTIN No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.panNumber,
+                                placeholderText = "PAN No",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value
+                            )
+                        }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
+                        Spacer(Modifier.height(10.dp))
+
+                        Column {
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.upiId,
+                                placeholderText = "UPI ID (for QR payments)",
+                                keyboardType = KeyboardType.Email,
+                                readOnly = !isEditable.value
+                            )
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .bounceClick{
+                                            subNavController.navigate(SubScreens.UserManagement.route)
+                                        }
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
                                 ) {
-                                    UserRoleChip("Admin", MaterialTheme.colorScheme.primary)
-                                    UserRoleChip("Manager", MaterialTheme.colorScheme.secondary)
-                                    UserRoleChip("Worker", MaterialTheme.colorScheme.tertiary)
-                                    UserRoleChip("Salesperson", MaterialTheme.colorScheme.error)
+                                        Text(
+                                            text = "User Management",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "Add, edit, or remove users from your store. Manage roles and permissions for different user types.",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly
+                                    ) {
+                                        UserRoleChip("Admin", MaterialTheme.colorScheme.primary)
+                                        UserRoleChip("Manager", MaterialTheme.colorScheme.secondary)
+                                        UserRoleChip("Worker", MaterialTheme.colorScheme.tertiary)
+                                        UserRoleChip("Salesperson", MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
-
                     }
-
-
                 }
+
+                Spacer(Modifier.height(16.dp))
 
                 // User Management Card
 
@@ -397,142 +678,6 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
             }
         }
 
-        // Image upload box
-        Box(
-            Modifier
-                .sizeIn(maxWidth = 250.dp, maxHeight = 250.dp)
-                .aspectRatio(1f, matchHeightConstraintsFirst = true)
-                .offset(x = 50.dp)
-                .shadow(2.dp, CircleShape, spotColor = Color.LightGray)
-                .background(Color.White, CircleShape)
-                .padding(6.dp)
-        ) {
-            val imagePickerLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.GetContent()
-            ) { uri: Uri? ->
-                uri?.let { selectedUri ->
-                    profileViewModel.setSelectedImageFile(selectedUri)
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .clickable(enabled = isEditable.value) {
-                        imagePickerLauncher.launch("image/*")
-                    }
-                    .border(
-                        width = 2.dp,
-                        color = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (profileViewModel.selectedImageUri.value.isNullOrBlank() && baseViewModel.getLogoUri() == null && (baseViewModel.storeImage.value.isNullOrBlank())) {
-                    // Show placeholder when no image
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = if (isEditable.value) Icons.TwoTone.AddAPhoto else Icons.TwoTone.Storefront,
-                            contentDescription = "Add Store Image",
-                            modifier = Modifier.size(48.dp),
-                            tint = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (isEditable.value) "Add Store\nImage" else "Store Image",
-                            textAlign = TextAlign.Center,
-                            fontSize = 14.sp,
-                            color = if (isEditable.value) MaterialTheme.colorScheme.primary else Color.Gray
-                        )
-                    }
-                } else {
-                    val imageData = when {
-                        // If we have a newly selected image file, show it immediately
-                        profileViewModel.selectedImageFileUri.value != null -> {
-                            log("ProfileScreen: Using selectedImageFileUri: ${profileViewModel.selectedImageFileUri.value}")
-                            profileViewModel.selectedImageFileUri.value
-                        }
-                        // Prefer remote URL if present
-                        !profileViewModel.selectedImageUri.value.isNullOrBlank() -> {
-                            log("ProfileScreen: Using selectedImageUri: ${profileViewModel.selectedImageUri.value}")
-                            profileViewModel.selectedImageUri.value
-                        }
-                        !baseViewModel.storeImage.value.isNullOrBlank() -> {
-                            log("ProfileScreen: Using storeImage: ${baseViewModel.storeImage.value}")
-                            baseViewModel.storeImage.value
-                        }
-                        // Fallback to local logo file
-                        baseViewModel.hasLocalLogo() -> {
-                            log("ProfileScreen: Using local logo: ${baseViewModel.getLogoUri()}")
-                            baseViewModel.getLogoUri()
-                        }
-                        else -> {
-                            log("ProfileScreen: No image data available")
-                            null
-                        }
-                    }
-                    
-                    if (imageData != null) {
-                        log("ProfileScreen: ImageData type: ${imageData::class.simpleName}, value: $imageData")
-                        
-                        // Create ImageRequest with proper configuration
-                        val imageRequest = ImageRequest.Builder(context)
-                            .data(imageData)
-                            .crossfade(true)
-                            .error(android.R.drawable.ic_menu_gallery)
-                            .placeholder(android.R.drawable.ic_menu_gallery)
-                            .listener(
-                                onError = { request, result ->
-                                    log("ProfileScreen: Coil load error for ${request.data}: ${result.throwable.message}")
-                                },
-                                onSuccess = { request, _ ->
-                                    log("ProfileScreen: Coil load success for ${request.data}")
-                                }
-                            )
-                            .build()
-                        
-                        Image(
-                            painter = rememberAsyncImagePainter(imageRequest),
-                            contentDescription = "Store Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    
-                    // Show edit overlay when in edit mode
-                    if (isEditable.value) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f))
-                                .clickable {
-                                    imagePickerLauncher.launch("image/*")
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val isUploading by profileViewModel.isUploadingImage
-                            if (isUploading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
-                                    color = Color.White,
-                                    strokeWidth = 3.dp
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.TwoTone.Edit,
-                                    contentDescription = "Edit Image",
-                                    modifier = Modifier.size(32.dp),
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

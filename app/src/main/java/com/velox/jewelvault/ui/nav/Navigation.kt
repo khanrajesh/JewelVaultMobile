@@ -55,6 +55,7 @@ import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersScreen
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.ui.screen.guide.GuideScreen
 import com.velox.jewelvault.ui.screen.guide.GuideViewModel
+import com.velox.jewelvault.ui.screen.setting.PermissionSettingsScreen
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -122,6 +123,9 @@ fun SubAppNavigation(
         NavHost(navController = subNavController, startDestination = startDestination) {
             composable(SubScreens.Setting.route) {
                 SettingScreen()
+            }
+            composable(SubScreens.Permissions.route) {
+                PermissionSettingsScreen()
             }
             composable(SubScreens.Guide.route) {
                 GuideScreen(hiltViewModel<GuideViewModel>())

@@ -1,26 +1,28 @@
 package com.velox.jewelvault.ui.components
 
-import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.Settings
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.*
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.velox.jewelvault.utils.permissions.IconPermissionDialog
-import com.velox.jewelvault.utils.permissions.PermissionType
-import com.velox.jewelvault.utils.permissions.getBackupRestorePermissions
+import com.velox.jewelvault.utils.permissions.filterUngrantedPermissions
+import com.velox.jewelvault.utils.permissions.getMultiplePermissionMessage
+import com.velox.jewelvault.utils.permissions.getPermissionTypeForQueue
+import com.velox.jewelvault.utils.permissions.handlePermissionResult
+import com.velox.jewelvault.utils.permissions.openAppSettings
+import com.velox.jewelvault.utils.permissions.requestNextPermission
 
 @Composable
 fun PermissionRequester(
@@ -75,11 +77,10 @@ fun PermissionRequester(
         )
     }
 
-// Save both launchers together safely
+    // Save both launchers together safely
     LaunchedEffect(Unit) {
         launchers.value = requestPermissionLauncher to requestManageStorageLauncher
     }
-
 
     LaunchedEffect(Unit) {
         permissionQueue = filterUngrantedPermissions(context, permissions)
@@ -90,7 +91,7 @@ fun PermissionRequester(
             onAllPermissionsGranted()
         }
     }
-    
+
     // Re-check permissions when returning from settings
     LaunchedEffect(hasReturnedFromSettings) {
         if (hasReturnedFromSettings) {
@@ -98,7 +99,6 @@ fun PermissionRequester(
             if (remainingPermissions.isEmpty()) {
                 onAllPermissionsGranted()
             } else {
-                // Still have permissions to request
                 permissionQueue = remainingPermissions
                 currentPermissionIndex = 0
                 showInitialPermissionDialog = true
@@ -117,6 +117,7 @@ fun PermissionRequester(
             onConfirm = {
                 showInitialPermissionDialog = false
                 requestNextPermission(
+                    context = context,
                     permissionQueue = permissionQueue,
                     currentPermissionIndex = currentPermissionIndex,
                     requestPermissionLauncher = requestPermissionLauncher,
@@ -132,9 +133,8 @@ fun PermissionRequester(
             title = "Permission Required",
             message = "Some permissions are required for backup and restore functionality. They were denied and can only be granted through device settings. Please open settings and enable the required permissions.",
             permissionType = getPermissionTypeForQueue(permissionQueue),
-            onDismiss = { 
+            onDismiss = {
                 showSettingsDialog = false
-                // Check permissions again after dismissing
                 val remainingPermissions = filterUngrantedPermissions(context, permissions)
                 if (remainingPermissions.isEmpty()) {
                     onAllPermissionsGranted()
@@ -151,157 +151,3 @@ fun PermissionRequester(
         )
     }
 }
-
-private fun handlePermissionResult(
-    context: Context,
-    permissionQueue: List<String>,
-    currentPermissionIndex: Int,
-    isGranted: Boolean,
-    onAllPermissionsGranted: () -> Unit,
-    requestPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
-    requestManageStorageLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>,
-    onShowSettings: () -> Unit
-) {
-    val permission = permissionQueue.getOrNull(currentPermissionIndex)
-    if (isGranted) {
-        moveToNextPermission(
-            context = context,
-            permissionQueue = permissionQueue,
-            currentPermissionIndex = currentPermissionIndex,
-            onAllPermissionsGranted = onAllPermissionsGranted,
-            requestPermissionLauncher = requestPermissionLauncher,
-            requestManageStorageLauncher = requestManageStorageLauncher
-        )
-    } else {
-        // Permission was denied
-        if (permission != null) {
-            // Check if permission is permanently denied (user selected "Don't ask again")
-            val isPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(context as Activity, permission)
-            
-            if (isPermanentlyDenied) {
-                // Show settings dialog for permanently denied permissions
-                onShowSettings()
-            } else {
-                // Permission denied but not permanently, move to next permission
-                moveToNextPermission(
-                    context = context,
-                    permissionQueue = permissionQueue,
-                    currentPermissionIndex = currentPermissionIndex,
-                    onAllPermissionsGranted = onAllPermissionsGranted,
-                    requestPermissionLauncher = requestPermissionLauncher,
-                    requestManageStorageLauncher = requestManageStorageLauncher
-                )
-            }
-        } else {
-            // No permission to check, move to next
-            moveToNextPermission(
-                context = context,
-                permissionQueue = permissionQueue,
-                currentPermissionIndex = currentPermissionIndex,
-                onAllPermissionsGranted = onAllPermissionsGranted,
-                requestPermissionLauncher = requestPermissionLauncher,
-                requestManageStorageLauncher = requestManageStorageLauncher
-            )
-        }
-    }
-}
-
-private fun moveToNextPermission(
-    context: Context,
-    permissionQueue: List<String>,
-    currentPermissionIndex: Int,
-    onAllPermissionsGranted: () -> Unit,
-    requestPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
-    requestManageStorageLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>
-) {
-    if (currentPermissionIndex + 1 < permissionQueue.size) {
-        val nextIndex = currentPermissionIndex + 1
-        requestNextPermission(
-            permissionQueue = permissionQueue,
-            currentPermissionIndex = nextIndex,
-            requestPermissionLauncher = requestPermissionLauncher,
-            requestManageStorageLauncher = requestManageStorageLauncher
-        )
-    } else {
-        onAllPermissionsGranted()
-    }
-}
-
-private fun requestNextPermission(
-    permissionQueue: List<String>,
-    currentPermissionIndex: Int,
-    requestPermissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
-    requestManageStorageLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>
-) {
-    val permission = permissionQueue.getOrNull(currentPermissionIndex)
-    permission?.let {
-        if (it == Manifest.permission.MANAGE_EXTERNAL_STORAGE) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${permissionQueue[0]}")
-                }
-                requestManageStorageLauncher.launch(intent)
-            }
-        } else {
-            requestPermissionLauncher.launch(it)
-        }
-    }
-}
-
-private fun openAppSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-        data = Uri.fromParts("package", context.packageName, null)
-    }
-    context.startActivity(intent)
-}
-
-private fun getMultiplePermissionMessage(permissions: List<String>): String {
-    if (permissions.isEmpty()) return "We need some permissions to continue."
-
-    val messages = permissions.mapNotNull { permission ->
-        when (permission) {
-            Manifest.permission.CAMERA -> "• Camera access to scan QR/barcodes."
-            Manifest.permission.WRITE_EXTERNAL_STORAGE -> "• Storage access to save gold price data."
-            Manifest.permission.MANAGE_EXTERNAL_STORAGE -> "• Manage storage access for smooth file operations."
-            Manifest.permission.READ_CONTACTS -> "• Contacts access to invite friends."
-            Manifest.permission.ACCESS_FINE_LOCATION -> "• Location access for nearby shop recommendations."
-            Manifest.permission.RECORD_AUDIO -> "• Microphone access for voice search."
-            Manifest.permission.POST_NOTIFICATIONS -> "• Notification access to show backup/restore progress."
-            else -> null
-        }
-    }
-
-    return buildString {
-        appendLine("The app needs the following permissions:")
-        messages.forEach { appendLine(it) }
-    }
-}
-
-private fun filterUngrantedPermissions(context: Context, permissions: List<String>): List<String> {
-    return permissions.filter { permission ->
-        when (permission) {
-            Manifest.permission.MANAGE_EXTERNAL_STORAGE -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    !Environment.isExternalStorageManager()
-                } else false
-            }
-            else -> {
-                ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
-            }
-        }
-    }
-}
-
-private fun getPermissionTypeForQueue(permissions: List<String>): PermissionType {
-    return when {
-        permissions.any { it == Manifest.permission.POST_NOTIFICATIONS } -> PermissionType.NOTIFICATION
-        permissions.any { it == Manifest.permission.CAMERA } -> PermissionType.CAMERA
-        permissions.any { it == Manifest.permission.ACCESS_FINE_LOCATION } -> PermissionType.LOCATION
-        permissions.any { it == Manifest.permission.READ_CONTACTS } -> PermissionType.CONTACTS
-        permissions.any { it == Manifest.permission.RECORD_AUDIO } -> PermissionType.MICROPHONE
-        permissions.any { it in listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.MANAGE_EXTERNAL_STORAGE) } -> PermissionType.STORAGE
-        else -> PermissionType.STORAGE
-    }
-}
-
-

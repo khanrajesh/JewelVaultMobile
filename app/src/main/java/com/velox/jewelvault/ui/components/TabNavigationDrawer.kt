@@ -280,7 +280,7 @@ fun TabNavigationDrawer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 item{
-                    Box(Modifier.size(46.dp)) {
+                    Box(Modifier.size(38.dp)) {
                         ProfileImage { onProfileClick() }
                     }
                 }

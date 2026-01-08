@@ -1,6 +1,5 @@
 package com.velox.jewelvault.ui.screen.setting
 
-import android.Manifest
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -23,6 +22,7 @@ import com.velox.jewelvault.utils.backup.*
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.ui.components.RestoreSourceDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
+import com.velox.jewelvault.utils.permissions.getBackupRestorePermissions
 
 /**
  * Screen for backup and restore settings
@@ -34,6 +34,7 @@ fun BackupSettingsScreen(
 ) {
     val subNavController = LocalSubNavController.current
     val uiState by viewModel.uiState.collectAsState()
+    val backupPermissions = remember { getBackupRestorePermissions() }
     viewModel.currentScreenHeadingState.value= "Backup & Restore"
     BackHandler {
         subNavController.navigate(SubScreens.Setting.route) {
@@ -45,16 +46,7 @@ fun BackupSettingsScreen(
     
     // Permission requester for backup/restore operations
     PermissionRequester(
-        permissions = listOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.POST_NOTIFICATIONS,
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO
-        )
+        permissions = backupPermissions
     ) {}
     
     Box(
