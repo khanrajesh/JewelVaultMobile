@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -570,12 +568,12 @@ fun PortraitDashboardScreen(
 
 @Composable
 fun CategorySales(
-    modifier: Modifier = Modifier,dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
+    modifier: Modifier = Modifier,
+    dashboardViewModel: DashboardViewModel,
+    onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
         modifier
-            .fillMaxHeight()
-            .width(200.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
@@ -599,12 +597,12 @@ fun CategorySales(
         }
 
         if (dashboardViewModel.topSubCategories.isNotEmpty()) {
-            LazyColumn(
+            Column(
                 Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             ) {
-                items(dashboardViewModel.topSubCategories) {
+                dashboardViewModel.topSubCategories.forEach {
                     Row(
                         Modifier
                             .padding(3.dp)
@@ -1193,7 +1191,7 @@ fun RecentItemSold(
             }
 
             TextListView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth().height(500.dp),
                 headerList = headers,
                 items = tableData,
                 onItemClick = { clickedItem ->

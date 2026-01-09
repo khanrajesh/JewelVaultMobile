@@ -1201,7 +1201,7 @@ private fun AddItemSection(
                 text = "Exchange Item (${viewModel.exchangeItemList.size})",
             )
         }
-        Spacer(Modifier.width(3.dp))
+        Spacer(Modifier.weight(1f))
         Row(
             Modifier
                 .fillMaxHeight()
@@ -1209,7 +1209,8 @@ private fun AddItemSection(
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
                 )
-                .padding(3.dp)
+                .padding(3.dp).align(Alignment.CenterVertically),
+
         ) {
             Icon(Icons.TwoTone.CameraAlt, null, modifier = Modifier
                 .bounceClick {
@@ -1221,10 +1222,11 @@ private fun AddItemSection(
                     MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
                 )
                 .padding(5.dp))
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(5.dp))
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
+                    .width(100.dp)
                     .background(
                         MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
                     ),
@@ -1244,12 +1246,12 @@ private fun AddItemSection(
                         }
                         focusManager.clearFocus()
                     }), textStyle = TextStyle(
-                        fontSize = 16.sp,
+                        fontSize = 10.sp,
                         textAlign = TextAlign.Center,
-                    ), modifier = Modifier.padding(horizontal = 8.dp) // optional inner padding
+                    ), modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp) // optional inner padding
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(5.dp))
             Box(modifier = Modifier
                 .bounceClick {
                     if (itemId.value.isNotEmpty()) {

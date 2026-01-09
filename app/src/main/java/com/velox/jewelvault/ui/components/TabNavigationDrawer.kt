@@ -224,12 +224,12 @@ fun TabNavigationDrawer(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .wrapContentHeight()
                     .background(MaterialTheme.colorScheme.primary),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Spacer(Modifier.width(5.dp))
-                Column {
+                Box(contentAlignment = Alignment.TopStart) {
                     Text(
                         text = (baseViewModel.storeName.value ?: "Jewel Vault").substringBefore(" "),
                         fontSize = 22.sp,
@@ -242,7 +242,9 @@ fun TabNavigationDrawer(
                                     baseViewModel.refreshOnlineMetalRates(context = context)
                                 }
                             }
-                            .padding(top = 5.dp))
+                            .offset(y = (-8).dp)
+//                            .padding(top = 5.dp)
+                    )
 
                     // Current Screen Heading
                     if (baseViewModel.currentScreenHeading.isNotEmpty()) {
@@ -252,7 +254,7 @@ fun TabNavigationDrawer(
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                             modifier = Modifier
-                                .offset(y = (-7).dp)
+                                .offset(y = (17).dp)
                         )
                     }
                 }

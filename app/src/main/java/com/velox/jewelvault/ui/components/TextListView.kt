@@ -174,6 +174,15 @@ fun TextListView(
                             Spacer(modifier = Modifier.height(1.dp))
                         }
                     }
+                    if (items.isEmpty()) {
+                        item {
+                            Text(
+                                "No Data Found",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 15.dp, start = 15.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
