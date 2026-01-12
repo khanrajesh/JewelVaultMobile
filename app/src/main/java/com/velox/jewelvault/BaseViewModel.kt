@@ -31,8 +31,12 @@ import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -53,6 +57,8 @@ class BaseViewModel @Inject constructor(
     private val _Internal_bluetoothManager: BleManager,
     private val _repository: RepositoryImpl
     ) : ViewModel() {
+
+    private val metalRatesMutex = Mutex()
 
     var loading by _loadingState
     var snackBarState by _snackBarState
@@ -110,13 +116,31 @@ class BaseViewModel @Inject constructor(
     }
 
     suspend fun refreshMetalRates(context: Context) {
-        metalRates.clear()
-        metalRates.addAll(fetchAllMetalRates(context, metalRatesLoading, _dataStoreManager, _repository))
+        metalRatesMutex.withLock {
+            if (metalRatesLoading.value) return@withLock
+            val refreshedRates =
+                fetchAllMetalRates(context, metalRatesLoading, _dataStoreManager, _repository)
+            applyMetalRates(refreshedRates)
+        }
     }
 
     suspend fun refreshOnlineMetalRates(context: Context) {
-        metalRates.clear()
-        metalRates.addAll(metalRates(metalRatesLoading, context, _dataStoreManager, _repository))
+        metalRatesMutex.withLock {
+            if (metalRatesLoading.value) return@withLock
+            val refreshedRates =
+                metalRates(metalRatesLoading, context, _dataStoreManager, _repository)
+            applyMetalRates(refreshedRates)
+        }
+    }
+
+    private suspend fun applyMetalRates(newRates: List<MetalRate>) {
+        val dedupedRates = newRates.distinctBy {
+            "${it.metal.trim().lowercase()}-${it.caratOrPurity.trim().lowercase()}"
+        }
+        withContext(Dispatchers.Main) {
+            metalRates.clear()
+            metalRates.addAll(dedupedRates)
+        }
     }
 
 

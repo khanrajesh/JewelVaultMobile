@@ -105,6 +105,8 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
 import com.velox.jewelvault.data.roomdb.entity.label.LabelTemplateEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.utils.FileManager
@@ -420,7 +422,7 @@ fun LabelDesignerScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 1f))
-            .padding(12.dp),
+            .padding(4.dp),
     ) {
         TemplateHeader(
             templateName = templateName,
@@ -461,37 +463,44 @@ fun LabelDesignerScreen(
             onRedo = ::applyRedo
         )
 
-        Row(
-            modifier = Modifier
+        RowOrColumn(
+            rowModifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             ElementPalette(
-                modifier = Modifier.weight(1f), onAddElement = { type ->
+                modifier = Modifier, onAddElement = { type ->
                     clearInlineEdit()
                     startAddElement(type)
                 })
-            Spacer(modifier = Modifier.width(12.dp))
+            if (it) Spacer(Modifier.weight(1f)) else WidthThenHeightSpacer()
+
             ZoomControls(
                 zoom = zoom,
                 onZoomIn = { zoom = (zoom * 1.1f).coerceAtMost(5f) },
                 onZoomOut = { zoom = (zoom / 1.1f).coerceAtLeast(0.5f) })
         }
 
-        Row(
-            modifier = Modifier
+        RowOrColumn(
+            rowModifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+            columnModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
+
+            val modifier = if (it) Modifier.fillMaxHeight() else Modifier.fillMaxWidth()
+
             LabelCanvas(
-                modifier = Modifier
+                modifier = modifier
                     .weight(3f)
-                    .fillMaxHeight()
                     .padding(12.dp),
                 template = tpl,
                 elements = elements,
@@ -631,9 +640,7 @@ fun LabelDesignerScreen(
                 onInlineEditCancel = { clearInlineEdit() })
 
             PropertiesPanel(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
+                modifier = modifier.weight(1f),
                 template = tpl,
                 selectedElement = selectedElement,
                 onBeginEdit = { recordSnapshot() },
@@ -702,18 +709,40 @@ private fun TemplateHeader(
     onSave: () -> Unit
 ) {
     val templateNameState = remember(templateName) { InputFieldState(templateName) }
-    Column(modifier = Modifier) {
+    RowOrColumn {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Button(onClick = onSave, modifier = Modifier) {
+                Icon(
+                    Icons.TwoTone.Save, contentDescription = null, modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Save")
+            }
+
+            Button(onClick = onTestPrint) {
+                Icon(
+                    Icons.TwoTone.Print, contentDescription = null, modifier = Modifier.size(16.dp)
+                )
+            }
+
+            Icon(
+                Icons.TwoTone.Settings,
+                contentDescription = null,
+                modifier = Modifier
+                    .bounceClick { onOpenSettings() }
+                    .size(30.dp))
 
             CusOutlinedTextField(
                 state = templateNameState,
                 onTextChange = onTemplateNameChange,
                 placeholderText = "Template name",
-                modifier = Modifier.weight(1f),
+                modifier = Modifier,
                 singleLine = true
             )
 
@@ -725,27 +754,6 @@ private fun TemplateHeader(
             MetricChip("Direction", if (template.printDirection == 0) "Normal" else "Reverse")
             MetricChip("Offset", "${template.referenceX} / ${template.referenceY} mm")
             MetricChip("Language", template.printLanguage)
-
-            Icon(
-                Icons.TwoTone.Settings,
-                contentDescription = null,
-                modifier = Modifier
-                    .bounceClick { onOpenSettings() }
-                    .size(30.dp))
-
-            Button(onClick = onTestPrint) {
-                Icon(
-                    Icons.TwoTone.Print, contentDescription = null, modifier = Modifier.size(16.dp)
-                )
-            }
-
-            Button(onClick = onSave) {
-                Icon(
-                    Icons.TwoTone.Save, contentDescription = null, modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text("Save")
-            }
 
         }
     }
@@ -789,7 +797,8 @@ private fun QuickActionsBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2521,8 +2530,7 @@ private fun setImageProps(
 }
 
 private fun rulerPaint(
-    density: androidx.compose.ui.unit.Density,
-    colorInt: Int
+    density: androidx.compose.ui.unit.Density, colorInt: Int
 ): android.graphics.Paint {
     return android.graphics.Paint().apply {
         color = colorInt

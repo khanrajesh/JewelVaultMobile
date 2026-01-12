@@ -78,7 +78,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
     val isLogin = remember { mutableStateOf(true) }
 
     val mobileNo = remember { InputFieldState() }
-    val password = remember { InputFieldState("0000") } //todo remove the init value
+    val password = remember { InputFieldState() }
     val confirmPassword = remember { InputFieldState() }
 
     val savePhoneChecked = remember { mutableStateOf(false) }
