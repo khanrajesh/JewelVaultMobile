@@ -61,6 +61,7 @@ import coil.request.ImageRequest
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.isLandscape
@@ -83,6 +84,67 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
     val isLandscape = isLandscape()
     val imageSize =
         if (isLandscape) 220.dp else (configuration.screenWidthDp.dp * 0.4f).coerceIn(120.dp, 180.dp)
+    val isLoading by profileViewModel.isLoading
+    val userManagementCardModifier =
+        if (isEditable.value) Modifier else Modifier.bounceClick {
+            subNavController.navigate(SubScreens.UserManagement.route)
+        }
+    val proprietorValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Proprietor name is required"
+            it.length < 2 -> "Proprietor name must be at least 2 characters"
+            else -> null
+        }
+    }
+    val emailValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Email address is required"
+            !InputValidator.isValidEmail(it) -> "Enter a valid email address"
+            else -> null
+        }
+    }
+    val phoneValidation: (String) -> String? = { input ->
+        val digits = input.filter { char -> char.isDigit() }
+        when {
+            digits.isBlank() -> "Mobile number is required"
+            digits.length != 10 || !InputValidator.isValidPhoneNumber(digits) -> "Enter a valid 10-digit mobile number"
+            else -> null
+        }
+    }
+    val addressValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Store address is required"
+            it.length < 10 -> "Please enter a complete address (min 10 characters)"
+            else -> null
+        }
+    }
+    val registrationValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Registration number is required"
+            else -> null
+        }
+    }
+    val gstinValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "GSTIN number is required"
+            !InputValidator.isValidGSTIN(it) -> "Enter a valid GSTIN (15 characters, e.g. 22AAAAA0000A1Z5)"
+            else -> null
+        }
+    }
+    val panValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "PAN number is required"
+            !InputValidator.isValidPAN(it) -> "Enter a valid PAN (format ABCDE1234F)"
+            else -> null
+        }
+    }
+    val upiValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "UPI ID is required"
+            !InputValidator.isValidUpiId(it) -> "Enter a valid UPI ID (name@bank)"
+            else -> null
+        }
+    }
     val store: Triple<Flow<String>, Flow<String>, Flow<String>> = profileViewModel.dataStoreManager.getSelectedStoreInfo()
     LaunchedEffect(Unit) {
         // Ensure store data and image are loaded on entry
@@ -130,6 +192,50 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     .padding(10.dp)
             ) {
                 Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    if (!isEditable.value && !isLoading) {
+                        Icon(
+                            Icons.TwoTone.Sync,
+                            contentDescription = "Sync from Cloud",
+                            modifier = Modifier
+                                .bounceClick {
+                                    profileViewModel.syncFromFirestore(
+                                        onSuccess = {
+                                            // Success handled by ViewModel
+                                        },
+                                        onFailure = {
+                                            // Failure handled by ViewModel
+                                        }
+                                    )
+                                }
+                                .padding(end = 12.dp)
+                        )
+                    }
+                    if (!isEditable.value) {
+                        Icon(
+                            Icons.TwoTone.Edit,
+                            contentDescription = "Edit Profile",
+                            modifier = Modifier.bounceClick { isEditable.value = true }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
 
                 Row(
                     Modifier.fillMaxWidth(),
@@ -274,11 +380,17 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
 
                 Row(
                     Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 70.dp),
+                    .fillMaxWidth()
+                    .heightIn(min = 70.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    val shopNameTextStyle = TextStyle(
+                        fontSize = 36.sp,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         BasicTextField(
                             modifier = if (isEditable.value) {
                                 Modifier
@@ -295,50 +407,22 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                             onValueChange = {
                                 profileViewModel.shopName.textChange(it)
                             },
-                            textStyle = TextStyle(
-                                fontSize = 36.sp,
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-
-                    // Sync button
-                    val isLoading by profileViewModel.isLoading
-                    if (!isEditable.value && !isLoading) {
-                        Icon(
-                            Icons.TwoTone.Sync,
-                            contentDescription = "Sync from Cloud",
-                            modifier = Modifier
-                                .bounceClick {
-                                    profileViewModel.syncFromFirestore(
-                                        onSuccess = {
-                                            // Success handled by ViewModel
-                                        },
-                                        onFailure = {
-                                            // Failure handled by ViewModel
-                                        }
-                                    )
+                            textStyle = shopNameTextStyle,
+                            decorationBox = { innerTextField ->
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (isEditable.value && profileViewModel.shopName.text.isBlank()) {
+                                        Text(
+                                            text = "Store Name",
+                                            style = shopNameTextStyle.copy(
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                            )
+                                        )
+                                    }
+                                    innerTextField()
                                 }
-                                .padding(end = 8.dp)
+                            }
                         )
                     }
-
-                    // Loading indicator
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 8.dp),
-                            strokeWidth = 2.dp
-                        )
-                    }
-
-                    if (!isEditable.value) Icon(Icons.TwoTone.Edit,
-                        null,
-                        modifier = Modifier.bounceClick { isEditable.value = true })
                 }
 
                 Spacer(Modifier.height(32.dp))
@@ -356,7 +440,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.propName,
                                 placeholderText = "Proprietor",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.propName.textChange(InputValidator.sanitizeText(it))
+                                },
+                                validation = proprietorValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -365,7 +453,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.userEmail,
                                 placeholderText = "Email",
                                 keyboardType = KeyboardType.Email,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.userEmail.textChange(it.trim())
+                                },
+                                validation = emailValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -375,7 +467,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Mobile No",
                                 keyboardType = KeyboardType.Phone,
                                 readOnly = !isEditable.value,
-                                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
+                                onTextChange = { input ->
+                                    val digits = input.filter { it.isDigit() }.take(10)
+                                    profileViewModel.userMobile.textChange(digits)
+                                },
+                                validation = phoneValidation
                             )
 
                             CusOutlinedTextField(
@@ -386,7 +482,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Address",
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
-                                maxLines = 3
+                                maxLines = 3,
+                                onTextChange = {
+                                    profileViewModel.address.textChange(it)
+                                },
+                                validation = addressValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -395,7 +495,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.registrationNo,
                                 placeholderText = "Registration No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.registrationNo.textChange(input.uppercase())
+                                },
+                                validation = registrationValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -404,7 +508,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.gstinNo,
                                 placeholderText = "GSTIN No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.gstinNo.textChange(input.uppercase())
+                                },
+                                validation = gstinValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -413,7 +521,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.panNumber,
                                 placeholderText = "PAN No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.panNumber.textChange(input.uppercase())
+                                },
+                                validation = panValidation
                             )
                         }
                         Spacer(Modifier.width(10.dp))
@@ -425,7 +537,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.upiId,
                                 placeholderText = "UPI ID (for QR payments)",
                                 keyboardType = KeyboardType.Email,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.upiId.textChange(it.trim())
+                                },
+                                validation = upiValidation
                             )
 
                             Card(
@@ -436,10 +552,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .bounceClick{
-                                            subNavController.navigate(SubScreens.UserManagement.route)
-                                        }
+                                    modifier = userManagementCardModifier
                                         .fillMaxWidth()
                                         .padding(16.dp)
                                 ) {
@@ -486,7 +599,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.propName,
                                 placeholderText = "Proprietor",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.propName.textChange(InputValidator.sanitizeText(it))
+                                },
+                                validation = proprietorValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -495,7 +612,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.userEmail,
                                 placeholderText = "Email",
                                 keyboardType = KeyboardType.Email,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.userEmail.textChange(it.trim())
+                                },
+                                validation = emailValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -505,7 +626,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Mobile No",
                                 keyboardType = KeyboardType.Phone,
                                 readOnly = !isEditable.value,
-                                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
+                                onTextChange = { input ->
+                                    val digits = input.filter { it.isDigit() }.take(10)
+                                    profileViewModel.userMobile.textChange(digits)
+                                },
+                                validation = phoneValidation
                             )
 
                             CusOutlinedTextField(
@@ -516,7 +641,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Address",
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
-                                maxLines = 3
+                                maxLines = 3,
+                                onTextChange = {
+                                    profileViewModel.address.textChange(it)
+                                },
+                                validation = addressValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -525,7 +654,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.registrationNo,
                                 placeholderText = "Registration No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.registrationNo.textChange(input.uppercase())
+                                },
+                                validation = registrationValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -534,7 +667,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.gstinNo,
                                 placeholderText = "GSTIN No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.gstinNo.textChange(input.uppercase())
+                                },
+                                validation = gstinValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier
@@ -543,7 +680,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.panNumber,
                                 placeholderText = "PAN No",
                                 keyboardType = KeyboardType.Text,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = { input ->
+                                    profileViewModel.panNumber.textChange(input.uppercase())
+                                },
+                                validation = panValidation
                             )
                         }
 
@@ -557,7 +698,11 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 state = profileViewModel.upiId,
                                 placeholderText = "UPI ID (for QR payments)",
                                 keyboardType = KeyboardType.Email,
-                                readOnly = !isEditable.value
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.upiId.textChange(it.trim())
+                                },
+                                validation = upiValidation
                             )
 
                             Card(
@@ -568,10 +713,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(
-                                    modifier = Modifier
-                                        .bounceClick{
-                                            subNavController.navigate(SubScreens.UserManagement.route)
-                                        }
+                                    modifier = userManagementCardModifier
                                         .fillMaxWidth()
                                         .padding(16.dp)
                                 ) {
@@ -634,39 +776,31 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                     Spacer(Modifier.width(50.dp))
                     Text("Done", Modifier
                         .clickable {
-                            if (profileViewModel.shopName.text.isNotBlank() && profileViewModel.propName.text.isNotBlank() && profileViewModel.userEmail.text.isNotBlank() && profileViewModel.userMobile.text.isNotBlank() && profileViewModel.address.text.isNotBlank() && profileViewModel.registrationNo.text.isNotBlank() && profileViewModel.gstinNo.text.isNotBlank() && profileViewModel.panNumber.text.isNotBlank()) {
-                                profileViewModel.saveStoreData(
-                                    onSuccess = {
-                                        // Refresh the store image in BaseViewModel
-                                        baseViewModel.loadStoreImage()
-                                        if (firstLaunch) {
-                                            ioScope {
-//                                            profileViewModel.initializeDefaultCategories()
-//                                            delay(100)
-                                                mainScope {
-                                                    subNavController.navigate(SubScreens.Dashboard.route) {
-                                                        popUpTo(SubScreens.Dashboard.route) {
-                                                            inclusive = true
-                                                        }
+                            profileViewModel.saveStoreData(
+                                onSuccess = {
+                                    baseViewModel.loadStoreImage()
+                                    if (firstLaunch) {
+                                        ioScope {
+                                            mainScope {
+                                                subNavController.navigate(SubScreens.Dashboard.route) {
+                                                    popUpTo(SubScreens.Dashboard.route) {
+                                                        inclusive = true
                                                     }
                                                 }
                                             }
                                         }
-                                        profileViewModel.snackBarState.value =
-                                            "Store Details updated successfully!"
-                                    }, 
-                                    onFailure = {
-                                        // Error message is already set in ViewModel
-                                    },
-                                    onImageUpdated = {
-                                        // Refresh the store image immediately after upload
-                                        baseViewModel.loadStoreImage()
                                     }
-                                )
-                                isEditable.value = !isEditable.value
-                            } else {
-                                profileViewModel.snackBarState.value = "Please fill all the required fields."
-                            }
+                                    profileViewModel.snackBarState.value =
+                                        "Store Details updated successfully!"
+                                    isEditable.value = false
+                                },
+                                onFailure = {
+                                    // Validation and error messages handled in ViewModel
+                                },
+                                onImageUpdated = {
+                                    baseViewModel.loadStoreImage()
+                                }
+                            )
                         }
                         .background(
                             MaterialTheme.colorScheme.primary,

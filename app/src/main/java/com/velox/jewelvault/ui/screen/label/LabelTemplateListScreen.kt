@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.velox.jewelvault.ui.components.RowOrColumn
 
 @Composable
 fun LabelTemplateListScreen(
@@ -46,6 +47,7 @@ fun LabelTemplateListScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val templates by viewModel.templates.collectAsState()
+    viewModel.currentScreenHeadingState.value = "Label Templates"
 
     Box(
         modifier = Modifier
@@ -55,22 +57,8 @@ fun LabelTemplateListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Label Templates",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
             if (templates.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -181,39 +169,43 @@ fun LabelTemplateCard(
             )
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f)
+
+            RowOrColumn {
+                Row(
+                    modifier = if(it)Modifier.weight(2f) else Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.TwoTone.Edit, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Edit")
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.TwoTone.Edit, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Edit")
+                    }
+
+                    OutlinedButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.TwoTone.Delete, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete")
+                    }
                 }
-                
-                OutlinedButton(
-                    onClick = onDelete,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.TwoTone.Delete, null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Delete")
-                }
-                
+                if (!it)Spacer(Modifier.width(8.dp))
                 if (!template.isDefault) {
                     Button(
                         onClick = onSetDefault,
-                        modifier = Modifier.weight(1f)
+                        modifier =if(it) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+
                     ) {
                         Icon(Icons.TwoTone.StarBorder, null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Set Default")
                     }
                 }
+
             }
         }
     }

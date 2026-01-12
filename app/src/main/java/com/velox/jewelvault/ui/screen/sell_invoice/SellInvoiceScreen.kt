@@ -77,7 +77,9 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ExchangeItemDialog
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.CalculationUtils
@@ -383,32 +385,16 @@ fun SellInvoiceContent(
                 Row(modifier = Modifier.clickable {
                     viewModel.updateChargeView(!viewModel.showSeparateCharges.value)
                 }, verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {})
+                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {
+                        viewModel.updateChargeView(it)
+                    })
                     Text(
                         "Show Charge",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
-
-                Spacer(Modifier.height(3.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = true, onCheckedChange = {
-
-                    })
-
-                    Text(
-                        "what",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable {
-
-                        })
-                }
             }
-
-
         }
 
         if (viewModel.showAddItemDialog.value && viewModel.selectedItem.value != null) {
@@ -616,38 +602,43 @@ fun ViewAddItemDialog(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Row {
+                    RowOrColumn() {
                         CusOutlinedTextField(
                             othCrgDes,
                             placeholderText = "O.Charge Des",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
-                        Spacer(Modifier.width(5.dp))
+                        WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             othCrg,
                             placeholderText = "Other Charge",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
                             keyboardType = KeyboardType.Number
                         )
 
                     }
                     Spacer(Modifier.height(10.dp))
-                    Row {
+                    RowOrColumn {
                         CusOutlinedTextField(
                             takeQuantity,
                             placeholderText = "Take Qty",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
-                            keyboardType = KeyboardType.Number
+                            keyboardType = KeyboardType.Number,
+                            onTextChange = {
+                                takeNtWt.clear()
+                                takeGsWt.clear()
+                                takeFnWt.clear()
+                            }
                         )
-                        Spacer(Modifier.width(5.dp))
+                        WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             takeHUID,
                             placeholderText = "HUID",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
@@ -655,20 +646,20 @@ fun ViewAddItemDialog(
 
                     if (!isSingleItem) {
                         Spacer(Modifier.height(10.dp))
-                        Row {
+                        RowOrColumn {
 
                             CusOutlinedTextField(
                                 takeGsWt,
                                 placeholderText = "Take Gs Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier =if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
-                            Spacer(Modifier.width(5.dp))
+                            WidthThenHeightSpacer(5.dp)
                             CusOutlinedTextField(
                                 takeNtWt,
                                 placeholderText = "Take Nt Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier = if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number,
                                 onTextChange = {
@@ -678,6 +669,7 @@ fun ViewAddItemDialog(
                                             takeNtWt.error = "Nt Wt cannot be greater than Gs Wt"
                                         } else {
                                             val multiplier =
+                                                Purity.fromLabel(item.purity)?.multiplier ?: 1.0
                                                 Purity.fromLabel(item.purity)?.multiplier ?: 1.0
                                             takeFnWt.text = (ntWtValue * multiplier).to3FString()
                                         }
@@ -689,7 +681,7 @@ fun ViewAddItemDialog(
                             CusOutlinedTextField(
                                 takeFnWt,
                                 placeholderText = "Take Fn Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier = if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
@@ -699,21 +691,21 @@ fun ViewAddItemDialog(
 
                     Spacer(Modifier.height(10.dp))
 
-                    Row(Modifier.height(50.dp)) {
+                    RowOrColumn(Modifier.height(50.dp)) {
                         Text(
                             "Price: ${price.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Charge: ${charge.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Tax: ${tax.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
 
                     }
@@ -1246,9 +1238,26 @@ private fun AddItemSection(
                         }
                         focusManager.clearFocus()
                     }), textStyle = TextStyle(
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                    ), modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp) // optional inner padding
+                        color =MaterialTheme.colorScheme.onSurface,
+                    ),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), // optional inner padding
+                    decorationBox = { innerTextField ->
+                        Box(contentAlignment = Alignment.Center) {
+                            if (itemId.value.isEmpty()) {
+                                Text(
+                                    text = "Item Id",
+                                    style = TextStyle(
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                    )
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
             }
             Spacer(Modifier.width(5.dp))
@@ -1285,7 +1294,6 @@ private fun AddItemSection(
 @Composable
 fun CustomerDetails(viewModel: InvoiceViewModel) {
     LocalContext.current
-
     Column(
         Modifier
             .fillMaxWidth()
@@ -1331,7 +1339,6 @@ fun CustomerDetails(viewModel: InvoiceViewModel) {
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
                     validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
-
             }
             Spacer(Modifier.height(5.dp))
             CusOutlinedTextField(

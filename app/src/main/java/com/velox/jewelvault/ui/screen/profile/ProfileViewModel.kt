@@ -71,6 +71,76 @@ class ProfileViewModel @Inject constructor(
     val isLoading = mutableStateOf(false)
     val isUploadingImage = mutableStateOf(false)
 
+    private fun resetFieldErrors() {
+        listOf(
+            shopName,
+            propName,
+            userEmail,
+            userMobile,
+            address,
+            registrationNo,
+            gstinNo,
+            panNumber,
+            upiId
+        ).forEach { it.error = "" }
+    }
+
+    private fun setError(state: InputFieldState, message: String): Boolean {
+        state.error = message
+        _snackBarState.value = message
+        return false
+    }
+
+    private fun validateStoreFields(): Boolean {
+        resetFieldErrors()
+
+        shopName.text = InputValidator.sanitizeText(shopName.text)
+        propName.text = InputValidator.sanitizeText(propName.text)
+        address.text = InputValidator.sanitizeText(address.text)
+        registrationNo.text = InputValidator.sanitizeText(registrationNo.text).uppercase()
+        gstinNo.text = gstinNo.text.trim().uppercase()
+        panNumber.text = panNumber.text.trim().uppercase()
+        userEmail.text = InputValidator.sanitizeText(userEmail.text)
+        upiId.text = upiId.text.trim()
+
+        if (shopName.text.isBlank()) return setError(shopName, "Store name is required")
+        if (shopName.text.length < 3) return setError(shopName, "Store name must be at least 3 characters")
+
+        if (propName.text.isBlank()) return setError(propName, "Proprietor name is required")
+        if (propName.text.length < 2) return setError(propName, "Proprietor name must be at least 2 characters")
+
+        if (userEmail.text.isBlank()) return setError(userEmail, "Email address is required")
+        if (!InputValidator.isValidEmail(userEmail.text)) return setError(userEmail, "Enter a valid email address")
+
+        val mobile = userMobile.text.trim()
+        if (mobile.isBlank()) return setError(userMobile, "Mobile number is required")
+        if (mobile.length != 10 || !InputValidator.isValidPhoneNumber(mobile)) {
+            return setError(userMobile, "Enter a valid 10-digit mobile number")
+        }
+
+        if (address.text.isBlank()) return setError(address, "Store address is required")
+        if (address.text.length < 10) return setError(address, "Please enter a complete address (min 10 characters)")
+
+        if (registrationNo.text.isBlank()) return setError(registrationNo, "Registration number is required")
+
+        if (gstinNo.text.isBlank()) return setError(gstinNo, "GSTIN number is required")
+        if (!InputValidator.isValidGSTIN(gstinNo.text)) {
+            return setError(gstinNo, "Enter a valid GSTIN (15 characters, e.g. 22AAAAA0000A1Z5)")
+        }
+
+        if (panNumber.text.isBlank()) return setError(panNumber, "PAN number is required")
+        if (!InputValidator.isValidPAN(panNumber.text)) {
+            return setError(panNumber, "Enter a valid PAN (format ABCDE1234F)")
+        }
+
+        if (upiId.text.isBlank()) return setError(upiId, "UPI ID is required")
+        if (!InputValidator.isValidUpiId(upiId.text)) {
+            return setError(upiId, "Enter a valid UPI ID (name@bank)")
+        }
+
+        return true
+    }
+
     fun initializeDefaultCategories() {
         ioLaunch {
             try {
@@ -260,83 +330,9 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun saveStoreData(onSuccess: () -> Unit, onFailure: () -> Unit, onImageUpdated: (() -> Unit)? = null) {
-        // Comprehensive validation with specific error messages
-        when {
-            /*    shopName.text.isBlank() -> {
-                    _snackBarState.value = "Shop name cannot be empty"
-                    onFailure()
-                    return
-                }
-                shopName.text.length < 3 -> {
-                    _snackBarState.value = "Shop name must be at least 3 characters"
-                    onFailure()
-                    return
-                }
-                propName.text.isBlank() -> {
-                    _snackBarState.value = "Proprietor name cannot be empty"
-                    onFailure()
-                    return
-                }
-                propName.text.length < 2 -> {
-                    _snackBarState.value = "Proprietor name must be at least 2 characters"
-                    onFailure()
-                    return
-                }
-                userEmail.text.isBlank() -> {
-                    _snackBarState.value = "Email address is required"
-                    onFailure()
-                    return
-                }
-                !InputValidator.isValidEmail(userEmail.text) -> {
-                    _snackBarState.value = "Please enter a valid email address"
-                    onFailure()
-                    return
-                }
-                userMobile.text.isBlank() -> {
-                    _snackBarState.value = "Mobile number is required"
-                    onFailure()
-                    return
-                }
-                !InputValidator.isValidPhoneNumber(userMobile.text) -> {
-                    _snackBarState.value = "Please enter a valid 10-digit mobile number"
-                    onFailure()
-                    return
-                }
-                address.text.isBlank() -> {
-                    _snackBarState.value = "Store address is required"
-                    onFailure()
-                    return
-                }
-                address.text.length < 10 -> {
-                    _snackBarState.value = "Please enter a complete address (minimum 10 characters)"
-                    onFailure()
-                    return
-                }
-                registrationNo.text.isBlank() -> {
-                    _snackBarState.value = "Registration number is required"
-                    onFailure()
-                    return
-                }
-                gstinNo.text.isBlank() -> {
-                    _snackBarState.value = "GSTIN number is required"
-                    onFailure()
-                    return
-                }
-                !InputValidator.isValidGSTIN(gstinNo.text) -> {
-                    _snackBarState.value = "Please enter a valid GSTIN number (15 characters, format: 22AAAAA0000A1Z5)"
-                    onFailure()
-                    return
-                }
-                panNumber.text.isBlank() -> {
-                    _snackBarState.value = "PAN number is required"
-                    onFailure()
-                    return
-                }
-                !InputValidator.isValidPAN(panNumber.text) -> {
-                    _snackBarState.value = "Please enter a valid PAN number (10 characters, format: ABCDE1234F)"
-                    onFailure()
-                    return
-                }*/
+        if (!validateStoreFields()) {
+            onFailure()
+            return
         }
 
         ioLaunch {

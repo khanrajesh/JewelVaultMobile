@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +58,9 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -97,6 +101,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(top = 5.dp, start = 5.dp)
     ) {
@@ -184,34 +189,40 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
         }
 
 
-        // Main content area
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            if (pdfFile == null) {
+        if (pdfFile == null) {
+            RowOrColumn {
+
                 // Before PDF generation: Order details on left, summary on right
                 OrderDetailsCard(
-                    viewModel = viewModel, modifier = Modifier.weight(1f)
+                    viewModel = viewModel, modifier = if (it) Modifier.weight(1f) else Modifier
                 )
 
-                Spacer(modifier = Modifier.width(4.dp))
+                WidthThenHeightSpacer()
 
                 // Order Summary Card (similar to SellPreviewScreen)
                 OrderSummaryCard(
-                    viewModel = viewModel, onGeneratePdf = {
+                    viewModel = viewModel,
+                    onGeneratePdf = {
                         viewModel.generateOrderPdf(context)
-                    }, isGenerating = viewModel.isPdfGenerating, modifier = Modifier.weight(1f)
+                    },
+                    isGenerating = viewModel.isPdfGenerating,
+                    modifier = if (it) Modifier.weight(1f) else Modifier
                 )
-            } else {
-                // After PDF generation: PDF on left, summary on right
-                // PDF Viewer on the left
-                Box(
-                    modifier = Modifier
+            }
+        } else {
+            // After PDF generation: PDF on left, summary on right
+            // PDF Viewer on the left
+            RowOrColumn {
+                val boxModifier =
+                    if (it) Modifier
                         .weight(1f)
                         .background(MaterialTheme.colorScheme.surface)
                         .zIndex(1f)
+                    else Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .zIndex(1f)
+                Box(
+                    modifier = boxModifier
                 ) {
                     var scale by remember { mutableStateOf(1f) }
                     var offsetX by remember { mutableStateOf(0f) }
@@ -264,16 +275,15 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         }
                     }
                 }
-
                 // Summary on the right
-                Spacer(modifier = Modifier.width(16.dp))
+                WidthThenHeightSpacer()
 
-                Column(Modifier.weight(1f)) {
+                Column(if (it) Modifier.weight(1f) else Modifier) {
                     OrderSummaryCard(
                         viewModel = viewModel,
                         onGeneratePdf = { },
                         isGenerating = false,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth().wrapContentHeight()
                     )
 
                     // Action buttons
@@ -313,80 +323,76 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                     }
                 }
             }
+
+
         }
+
     }
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { 
-                showDeleteDialog = false
-                adminPin.clear()
-            },
-            title = { Text("Delete Order") },
-            text = {
-                Column {
-                    Text("Are you sure you want to delete this order? This action cannot be undone and will also delete all associated items and exchange metals.")
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text(
-                        "Enter Admin PIN to confirm:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    
-                    CusOutlinedTextField(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .fillMaxWidth(),
-                        state = adminPin,
-                        placeholderText = "Enter Admin PIN",
-                        keyboardType = KeyboardType.NumberPassword,
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (adminPin.text.isNotEmpty()) {
-                            showDeleteDialog = false
-                            viewModel.deleteOrderWithItems(
-                                orderId = orderId, 
-                                adminPin = adminPin.text,
-                                onSuccess = {
-                                    // Navigate back to orders list
-                                    mainScope {
-                                        subNavigation.popBackStack()
-                                    }
-                                }, 
-                                onFailure = { error ->
-                                    // Show error message via snackbar
-                                    viewModel.snackBar.value = error
-                                }
-                            )
-                            adminPin.clear()
-                        } else {
-                            viewModel.snackBar.value = "Please enter Admin PIN"
-                        }
-                    }, 
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { 
+        AlertDialog(onDismissRequest = {
+            showDeleteDialog = false
+            adminPin.clear()
+        }, title = { Text("Delete Order") }, text = {
+            Column {
+                Text("Are you sure you want to delete this order? This action cannot be undone and will also delete all associated items and exchange metals.")
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "Enter Admin PIN to confirm:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+
+                CusOutlinedTextField(
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .fillMaxWidth(),
+                    state = adminPin,
+                    placeholderText = "Enter Admin PIN",
+                    keyboardType = KeyboardType.NumberPassword,
+                )
+            }
+        }, confirmButton = {
+            Button(
+                onClick = {
+                    if (adminPin.text.isNotEmpty()) {
                         showDeleteDialog = false
+                        viewModel.deleteOrderWithItems(
+                            orderId = orderId,
+                            adminPin = adminPin.text,
+                            onSuccess = {
+                                // Navigate back to orders list
+                                mainScope {
+                                    subNavigation.popBackStack()
+                                }
+                            },
+                            onFailure = { error ->
+                                // Show error message via snackbar
+                                viewModel.snackBar.value = error
+                            })
                         adminPin.clear()
-                    }) {
-                    Text("Cancel")
-                }
-            })
+                    } else {
+                        viewModel.snackBar.value = "Please enter Admin PIN"
+                    }
+                }, colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("Delete")
+            }
+        }, dismissButton = {
+            TextButton(
+                onClick = {
+                    showDeleteDialog = false
+                    adminPin.clear()
+                }) {
+                Text("Cancel")
+            }
+        })
     }
 }
 
@@ -396,8 +402,9 @@ fun OrderDetailsCard(
 ) {
     Column(
         modifier = modifier
+            .wrapContentHeight()
             .padding(8.dp)
-            .verticalScroll(rememberScrollState())
+
     ) {
         Text(
             text = "Order Items",
@@ -512,7 +519,8 @@ fun OrderSummaryCard(
     Column(
         modifier = modifier
             .padding(8.dp)
-            .verticalScroll(rememberScrollState())
+            .defaultMinSize(minHeight = 300.dp)
+//            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = "Order Summary",
@@ -525,7 +533,8 @@ fun OrderSummaryCard(
 //                             onTextChange = { invoiceViewModel.discount.text = it },
             placeholderText = "Invoice number",
             modifier = Modifier,
-            keyboardType = KeyboardType.Number
+            keyboardType = KeyboardType.Number,
+            enabled = false
         )
 
         viewModel.orderDetailsEntity?.let { orderDetails ->

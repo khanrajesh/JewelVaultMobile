@@ -424,28 +424,6 @@ private fun LandscapeNavView(
             Column(
                 modifier = Modifier, horizontalAlignment = Alignment.Start
             ) {
-                Row(modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onGuideClick() }
-                    .padding(vertical = 6.dp, horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (isDrawerOpen) Arrangement.Start else Arrangement.Center) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.TwoTone.Help,
-                        contentDescription = "Help & Guide",
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                    if (drawerState.isOpen) {
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "Guide",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
 
                 Row(modifier = Modifier
                     .clickable {

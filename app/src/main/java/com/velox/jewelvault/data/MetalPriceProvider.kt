@@ -31,7 +31,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.twotone.Cloud
+import androidx.compose.material.icons.twotone.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,26 +82,21 @@ fun MetalRatesTicker(
 ) {
     val showEditDialog = remember { mutableStateOf(false) }
     val baseViewModel = LocalBaseViewModel.current
+    val hasApi = baseViewModel.metalRates.any { rate ->
+        !rate.source.trim().equals("cache", ignoreCase = true)
+    }
+    val latestTime = baseViewModel.metalRates.firstOrNull()?.updatedDate.orEmpty()
     val infiniteTransition = rememberInfiniteTransition()
     val animatedOffsetX by infiniteTransition.animateFloat(
-        initialValue = 1.5f, targetValue = -1.5f, animationSpec = infiniteRepeatable(
+        initialValue = 1.5f,
+        targetValue = -1.5f,
+        animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         )
     )
 
-    // Combine all metal rates into a single string
-    val tickerText = baseViewModel.metalRates.groupBy { it.source }.map { (_, rates) ->
-        val dateTime =
-            rates.first().updatedDate // assuming all rates for a source have the same date
-//            val sourceText = "$source (Fetched on $dateTime) :"
-        val sourceText = "(Fetched on $dateTime) :"
-        val ratesText = rates.joinToString(separator = "  -•-  ") { rate ->
-            "${rate.metal} ${rate.caratOrPurity}: ₹${rate.price}"
-        }
-        "$sourceText $ratesText"
-    }.joinToString(separator = "   •   ")
-
+    // Build scrolling content with single source icon (cloud = API present, cloud off = cached/local)
     Box(
         modifier = modifier
             .padding(horizontal = 10.dp)
@@ -110,27 +109,45 @@ fun MetalRatesTicker(
                             "MetalRatesTicker: long press detected, opening edit dialog (rates=${baseViewModel.metalRates.size})"
                         )
                         showEditDialog.value = true
-                    })
-            }) {
+                    }
+                )
+            }
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             if (baseViewModel.metalRatesLoading.value) {
                 CircularProgressIndicator(Modifier.size(20.dp), color = Color.Black)
                 Spacer(Modifier.width(10.dp))
             }
 
-            Text(
-                text = tickerText,
-                color = textColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                maxLines = 1,
-                modifier = Modifier.offset(x = animatedOffsetX.dp * 1000) // smooth move right to left
-            )
+            val ratesText = baseViewModel.metalRates.joinToString("   •   ") {
+                "${it.metal} ${it.caratOrPurity}: ₹${it.price}"
+            }
+
+            Row(
+                modifier = Modifier.offset(x = animatedOffsetX.dp * 1000),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (hasApi) Icons.TwoTone.Cloud else Icons.TwoTone.CloudOff,
+                    contentDescription = if (hasApi) "API rates ($latestTime)" else "Cached rates",
+                    tint = if (hasApi) Color.Black else Color.Gray,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = ratesText,
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                )
+            }
         }
 
         // Left fade gradient (start of scroll)
@@ -150,7 +167,6 @@ fun MetalRatesTicker(
                         )
                     )
             )
-            // Right fade gradient (end of scroll)
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
@@ -166,9 +182,7 @@ fun MetalRatesTicker(
                         )
                     )
             )
-
         }
-
     }
 
     if (showEditDialog.value && baseViewModel.metalRates.isNotEmpty()) {
@@ -530,24 +544,84 @@ suspend fun metalRates(
 ): MutableList<MetalRate> {
     val combinedRates = mutableListOf<MetalRate>()
     metalRatesLoading.value = true
+    var apiSucceeded = false
 
     val completion = CompletableDeferred<Unit>()
     handleFlowKtor(
         flow = repository.requestMetalRate(),
         onLoading = { isLoading -> metalRatesLoading.value = isLoading },
         onFailure = { message, _, _ ->
-            combinedRates.add(
-                MetalRate(
-                    source = "API",
-                    metal = "Metal",
-                    caratOrPurity = "Error",
-                    price = message ?: "Unknown error",
-                    updatedDate = LocalDateTime.now().toCustomFormat()
+            val updatedTs = LocalDateTime.now().toCustomFormat()
+            val gold24kCached = withContext(Dispatchers.IO) {
+                dataStoreManager.getValue(DataStoreManager.METAL_GOLD_24K).first()
+            }
+            val silverKgCached = withContext(Dispatchers.IO) {
+                dataStoreManager.getValue(DataStoreManager.METAL_SILVER_KG).first()
+            }
+
+            if (gold24kCached != null && silverKgCached != null) {
+                combinedRates.clear()
+                val gold100 = (100 / 99.9) * gold24kCached
+                combinedRates.add(
+                    MetalRate(
+                        source = "Cache",
+                        metal = "Gold",
+                        caratOrPurity = "24K",
+                        price = String.format("%.0f", gold24kCached),
+                        updatedDate = updatedTs
+                    )
                 )
-            )
+                combinedRates.add(
+                    MetalRate(
+                        source = "Cache",
+                        metal = "Gold",
+                        caratOrPurity = "22K",
+                        price = String.format("%.0f", gold100 * 0.916),
+                        updatedDate = updatedTs
+                    )
+                )
+                combinedRates.add(
+                    MetalRate(
+                        source = "Cache",
+                        metal = "Gold",
+                        caratOrPurity = "18K",
+                        price = String.format("%.0f", gold100 * 0.750),
+                        updatedDate = updatedTs
+                    )
+                )
+                combinedRates.add(
+                    MetalRate(
+                        source = "Cache",
+                        metal = "Silver",
+                        caratOrPurity = "1 Kg",
+                        price = String.format("%.0f", silverKgCached),
+                        updatedDate = updatedTs
+                    )
+                )
+                combinedRates.add(
+                    MetalRate(
+                        source = "Cache",
+                        metal = "Silver",
+                        caratOrPurity = "1 g",
+                        price = String.format("%.0f", silverKgCached / 1000.0),
+                        updatedDate = updatedTs
+                    )
+                )
+            } else {
+                combinedRates.add(
+                    MetalRate(
+                        source = "API",
+                        metal = "Metal",
+                        caratOrPurity = "Error",
+                        price = "Unable to fetch rate, please enter manually",
+                        updatedDate = updatedTs
+                    )
+                )
+            }
             if (!completion.isCompleted) completion.complete(Unit)
         },
         onSuccess = { data ->
+            apiSucceeded = true
             combinedRates.addAll(mapMetalRatesResponse(data))
             if (!completion.isCompleted) completion.complete(Unit)
         })
@@ -560,13 +634,15 @@ suspend fun metalRates(
         }?.price?.replace(",", "")?.toDoubleOrNull()
         val silverKg = computeSilverKgFromRates(combinedRates)
 
-        if (gold24k != null) {
-            dataStoreManager.setValue(DataStoreManager.METAL_GOLD_24K, gold24k)
+        if (apiSucceeded) {
+            if (gold24k != null) {
+                dataStoreManager.setValue(DataStoreManager.METAL_GOLD_24K, gold24k)
+            }
+            if (silverKg != null) {
+                dataStoreManager.setValue(DataStoreManager.METAL_SILVER_KG, silverKg)
+            }
+            dataStoreManager.setValue(DataStoreManager.METAL_FETCH_DATE, todayIso)
         }
-        if (silverKg != null) {
-            dataStoreManager.setValue(DataStoreManager.METAL_SILVER_KG, silverKg)
-        }
-        dataStoreManager.setValue(DataStoreManager.METAL_FETCH_DATE, todayIso)
 
         val updatedTs = LocalDateTime.now().toCustomFormat()
         if (silverKg != null) {

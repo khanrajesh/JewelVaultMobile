@@ -241,7 +241,7 @@ private fun PortraitLoginScreen(
             contentDescription = "Splash Logo",
             modifier = Modifier
                 .weight(0.4f)
-                .fillMaxSize(0.3f),
+                .fillMaxSize(0.4f),
         )
 
         Card(

@@ -91,7 +91,6 @@ fun PurchaseScreen(viewModel: PurchaseViewModel) {
 fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
     val context = LocalContext.current
     val baseViewModel = LocalBaseViewModel.current
-    val currentDateTime = rememberCurrentDateTime()
     val purchaseItemScrollState = remember { mutableStateOf("None") }
     val listState = rememberLazyListState()
     val previousIndex = remember { mutableIntStateOf(0) }
@@ -162,10 +161,9 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
 
                 MetalRatesTicker(
                     Modifier
-                        .height(50.dp)
+                        .height(40.dp)
                         .weight(1f)
                 )
-                Text(text = currentDateTime.value)
             }
 
             LazyColumn(
@@ -279,7 +277,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
             )
             Spacer(Modifier.weight(0.1f))
             Text(
-                "ADD TO REG",
+                "SAVE",
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(0.2f)
@@ -316,12 +314,13 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
             Spacer(Modifier.height(5.dp))
 
             Text(
-                "ADD TO REG",
+                "SAVE",
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .bounceClick {
                         addToReg()
                     }
+                    .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.primary,
                         RoundedCornerShape(16.dp),
@@ -338,6 +337,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
 fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableState<String>) {
     val context = LocalContext.current
     val landscape = isLandscape()
+    val isPortrait = !landscape
 
     Column(
         Modifier
@@ -411,26 +411,32 @@ fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableSt
             val check =
                 (viewModel.firmMobile.text.isNotBlank() && viewModel.sellerMobile.text.isNotBlank() && viewModel.addBillNo.text.isNotBlank())
 
-            LaunchedEffect(
-                purchaseItemScrollState.value
-            ) {
-                scrolling.value = !(purchaseItemScrollState.value == "Down" && check)
-            }
-
-            AnimatedVisibility(
-                visible = scrolling.value,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it })
-            ) {
+            if (isPortrait) {
+                // In portrait always show extra section; no collapse/animation
+                scrolling.value = true
                 FirmDetailsExtra(viewModel, context)
-            }
-            if (!scrolling.value) {
-                Spacer(Modifier.height(8.dp))
-                Row {
-                    Spacer(Modifier.weight(1f))
-                    Text("Show more", modifier = Modifier.bounceClick {
-                        scrolling.value = true
-                    })
+            } else {
+                LaunchedEffect(
+                    purchaseItemScrollState.value
+                ) {
+                    scrolling.value = !(purchaseItemScrollState.value == "Down" && check)
+                }
+
+                AnimatedVisibility(
+                    visible = scrolling.value,
+                    enter = slideInVertically(initialOffsetY = { -it }),
+                    exit = slideOutVertically(targetOffsetY = { -it })
+                ) {
+                    FirmDetailsExtra(viewModel, context)
+                }
+                if (!scrolling.value) {
+                    Spacer(Modifier.height(8.dp))
+                    Row {
+                        Spacer(Modifier.weight(1f))
+                        Text("Show more", modifier = Modifier.bounceClick {
+                            scrolling.value = true
+                        })
+                    }
                 }
             }
 

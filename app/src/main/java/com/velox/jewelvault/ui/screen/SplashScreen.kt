@@ -113,8 +113,8 @@ fun SplashScreen(navHost: NavHostController) {
                         Text(
                             text = letter.toString(),
                             fontSize = 32.sp,
-                            fontFamily = ZenFontFamily,
-                            fontWeight = FontWeight.Bold,
+//                            fontFamily = ZenFontFamily,
+//                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 2.dp)
                         )

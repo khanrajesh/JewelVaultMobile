@@ -6,18 +6,28 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Add
-import androidx.compose.material.icons.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.AutoFixHigh
 import androidx.compose.material.icons.twotone.CheckCircle
 import androidx.compose.material.icons.twotone.Clear
@@ -25,40 +35,54 @@ import androidx.compose.material.icons.twotone.Description
 import androidx.compose.material.icons.twotone.Download
 import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.Error
-import androidx.compose.material.icons.twotone.Info
 import androidx.compose.material.icons.twotone.UploadFile
 import androidx.compose.material.icons.twotone.Warning
-import androidx.compose.material3.*
-import androidx.compose.material3.FilterChip
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.roomdb.dto.ImportRowStatus
-import com.velox.jewelvault.data.roomdb.dto.ImportedItemRow
 import com.velox.jewelvault.data.roomdb.dto.ImportSummary
+import com.velox.jewelvault.data.roomdb.dto.ImportedItemRow
 import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
+import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.Purity
-import com.velox.jewelvault.utils.ChargeType
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.ui.text.input.KeyboardType
-import com.velox.jewelvault.utils.LocalSubNavController
-import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.isLandscape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,65 +91,78 @@ fun ImportItemsScreen(
 ) {
 
     viewModel.currentScreenHeadingState.value = "Import Items"
-    
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let { viewModel.parseExcelFile(it) }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
             .padding(5.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header Actions
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Compact Import Summary
-            if (viewModel.importSummary.value.totalRows > 0) {
-                CompactImportSummary(
-                    modifier = Modifier.weight(1f),
-                    summary = viewModel.importSummary.value
+        item {
+            // Header Actions
+            RowOrColumn(
+                rowModifier = Modifier.fillMaxWidth(),
+                columnModifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) { isLandscape ->
+                // Compact Import Summary
+                if (viewModel.importSummary.value.totalRows > 0) {
+                    CompactImportSummary(
+                        modifier = if (isLandscape) Modifier else Modifier.fillMaxWidth(),
+                        summary = viewModel.importSummary.value
+                    )
+                }
+                if (viewModel.importSummary.value.totalRows > 0) {
+                    WidthThenHeightSpacer(8.dp)
+                }
+                ImportHeaderActions(
+                    modifier = if (isLandscape) Modifier else Modifier.fillMaxWidth(),
+                    fileImported = viewModel.importSummary.value.totalRows > 0,
+                    onExportExample = { viewModel.exportExampleExcel() },
+                    onChooseFile = {
+                        filePickerLauncher.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    },
+                    onClearImport = { viewModel.clearImport() })
+            }
+        }
+
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+
+        if (viewModel.isLoading.value) {
+            item {
+                LinearProgressIndicator(
+                    progress = { viewModel.importProgress.value },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ProgressIndicatorDefaults.linearColor,
+                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                 )
             }
-            Spacer(Modifier.width(8.dp))
-            ImportHeaderActions(
-                modifier = Modifier,
-                fileImported = viewModel.importSummary.value.totalRows > 0,
-                onExportExample = { viewModel.exportExampleExcel() },
-                onChooseFile = {
-                    filePickerLauncher.launch(arrayOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                },
-                onClearImport = { viewModel.clearImport() }
-            )
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
-        if (viewModel.isLoading.value)
-            LinearProgressIndicator(
-                progress = { viewModel.importProgress.value },
-                modifier = Modifier.fillMaxWidth(),
-                color = ProgressIndicatorDefaults.linearColor,
-                trackColor = ProgressIndicatorDefaults.linearTrackColor,
-                strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-            )
 
-        Spacer(modifier = Modifier.height(4.dp))
-
+        item { Spacer(modifier = Modifier.height(4.dp)) }
 
         // Imported Rows List
         if (viewModel.importedRows.isNotEmpty()) {
-            ImportedRowsList(
+            importedRowsList(
                 rows = viewModel.importedRows,
                 onRowClick = { row -> viewModel.selectedRow.value = row },
                 selectedRow = viewModel.selectedRow.value,
                 viewModel = viewModel
             )
         } else {
-            // Empty State
-            EmptyImportState()
+            item {
+                // Empty State
+                EmptyImportState()
+            }
         }
     }
 
@@ -138,21 +175,16 @@ fun ImportItemsScreen(
             onDismiss = { viewModel.showMappingDialog.value = false },
             onConfirm = { categoryId, subCategoryId ->
                 viewModel.updateItemCategory(
-                    viewModel.selectedRow.value!!,
-                    categoryId,
-                    subCategoryId
+                    viewModel.selectedRow.value!!, categoryId, subCategoryId
                 )
                 viewModel.showMappingDialog.value = false
-            }
-        )
+            })
     }
 
     // Confirm Import Dialog
     if (viewModel.showConfirmImportDialog.value) {
         ConfirmImportDialog(
-            viewModel = viewModel,
-            onDismiss = { viewModel.showConfirmImportDialog.value = false }
-        )
+            viewModel = viewModel, onDismiss = { viewModel.showConfirmImportDialog.value = false })
     }
 
 }
@@ -165,53 +197,50 @@ private fun ImportHeaderActions(
     onChooseFile: () -> Unit,
     onClearImport: () -> Unit
 ) {
+
+    val isLandScape = isLandscape()
     Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Button(
-            onClick = onExportExample,
-            modifier = Modifier
+            onClick = onExportExample, modifier = Modifier.weight(1f)
         ) {
             Icon(
-                imageVector = Icons.TwoTone.Download,
-                contentDescription = null
+                imageVector = Icons.TwoTone.Download, contentDescription = null
             )
-            if (!fileImported) {
+            if (!fileImported && isLandScape) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Export Example")
             }
         }
 
         Button(
-            onClick = onChooseFile,
-            modifier = Modifier
+            onClick = onChooseFile, modifier = Modifier.weight(1f)
         ) {
             Icon(
-                imageVector = Icons.TwoTone.UploadFile,
-                contentDescription = null
+                imageVector = Icons.TwoTone.UploadFile, contentDescription = null
             )
-            if (!fileImported) {
+            if (!fileImported && isLandScape) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Choose File")
             }
         }
 
         Button(
-            onClick = onClearImport,
-            modifier = Modifier
+            onClick = onClearImport, modifier = Modifier.weight(1f)
         ) {
 
             Icon(
-                imageVector = Icons.TwoTone.Clear,
-                contentDescription = null
+                imageVector = Icons.TwoTone.Clear, contentDescription = null
             )
-            if (!fileImported) {
+            if (!fileImported && isLandScape) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Clear")
             }
         }
     }
+
+
 }
 
 
@@ -223,17 +252,24 @@ private fun CompactImportSummary(modifier: Modifier = Modifier, summary: ImportS
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(12.dp),
+            modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Spacer(Modifier.weight(1f))
-            CompactSummaryItem("Total", summary.totalRows.toString(), MaterialTheme.colorScheme.onSurface)
+            CompactSummaryItem(
+                "Total",
+                summary.totalRows.toString(),
+                MaterialTheme.colorScheme.onSurface
+            )
             Spacer(Modifier.weight(1f))
             CompactSummaryItem("Valid", summary.validRows.toString(), LightGreen)
             Spacer(Modifier.weight(1f))
-            CompactSummaryItem("Needs Fix", summary.needsMappingRows.toString(), Color(0xFFFF9800)) // Orange
+            CompactSummaryItem(
+                "Needs Fix",
+                summary.needsMappingRows.toString(),
+                Color(0xFFFF9800)
+            ) // Orange
             Spacer(Modifier.weight(1f))
             CompactSummaryItem("Errors", summary.errorRows.toString(), LightRed)
             Spacer(Modifier.weight(1f))
@@ -270,14 +306,15 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+            RowOrColumn(
+                rowModifier = Modifier.fillMaxWidth(),
+                columnModifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            ) { isLandScape ->
                 CusOutlinedTextField(
                     state = InputFieldState().apply {
-                        text = viewModel.bulkCategoryMapping.value ?: ""
-                    },
+                    text = viewModel.bulkCategoryMapping.value ?: ""
+                },
                     placeholderText = "Select Category",
                     dropdownItems = viewModel.categories.map { it.catName },
                     onDropdownItemSelected = { categoryName ->
@@ -285,23 +322,22 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                         viewModel.bulkCategoryMapping.value = category?.catId
                         viewModel.bulkSubCategoryMapping.value = null
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = if (isLandScape) Modifier.weight(1f) else Modifier
                 )
 
                 CusOutlinedTextField(
                     state = InputFieldState().apply {
-                        text = viewModel.bulkSubCategoryMapping.value ?: ""
-                    },
+                    text = viewModel.bulkSubCategoryMapping.value ?: ""
+                },
                     placeholderText = "Select SubCategory",
-                    dropdownItems = viewModel.subCategories
-                        .filter { it.catId == viewModel.bulkCategoryMapping.value }
+                    dropdownItems = viewModel.subCategories.filter { it.catId == viewModel.bulkCategoryMapping.value }
                         .map { it.subCatName },
                     onDropdownItemSelected = { subCategoryName ->
                         val subCategory =
                             viewModel.subCategories.find { it.subCatName == subCategoryName }
                         viewModel.bulkSubCategoryMapping.value = subCategory?.subCatId
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = if (isLandScape) Modifier.weight(1f) else Modifier
                 )
             }
 
@@ -312,24 +348,20 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { viewModel.applyBulkMapping() },
-                    modifier = Modifier.weight(1f)
+                    onClick = { viewModel.applyBulkMapping() }, modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.TwoTone.CheckCircle,
-                        contentDescription = null
+                        imageVector = Icons.TwoTone.CheckCircle, contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Apply Mapping")
                 }
 
                 OutlinedButton(
-                    onClick = { viewModel.exportErrors() },
-                    modifier = Modifier.weight(1f)
+                    onClick = { viewModel.exportErrors() }, modifier = Modifier.weight(1f)
                 ) {
                     Icon(
-                        imageVector = Icons.TwoTone.Download,
-                        contentDescription = null
+                        imageVector = Icons.TwoTone.Download, contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Export Errors")
@@ -344,8 +376,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importSummary.value.needsMappingRows > 0
             ) {
                 Icon(
-                    imageVector = Icons.TwoTone.AutoFixHigh,
-                    contentDescription = null
+                    imageVector = Icons.TwoTone.AutoFixHigh, contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Auto-Map Similar Categories (${viewModel.getAutoMappableRowsCount()})")
@@ -364,8 +395,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importSummary.value.needsMappingRows > 0
             ) {
                 Icon(
-                    imageVector = Icons.TwoTone.CheckCircle,
-                    contentDescription = null
+                    imageVector = Icons.TwoTone.CheckCircle, contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Apply All Suggestions (${viewModel.getAutoMappableRowsCount()})")
@@ -379,8 +409,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 enabled = viewModel.importedRows.isNotEmpty()
             ) {
                 Icon(
-                    imageVector = Icons.TwoTone.Description,
-                    contentDescription = null
+                    imageVector = Icons.TwoTone.Description, contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Export Improvements Report")
@@ -389,18 +418,16 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
     }
 }
 
-@Composable
-private fun ImportedRowsList(
+private fun LazyListScope.importedRowsList(
     rows: List<ImportedItemRow>,
     onRowClick: (ImportedItemRow) -> Unit,
     selectedRow: ImportedItemRow?,
     viewModel: ImportItemsViewModel
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+    item {
+        RowOrColumn(
+            rowModifier = Modifier.fillMaxWidth(),
+            columnModifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -411,7 +438,7 @@ private fun ImportedRowsList(
             )
             // Show summary of what needs to be fixed
             if (!viewModel.isImportReady()) {
-                Spacer(modifier = Modifier.width(8.dp))
+                WidthThenHeightSpacer()
                 Text(
                     text = viewModel.getFixSummary(),
                     style = MaterialTheme.typography.bodyMedium,
@@ -420,44 +447,38 @@ private fun ImportedRowsList(
                     modifier = Modifier
                 )
             }
-
-            Spacer(Modifier.weight(1f))
+            WidthThenHeightSpacer()
 
             Button(
                 onClick = { viewModel.showConfirmImportDialog.value = true },
                 enabled = viewModel.isImportReady()
             ) {
                 Icon(
-                    imageVector = Icons.TwoTone.Add,
-                    contentDescription = null
+                    imageVector = Icons.TwoTone.Add, contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("Import Valid Items (${viewModel.getImportableItemsCount()})")
             }
-
-
         }
+    }
 
-        Spacer(modifier = Modifier.height(12.dp))
+    item { Spacer(modifier = Modifier.height(12.dp)) }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Bulk Actions
-            if (viewModel.importSummary.value.needsMappingRows > 0) {
-                item {
-                    CompactBulkMappingActions(viewModel = viewModel)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-            items(rows) { row ->
-                ImportedRowItem(
-                    row = row,
-                    viewModel = viewModel,
-                    isSelected = selectedRow == row,
-                    onClick = { onRowClick(row) }
-                )
-            }
+    if (viewModel.importSummary.value.needsMappingRows > 0) {
+        item {
+            CompactBulkMappingActions(viewModel = viewModel)
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+
+    itemsIndexed(rows) { index, row ->
+        ImportedRowItem(
+            row = row,
+            viewModel = viewModel,
+            isSelected = selectedRow == row,
+            onClick = { onRowClick(row) })
+        if (index < rows.lastIndex) {
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -465,10 +486,7 @@ private fun ImportedRowsList(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImportedRowItem(
-    row: ImportedItemRow,
-    viewModel: ImportItemsViewModel,
-    isSelected: Boolean,
-    onClick: () -> Unit
+    row: ImportedItemRow, viewModel: ImportItemsViewModel, isSelected: Boolean, onClick: () -> Unit
 ) {
     val statusColor = when (row.status) {
         ImportRowStatus.VALID -> LightGreen
@@ -482,24 +500,20 @@ private fun ImportedRowItem(
         ImportRowStatus.ERROR -> Icons.TwoTone.Error
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .then(
-                if (isSelected) {
-                    Modifier.border(
-                        2.dp,
-                        MaterialTheme.colorScheme.primary,
-                        RoundedCornerShape(8.dp)
-                    )
-                } else {
-                    Modifier
-                }
-            ),
+    Card(modifier = Modifier
+        .fillMaxWidth()
+        .clickable { onClick() }
+        .then(
+            if (isSelected) {
+                Modifier.border(
+                    2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)
+                )
+            } else {
+                Modifier
+            }
+        ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -507,8 +521,7 @@ private fun ImportedRowItem(
         ) {
             // Status header row
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = statusIcon,
@@ -540,10 +553,10 @@ private fun ImportedRowItem(
             // Error message if any
             if (row.errorMessage != null) {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (row.status == ImportRowStatus.NEEDS_MAPPING)
-                            Color(0xFFFF9800).copy(alpha = 0.1f) // Orange for warning
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                        containerColor = if (row.status == ImportRowStatus.NEEDS_MAPPING) Color(
+                            0xFFFF9800
+                        ).copy(alpha = 0.1f) // Orange for warning
                         else LightRed.copy(alpha = 0.1f)
                     )
                 ) {
@@ -553,8 +566,9 @@ private fun ImportedRowItem(
                         Text(
                             text = row.errorMessage!!,
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (row.status == ImportRowStatus.NEEDS_MAPPING) 
-                                Color(0xFFFF9800) // Orange for warning
+                            color = if (row.status == ImportRowStatus.NEEDS_MAPPING) Color(
+                                0xFFFF9800
+                            ) // Orange for warning
                             else LightRed
                         )
 
@@ -646,8 +660,7 @@ private fun ImportedRowItem(
                 var entryTypeExpanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = entryTypeExpanded,
-                    onExpandedChange = { entryTypeExpanded = !entryTypeExpanded }
-                ) {
+                    onExpandedChange = { entryTypeExpanded = !entryTypeExpanded }) {
                     OutlinedTextField(
                         value = entryType,
                         onValueChange = { /* Read-only for dropdown */ },
@@ -662,22 +675,18 @@ private fun ImportedRowItem(
                     )
                     ExposedDropdownMenu(
                         expanded = entryTypeExpanded,
-                        onDismissRequest = { entryTypeExpanded = false }
-                    ) {
+                        onDismissRequest = { entryTypeExpanded = false }) {
                         EntryType.list().forEach { entryTypeValue ->
-                            DropdownMenuItem(
-                                text = { Text(entryTypeValue) },
-                                onClick = {
-                                    entryType = entryTypeValue
-                                    row.entryType = entryTypeValue
-                                    // Auto-fill quantity for Piece type
-                                    if (entryTypeValue == EntryType.Piece.type) {
-                                        row.quantity = 1
-                                        quantity = "1"
-                                    }
-                                    entryTypeExpanded = false
+                            DropdownMenuItem(text = { Text(entryTypeValue) }, onClick = {
+                                entryType = entryTypeValue
+                                row.entryType = entryTypeValue
+                                // Auto-fill quantity for Piece type
+                                if (entryTypeValue == EntryType.Piece.type) {
+                                    row.quantity = 1
+                                    quantity = "1"
                                 }
-                            )
+                                entryTypeExpanded = false
+                            })
                         }
                     }
                 }
@@ -725,7 +734,6 @@ private fun ImportedRowItem(
                 )
 
 
-
                 // Weight Information - Using reactive state for better reactivity
                 OutlinedTextField(
                     value = gsWt,
@@ -760,8 +768,7 @@ private fun ImportedRowItem(
                 var purityExpanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = purityExpanded,
-                    onExpandedChange = { purityExpanded = !purityExpanded }
-                ) {
+                    onExpandedChange = { purityExpanded = !purityExpanded }) {
                     OutlinedTextField(
                         value = purity,
                         onValueChange = { /* Read-only for dropdown */ },
@@ -775,19 +782,14 @@ private fun ImportedRowItem(
                         singleLine = true
                     )
                     ExposedDropdownMenu(
-                        expanded = purityExpanded,
-                        onDismissRequest = { purityExpanded = false }
-                    ) {
+                        expanded = purityExpanded, onDismissRequest = { purityExpanded = false }) {
                         Purity.list().forEach { purityValue ->
-                            DropdownMenuItem(
-                                text = { Text(purityValue) },
-                                onClick = {
-                                    purity = purityValue
-                                    row.purity = purityValue
-                                    purityExpanded = false
-                                    viewModel.updatePurity(row, purityValue)
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(purityValue) }, onClick = {
+                                purity = purityValue
+                                row.purity = purityValue
+                                purityExpanded = false
+                                viewModel.updatePurity(row, purityValue)
+                            })
                         }
                     }
                 }
@@ -806,11 +808,10 @@ private fun ImportedRowItem(
                 var mcTypeExpanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = mcTypeExpanded,
-                    onExpandedChange = { mcTypeExpanded = !mcTypeExpanded }
-                ) {
+                    onExpandedChange = { mcTypeExpanded = !mcTypeExpanded }) {
                     OutlinedTextField(
                         value = mcType,
-                        onValueChange = {  },
+                        onValueChange = { },
                         label = { Text("McType") },
                         placeholder = { Text("Select McType") },
                         modifier = Modifier
@@ -821,18 +822,13 @@ private fun ImportedRowItem(
                         singleLine = true
                     )
                     ExposedDropdownMenu(
-                        expanded = mcTypeExpanded,
-                        onDismissRequest = { mcTypeExpanded = false }
-                    ) {
+                        expanded = mcTypeExpanded, onDismissRequest = { mcTypeExpanded = false }) {
                         ChargeType.list().forEach { mcTypeValue ->
-                            DropdownMenuItem(
-                                text = { Text(mcTypeValue) },
-                                onClick = {
-                                    mcType = mcTypeValue
-                                    row.mcType = mcTypeValue
-                                    mcTypeExpanded = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(mcTypeValue) }, onClick = {
+                                mcType = mcTypeValue
+                                row.mcType = mcTypeValue
+                                mcTypeExpanded = false
+                            })
                         }
                     }
                 }
@@ -1009,19 +1005,23 @@ private fun ImportedRowItem(
 
             // Action buttons for all rows
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+            RowOrColumn(
+                rowModifier = Modifier.fillMaxWidth(),
+                columnModifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left side: Special handling buttons for rows that need mapping or have errors
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (row.status == ImportRowStatus.NEEDS_MAPPING || row.status == ImportRowStatus.ERROR) {
+            ) { isLandscape ->
+                val showMappingActions =
+                    row.status == ImportRowStatus.NEEDS_MAPPING || row.status == ImportRowStatus.ERROR
+                if (showMappingActions) {
+                    RowOrColumn(
+                        rowModifier = if (isLandscape) Modifier else Modifier.fillMaxWidth(),
+                        columnModifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         OutlinedButton(
                             onClick = { viewModel.showMappingDialogForRow(row) },
-                            modifier = Modifier.wrapContentWidth()
+                            modifier = if (it) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
                         ) {
                             Icon(
                                 imageVector = Icons.TwoTone.Edit,
@@ -1034,6 +1034,7 @@ private fun ImportedRowItem(
 
                         // Quick Fix button only for items that need mapping (not for errors)
                         if (row.status == ImportRowStatus.NEEDS_MAPPING) {
+                            WidthThenHeightSpacer(8.dp)
                             OutlinedButton(
                                 onClick = {
                                     if (viewModel.applyBestSuggestion(row)) {
@@ -1042,7 +1043,7 @@ private fun ImportedRowItem(
                                         // No suggestion available
                                     }
                                 },
-                                modifier = Modifier.wrapContentWidth()
+                                modifier = if (it) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
                             ) {
                                 Icon(
                                     imageVector = Icons.TwoTone.AutoFixHigh,
@@ -1054,12 +1055,14 @@ private fun ImportedRowItem(
                             }
                         }
                     }
+
+                    WidthThenHeightSpacer(8.dp)
                 }
-                
+
                 // Right side: Remove button for all rows
                 OutlinedButton(
                     onClick = { viewModel.removeItem(row) },
-                    modifier = Modifier.wrapContentWidth(),
+                    modifier = if (isLandscape) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.Red
                     )
@@ -1126,7 +1129,7 @@ private fun CategoryMappingDialog(
     // State for selected category in the dialog
     var selectedCategoryId by remember { mutableStateOf(row.mappedCategoryId) }
     var selectedSubCategoryId by remember { mutableStateOf(row.mappedSubCategoryId) }
-    
+
     // Filter subcategories based on selected category
     val filteredSubCategories = remember(selectedCategoryId) {
         if (selectedCategoryId != null) {
@@ -1135,150 +1138,135 @@ private fun CategoryMappingDialog(
             emptyList()
         }
     }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Map Categories") },
-        text = {
-            Column {
-                Text("Row #${row.rowNumber}: ${row.itemName}")
-                Spacer(modifier = Modifier.height(16.dp))
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = selectedCategoryId?.let { catId ->
-                        categories.find { it.catId == catId }?.catName ?: ""
-                    } ?: ""),
-                    placeholderText = "Select Category",
-                    dropdownItems = categories.map { it.catName },
-                    onDropdownItemSelected = { categoryName ->
-                        val category = categories.find { it.catName == categoryName }
-                        selectedCategoryId = category?.catId
-                        // Clear subcategory selection when category changes
-                        selectedSubCategoryId = null
-                        row.mappedCategoryId = category?.catId
-                        row.mappedSubCategoryId = null
-                    }
-                )
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Map Categories") }, text = {
+        Column {
+            Text("Row #${row.rowNumber}: ${row.itemName}")
+            Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+            CusOutlinedTextField(
+                state = InputFieldState(initValue = selectedCategoryId?.let { catId ->
+                categories.find { it.catId == catId }?.catName ?: ""
+            } ?: ""),
+                placeholderText = "Select Category",
+                dropdownItems = categories.map { it.catName },
+                onDropdownItemSelected = { categoryName ->
+                    val category = categories.find { it.catName == categoryName }
+                    selectedCategoryId = category?.catId
+                    // Clear subcategory selection when category changes
+                    selectedSubCategoryId = null
+                    row.mappedCategoryId = category?.catId
+                    row.mappedSubCategoryId = null
+                })
 
-                CusOutlinedTextField(
-                    state = InputFieldState(initValue = selectedSubCategoryId?.let { subCatId ->
-                        filteredSubCategories.find { it.subCatId == subCatId }?.subCatName ?: ""
-                    } ?: ""),
-                    placeholderText = if (selectedCategoryId != null) "Select SubCategory" else "Select Category first",
-                    dropdownItems = filteredSubCategories.map { it.subCatName },
-                    onDropdownItemSelected = { subCategoryName ->
-                        val subCategory = filteredSubCategories.find { it.subCatName == subCategoryName }
-                        selectedSubCategoryId = subCategory?.subCatId
-                        row.mappedSubCategoryId = subCategory?.subCatId
-                    },
-                    enabled = selectedCategoryId != null
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (selectedCategoryId != null && selectedSubCategoryId != null) {
-                        row.status = ImportRowStatus.VALID
-                        row.errorMessage = null
-                        onConfirm(selectedCategoryId!!, selectedSubCategoryId!!)
-                    }
-                    onDismiss()
-                }
-            ) {
-                Text("Apply")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CusOutlinedTextField(
+                state = InputFieldState(initValue = selectedSubCategoryId?.let { subCatId ->
+                filteredSubCategories.find { it.subCatId == subCatId }?.subCatName ?: ""
+            } ?: ""),
+                placeholderText = if (selectedCategoryId != null) "Select SubCategory" else "Select Category first",
+                dropdownItems = filteredSubCategories.map { it.subCatName },
+                onDropdownItemSelected = { subCategoryName ->
+                    val subCategory =
+                        filteredSubCategories.find { it.subCatName == subCategoryName }
+                    selectedSubCategoryId = subCategory?.subCatId
+                    row.mappedSubCategoryId = subCategory?.subCatId
+                },
+                enabled = selectedCategoryId != null
+            )
         }
-    )
+    }, confirmButton = {
+        TextButton(
+            onClick = {
+                if (selectedCategoryId != null && selectedSubCategoryId != null) {
+                    row.status = ImportRowStatus.VALID
+                    row.errorMessage = null
+                    onConfirm(selectedCategoryId!!, selectedSubCategoryId!!)
+                }
+                onDismiss()
+            }) {
+            Text("Apply")
+        }
+    }, dismissButton = {
+        TextButton(onClick = onDismiss) {
+            Text("Cancel")
+        }
+    })
 }
 
 @Composable
 private fun ConfirmImportDialog(
-    viewModel: ImportItemsViewModel,
-    onDismiss: () -> Unit
+    viewModel: ImportItemsViewModel, onDismiss: () -> Unit
 ) {
     val summary = viewModel.importSummary.value
     val validRows = summary.validRows
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Confirm Import") },
-        text = {
-            Column {
-                Text("You are about to import $validRows items into the database.")
+    AlertDialog(onDismissRequest = onDismiss, title = { Text("Confirm Import") }, text = {
+        Column {
+            Text("You are about to import $validRows items into the database.")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (summary.needsMappingRows > 0) {
+                Text("⚠️ ${summary.needsMappingRows} rows need category mapping.")
+            }
+
+            if (summary.errorRows > 0) {
+                Text("❌ ${summary.errorRows} rows have errors.")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Show preview of what will be imported
+            val importPreview = viewModel.getImportPreview()
+            if (importPreview.isNotEmpty()) {
+                Text(
+                    text = "Preview of items to import:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (summary.needsMappingRows > 0) {
-                    Text("⚠️ ${summary.needsMappingRows} rows need category mapping.")
-                }
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 200.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(importPreview.take(10)) { (rowNumber, description) ->
+                        Text(
+                            text = "Row $rowNumber: $description",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-                if (summary.errorRows > 0) {
-                    Text("❌ ${summary.errorRows} rows have errors.")
+                    if (importPreview.size > 10) {
+                        item {
+                            Text(
+                                text = "... and ${importPreview.size - 10} more items",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontStyle = FontStyle.Italic
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Show preview of what will be imported
-                val importPreview = viewModel.getImportPreview()
-                if (importPreview.isNotEmpty()) {
-                    Text(
-                        text = "Preview of items to import:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 200.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        items(importPreview.take(10)) { (rowNumber, description) ->
-                            Text(
-                                text = "Row $rowNumber: $description",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        if (importPreview.size > 10) {
-                            item {
-                                Text(
-                                    text = "... and ${importPreview.size - 10} more items",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontStyle = FontStyle.Italic
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                Text("This action cannot be undone. Continue?")
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    viewModel.confirmImport()
-                    onDismiss()
-                }
-            ) {
-                Text("Import Items")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+
+            Text("This action cannot be undone. Continue?")
         }
-    )
+    }, confirmButton = {
+        Button(
+            onClick = {
+                viewModel.confirmImport()
+                onDismiss()
+            }) {
+            Text("Import Items")
+        }
+    }, dismissButton = {
+        TextButton(onClick = onDismiss) {
+            Text("Cancel")
+        }
+    })
 }

@@ -27,8 +27,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.TrendingUp
 import androidx.compose.material.icons.twotone.Analytics
 import androidx.compose.material.icons.twotone.Category
+import androidx.compose.material.icons.twotone.CloudOff
 import androidx.compose.material.icons.twotone.Pentagon
 import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material.icons.twotone.Scale
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.PullRefreshState
@@ -37,7 +39,9 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +52,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
@@ -62,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
@@ -83,6 +89,7 @@ import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
@@ -507,7 +514,7 @@ fun PortraitDashboardScreen(
                     Box(modifier = Modifier
                         .bounceClick {
                             dashboardViewModel.getSubCategoryCount {
-                                if (it > 2) {
+                                if (it > 3) {
                                     mainScope {
                                         navHost.navigate(Screens.Purchase.route)
                                     }
@@ -528,6 +535,9 @@ fun PortraitDashboardScreen(
             }
 
 
+
+            Spacer(Modifier.height(5.dp))
+            MetalRateView(Modifier.fillMaxWidth())
             Spacer(Modifier.height(5.dp))
             Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.Center) {
                 FlowOverView(Modifier
@@ -719,6 +729,171 @@ fun TopFiveSales(
             }
         }
     }
+}
+
+@Composable
+fun MetalRateView(
+    modifier: Modifier,
+) {
+
+    val baseViewModel = LocalBaseViewModel.current
+    val context = LocalContext.current
+    val latestTime = baseViewModel.metalRates.firstOrNull()?.updatedDate.orEmpty()
+    val hasApiRates = baseViewModel.metalRates.any { rate ->
+        !rate.source.trim().equals("cache", ignoreCase = true)
+    }
+    val rates = baseViewModel.metalRates.filter {
+        it.metal.equals("Gold", true) || it.metal.equals("Silver", true)
+    }
+    val groupedRates = rates.groupBy { it.metal.lowercase() }
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .padding(5.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(25.dp    )) {
+            Icon(
+                imageVector = Icons.TwoTone.Scale,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("Metal Rate", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+
+            if (hasApiRates && latestTime.isNotBlank()) {
+                Text(latestTime, fontSize = 10.sp, color = Color.Gray)
+                Spacer(Modifier.width(6.dp))
+            } else {
+                Icon(
+                    imageVector = Icons.TwoTone.CloudOff,
+                    contentDescription = "Using cached rates",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    if (!baseViewModel.metalRatesLoading.value) {
+                        ioScope {
+                            baseViewModel.refreshOnlineMetalRates(context)
+                        }
+                    }
+                },
+                enabled = !baseViewModel.metalRatesLoading.value
+            ) {
+                Icon(
+                    imageVector = Icons.TwoTone.Refresh,
+                    contentDescription = "Refresh metal rates",
+                    tint = if (baseViewModel.metalRatesLoading.value) Color.Gray else MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+        when {
+            baseViewModel.metalRatesLoading.value -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Fetching latest rates...", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
+
+            rates.isEmpty() -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("No metal rates available", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
+
+            else -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(8.dp)
+                ) {
+                    listOf("Gold", "Silver").forEach { metal ->
+                        val metalRates = groupedRates[metal.lowercase()].orEmpty()
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp)
+                        ) {
+                            Text(
+                                metal,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            if (metalRates.isEmpty()) {
+                                Text(
+                                    "No $metal rates",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            } else {
+                                val orderedRates = if (metal.equals("gold", true)) {
+                                    metalRates.sortedWith(
+                                        compareBy<MetalRate> {
+                                            when (it.caratOrPurity.replace(" ", "").uppercase()) {
+                                                "24K" -> 0
+                                                "22K" -> 1
+                                                "18K" -> 2
+                                                else -> 3
+                                            }
+                                        }.thenBy { it.caratOrPurity }
+                                    )
+                                } else {
+                                    metalRates.sortedBy { it.caratOrPurity }
+                                }
+
+                                orderedRates.forEach { rate ->
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            rate.caratOrPurity,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(Modifier.weight(1f))
+                                        Text(
+                                            formatMetalPrice(rate.price),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatMetalPrice(price: String): String {
+    val trimmed = price.trim()
+    return if (trimmed.startsWith("₹") || trimmed.startsWith("?")) trimmed else "₹$trimmed"
 }
 
 

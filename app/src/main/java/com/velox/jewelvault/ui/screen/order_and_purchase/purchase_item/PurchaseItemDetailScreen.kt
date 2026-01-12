@@ -4,9 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.twotone.Delete
 import androidx.compose.material.icons.twotone.KeyboardArrowDown
 import androidx.compose.material.icons.twotone.KeyboardArrowUp
 import androidx.compose.material.icons.twotone.MoreVert
-import androidx.compose.material.icons.twotone.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,7 +48,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.velox.jewelvault.data.roomdb.dto.PurchaseOrderWithDetails
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.export.enqueueExportWorker
@@ -68,11 +71,11 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val subNavigation = LocalSubNavController.current
-    
+
     // State for dropdown menu
     var showDropdownMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
+
     // State to track exported file URI for print functionality
     var exportedFileUri by remember { mutableStateOf<String?>(null) }
 
@@ -105,139 +108,29 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
 
             viewModel.purchaseOrderWithDetails.value?.let { pur ->
 
-                Row() {
+                RowOrColumn {
                     // Order Details
-                    Column(
-                        modifier = Modifier
-                    ) {
-                        Text(
-                            text = "Order Details (${pur.order.purchaseOrderId})",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = "Bill No: ${pur.order.billNo}, Bill Date: ${pur.order.billDate}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-
-                        Text(
-                            text = "Entry Date: ${pur.order.entryDate}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Text(
-                            text = "Total Final Weight: ${pur.order.totalFinalWeight?.to3FString() ?: "0.00"} gm, Total Final Amount: ₹${pur.order.totalFinalAmount?.to3FString() ?: "0.00"}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-
-                        if (pur.order.extraCharge != null && pur.order.extraCharge > 0) {
-                            Text(
-                                text = "Extra Charge: ₹${pur.order.extraCharge.to3FString()}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            if (!pur.order.extraChargeDescription.isNullOrEmpty()) {
-                                Text(
-                                    text = "Description: ${pur.order.extraChargeDescription}",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Tax: CGST ${pur.order.cgstPercent}% | SGST ${pur.order.sgstPercent}% | IGST ${pur.order.igstPercent}%",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        if (!pur.order.notes.isNullOrEmpty()) {
-                            Text(
-                                text = "Notes: ${pur.order.notes}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                    if (!it) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Spacer(Modifier.weight(1f))
+                            MoreOption(
+                                showDropdownMenu = showDropdownMenu,
+                                onMenuChange = { showDropdownMenu = it },
+                                onDeleteClick = { showDeleteDialog = true })
                         }
                     }
 
-                    Spacer(Modifier.weight(1f))
-                    
+                    if (it) Spacer(Modifier.weight(1f)) else OrderDetails(Modifier, pur)
 
-                    
-                    viewModel.firmEntity.value?.let { firm ->
-                        // Firm and Seller Information
-                        Column(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .padding(5.dp)
-                        ) {
-                            Text(
-                                text = "Firm: ${firm.firmName} (${firm.firmMobileNumber})",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                            Text(
-                                text = "Firm ID: ${firm.firmId}", fontSize = 14.sp
-                            )
-                            Text(
-                                text = "Address: ${firm.address}", fontSize = 14.sp
-                            )
-                            Text(
-                                text = "GST: ${firm.gstNumber}", fontSize = 14.sp
-                            )
+                    WidthThenHeightSpacer()
 
-                            pur.seller?.let { sel ->
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = "Seller: ${sel.name} (${sel.mobileNumber})",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
-                            }
-                        }
-                    }
-
+                    FirmDetails(viewModel, pur)
                     // More options dropdown
-                    Box {
-                        IconButton(
-                            onClick = { showDropdownMenu = true },
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.TwoTone.MoreVert,
-                                contentDescription = "More options",
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showDropdownMenu,
-                            onDismissRequest = { showDropdownMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Row {
-                                        Icon(
-                                            Icons.TwoTone.Delete,
-                                            contentDescription = null,
-                                            modifier = Modifier.padding(end = 8.dp)
-                                        )
-                                        Text("Delete Purchase")
-                                    }
-                                },
-                                onClick = {
-                                    showDropdownMenu = false
-                                    showDeleteDialog = true
-                                }
-                            )
-                        }
+                    if (it) {
+                        MoreOption(
+                            showDropdownMenu = showDropdownMenu,
+                            onMenuChange = { showDropdownMenu = it },
+                            onDeleteClick = { showDeleteDialog = true })
                     }
                 }
             }
@@ -260,7 +153,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Items and Exchanges",
@@ -370,7 +263,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Items in Category",
@@ -388,8 +281,9 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                         text = "Export", modifier = Modifier.clickable {
                             mainScope {
                                 if (viewModel.itemList.isNotEmpty()) {
-                                    val billNo = viewModel.purchaseOrderWithDetails.value?.order?.billNo
-                                        ?: "Bill_No"
+                                    val billNo =
+                                        viewModel.purchaseOrderWithDetails.value?.order?.billNo
+                                            ?: "Bill_No"
                                     val fileName =
                                         "ItemExport_${billNo}_${System.currentTimeMillis()}.xlsx"
                                     enqueueExportWorker(
@@ -404,28 +298,30 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                                 exportedFileUri = uri
                                                 log("Export completed. File URI: $uri")
                                             }
-                                        }
-                                    )
+                                        })
                                 } else {
                                     viewModel.snackBar.value = "No Item Found."
                                 }
                             }
                         }, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
                     )
-                    
+
                     // Show print button only when file is exported
                     if (exportedFileUri != null) {
                         Text(
-                            text = "Print", 
+                            text = "Print",
                             modifier = Modifier.clickable {
                                 // Print the exported file
                                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    setDataAndType(Uri.parse(exportedFileUri!!), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                    setDataAndType(
+                                        Uri.parse(exportedFileUri!!),
+                                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                    )
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(intent, "Print with"))
                             },
-                            color = MaterialTheme.colorScheme.primary, 
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -459,15 +355,14 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(topStart = 12.dp)
+                    MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 12.dp)
                 )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Sold Items",
@@ -497,13 +392,13 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
         }
 
     }
-    
+
     // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Purchase") },
-            text = { 
+            text = {
                 Text("Are you sure you want to delete this purchase order? This action cannot be undone and will also delete all associated items and exchange metals.")
             },
             confirmButton = {
@@ -521,10 +416,8 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                             onFailure = { error ->
                                 // Show error message via snackbar
                                 viewModel.snackBar.value = error
-                            }
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(
+                            })
+                    }, colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
@@ -534,11 +427,143 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showDeleteDialog = false }
-                ) {
+                    onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
                 }
+            })
+    }
+}
+
+@Composable
+private fun MoreOption(
+    showDropdownMenu: Boolean, onMenuChange: (Boolean) -> Unit, onDeleteClick: () -> Unit
+) {
+    Box {
+        IconButton(
+            onClick = { onMenuChange(true) }, modifier = Modifier.size(25.dp)
+        ) {
+            Icon(
+                Icons.TwoTone.MoreVert,
+                contentDescription = "More options",
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
+
+        DropdownMenu(
+            expanded = showDropdownMenu, onDismissRequest = { onMenuChange(false) }) {
+            DropdownMenuItem(text = {
+                Row {
+                    Icon(
+                        Icons.TwoTone.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text("Delete Purchase")
+                }
+            }, onClick = {
+                onMenuChange(false)
+                onDeleteClick()
+            })
+        }
+    }
+}
+
+@Composable
+private fun FirmDetails(
+    viewModel: PurchaseItemViewModel, pur: PurchaseOrderWithDetails
+) {
+    viewModel.firmEntity.value?.let { firm ->
+        // Firm and Seller Information
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
+                )
+                .padding(5.dp)
+        ) {
+            Text(
+                text = "Firm: ${firm.firmName} (${firm.firmMobileNumber})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Text(
+                text = "Firm ID: ${firm.firmId}", fontSize = 14.sp
+            )
+            Text(
+                text = "Address: ${firm.address}", fontSize = 14.sp
+            )
+            Text(
+                text = "GST: ${firm.gstNumber}", fontSize = 14.sp
+            )
+
+            pur.seller?.let { sel ->
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Seller: ${sel.name} (${sel.mobileNumber})",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun OrderDetails(modifier: Modifier = Modifier, pur: PurchaseOrderWithDetails) {
+    Column(
+        modifier = modifier
+    ) {
+        Text(
+            text = "Order Details (${pur.order.purchaseOrderId})",
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
         )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Bill No: ${pur.order.billNo}, Bill Date: ${pur.order.billDate}",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+
+        Text(
+            text = "Entry Date: ${pur.order.entryDate}",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = "Total Final Weight: ${pur.order.totalFinalWeight?.to3FString() ?: "0.00"} gm, Total Final Amount: ₹${pur.order.totalFinalAmount?.to3FString() ?: "0.00"}",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+
+        if (pur.order.extraCharge != null && pur.order.extraCharge > 0) {
+            Text(
+                text = "Extra Charge: ₹${pur.order.extraCharge.to3FString()}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            if (!pur.order.extraChargeDescription.isNullOrEmpty()) {
+                Text(
+                    text = "Description: ${pur.order.extraChargeDescription}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+        Text(
+            text = "Tax: CGST ${pur.order.cgstPercent}% | SGST ${pur.order.sgstPercent}% | IGST ${pur.order.igstPercent}%",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        if (!pur.order.notes.isNullOrEmpty()) {
+            Text(
+                text = "Notes: ${pur.order.notes}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }

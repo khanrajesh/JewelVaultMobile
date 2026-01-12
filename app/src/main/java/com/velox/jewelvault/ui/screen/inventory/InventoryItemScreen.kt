@@ -59,7 +59,9 @@ import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.ui.theme.LightGreen
@@ -119,10 +121,9 @@ fun InventoryItemScreen(
     subCatId: String,
     subCatName: String
 ) {
-    inventoryViewModel.currentScreenHeadingState.value = "Sub Category Details"
+    inventoryViewModel.currentScreenHeadingState.value = "Sub Category"
 
     val baseViewModel = LocalBaseViewModel.current
-    val showOption = remember { mutableStateOf(false) }
     val addItem = remember { mutableStateOf(false) }
     val showDialog = remember { mutableStateOf(false) }
     val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
@@ -145,27 +146,7 @@ fun InventoryItemScreen(
             selectedItem,
             isUpdateMode,
             itemBeingUpdated,
-            showOption
         )
-
-
-        if (showOption.value) Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .offset(y = 40.dp)
-                .wrapContentHeight()
-                .wrapContentWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
-                .padding(8.dp)
-        ) {
-            Text(
-                "Options",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.clickable {
-
-                })
-        }
 
         PrintInfoDialog(
             showDialog,
@@ -194,7 +175,6 @@ fun LandscapeInventoryItemScreen(
     selectedItem: MutableState<ItemEntity?>,
     isUpdateMode: MutableState<Boolean>,
     itemBeingUpdated: MutableState<ItemEntity?>,
-    showOption: MutableState<Boolean>
 ) {
     LocalSubNavController.current
     LaunchedEffect(true) {
@@ -226,10 +206,7 @@ fun LandscapeInventoryItemScreen(
                 Text("Add Item", modifier = Modifier.clickable {
                     addItem.value = true
                 })
-                Spacer(Modifier.width(10.dp))
-                Icon(Icons.TwoTone.MoreVert, null, modifier = Modifier.clickable {
-                    showOption.value = !showOption.value
-                })
+
             }
             Spacer(Modifier.height(5.dp))
             Spacer(
@@ -284,8 +261,7 @@ fun LandscapeInventoryItemScreen(
                     onItemClick = { item ->
                         item[0]
                         clipboardManager.setText(AnnotatedString(item[3]))
-//                        inventoryViewModel.snackBarState.value = "Item ID copied: ${item[3]}"
-
+                        inventoryViewModel.snackBarState.value = "Item ID copied: ${item[3]}"
                     },
                     onItemLongClick = { itemData ->
                         val itemId = itemData[3] // itemId is at index 3
@@ -504,9 +480,6 @@ private fun AddItemSection(
     isUpdateMode: MutableState<Boolean>,
     itemBeingUpdated: ItemEntity?
 ) {
-
-    val isLandscape = isLandscape()
-
     if (addItem.value) {
         Column(
             Modifier
@@ -527,8 +500,8 @@ private fun AddItemSection(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                     .padding(5.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically
+                RowOrColumn(
+                    rowModifier = Modifier.fillMaxWidth(), columnModifier = Modifier.fillMaxWidth()
                 ) { //purchase order section
 
                     Button(
@@ -541,23 +514,26 @@ private fun AddItemSection(
                             containerColor = if (viewModel.isSelf.value) LightGreen else LightRed
                         )
                     ) {
-                        Text("SELF", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (viewModel.isSelf.value) "SELF" else "PURCHASED",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                     if (!viewModel.isSelf.value) {
-                        Spacer(Modifier.width(5.dp))
+                        WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             viewModel.billDate,
                             placeholderText = "Bill Date",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier,
                             isDatePicker = true,
                             onDateSelected = {
                                 viewModel.getBillsFromDate()
                             })
 
                         if (viewModel.purchaseOrdersByDate.isNotEmpty()) {
-                            Spacer(Modifier.width(5.dp))
+                            WidthThenHeightSpacer(5.dp)
                             CusOutlinedTextField(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier,
                                 state = viewModel.billNo,
                                 placeholderText = "Bill No",
                                 readOnly = isUpdateMode.value, // Make read-only in update mode
@@ -575,13 +551,11 @@ private fun AddItemSection(
                         }
 
                         if (viewModel.billItemDetails.value.isNotBlank()) {
-                            Spacer(Modifier.width(5.dp))
+                            WidthThenHeightSpacer(5.dp)
                             var showDetailsDialog by remember { mutableStateOf(false) }
 
                             Text(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { showDetailsDialog = true },
+                                modifier = Modifier.clickable { showDetailsDialog = true },
                                 text = "${viewModel.billItemDetails.value} ",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.primary,
@@ -599,7 +573,7 @@ private fun AddItemSection(
 
                                     LaunchedEffect(selectedPurchase, subCatName) {
                                         detailedReport = viewModel.getDetailedPurchaseOrderReport(
-                                            selectedPurchase, subCatName
+                                            selectedPurchase, subCatId, subCatName
                                         )
                                     }
 
@@ -671,7 +645,7 @@ private fun AddItemSection(
                             }
 
                             Text(
-                                modifier = Modifier.weight(0.5f),
+                                modifier = Modifier,
                                 text = guidanceText,
                                 fontSize = 11.sp,
                                 color = guidanceColor,
@@ -685,492 +659,251 @@ private fun AddItemSection(
 
             Spacer(Modifier.height(5.dp))
 
-            if (isLandscape) {
-                Row(Modifier.fillMaxWidth()) {
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.addToName,
-                        placeholderText = "Add to Name",
-                        keyboardType = KeyboardType.Text
-                    )
+            RowOrColumn(Modifier.fillMaxWidth(),   Modifier.fillMaxWidth()) {
 
-                    Spacer(Modifier.width(5.dp))
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.addToName,
+                    placeholderText = "Add to Name",
+                    keyboardType = KeyboardType.Text
+                )
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.entryType,
-                        placeholderText = "Entry Type",
-                        dropdownItems = EntryType.list(),
-                        onDropdownItemSelected = { selected ->
-                            when (selected) {
-                                EntryType.Piece.type -> {
-                                    viewModel.qty.text = "1"
-                                }
+                WidthThenHeightSpacer(5.dp)
 
-                                EntryType.Lot.type -> {
-
-                                }
-
-                                else -> {
-                                    viewModel.entryType.text = selected
-                                }
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.entryType,
+                    placeholderText = "Entry Type",
+                    dropdownItems = EntryType.list(),
+                    onDropdownItemSelected = { selected ->
+                        when (selected) {
+                            EntryType.Piece.type -> {
+                                viewModel.qty.text = "1"
                             }
-                            viewModel.entryType.text = selected
-                        })
+
+                            EntryType.Lot.type -> {
+
+                            }
+
+                            else -> {
+                                viewModel.entryType.text = selected
+                            }
+                        }
+                        viewModel.entryType.text = selected
+                    })
 
 
-                    Spacer(Modifier.width(5.dp))
+                WidthThenHeightSpacer(5.dp)
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.qty,
-                        placeholderText = "Quantity",
-                        keyboardType = KeyboardType.Number,
-                    )
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.qty,
+                    placeholderText = "Quantity",
+                    keyboardType = KeyboardType.Number,
+                )
 
-                }
-                Spacer(Modifier.height(5.dp))
+            }
+            Spacer(Modifier.height(5.dp))
 
-                Row {
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.grWt,
-                        placeholderText = "Gs.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                        validation = { text ->
-                            if (text.isNotBlank()) {
-                                val grWtValue = text.toDoubleOrNull() ?: 0.0
-                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+            RowOrColumn {
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.grWt,
+                    placeholderText = "Gs.Wt/gm",
+                    keyboardType = KeyboardType.Number,
+                    validation = { text ->
+                        if (text.isNotBlank()) {
+                            val grWtValue = text.toDoubleOrNull() ?: 0.0
+                            val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
 
-                                if (ntWtValue > 0 && grWtValue < ntWtValue) {
-                                    "Gross weight cannot be less than net weight"
-                                } else null
+                            if (ntWtValue > 0 && grWtValue < ntWtValue) {
+                                "Gross weight cannot be less than net weight"
                             } else null
-                        },
-                        onTextChange = { text ->
-                            viewModel.grWt.text = text
-                            viewModel.ntWt.text = text
+                        } else null
+                    },
+                    onTextChange = { text ->
+                        viewModel.grWt.text = text
+                        viewModel.ntWt.text = text
 
-                            // Recalculate fine weight if purity is already selected
-                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val multiplier =
-                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                        })
-                    Spacer(Modifier.width(5.dp))
+                        // Recalculate fine weight if purity is already selected
+                        if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                            val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                            val multiplier =
+                                Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                            viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                        }
+                    })
+                WidthThenHeightSpacer(5.dp)
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.ntWt,
-                        placeholderText = "Nt.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                        validation = { text ->
-                            if (text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.ntWt,
+                    placeholderText = "Nt.Wt/gm",
+                    keyboardType = KeyboardType.Number,
+                    validation = { text ->
+                        if (text.isNotBlank()) {
+                            val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                            val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
 
-                                if (grWtValue > 0 && ntWtValue > grWtValue) {
-                                    "Net weight cannot be greater than gross weight"
-                                } else null
+                            if (grWtValue > 0 && ntWtValue > grWtValue) {
+                                "Net weight cannot be greater than gross weight"
                             } else null
-                        },
-                        onTextChange = { text ->
-                            viewModel.ntWt.text = text
+                        } else null
+                    },
+                    onTextChange = { text ->
+                        viewModel.ntWt.text = text
 
-                            // Recalculate fine weight if purity is already selected
-                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val multiplier =
-                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                        })
+                        // Recalculate fine weight if purity is already selected
+                        if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
+                            val ntWtValue = text.toDoubleOrNull() ?: 0.0
+                            val multiplier =
+                                Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
+                            viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                        }
+                    })
 
-                    Spacer(Modifier.width(5.dp))
+                WidthThenHeightSpacer(5.dp)
 
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.purity,
-                        placeholderText = "Purity",
-                        dropdownItems = Purity.list(),
-                        onDropdownItemSelected = { selected ->
-                            if (viewModel.ntWt.text.isNotBlank()) {
-                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
-                                val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                            viewModel.purity.text = selected
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.purity,
+                    placeholderText = "Purity",
+                    dropdownItems = Purity.catList(catName), // Purity.list(),
+                    onDropdownItemSelected = { selected ->
+                        if (viewModel.ntWt.text.isNotBlank()) {
+                            val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
+                            val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                            viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
+                        }
+                        viewModel.purity.text = selected
 
-                            // Validate fine weight when purity changes
-                            if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-                                    .launch {
-                                        val error = viewModel.validateFineWeightInput(
-                                            viewModel.fnWt.text, selected, subCatName
-                                        )
-                                        viewModel.fnWt.error = error ?: ""
-                                    }
-                            } else {
-                                viewModel.fnWt.error = ""
-                            }
-                        })
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.fnWt,
-                        placeholderText = "Fn.Wt/gm",
-                        keyboardType = KeyboardType.Number
-                    )
-                }
-
-                // Validate fine weight when it changes
-                LaunchedEffect(
-                    viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value
-                ) {
-                    if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                        val error = viewModel.validateFineWeightInput(
-                            viewModel.fnWt.text, viewModel.purity.text, subCatName
-                        )
-                        viewModel.fnWt.error = error ?: ""
-                    } else {
-                        viewModel.fnWt.error = ""
-                    }
-                }
-
-                Spacer(Modifier.height(5.dp))
-
-                Row {
-
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.chargeType,
-                        placeholderText = "Charge Type",
-                        dropdownItems = ChargeType.list(),
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.charge,
-                        placeholderText = "charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.otherChargeDes,
-                        placeholderText = "Oth Charge Des",
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.othCharge,
-                        placeholderText = "Oth Charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-                }
-                Spacer(Modifier.height(5.dp))
-
-                Row {
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.cgst,
-                        placeholderText = "CGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.sgst,
-                        placeholderText = "SGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.igst,
-                        placeholderText = "IGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                    Spacer(Modifier.width(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(2f),
-                        state = viewModel.huid,
-                        placeholderText = "H-UID",
-                    )
-                    Spacer(Modifier.height(5.dp))
-                }
-                Spacer(Modifier.height(5.dp))
-                Row {
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(1f),
-                        state = viewModel.desKey,
-                        placeholderText = "Description",
-                        keyboardType = KeyboardType.Text,
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    CusOutlinedTextField(
-                        modifier = Modifier.weight(2f),
-                        state = viewModel.desValue,
-                        placeholderText = "Value",
-                        keyboardType = KeyboardType.Text,
-                    )
-
-                }
-            } else {
-                Column(Modifier.fillMaxWidth()) {
-
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.addToName,
-                        placeholderText = "Add to Name",
-                        keyboardType = KeyboardType.Text
-                    )
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.entryType,
-                        placeholderText = "Entry Type",
-                        dropdownItems = EntryType.list(),
-                        onDropdownItemSelected = { selected ->
-                            when (selected) {
-                                EntryType.Piece.type -> {
-                                    viewModel.qty.text = "1"
-                                }
-
-                                EntryType.Lot.type -> {
-
-                                }
-
-                                else -> {
-                                    viewModel.entryType.text = selected
-                                }
-                            }
-                            viewModel.entryType.text = selected
-                        })
-
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.qty,
-                        placeholderText = "Quantity",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.grWt,
-                        placeholderText = "Gs.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                        validation = { text ->
-                            if (text.isNotBlank()) {
-                                val grWtValue = text.toDoubleOrNull() ?: 0.0
-                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
-
-                                if (ntWtValue > 0 && grWtValue < ntWtValue) {
-                                    "Gross weight cannot be less than net weight"
-                                } else null
-                            } else null
-                        },
-                        onTextChange = { text ->
-                            viewModel.grWt.text = text
-                            viewModel.ntWt.text = text
-
-                            // Recalculate fine weight if purity is already selected
-                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val multiplier =
-                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                        })
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.ntWt,
-                        placeholderText = "Nt.Wt/gm",
-                        keyboardType = KeyboardType.Number,
-                        validation = { text ->
-                            if (text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val grWtValue = viewModel.grWt.text.toDoubleOrNull() ?: 0.0
-
-                                if (grWtValue > 0 && ntWtValue > grWtValue) {
-                                    "Net weight cannot be greater than gross weight"
-                                } else null
-                            } else null
-                        },
-                        onTextChange = { text ->
-                            viewModel.ntWt.text = text
-
-                            // Recalculate fine weight if purity is already selected
-                            if (viewModel.purity.text.isNotBlank() && text.isNotBlank()) {
-                                val ntWtValue = text.toDoubleOrNull() ?: 0.0
-                                val multiplier =
-                                    Purity.fromLabel(viewModel.purity.text)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                        })
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.purity,
-                        placeholderText = "Purity",
-                        dropdownItems = Purity.list(),
-                        onDropdownItemSelected = { selected ->
-                            if (viewModel.ntWt.text.isNotBlank()) {
-                                val ntWtValue = viewModel.ntWt.text.toDoubleOrNull() ?: 0.0
-                                val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                viewModel.fnWt.text = (ntWtValue * multiplier).to3FString()
-                            }
-                            viewModel.purity.text = selected
-
-                            // Validate fine weight when purity changes
-                            if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
-                                    .launch {
-                                        val error = viewModel.validateFineWeightInput(
-                                            viewModel.fnWt.text, selected, subCatName
-                                        )
-                                        viewModel.fnWt.error = error ?: ""
-                                    }
-                            } else {
-                                viewModel.fnWt.error = ""
-                            }
-                        })
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.fnWt,
-                        placeholderText = "Fn.Wt/gm",
-                        keyboardType = KeyboardType.Number
-                    )
-
-
-                    // Validate fine weight when it changes
-                    LaunchedEffect(
-                        viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value
-                    ) {
+                        // Validate fine weight when purity changes
                         if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
-                            val error = viewModel.validateFineWeightInput(
-                                viewModel.fnWt.text, viewModel.purity.text, subCatName
-                            )
-                            viewModel.fnWt.error = error ?: ""
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main)
+                                .launch {
+                                    val error = viewModel.validateFineWeightInput(
+                                        viewModel.fnWt.text, selected, subCatName
+                                    )
+                                    viewModel.fnWt.error = error ?: ""
+                                }
                         } else {
                             viewModel.fnWt.error = ""
                         }
-                    }
+                    })
 
-                    Spacer(Modifier.height(5.dp))
+                WidthThenHeightSpacer(5.dp)
 
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.fnWt,
+                    placeholderText = "Fn.Wt/gm",
+                    keyboardType = KeyboardType.Number
+                )
+            }
 
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.chargeType,
-                        placeholderText = "Charge Type",
-                        dropdownItems = ChargeType.list(),
+            // Validate fine weight when it changes
+            LaunchedEffect(
+                viewModel.fnWt.text, viewModel.purity.text, viewModel.isSelf.value
+            ) {
+                if (!viewModel.isSelf.value && viewModel.purchaseItems.isNotEmpty() && viewModel.fnWt.text.isNotBlank()) {
+                    val error = viewModel.validateFineWeightInput(
+                        viewModel.fnWt.text, viewModel.purity.text, subCatName
                     )
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.charge,
-                        placeholderText = "charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.otherChargeDes,
-                        placeholderText = "Oth Charge Des",
-                    )
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.othCharge,
-                        placeholderText = "Oth Charge",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.cgst,
-                        placeholderText = "CGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.sgst,
-                        placeholderText = "SGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.igst,
-                        placeholderText = "IGST",
-                        keyboardType = KeyboardType.Number,
-                    )
-
-                    Spacer(Modifier.height(5.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.huid,
-                        placeholderText = "H-UID",
-                    )
-                    Spacer(Modifier.height(5.dp))
-
-
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.desKey,
-                        placeholderText = "Description",
-                        keyboardType = KeyboardType.Text,
-                    )
-                    Spacer(Modifier.height(5.dp))
-                    CusOutlinedTextField(
-                        modifier = Modifier,
-                        state = viewModel.desValue,
-                        placeholderText = "Value",
-                        keyboardType = KeyboardType.Text,
-                    )
+                    viewModel.fnWt.error = error ?: ""
+                } else {
+                    viewModel.fnWt.error = ""
                 }
             }
+
+            Spacer(Modifier.height(5.dp))
+
+            RowOrColumn {
+
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.chargeType,
+                    placeholderText = "Making Charge Type",
+                    dropdownItems = ChargeType.list(),
+                )
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.charge,
+                    placeholderText = "Making Charge",
+                    keyboardType = KeyboardType.Number,
+                )
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.otherChargeDes,
+                    placeholderText = "Oth Charge Description",
+                )
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.othCharge,
+                    placeholderText = "Oth Charge",
+                    keyboardType = KeyboardType.Number,
+                )
+            }
+            Spacer(Modifier.height(5.dp))
+
+            RowOrColumn {
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.cgst,
+                    placeholderText = "CGST",
+                    keyboardType = KeyboardType.Number,
+                )
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.sgst,
+                    placeholderText = "SGST",
+                    keyboardType = KeyboardType.Number,
+                )
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.igst,
+                    placeholderText = "IGST",
+                    keyboardType = KeyboardType.Number,
+                )
+
+                WidthThenHeightSpacer(5.dp)
+
+                CusOutlinedTextField(
+                    modifier =if(it) Modifier.weight(2f) else Modifier,
+                    state = viewModel.huid,
+                    placeholderText = "H-UID",
+                )
+            }
+            Spacer(Modifier.height(5.dp))
+            RowOrColumn() {
+
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.desKey,
+                    placeholderText = "Description",
+                    keyboardType = KeyboardType.Text,
+                )
+                WidthThenHeightSpacer(5.dp)
+                CusOutlinedTextField(
+                    modifier = if(it) Modifier.weight(1f) else Modifier,
+                    state = viewModel.desValue,
+                    placeholderText = "Value",
+                    keyboardType = KeyboardType.Text,
+                )
+
+            }
+
 
 
 

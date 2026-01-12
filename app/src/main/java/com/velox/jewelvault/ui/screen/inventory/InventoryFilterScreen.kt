@@ -3,13 +3,12 @@ package com.velox.jewelvault.ui.screen.inventory
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
-import android.os.Environment
-import android.provider.MediaStore
-import android.content.ContentValues
-import android.print.PrintAttributes
-import android.print.PrintManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +21,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.Sort
 import androidx.compose.material.icons.twotone.KeyboardArrowDown
 import androidx.compose.material.icons.twotone.KeyboardArrowUp
 import androidx.compose.material.icons.twotone.Print
@@ -40,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,40 +56,24 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.delay
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.io.IOException
-import java.util.Date
-import java.sql.Timestamp
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.twotone.Sort
-import androidx.compose.runtime.MutableState
-import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
+import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
+import com.velox.jewelvault.utils.PrintUtils
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.export.enqueueExportWorker
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.to3FString
-import com.velox.jewelvault.utils.PrintUtils
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import org.apache.poi.hssf.usermodel.HeaderFooter.fontSize
-
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 // Helper function to convert ItemEntity to List<String>
@@ -113,7 +101,6 @@ private fun ItemEntity.toListString(index: Int): List<String> = listOf(
     addDesValue,
     purchaseOrderId
 )
-
 
 
 @Composable
@@ -149,8 +136,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                MaterialTheme.colorScheme.surface,
-                RoundedCornerShape(topStart = 18.dp)
+                MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp)
             )
             .padding(8.dp)
 
@@ -209,20 +195,21 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             exportedFileUri = uri
                             log("Export completed. File URI: $uri")
                         }
-                    }
-                )
+                    })
             },
             isFilterPanelExpanded,
             exportedFileUri = exportedFileUri,
             onPrint = { fileUri ->
                 // Print the exported file
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(fileUri), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    setDataAndType(
+                        Uri.parse(fileUri),
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 context.startActivity(Intent.createChooser(intent, "Print with"))
-            }
-        )
+            })
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -231,182 +218,191 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
             visible = isFilterPanelExpanded.value,
             enter = slideInVertically(
                 animationSpec = tween(300),
-                initialOffsetY = { -it }
-            ) + fadeIn(animationSpec = tween(300)),
+                initialOffsetY = { -it }) + fadeIn(animationSpec = tween(300)),
             exit = slideOutVertically(
                 animationSpec = tween(300),
-                targetOffsetY = { -it }
-            ) + fadeOut(animationSpec = tween(300))
+                targetOffsetY = { -it }) + fadeOut(animationSpec = tween(300))
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
             ) {
 
-                Column(modifier = Modifier.padding(12.dp)) {
+
+                Column(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     // Row 1: Category, Subcategory, Entry Type, Purity
-                    Row {
+                    RowOrColumn {
+
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.categoryFilter,
                             placeholderText = "Category",
                             dropdownItems = viewModel.catSubCatDto.map { it.catName },
                             onDropdownItemSelected = { selected ->
                                 viewModel.categoryFilter.text = selected
-                                val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
+                                val selectedCat =
+                                    viewModel.catSubCatDto.find { it.catName == selected }
                                 subCategories.clear()
                                 selectedCat?.subCategoryList?.let { subCategories.addAll(it) }
                                 viewModel.subCategoryFilter.text = ""
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.subCategoryFilter,
                             placeholderText = "Sub Category",
                             dropdownItems = subCategories.map { it.subCatName },
                             onDropdownItemSelected = { selected ->
                                 viewModel.subCategoryFilter.text = selected
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.entryTypeFilter,
                             placeholderText = "Entry Type",
                             dropdownItems = EntryType.list(),
                             onDropdownItemSelected = { selected ->
                                 viewModel.entryTypeFilter.text = selected
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.purityFilter,
                             placeholderText = "Purity",
                             dropdownItems = Purity.list(),
                             onDropdownItemSelected = { selected ->
                                 viewModel.purityFilter.text = selected
-                            }
-                        )
+                            })
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     // Row 2: Charge Type, Firm, Purchase Order, Date Range
-                    Row {
+                    RowOrColumn {
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.chargeTypeFilter,
                             placeholderText = "Charge Type",
                             dropdownItems = ChargeType.list(),
                             onDropdownItemSelected = { selected ->
                                 viewModel.chargeTypeFilter.text = selected
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.firmIdFilter,
                             placeholderText = "Firm",
                             dropdownItems = viewModel.firmList.map { it.second },
                             onDropdownItemSelected = { selected ->
                                 val firm = viewModel.firmList.find { it.second == selected }
                                 viewModel.firmIdFilter.text = firm?.first?.toString() ?: ""
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.purchaseOrderIdFilter,
                             placeholderText = "Purchase Order",
                             dropdownItems = viewModel.purchaseOrderList.map { it.second },
                             onDropdownItemSelected = { selected ->
-                                val order = viewModel.purchaseOrderList.find { it.second == selected }
-                                viewModel.purchaseOrderIdFilter.text = order?.first?.toString() ?: ""
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                                val order =
+                                    viewModel.purchaseOrderList.find { it.second == selected }
+                                viewModel.purchaseOrderIdFilter.text =
+                                    order?.first?.toString() ?: ""
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.startDateFilter,
                             placeholderText = "Start Date",
                             isDatePicker = true,
                             onDateSelected = { date ->
                                 val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-                                viewModel.startDateFilter.text = dateFormat.format(java.util.Date.from(date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))
-                            }
-                        )
+                                viewModel.startDateFilter.text = dateFormat.format(
+                                    Date.from(
+                                        date.atStartOfDay(java.time.ZoneId.systemDefault())
+                                            .toInstant()
+                                    )
+                                )
+                            })
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     // Row 3: End Date, Weight Ranges, Quantity Ranges, Apply Button
-                    Row {
+                    RowOrColumn {
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.endDateFilter,
                             placeholderText = "End Date",
                             isDatePicker = true,
                             onDateSelected = { date ->
                                 val dateFormat = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
-                                viewModel.endDateFilter.text = dateFormat.format(java.util.Date.from(date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()))
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                                viewModel.endDateFilter.text = dateFormat.format(
+                                    Date.from(
+                                        date.atStartOfDay(java.time.ZoneId.systemDefault())
+                                            .toInstant()
+                                    )
+                                )
+                            })
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.minGsWtFilter,
                             placeholderText = "Min Gross Wt",
                             keyboardType = KeyboardType.Decimal,
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.maxGsWtFilter,
                             placeholderText = "Max Gross Wt",
                             keyboardType = KeyboardType.Decimal,
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { viewModel.filterItems()
-                            isFilterPanelExpanded.value = !isFilterPanelExpanded.value
-                        }) {
-                            Text("Apply")
-                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     // Row 4: Quantity Ranges, Net Weight Ranges
-                    Row {
+                    RowOrColumn {
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.minQuantityFilter,
                             placeholderText = "Min Qty",
                             keyboardType = KeyboardType.Number,
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.maxQuantityFilter,
                             placeholderText = "Max Qty",
                             keyboardType = KeyboardType.Number,
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.minNtWtFilter,
                             placeholderText = "Min Net Wt",
                             keyboardType = KeyboardType.Decimal,
                             singleLine = true
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        WidthThenHeightSpacer()
                         CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             state = viewModel.maxNtWtFilter,
                             placeholderText = "Max Net Wt",
                             keyboardType = KeyboardType.Decimal,
                             singleLine = true
                         )
-
+                        WidthThenHeightSpacer()
+                        Button(onClick = {
+                            viewModel.filterItems()
+                            isFilterPanelExpanded.value = !isFilterPanelExpanded.value
+                        }) {
+                            Text("Apply")
+                        }
 
                     }
                 }
@@ -455,8 +451,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                         selectedItem.value = it
                         showPrintDialog.value = true
                     }
-                }
-            )
+                })
         }
     }
 
@@ -524,20 +519,30 @@ private fun HeaderSection(
     exportedFileUri: String?,
     onPrint: (String) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Sort button
-        Box {
+    // Active filters count
+    val activeFilters = listOfNotNull(
+        if (viewModel.categoryFilter.text.isNotEmpty()) "Cat" else null,
+        if (viewModel.subCategoryFilter.text.isNotEmpty()) "SubCat" else null,
+        if (viewModel.entryTypeFilter.text.isNotEmpty()) "Type" else null,
+        if (viewModel.purityFilter.text.isNotEmpty()) "Purity" else null,
+        if (viewModel.chargeTypeFilter.text.isNotEmpty()) "Charge" else null,
+        if (viewModel.firmIdFilter.text.isNotEmpty()) "Firm" else null,
+        if (viewModel.purchaseOrderIdFilter.text.isNotEmpty()) "Order" else null,
+        if (viewModel.startDateFilter.text.isNotEmpty()) "StartDate" else null,
+        if (viewModel.endDateFilter.text.isNotEmpty()) "EndDate" else null,
+        if (viewModel.minGsWtFilter.text.isNotEmpty() || viewModel.maxGsWtFilter.text.isNotEmpty()) "GrossWt" else null,
+        if (viewModel.minNtWtFilter.text.isNotEmpty() || viewModel.maxNtWtFilter.text.isNotEmpty()) "NetWt" else null,
+        if (viewModel.minQuantityFilter.text.isNotEmpty() || viewModel.maxQuantityFilter.text.isNotEmpty()) "Qty" else null
+    )
 
+
+    // Sort button
+    Column (modifier = Modifier.fillMaxWidth()) {
+        RowOrColumn {
 
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier, verticalAlignment = Alignment.CenterVertically
             ) {
-
                 IconButton(onClick = onSortMenuToggle) {
                     Icon(
                         imageVector = Icons.AutoMirrored.TwoTone.Sort,
@@ -545,49 +550,37 @@ private fun HeaderSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
                 // Sort direction indicator
                 if (viewModel.sortBy.value != "addDate" || viewModel.sortOrder.value != "DESC") {
                     Text(
+                        modifier = Modifier,
                         text = "${viewModel.sortOptions.find { it.first == viewModel.sortBy.value }?.second ?: "Date"} ${if (viewModel.sortOrder.value == "ASC") "↑" else "↓"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+            }
 
-                            // Active filters count
-            val activeFilters = listOfNotNull(
-                if (viewModel.categoryFilter.text.isNotEmpty()) "Cat" else null,
-                if (viewModel.subCategoryFilter.text.isNotEmpty()) "SubCat" else null,
-                if (viewModel.entryTypeFilter.text.isNotEmpty()) "Type" else null,
-                if (viewModel.purityFilter.text.isNotEmpty()) "Purity" else null,
-                if (viewModel.chargeTypeFilter.text.isNotEmpty()) "Charge" else null,
-                if (viewModel.firmIdFilter.text.isNotEmpty()) "Firm" else null,
-                if (viewModel.purchaseOrderIdFilter.text.isNotEmpty()) "Order" else null,
-                if (viewModel.startDateFilter.text.isNotEmpty()) "StartDate" else null,
-                if (viewModel.endDateFilter.text.isNotEmpty()) "EndDate" else null,
-                if (viewModel.minGsWtFilter.text.isNotEmpty() || viewModel.maxGsWtFilter.text.isNotEmpty()) "GrossWt" else null,
-                if (viewModel.minNtWtFilter.text.isNotEmpty() || viewModel.maxNtWtFilter.text.isNotEmpty()) "NetWt" else null,
-                if (viewModel.minQuantityFilter.text.isNotEmpty() || viewModel.maxQuantityFilter.text.isNotEmpty()) "Qty" else null
-            )
 
-                if (activeFilters.isNotEmpty()) {
-                    Text(
-                        text = "Filters: ${activeFilters.joinToString(", ")}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }else{
-                    Spacer(Modifier.weight(1f))
-                }
+            if (activeFilters.isNotEmpty()) {
+                Text(
+                    text = "Filters: ${activeFilters.joinToString(", ")}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
+            if (it) Spacer(modifier = Modifier.weight(1f))
+            else WidthThenHeightSpacer()
 
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
-                    modifier = Modifier
-                        .clickable { isFilterPanelExpanded.value = !isFilterPanelExpanded.value }
-                    ,
+                    modifier = Modifier.clickable {
+                        isFilterPanelExpanded.value = !isFilterPanelExpanded.value
+                    },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -603,7 +596,6 @@ private fun HeaderSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = onClearFilters) {
                     Text("Clear")
@@ -620,8 +612,7 @@ private fun HeaderSection(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
-                        onClick = { onPrint(exportedFileUri!!) }
-                    ) {
+                        onClick = { onPrint(exportedFileUri!!) }) {
                         Icon(
                             imageVector = Icons.TwoTone.Print,
                             contentDescription = "Print",
@@ -632,34 +623,31 @@ private fun HeaderSection(
                 }
             }
 
-
-                DropdownMenu(
-                    expanded = showSortMenu,
-                    onDismissRequest = onSortMenuToggle
-                ) {
-                    viewModel.sortOptions.forEach { (sortKey, sortLabel) ->
-                        DropdownMenuItem(
-                            text = { Text(sortLabel) },
-                            onClick = {
-                                val newOrder = if (viewModel.sortBy.value == sortKey && viewModel.sortOrder.value == "ASC") "DESC" else "ASC"
-                                onSortOptionSelected(sortKey, newOrder)
-                            },
-                            trailingIcon = {
-                                if (viewModel.sortBy.value == sortKey) {
-                                    Text(
-                                        text = if (viewModel.sortOrder.value == "ASC") "↑" else "↓",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
-            }
         }
 
 
+        DropdownMenu(
+            expanded = showSortMenu, onDismissRequest = onSortMenuToggle
+        ) {
+            viewModel.sortOptions.forEach { (sortKey, sortLabel) ->
+                DropdownMenuItem(text = { Text(sortLabel) }, onClick = {
+                    val newOrder =
+                        if (viewModel.sortBy.value == sortKey && viewModel.sortOrder.value == "ASC") "DESC" else "ASC"
+                    onSortOptionSelected(sortKey, newOrder)
+                }, trailingIcon = {
+                    if (viewModel.sortBy.value == sortKey) {
+                        Text(
+                            text = if (viewModel.sortOrder.value == "ASC") "↑" else "↓",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                })
+            }
+        }
     }
+
+
+}
 
 
 

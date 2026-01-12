@@ -54,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.isLandscape
 
 @Composable
@@ -63,6 +64,8 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
     var showAddEditDialog by remember { mutableStateOf(false) }
     var selectedUserForEdit by remember { mutableStateOf<UsersEntity?>(null) }
     val isLandscape = isLandscape()
+
+    userManagementViewModel.currentScreenHeadingState.value = "User Management"
 
     // Clear form when operation is successful
     LaunchedEffect(operationSuccess) {
@@ -88,7 +91,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "User Management",
+                text = "Users (${users.size})",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 modifier = Modifier.padding(start = 10.dp)
@@ -112,14 +115,6 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
             Modifier.fillMaxWidth()
         ) {
             // Users Grid
-            item {
-                Text(
-                    text = "Users (${users.size})",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 10.dp, bottom = 8.dp)
-                )
-            }
 
             item {
                 LazyVerticalGrid(
@@ -345,6 +340,46 @@ fun AddEditUserDialog(
     val isAdmin = userToEdit?.role?.lowercase() == "admin"
     var isEditMode by remember { mutableStateOf(false) }
 
+    val nameValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Full name is required"
+            !it.matches(Regex("^[A-Za-z][A-Za-z .]{1,}$")) -> "Enter a valid name"
+            else -> null
+        }
+    }
+    val mobileValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Mobile number is required"
+            it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit)) -> "Enter a valid 10-digit mobile number"
+            else -> null
+        }
+    }
+    val emailValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!InputValidator.isValidEmail(it)) "Enter a valid email" else null
+    }
+    val pinValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "PIN is required"
+            !InputValidator.isValidPin(it) -> "PIN must be 4-6 digits"
+            else -> null
+        }
+    }
+    val aadhaarValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{12}$"))) "Enter 12-digit Aadhaar" else null
+    }
+    val emergencyContactValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit))) "Enter a valid 10-digit contact" else null
+    }
+    val govIdValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^[A-Za-z0-9-]{4,20}$"))) "Enter 4-20 alphanumeric ID" else null
+    }
+    val dobValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{2}/\\d{2}/\\d{4}$"))) "Use dd/mm/yyyy" else null
+    }
+    val bloodGroupValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.uppercase().matches(Regex("^(A|B|AB|O)[+-]\$"))) "Use formats like A+, O-" else null
+    }
+
     AlertDialog(onDismissRequest = onDismiss, title = {
         Text(
             text = if (isEditing) "User Details" else "Add New User",
@@ -369,7 +404,8 @@ fun AddEditUserDialog(
                 state = viewModel.userName,
                 placeholderText = "Full Name *",
                 keyboardType = KeyboardType.Text,
-                readOnly = isEditing && !isEditMode
+                readOnly = isEditing && !isEditMode,
+                validation = nameValidation
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -379,7 +415,8 @@ fun AddEditUserDialog(
                 state = viewModel.userMobile,
                 placeholderText = "Mobile Number *",
                 keyboardType = KeyboardType.Phone,
-                readOnly = isEditing && !isEditMode
+                readOnly = isEditing && !isEditMode,
+                validation = mobileValidation
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -389,7 +426,8 @@ fun AddEditUserDialog(
                 state = viewModel.userEmail,
                 placeholderText = "Email Address (Optional)",
                 keyboardType = KeyboardType.Email,
-                readOnly = isEditing && !isEditMode
+                readOnly = isEditing && !isEditMode,
+                validation = emailValidation
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -400,7 +438,8 @@ fun AddEditUserDialog(
                 placeholderText = if (isEditing) "Enter new PIN (4-6 digits) *" else "PIN (4-6 digits) *",
                 keyboardType = KeyboardType.Number,
                 visualTransformation = PasswordVisualTransformation(),
-                readOnly = isEditing && !isEditMode
+                readOnly = isEditing && !isEditMode,
+                validation = pinValidation
             )
 
             if (isEditing && !isEditMode) {
@@ -444,7 +483,8 @@ fun AddEditUserDialog(
                     state = viewModel.userAadhaar,
                     placeholderText = "Aadhaar Number",
                     keyboardType = KeyboardType.Number,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    validation = aadhaarValidation
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -474,7 +514,8 @@ fun AddEditUserDialog(
                     state = viewModel.emergencyContactNumber,
                     placeholderText = "Emergency Contact Number",
                     keyboardType = KeyboardType.Phone,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    validation = emergencyContactValidation
                 )
 
 
@@ -495,7 +536,8 @@ fun AddEditUserDialog(
                     state = viewModel.governmentIdNumber,
                     placeholderText = "Government ID Number",
                     keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    validation = govIdValidation
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -505,7 +547,8 @@ fun AddEditUserDialog(
                     state = viewModel.dateOfBirth,
                     placeholderText = "Date of Birth",
                     keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    validation = dobValidation
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -514,7 +557,8 @@ fun AddEditUserDialog(
                     state = viewModel.bloodGroup,
                     placeholderText = "Blood Group",
                     keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    validation = bloodGroupValidation
                 )
 
             }

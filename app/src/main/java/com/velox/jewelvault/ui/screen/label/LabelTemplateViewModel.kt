@@ -19,8 +19,11 @@ import javax.inject.Named
 @HiltViewModel
 class LabelTemplateViewModel @Inject constructor(
     private val appDatabase: AppDatabase,
-    @Named("snackMessage") private val _snackBarState: MutableState<String>
-) : ViewModel() {
+    @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
+    ) : ViewModel() {
+
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     // All templates
     val templates: StateFlow<List<LabelTemplateEntity>> =

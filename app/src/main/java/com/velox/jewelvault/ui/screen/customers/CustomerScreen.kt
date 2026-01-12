@@ -60,6 +60,7 @@ import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.to2FString
 
 @Composable
 fun CustomerScreen(
