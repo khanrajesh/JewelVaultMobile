@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.components
 
 import android.content.Context
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,23 +22,24 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.twotone.Help
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowRight
 import androidx.compose.material.icons.twotone.AccountBalance
 import androidx.compose.material.icons.twotone.Dashboard
 import androidx.compose.material.icons.twotone.Inventory
+import androidx.compose.material.icons.twotone.Menu
 import androidx.compose.material.icons.twotone.People
 import androidx.compose.material.icons.twotone.Person
 import androidx.compose.material.icons.twotone.Settings
 import androidx.compose.material.icons.twotone.Update
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,7 +59,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +72,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.data.MetalRatesTicker
+import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
@@ -108,36 +116,60 @@ fun TabNavigationDrawerPreview() {
 fun DrawerItem(
     item: InputIconState, drawerState: TabDrawerState, onClick: () -> Unit
 ) {
-    Row(Modifier
-        .clickable { onClick() }
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        // Icon with better styling
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
-                    shape = CircleShape
-                ), contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = item.icon as ImageVector,
-                contentDescription = item.text,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
-            )
-        }
+    val isSelected = item.selected
+    val containerColor =
+        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val contentColor =
+        if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
-        if (drawerState.isOpen) {
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = item.text,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clickable { onClick() }) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = contentColor.copy(alpha = 0.12f), shape = CircleShape
+                    ), contentAlignment = Alignment.Center
+            ) {
+                when (val icon = item.icon) {
+                    is ImageVector -> {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = item.text,
+                            modifier = Modifier.size(24.dp),
+                            tint = contentColor
+                        )
+                    }
+
+                    is Int -> {
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = item.text,
+                            modifier = Modifier.size(24.dp),
+                            tint = contentColor
+                        )
+                    }
+                }
+            }
+
+            if (drawerState.isOpen) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = item.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = contentColor
+                )
+            }
         }
     }
 }
@@ -191,8 +223,7 @@ fun TabNavigationDrawer(
     drawerState: TabDrawerState = rememberTabDrawerState(TabDrawerValue.Closed),
     inputIconStates: List<InputIconState>,
     onProfileClick: () -> Unit = {},
-    onGuideClick: () -> Unit = {},
-    notifierContent: @Composable () -> Unit = {},
+    currentUser: UsersEntity? = null,
     content: @Composable () -> Unit
 ) {
     rememberCoroutineScope()
@@ -210,16 +241,134 @@ fun TabNavigationDrawer(
             drawerState,
             modifier,
             onProfileClick,
-            onGuideClick,
             baseViewModel,
             context,
             inputIconStates,
-            notifierContent,
+            currentUser,
             content,
 
             )
     } else {
+        PortraitNavView(
+            drawerState,
+            modifier,
+            onProfileClick,
+            baseViewModel,
+            context,
+            inputIconStates,
+            currentUser,
+            content
+        )
+    }
 
+
+}
+
+@Composable
+private fun MenuHeaderCard(
+    modifier: Modifier = Modifier,
+    onProfileClick: () -> Unit,
+    baseViewModel: BaseViewModel,
+    currentUser: UsersEntity?
+) {
+    val store = baseViewModel.storeData.value
+    val proprietorName = store?.proprietor?.takeIf { it.isNotBlank() }
+    val proprietorPhone = store?.phone?.takeIf { it.isNotBlank() }
+
+    Surface(
+        modifier = modifier.bounceClick(onProfileClick),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top
+        ) {
+            ProfileImage(size = 56.dp, onProfileClick = onProfileClick)
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Proprietor",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = proprietorName ?: "—",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (proprietorPhone != null) {
+                    Text(
+                        text = proprietorPhone,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                Text(
+                    text = "User",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+                if (currentUser != null) {
+                    Text(
+                        text = currentUser.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = currentUser.mobileNo,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        text = currentUser.role.uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                } else {
+                    Text(
+                        text = "—",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PortraitNavView(
+    drawerState: TabDrawerState,
+    modifier: Modifier,
+    onProfileClick: () -> Unit,
+    baseViewModel: BaseViewModel,
+    context: Context,
+    inputIconStates: List<InputIconState>,
+    currentUser: UsersEntity? = null,
+    content: @Composable (() -> Unit)
+) {
+    val bottomNavItems = inputIconStates.filter { item ->
+        item.text.equals("Dashboard", ignoreCase = true) || item.text.equals(
+            "Inventory", ignoreCase = true
+        ) || item.text.equals("Customers", ignoreCase = true) || item.text.equals(
+            "Customer", ignoreCase = true
+        ) || item.text.equals("Ledger", ignoreCase = true) || item.text.equals(
+            "Order&Purchase", ignoreCase = true
+        ) || item.text.equals(
+            "Order & Purchase", ignoreCase = true
+        ) || item.text.equals(
+            "OrderAndPurchase", ignoreCase = true
+        ) || item.text.equals("Order And Purchase", ignoreCase = true)
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 Modifier
@@ -228,10 +377,19 @@ fun TabNavigationDrawer(
                     .background(MaterialTheme.colorScheme.primary),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(Modifier.width(5.dp))
+                IconButton(onClick = {
+                    if (drawerState.isOpen) drawerState.close() else drawerState.open()
+                }) {
+                    Icon(
+                        imageVector = Icons.TwoTone.Menu,
+                        contentDescription = "Menu",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
                 Box(contentAlignment = Alignment.TopStart) {
                     Text(
-                        text = (baseViewModel.storeName.value ?: "Jewel Vault").substringBefore(" "),
+                        text = (baseViewModel.storeName.value
+                        ?: "Jewel Vault").substringBefore(" "),
                         fontSize = 22.sp,
                         fontFamily = ZenFontFamily,
                         fontWeight = FontWeight.Bold,
@@ -242,9 +400,7 @@ fun TabNavigationDrawer(
                                     baseViewModel.refreshOnlineMetalRates(context = context)
                                 }
                             }
-                            .offset(y = (-8).dp)
-//                            .padding(top = 5.dp)
-                    )
+                            .offset(y = (-8).dp))
 
                     // Current Screen Heading
                     if (baseViewModel.currentScreenHeading.isNotEmpty()) {
@@ -253,8 +409,7 @@ fun TabNavigationDrawer(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .offset(y = (17).dp)
+                            modifier = Modifier.offset(y = (17).dp)
                         )
                     }
                 }
@@ -266,78 +421,234 @@ fun TabNavigationDrawer(
                     backgroundColor = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(5.dp))
-                notifierContent()
+                BluetoothToggleIcon(
+                    Modifier.size(25.dp)
+                )
                 Spacer(Modifier.width(5.dp))
 
             }
-            Box(Modifier.weight(1f)) {
-                content()
+            val onBottomNavItemSelected: (InputIconState) -> Unit = { selectedItem ->
+                inputIconStates.forEach { it.selected = false }
+                selectedItem.selected = true
+                selectedItem.onClick.invoke()
             }
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .background(MaterialTheme.colorScheme.primary),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                item{
-                    Box(Modifier.size(38.dp)) {
-                        ProfileImage { onProfileClick() }
-                    }
+
+            Box(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 42.dp)
+                ) {
+                    content()
                 }
-                items(inputIconStates) { item ->
-                    item.icon?.let { icon ->
-                        Box(Modifier
-                            .clickable {
-                                inputIconStates.forEach { it.selected = false }
-                                item.selected = true
-                                item.onClick.invoke()
-                            }
-                            .background(
-                                color = if (item.selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .padding(3.dp)
-                            .size(32.dp)) {
-                            if (icon is ImageVector) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = item.text,
-                                    Modifier.fillMaxSize(),
-                                    tint = if (item.selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(icon as Int),
-                                    contentDescription = item.text,
-                                    Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                    }
-                }
+
+                BottomNavBubbleBar(
+                    items = bottomNavItems,
+                    onItemSelected = onBottomNavItemSelected,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
             }
 
 
         }
+
+        if (drawerState.isOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                    .clickable { drawerState.close() })
+
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.8f)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .align(Alignment.CenterStart)
+                    .padding(vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = baseViewModel.storeName.value ?: "Jewel Vault",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { drawerState.close() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.TwoTone.KeyboardArrowLeft,
+                            contentDescription = "Close menu",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                MenuHeaderCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp), onProfileClick = {
+                        drawerState.close()
+                        onProfileClick()
+                    }, baseViewModel = baseViewModel, currentUser = currentUser
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 4.dp),
+                ) {
+                    items(inputIconStates) { item ->
+                        DrawerItem(item, drawerState) {
+                            inputIconStates.forEach { it.selected = false }
+                            item.selected = true
+                            item.onClick.invoke()
+                            drawerState.close()
+                        }
+                    }
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "v${baseViewModel.remoteConfigManager.getCurrentAppVersionName()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                }
+            }
+        }
     }
-
-
 }
+
+private fun bottomNavLabel(item: InputIconState): String = when {
+    item.text.equals("ledger", ignoreCase = true) -> "Order & Purchase"
+    item.text.equals("order&purchase", ignoreCase = true) -> "Order & Purchase"
+    item.text.equals("order & purchase", ignoreCase = true) -> "Order & Purchase"
+    item.text.equals("orderandpurchase", ignoreCase = true) -> "Order & Purchase"
+    item.text.equals("order and purchase", ignoreCase = true) -> "Order & Purchase"
+    else -> item.text
+}
+
+@Composable
+private fun BottomNavIcon(
+    icon: Any?,
+    contentDescription: String,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 22.dp
+) {
+    when (icon) {
+        is ImageVector -> Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = modifier.size(size),
+            tint = tint
+        )
+
+        is Int -> Icon(
+            painter = painterResource(icon),
+            contentDescription = contentDescription,
+            modifier = modifier.size(size),
+            tint = tint
+        )
+    }
+}
+
+@Composable
+private fun BottomNavBubbleBar(
+    items: List<InputIconState>,
+    onItemSelected: (InputIconState) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items.forEach { item ->
+                val isSelected = item.selected
+                Column(modifier = Modifier
+                    .weight(1f)
+                    .bounceClick { onItemSelected(item) }
+                    .padding(vertical = 2.dp)
+                    .animateContentSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    val bubbleSize = if (isSelected) 44.dp else 40.dp
+                    val bubbleBorderWidth = 4.dp
+                    val bubbleColor = if (isSelected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    Box(
+                        modifier = Modifier
+                            .size(bubbleSize)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bubbleBorderWidth)
+                                .clip(CircleShape)
+                                .background(bubbleColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BottomNavIcon(
+                                icon = item.icon,
+                                contentDescription = item.text,
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                size = 22.dp
+                            )
+                        }
+                    }
+                    if (isSelected) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = bottomNavLabel(item),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun LandscapeNavView(
     drawerState: TabDrawerState,
     modifier: Modifier,
     onProfileClick: () -> Unit,
-    onGuideClick: () -> Unit,
     baseViewModel: BaseViewModel,
     context: Context,
     inputIcons: List<InputIconState>,
-    notifierContent: @Composable (() -> Unit),
+    currentUser: UsersEntity? = null,
     content: @Composable (() -> Unit)
-
 ) {
     val isDrawerOpen = drawerState.isOpen
     val width = if (isDrawerOpen) 200.dp else 60.dp
@@ -354,7 +665,8 @@ private fun LandscapeNavView(
         ) {
 
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                ProfileImage(onProfileClick=onProfileClick)
+                ProfileImage(size = 44.dp, onProfileClick = onProfileClick)
+                Spacer(Modifier.height(6.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -362,18 +674,20 @@ private fun LandscapeNavView(
                     items(inputIcons) { item ->
                         Column(
                             horizontalAlignment = if (drawerState.isOpen) Alignment.Start else Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(Modifier
-                                .clickable {
+                            modifier = Modifier
+                                .bounceClick {
                                     inputIcons.forEach { it.selected = false }
                                     item.selected = true
                                     item.onClick.invoke()
                                 }
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp, horizontal = 4.dp),
+                                .fillMaxWidth()) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = if (drawerState.isOpen) Arrangement.Start else Arrangement.Center) {
+                                horizontalArrangement = if (drawerState.isOpen) Arrangement.Start else Arrangement.Center
+                            ) {
                                 item.icon?.let { icon ->
                                     if (icon is ImageVector) {
                                         Icon(
@@ -538,9 +852,41 @@ private fun LandscapeNavView(
                             .weight(1f),
                         backgroundColor = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(Modifier.width(20.dp))
-                    notifierContent()
                     Spacer(Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier
+                    ) {
+
+                        BluetoothToggleIcon()
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                ) {
+                                    append(currentUser?.name?.uppercase())
+                                }
+                                append("\n")
+                                withStyle(
+                                    style = SpanStyle(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                ) {
+                                    append(currentUser?.role?.uppercase())
+                                }
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.End
+                        )
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Spacer(Modifier.width(20.dp))
                 }
                 Box(Modifier.fillMaxSize()) {
                     content()

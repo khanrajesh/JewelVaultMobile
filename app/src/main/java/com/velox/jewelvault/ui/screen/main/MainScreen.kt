@@ -1,13 +1,30 @@
 package com.velox.jewelvault.ui.screen.main
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.DocumentsContract
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.twotone.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.Help
+import androidx.compose.material.icons.automirrored.twotone.ReceiptLong
+import androidx.compose.material.icons.twotone.AssuredWorkload
+import androidx.compose.material.icons.twotone.Dashboard
+import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Print
+import androidx.compose.material.icons.twotone.RuleFolder
+import androidx.compose.material.icons.twotone.Settings
+import androidx.compose.material.icons.twotone.Warehouse
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -19,19 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import android.content.Intent
-import android.net.Uri
-import android.os.Environment
-import java.io.File
-import android.os.Build
-import android.provider.DocumentsContract
-import androidx.compose.foundation.gestures.snapping.SnapPosition
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.twotone.Help
-import androidx.compose.material.icons.automirrored.twotone.ReceiptLong
-import androidx.compose.ui.Alignment
 import com.velox.jewelvault.ui.components.BluetoothToggleIcon
 import com.velox.jewelvault.ui.components.InputIconState
 import com.velox.jewelvault.ui.components.TabDrawerValue
@@ -43,21 +47,29 @@ import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.log
+import java.io.File
 
 
 // Function to show file manager dialog with options
-fun showFileManagerDialog(context: android.content.Context, navController: NavHostController, inputIconStates: List<InputIconState>) {
+fun showFileManagerDialog(
+    context: android.content.Context,
+    navController: NavHostController,
+    inputIconStates: List<InputIconState>
+) {
     try {
-        val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
-        
+        val jewelVaultFolder = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "JewelVault"
+        )
+
         // Create the folder if it doesn't exist
         if (!jewelVaultFolder.exists()) {
             jewelVaultFolder.mkdirs()
         }
-        
+
         val folderPath = jewelVaultFolder.absolutePath
         android.util.Log.d("FileManager", "JewelVault folder path: $folderPath")
-        
+
         // Show a simple dialog with the path and options
         val alertDialog = android.app.AlertDialog.Builder(context)
         alertDialog.setTitle("JewelVault Files")
@@ -68,10 +80,15 @@ fun showFileManagerDialog(context: android.content.Context, navController: NavHo
         }
 
         alertDialog.setNeutralButton("Copy Path") { _, _ ->
-            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clipboard =
+                context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             val clip = android.content.ClipData.newPlainText("JewelVault Path", folderPath)
             clipboard.setPrimaryClip(clip)
-            android.widget.Toast.makeText(context, "Path copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                context,
+                "Path copied to clipboard",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
 
         alertDialog.setNegativeButton("Cancel") { dialog, _ ->
@@ -86,16 +103,26 @@ fun showFileManagerDialog(context: android.content.Context, navController: NavHo
 }
 
 // Function to open file manager and navigate to JewelVault folder
-fun openFileManager(context: android.content.Context, navController: NavHostController, inputIconStates: List<InputIconState>) {
+fun openFileManager(
+    context: android.content.Context,
+    navController: NavHostController,
+    inputIconStates: List<InputIconState>
+) {
     try {
-        val jewelVaultFolder = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "JewelVault")
+        val jewelVaultFolder = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "JewelVault"
+        )
 
         // Create the folder if it doesn't exist
         if (!jewelVaultFolder.exists()) {
             jewelVaultFolder.mkdirs()
         }
 
-        android.util.Log.d("FileManager", "JewelVault folder path: ${jewelVaultFolder.absolutePath}")
+        android.util.Log.d(
+            "FileManager",
+            "JewelVault folder path: ${jewelVaultFolder.absolutePath}"
+        )
         android.util.Log.d("FileManager", "JewelVault folder exists: ${jewelVaultFolder.exists()}")
 
         // Preferred: open system picker with initial location
@@ -107,10 +134,7 @@ fun openFileManager(context: android.content.Context, navController: NavHostCont
 
         val pickerIntent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
             )
             initialUri?.let {
                 putExtra(DocumentsContract.EXTRA_INITIAL_URI, it)
@@ -154,8 +178,7 @@ fun MainScreen() {
 
     val inputIconStates = mutableListOf(
         InputIconState(
-            "Dashboard", Icons.TwoTone.Dashboard,
-            selected = true
+            "Dashboard", Icons.TwoTone.Dashboard, selected = true
         ) {
             subNavController.navigate(SubScreens.Dashboard.route) {
                 popUpTo(SubScreens.Dashboard.route) {
@@ -221,7 +244,8 @@ fun MainScreen() {
                     inclusive = true
                 }
             }
-        }, InputIconState(
+        },
+        InputIconState(
             "Guide", Icons.AutoMirrored.TwoTone.Help
         ) {
             baseViewModel.currentScreenHeading = "Guide & Feedback"
@@ -248,8 +272,7 @@ fun MainScreen() {
     }
 
     LaunchedEffect(
-        baseViewModel.pendingNotificationRoute.value,
-        baseViewModel.pendingNotificationArg.value
+        baseViewModel.pendingNotificationRoute.value, baseViewModel.pendingNotificationArg.value
     ) {
         val targetRoute = baseViewModel.pendingNotificationRoute.value
         if (!targetRoute.isNullOrBlank()) {
@@ -291,76 +314,8 @@ fun MainScreen() {
                 }
             }
         },
-        notifierContent = {
-            Row (
-                modifier = Modifier,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val isLandscape = isLandscape()
-                if (isLandscape) {
-                    BluetoothToggleIcon()
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        buildAnnotatedString {
-
-                            withStyle(
-                                style = SpanStyle(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = MaterialTheme.typography.labelLarge.fontSize ,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            ) {
-                                append(currentUser.name.uppercase())
-                            }
-                            append("\n")
-                            withStyle(
-                                style = SpanStyle(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.tertiary
-                                )
-                            ) {
-                                append(currentUser.role.uppercase())
-                            }
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        textAlign = TextAlign.End
-                    )
-                }else{
-                    Column() {
-                        BluetoothToggleIcon(Modifier.align(Alignment.End).size(25.dp))
-                        Text(
-                            buildAnnotatedString {
-
-                                withStyle(
-                                    style = SpanStyle(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 10.sp ,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                ) {
-                                    append(currentUser.name.uppercase())
-                                }
-                                append("\n")
-                                withStyle(
-                                    style = SpanStyle(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                ) {
-                                    append(currentUser.role.uppercase())
-                                }
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            textAlign = TextAlign.End,
-                            lineHeight = 10.sp
-                        )
-                    }
-                }
-
-            }
-        })
+        currentUser = currentUser
+    )
 }
 
 

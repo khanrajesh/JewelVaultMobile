@@ -397,7 +397,7 @@ fun LandscapeDashboardScreen(
                             .background(
                                 MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
                             ), contentAlignment = Alignment.Center) {
-                            Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                            Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -529,7 +529,7 @@ fun PortraitDashboardScreen(
                         .background(
                             MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
                         ), contentAlignment = Alignment.Center) {
-                        Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                     }
                 }
             }

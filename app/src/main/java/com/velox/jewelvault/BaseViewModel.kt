@@ -31,6 +31,7 @@ import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.content.ContextCompat
+import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -70,6 +71,7 @@ class BaseViewModel @Inject constructor(
     val isConnectedState = mutableStateOf(true)
     val storeImage = mutableStateOf<String?>(null)
     val storeName = mutableStateOf<String?>(null)
+    val storeData = mutableStateOf<StoreEntity?>(null)
     val localLogoUri = mutableStateOf<Uri?>(null)
     val pendingNotificationRoute = mutableStateOf<String?>(null)
     val pendingNotificationArg = mutableStateOf<String?>(null)
@@ -243,6 +245,7 @@ class BaseViewModel @Inject constructor(
                 val storeId = _dataStoreManager.getSelectedStoreInfo().first.first()
                 val store = _appDatabase.storeDao().getStoreById(storeId)
                 log("Loading store image: ${store?.name}")
+                storeData.value = store
                 storeName.value = store?.name
             } catch (e: Exception) {
                 log("Error loading store image: ${e.message}")
