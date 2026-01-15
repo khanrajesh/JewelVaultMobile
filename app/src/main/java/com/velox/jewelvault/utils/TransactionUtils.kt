@@ -183,6 +183,7 @@ object TransactionUtils {
             "outstanding" -> "Outstanding"
             "khata_book" -> "Khata Book"
             "regular_payment" -> "Regular Payment"
+            "pre_order" -> "Pre-Order"
             "adjustment" -> "Adjustment"
             else -> category.capitalize()
         }

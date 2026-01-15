@@ -2,8 +2,10 @@ package com.velox.jewelvault.data.roomdb.entity.customer
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.velox.jewelvault.data.roomdb.TableNames
+import com.velox.jewelvault.data.roomdb.entity.preorder.PreOrderEntity
 import java.sql.Timestamp
 import java.util.UUID
 
@@ -21,7 +23,16 @@ import java.util.UUID
             parentColumns = ["khataBookId"],
             childColumns = ["khataBookId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = PreOrderEntity::class,
+            parentColumns = ["preOrderId"],
+            childColumns = ["linkedPreOrderId"],
+            onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index("linkedPreOrderId")
     ]
 )
 data class CustomerTransactionEntity(
@@ -39,7 +50,8 @@ data class CustomerTransactionEntity(
     val monthNumber: Int? = null, // For khata payments, which month is being paid
     val notes: String? = null,
     val userId: String,
-    val storeId: String
+    val storeId: String,
+    val linkedPreOrderId: String? = null
 ) {
     // Helper properties
     val isDebit: Boolean

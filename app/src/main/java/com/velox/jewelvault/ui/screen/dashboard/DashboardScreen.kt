@@ -75,6 +75,7 @@ import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.data.roomdb.dto.PreOrderSummary
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.CalculationUtils
@@ -91,6 +92,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 @VaultPreview
@@ -121,6 +124,7 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
                 dashboardViewModel.getTopSellingItems()
                 dashboardViewModel.getTopSellingSubCategories()
                 dashboardViewModel.getCustomerSummary()
+                dashboardViewModel.getUpcomingPreOrders()
                 isRefreshing.value = false
             }
         })
@@ -185,6 +189,7 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
             dashboardViewModel.getTopSellingItems()
             dashboardViewModel.getTopSellingSubCategories()
             dashboardViewModel.getCustomerSummary()
+            dashboardViewModel.getUpcomingPreOrders()
             //checking if the user setup the store or not
 
         }
@@ -404,8 +409,17 @@ fun LandscapeDashboardScreen(
             }
 
             Spacer(Modifier.height(5.dp))
-            //Recent Item Sold
-            RecentItemSold(Modifier, dashboardViewModel.recentSellsItem)
+            Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                RecentItemSold(
+                    modifier = Modifier.weight(2f).fillMaxHeight(),
+                    recentSellsItem = dashboardViewModel.recentSellsItem
+                )
+                Spacer(Modifier.width(5.dp))
+                UpcomingPreOrders(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    preOrders = dashboardViewModel.upcomingPreOrders
+                )
+            }
         }
 
 
@@ -569,6 +583,12 @@ fun PortraitDashboardScreen(
             ) {
                 RecentItemSold(Modifier.fillMaxSize(), dashboardViewModel.recentSellsItem)
             }
+
+            Spacer(Modifier.height(10.dp))
+            UpcomingPreOrders(
+                modifier = Modifier.fillMaxWidth(),
+                preOrders = dashboardViewModel.upcomingPreOrders
+            )
         }
 
 
@@ -1266,6 +1286,75 @@ fun getTimeRangeDisplayText(timeRange: TimeRange): String {
         TimeRange.THREE_MONTHS -> "3 Months"
         TimeRange.SIX_MONTHS -> "6 Months"
         TimeRange.YEARLY -> "Yearly"
+    }
+}
+
+@Composable
+fun UpcomingPreOrders(
+    modifier: Modifier = Modifier,
+    preOrders: List<PreOrderSummary>,
+) {
+    val subNavController = LocalSubNavController.current
+    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+
+    Column(
+        modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .padding(5.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Upcoming Pre-Orders", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "View all",
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable {
+                    subNavController.navigate(SubScreens.OrderAndPurchase.route) {
+                        popUpTo(SubScreens.Dashboard.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        if (preOrders.isEmpty()) {
+            Text(
+                text = "No pre-orders found",
+                fontSize = 10.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+            )
+            return@Column
+        }
+
+        val headers =
+            listOf("Delivery", "PreOrder Id", "Customer", "Category", "Est Price", "Advance", "Status")
+        val rows = preOrders.map { po ->
+            listOf(
+                dateFormatter.format(po.deliveryDate),
+                po.preOrderId,
+                (po.customerName ?: "") + "\n(${po.customerMobile})",
+                po.categories ?: "",
+                "ƒ,1${po.estimatedPrice.to3FString()}",
+                "ƒ,1${po.advanceAmount.to3FString()}",
+                po.status
+            )
+        }
+
+        TextListView(
+            headerList = headers,
+            items = rows,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp),
+            maxColumnWidth = 220.dp,
+            onItemClick = { row ->
+                val id = row[1]
+                subNavController.navigate("${SubScreens.PreOrderDetail.route}/$id")
+            },
+            onItemLongClick = {}
+        )
     }
 }
 

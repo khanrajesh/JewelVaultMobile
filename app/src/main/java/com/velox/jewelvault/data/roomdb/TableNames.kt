@@ -23,6 +23,10 @@ object TableNames {
     const val ORDER = "order"
     const val ORDER_ITEM = "order_item"
     const val EXCHANGE_ITEM = "exchange_item"
+
+    // Pre-order related tables
+    const val PRE_ORDER = "pre_order"
+    const val PRE_ORDER_ITEM = "pre_order_item"
     
     // Purchase related tables
     const val FIRM = "firm"

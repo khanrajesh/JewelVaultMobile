@@ -41,4 +41,8 @@ sealed class SubScreens(val route:String) {
     data object ScanAddItem : SubScreens("scanAddItem")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
+
+    // Pre-order screens
+    data object PreOrderForm : SubScreens("preorder_form")
+    data object PreOrderDetail : SubScreens("preorder_detail")
 }

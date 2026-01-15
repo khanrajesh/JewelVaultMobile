@@ -111,6 +111,31 @@ interface CustomerTransactionDao {
     
     @Query("SELECT * FROM ${TableNames.CUSTOMER_TRANSACTION}")
     suspend fun getAllTransactions(): List<CustomerTransactionEntity>
+
+    // Pre-order linked transactions
+    @Query(
+        """
+        SELECT * FROM ${TableNames.CUSTOMER_TRANSACTION}
+        WHERE linkedPreOrderId = :preOrderId
+        ORDER BY transactionDate DESC
+        """
+    )
+    fun getTransactionsByPreOrderId(preOrderId: String): Flow<List<CustomerTransactionEntity>>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(
+            CASE 
+                WHEN transactionType = 'credit' THEN amount
+                WHEN transactionType = 'debit' THEN -amount
+                ELSE 0
+            END
+        ), 0)
+        FROM ${TableNames.CUSTOMER_TRANSACTION}
+        WHERE linkedPreOrderId = :preOrderId
+        """
+    )
+    suspend fun getPreOrderAdvanceTotal(preOrderId: String): Double
     
     // Get current month khata book payments
     @Query("""

@@ -39,6 +39,9 @@ import com.velox.jewelvault.ui.screen.order_and_purchase.order_item.OrderItemDet
 import com.velox.jewelvault.ui.screen.order_and_purchase.order_item.OrderItemViewModel
 import com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item.PurchaseItemDetailScreen
 import com.velox.jewelvault.ui.screen.order_and_purchase.purchase_item.PurchaseItemViewModel
+import com.velox.jewelvault.ui.screen.preorder.PreOrderDetailScreen
+import com.velox.jewelvault.ui.screen.preorder.PreOrderFormScreen
+import com.velox.jewelvault.ui.screen.preorder.PreOrderViewModel
 import com.velox.jewelvault.ui.screen.profile.ProfileScreen
 import com.velox.jewelvault.ui.screen.profile.ProfileViewModel
 import com.velox.jewelvault.ui.screen.purchase.PurchaseScreen
@@ -208,6 +211,18 @@ fun SubAppNavigation(
 
             composable(SubScreens.OrderAndPurchase.route) {
                 OrderAndPurchaseScreen(hiltViewModel<OrderAndReportViewModel>())
+            }
+
+            composable(SubScreens.PreOrderForm.route) {
+                PreOrderFormScreen(hiltViewModel<PreOrderViewModel>())
+            }
+
+            composable(
+                "${SubScreens.PreOrderDetail.route}/{preOrderId}",
+                arguments = listOf(navArgument("preOrderId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val preOrderId = backStackEntry.arguments?.getString("preOrderId") ?: return@composable
+                PreOrderDetailScreen(hiltViewModel<PreOrderViewModel>(), preOrderId)
             }
 
             composable(

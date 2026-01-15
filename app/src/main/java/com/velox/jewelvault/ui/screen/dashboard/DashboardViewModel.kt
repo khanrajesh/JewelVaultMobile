@@ -14,6 +14,7 @@ import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
 import com.velox.jewelvault.data.roomdb.dao.TopSubCategory
 import com.velox.jewelvault.data.roomdb.dao.range
 import com.velox.jewelvault.data.roomdb.dto.CustomerBalanceSummary
+import com.velox.jewelvault.data.roomdb.dto.PreOrderSummary
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -67,6 +68,9 @@ class DashboardViewModel @Inject constructor(
     val customerSummary: MutableState<CustomerSummary?> = mutableStateOf(null)
     val customersWithOutstandingBalance = SnapshotStateList<CustomerBalanceSummary>()
 
+    // Pre-order related data
+    val upcomingPreOrders = SnapshotStateList<PreOrderSummary>()
+
     fun getRecentSellItem() {
         ioLaunch {
             val (start, end) = selectedRange.value.range()
@@ -101,6 +105,18 @@ class DashboardViewModel @Inject constructor(
             val (start, end) = selectedRange.value.range()
             val summary = appDatabase.orderDao().getTotalSalesSummary(start, end)
             salesSummary.value = summary
+        }
+    }
+
+    fun getUpcomingPreOrders(limit: Int = 10) {
+        ioLaunch {
+            try {
+                val list = appDatabase.preOrderDao().observeUpcomingPreOrders(limit).first()
+                upcomingPreOrders.clear()
+                upcomingPreOrders.addAll(list)
+            } catch (e: Exception) {
+                log("Failed to load upcoming pre-orders: ${e.message}")
+            }
         }
     }
 
@@ -180,6 +196,7 @@ class DashboardViewModel @Inject constructor(
         getTopSellingItems()
         getTopSellingSubCategories()
         getCustomerSummary()
+        getUpcomingPreOrders()
     }
 
     fun updateTimeRange(newRange: TimeRange) {

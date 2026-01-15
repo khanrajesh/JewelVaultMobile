@@ -422,4 +422,148 @@ object RoomMigration {
             db.execSQL("ALTER TABLE label_template ADD COLUMN labelPadding REAL NOT NULL DEFAULT 1.5")
         }
     }
+
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Pre-order tables
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS pre_order (
+                    preOrderId TEXT PRIMARY KEY NOT NULL,
+                    customerMobile TEXT NOT NULL,
+                    storeId TEXT NOT NULL,
+                    userId TEXT NOT NULL,
+                    orderDate INTEGER NOT NULL,
+                    deliveryDate INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    note TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL,
+                    FOREIGN KEY (customerMobile) REFERENCES customer (mobileNo) ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_pre_order_customerMobile ON pre_order (customerMobile)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS pre_order_item (
+                    preOrderItemId TEXT PRIMARY KEY NOT NULL,
+                    preOrderId TEXT NOT NULL,
+                    catId TEXT NOT NULL,
+                    catName TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    estimatedGrossWt REAL NOT NULL,
+                    estimatedPrice REAL NOT NULL,
+                    addDesKey TEXT NOT NULL,
+                    addDesValue TEXT NOT NULL,
+                    note TEXT,
+                    FOREIGN KEY (preOrderId) REFERENCES pre_order (preOrderId) ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_pre_order_item_preOrderId ON pre_order_item (preOrderId)")
+
+            // Add linkedPreOrderId to customer_transaction by recreating the table (SQLite limitation).
+            val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='customer_transaction'")
+            val tableExists = cursor.count > 0
+            cursor.close()
+
+            if (tableExists) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS customer_transaction_new (
+                        transactionId TEXT PRIMARY KEY NOT NULL,
+                        customerMobile TEXT NOT NULL,
+                        transactionDate INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        transactionType TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        description TEXT,
+                        referenceNumber TEXT,
+                        paymentMethod TEXT,
+                        khataBookId TEXT,
+                        monthNumber INTEGER,
+                        notes TEXT,
+                        userId TEXT NOT NULL,
+                        storeId TEXT NOT NULL,
+                        linkedPreOrderId TEXT,
+                        FOREIGN KEY (customerMobile) REFERENCES customer (mobileNo) ON DELETE CASCADE,
+                        FOREIGN KEY (khataBookId) REFERENCES customer_khata_book (khataBookId) ON DELETE CASCADE,
+                        FOREIGN KEY (linkedPreOrderId) REFERENCES pre_order (preOrderId) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+                    INSERT INTO customer_transaction_new (
+                        transactionId,
+                        customerMobile,
+                        transactionDate,
+                        amount,
+                        transactionType,
+                        category,
+                        description,
+                        referenceNumber,
+                        paymentMethod,
+                        khataBookId,
+                        monthNumber,
+                        notes,
+                        userId,
+                        storeId,
+                        linkedPreOrderId
+                    )
+                    SELECT
+                        transactionId,
+                        customerMobile,
+                        transactionDate,
+                        amount,
+                        transactionType,
+                        category,
+                        description,
+                        referenceNumber,
+                        paymentMethod,
+                        khataBookId,
+                        monthNumber,
+                        notes,
+                        userId,
+                        storeId,
+                        NULL AS linkedPreOrderId
+                    FROM customer_transaction
+                    """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE customer_transaction")
+                db.execSQL("ALTER TABLE customer_transaction_new RENAME TO customer_transaction")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_linkedPreOrderId ON customer_transaction (linkedPreOrderId)")
+            } else {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS customer_transaction (
+                        transactionId TEXT PRIMARY KEY NOT NULL,
+                        customerMobile TEXT NOT NULL,
+                        transactionDate INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        transactionType TEXT NOT NULL,
+                        category TEXT NOT NULL,
+                        description TEXT,
+                        referenceNumber TEXT,
+                        paymentMethod TEXT,
+                        khataBookId TEXT,
+                        monthNumber INTEGER,
+                        notes TEXT,
+                        userId TEXT NOT NULL,
+                        storeId TEXT NOT NULL,
+                        linkedPreOrderId TEXT,
+                        FOREIGN KEY (customerMobile) REFERENCES customer (mobileNo) ON DELETE CASCADE,
+                        FOREIGN KEY (khataBookId) REFERENCES customer_khata_book (khataBookId) ON DELETE CASCADE,
+                        FOREIGN KEY (linkedPreOrderId) REFERENCES pre_order (preOrderId) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_customer_transaction_linkedPreOrderId ON customer_transaction (linkedPreOrderId)")
+            }
+        }
+    }
 }

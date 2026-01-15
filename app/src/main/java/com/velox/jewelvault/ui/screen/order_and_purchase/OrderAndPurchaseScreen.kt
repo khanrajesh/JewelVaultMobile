@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -22,8 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.ui.screen.preorder.PreOrderViewModel
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -32,17 +35,20 @@ import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
     viewModel.currentScreenHeadingState.value = "Order & Purchase"
     val subNavController = LocalSubNavController.current
     val baseViewModel = LocalBaseViewModel.current
+    val preOrderViewModel = hiltViewModel<PreOrderViewModel>()
 
     // State for delete dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedItemId by remember { mutableStateOf("") }
-    var selectedItemType by remember { mutableStateOf("") } // "order" or "purchase"
+    var selectedItemType by remember { mutableStateOf("") } // "order" | "purchase" | "preorder"
 
     BackHandler {
         subNavController.navigate(SubScreens.Dashboard.route) {
@@ -52,7 +58,7 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
         }
     }
 
-    val tabs = listOf("Order", "Purchase")
+    val tabs = listOf("Order", "Purchase", "Pre-Order")
 
     Column(
         modifier = Modifier
@@ -88,16 +94,29 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
                     showDeleteDialog = true
                 }
             )
+            2 -> PreOrderDetails(
+                viewModel = preOrderViewModel,
+                onItemLongClick = { preOrderId ->
+                    selectedItemId = preOrderId
+                    selectedItemType = "preorder"
+                    showDeleteDialog = true
+                }
+            )
         }
     }
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
-        val title = if (selectedItemType == "order") "Delete Order" else "Delete Purchase"
-        val message = if (selectedItemType == "order") 
-            "Are you sure you want to delete this order and all its associated items? This action cannot be undone."
-        else 
-            "Are you sure you want to delete this purchase and all its associated items? This action cannot be undone."
+        val title = when (selectedItemType) {
+            "order" -> "Delete Order"
+            "purchase" -> "Delete Purchase"
+            else -> "Delete Pre-Order"
+        }
+        val message = when (selectedItemType) {
+            "order" -> "Are you sure you want to delete this order and all its associated items? This action cannot be undone."
+            "purchase" -> "Are you sure you want to delete this purchase and all its associated items? This action cannot be undone."
+            else -> "Are you sure you want to delete this pre-order and its linked payments? This action cannot be undone."
+        }
 
         DeleteConfirmationDialog(
             title = title,
@@ -124,7 +143,7 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
                             selectedItemType = ""
                         }
                     )
-                } else {
+                } else if (selectedItemType == "purchase") {
                     viewModel.deletePurchaseWithItems(
                         purchaseOrderId = selectedItemId,
                         onSuccess = {
@@ -140,7 +159,91 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
                             selectedItemType = ""
                         }
                     )
+                } else {
+                    preOrderViewModel.deletePreOrder(
+                        preOrderId = selectedItemId,
+                        onSuccess = {
+                            baseViewModel.snackBarState = "Pre-order deleted successfully"
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        },
+                        onFailure = { error ->
+                            baseViewModel.snackBarState = error
+                            showDeleteDialog = false
+                            selectedItemId = ""
+                            selectedItemType = ""
+                        }
+                    )
                 }
+            }
+        )
+    }
+}
+
+
+@Composable
+private fun PreOrderDetails(
+    viewModel: PreOrderViewModel,
+    onItemLongClick: (String) -> Unit
+) {
+    val subNavController = LocalSubNavController.current
+    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+
+    LaunchedEffect(true) {
+        viewModel.observePreOrders()
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Button(
+            onClick = { subNavController.navigate(SubScreens.PreOrderForm.route) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Text("New Pre-Order")
+        }
+
+        val rows = viewModel.preOrders.mapIndexed { index, item ->
+            listOf(
+                "${index + 1}",
+                item.preOrderId,
+                dateFormatter.format(item.deliveryDate),
+                dateFormatter.format(item.orderDate),
+                (item.customerName ?: "") + "\n(${item.customerMobile})",
+                item.categories ?: "",
+                item.estimatedWeight.to3FString(),
+                "ƒ,1${item.estimatedPrice.to3FString()}",
+                "ƒ,1${item.advanceAmount.to3FString()}",
+                item.status
+            )
+        }
+
+        val headers = listOf(
+            "S.No",
+            "PreOrder Id",
+            "Delivery Date",
+            "Order Date",
+            "Customer",
+            "Category",
+            "Est. Wt",
+            "Est. Price",
+            "Advance",
+            "Status"
+        )
+
+        TextListView(
+            headerList = headers,
+            items = rows,
+            modifier = Modifier.fillMaxSize(),
+            maxColumnWidth = 220.dp,
+            onItemClick = { row ->
+                val preOrderId = row[1]
+                subNavController.navigate("${SubScreens.PreOrderDetail.route}/$preOrderId")
+            },
+            onItemLongClick = { row ->
+                val preOrderId = row[1]
+                onItemLongClick(preOrderId)
             }
         )
     }
