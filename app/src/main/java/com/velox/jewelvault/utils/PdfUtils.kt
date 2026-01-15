@@ -331,7 +331,7 @@ fun sharePdf(context: Context, pdfUri: Uri, chooserTitle: String) {
 }
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-fun generatePreOrderReceiptPdf(
+fun generatePreOrderReceiptPdfLegacy(
     context: Context,
     store: StoreEntity?,
     customer: CustomerEntity?,
@@ -488,6 +488,219 @@ fun generatePreOrderReceiptPdf(
             y += 12f
             val ref = t.referenceNumber?.trim().orEmpty()
             if (ref.isNotBlank()) {
+                canvas.drawText("Ref: $ref", startX, y, smallPaint)
+                y += 12f
+            }
+        }
+        y += 6f
+    }
+
+    // Note
+    preOrder.note?.trim()?.takeIf { it.isNotBlank() }?.let { note ->
+        boldPaint.textSize = 11f
+        canvas.drawText("Note:", startX, y, boldPaint)
+        y += line
+        note.split('\n').forEach { lineText ->
+            canvas.drawText(lineText, startX, y, smallPaint)
+            y += 12f
+        }
+    }
+
+    pdfDocument.finishPage(page)
+
+    val fileName = "preorder_receipt_${preOrder.preOrderId}.pdf"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/JewelVault/PreOrder"
+        )
+    }
+
+    val resolver = context.contentResolver
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+    if (uri != null) {
+        var success = false
+        try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                pdfDocument.writeTo(outputStream)
+                outputStream.flush()
+                success = true
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Log.e("PDF_GENERATION", "Error writing PDF: ${e.message}")
+        } finally {
+            pdfDocument.close()
+        }
+
+        if (success) {
+            onFileReady(uri)
+        } else {
+            resolver.delete(uri, null, null)
+            Log.e("PDF_GENERATION", "Failed to write PDF file")
+        }
+    } else {
+        Log.e("PDF_GENERATION", "Failed to create file in MediaStore")
+        pdfDocument.close()
+    }
+}
+
+
+@Suppress("RemoveSingleExpressionStringTemplate")
+fun generatePreOrderReceiptPdf(
+    context: Context,
+    store: StoreEntity?,
+    customer: CustomerEntity?,
+    preOrder: PreOrderEntity,
+    items: List<PreOrderItemEntity>,
+    payments: List<CustomerTransactionEntity>,
+    onFileReady: (Uri) -> Unit
+) {
+    val rupee = "\u20B9"
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4
+    val page = pdfDocument.startPage(pageInfo)
+    val canvas = page.canvas
+
+    val paint = Paint().apply {
+        color = Color.BLACK
+        textSize = 12f
+    }
+    val boldPaint = Paint(paint).apply {
+        isFakeBoldText = true
+    }
+    val smallPaint = Paint(paint).apply {
+        textSize = 10f
+    }
+
+    canvas.drawColor(Color.WHITE)
+
+    val startX = 30f
+    var y = 40f
+    val line = 16f
+    val dateFmt = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+    // Title
+    boldPaint.textSize = 16f
+    canvas.drawText("Pre-Order Receipt", startX + 160f, y, boldPaint)
+    y += 26f
+
+    // Store
+    boldPaint.textSize = 12f
+    canvas.drawText(store?.name ?: "Jewel Vault", startX, y, boldPaint)
+    y += line
+    store?.address?.trim().orEmpty().takeIf { it.isNotBlank() }?.split('\n')?.forEach { addrLine ->
+        canvas.drawText(addrLine, startX, y, smallPaint)
+        y += 12f
+    }
+    store?.phone?.trim().orEmpty().takeIf { it.isNotBlank() }?.let { phone ->
+        canvas.drawText("Phone: $phone", startX, y, smallPaint)
+        y += line
+    }
+
+    y += 6f
+
+    // Pre-order info
+    boldPaint.textSize = 11f
+    canvas.drawText("Pre-Order ID: ${preOrder.preOrderId}", startX, y, boldPaint)
+    y += line
+    canvas.drawText("Order Date: ${dateFmt.format(preOrder.orderDate)}", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Delivery Date: ${dateFmt.format(preOrder.deliveryDate)}", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Status: ${preOrder.status}", startX, y, smallPaint)
+    y += line
+
+    y += 6f
+
+    // Customer
+    boldPaint.textSize = 11f
+    canvas.drawText("Customer", startX, y, boldPaint)
+    y += line
+    canvas.drawText("Name: ${customer?.name.orEmpty()}", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Mobile: ${preOrder.customerMobile}", startX, y, smallPaint)
+    y += line
+    customer?.address?.trim().orEmpty().takeIf { it.isNotBlank() }?.split('\n')?.forEach { addrLine ->
+        canvas.drawText("Address: $addrLine", startX, y, smallPaint)
+        y += 12f
+    }
+
+    y += 10f
+
+    // Items header
+    boldPaint.textSize = 10f
+    canvas.drawText("Sl", startX, y, boldPaint)
+    canvas.drawText("Category", startX + 20f, y, boldPaint)
+    canvas.drawText("Qty", startX + 190f, y, boldPaint)
+    canvas.drawText("Est Wt", startX + 230f, y, boldPaint)
+    canvas.drawText("Est Price", startX + 300f, y, boldPaint)
+    canvas.drawText("Extra", startX + 400f, y, boldPaint)
+    y += line
+
+    var totalQty = 0
+    var totalWt = 0.0
+    var totalPrice = 0.0
+
+    items.forEachIndexed { index, item ->
+        val itemY = y + (index * line)
+        canvas.drawText("${index + 1}", startX, itemY, smallPaint)
+        canvas.drawText(item.catName, startX + 20f, itemY, smallPaint)
+        canvas.drawText("${item.quantity}", startX + 190f, itemY, smallPaint)
+        canvas.drawText("${item.estimatedGrossWt.to3FString()}g", startX + 230f, itemY, smallPaint)
+        canvas.drawText("${rupee}${item.estimatedPrice.to3FString()}", startX + 300f, itemY, smallPaint)
+
+        val extra = if (item.addDesKey.isNotBlank() || item.addDesValue.isNotBlank()) {
+            "${item.addDesKey}: ${item.addDesValue}"
+        } else ""
+        canvas.drawText(extra.take(24), startX + 400f, itemY, smallPaint)
+
+        totalQty += item.quantity
+        totalWt += item.estimatedGrossWt * item.quantity
+        totalPrice += item.estimatedPrice * item.quantity
+    }
+
+    y += (items.size * line) + 10f
+
+    // Totals
+    boldPaint.textSize = 11f
+    canvas.drawText("Totals", startX, y, boldPaint)
+    y += line
+    canvas.drawText("Total Qty: $totalQty", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Total Est Weight: ${totalWt.to3FString()} g", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Total Est Price: ${rupee}${totalPrice.to3FString()}", startX, y, smallPaint)
+    y += line
+
+    val advanceAmount = payments.sumOf {
+        when (it.transactionType) {
+            "credit" -> it.amount
+            "debit" -> -it.amount
+            else -> 0.0
+        }
+    }
+    val balance = (totalPrice - advanceAmount).coerceAtLeast(0.0)
+
+    canvas.drawText("Advance Paid: ${rupee}${advanceAmount.to3FString()}", startX, y, smallPaint)
+    y += line
+    canvas.drawText("Balance: ${rupee}${balance.to3FString()}", startX, y, boldPaint)
+    y += line + 6f
+
+    // Payments
+    if (payments.isNotEmpty()) {
+        boldPaint.textSize = 11f
+        canvas.drawText("Payments", startX, y, boldPaint)
+        y += line
+        payments.take(8).forEach { t ->
+            val label = "${dateFmt.format(t.transactionDate)} | ${t.paymentMethod.orEmpty()} | ${t.transactionType}"
+            canvas.drawText(label.trim(), startX, y, smallPaint)
+            canvas.drawText("${rupee}${t.amount.to3FString()}", startX + 420f, y, smallPaint)
+            y += 12f
+            t.referenceNumber?.trim().orEmpty().takeIf { it.isNotBlank() }?.let { ref ->
                 canvas.drawText("Ref: $ref", startX, y, smallPaint)
                 y += 12f
             }
