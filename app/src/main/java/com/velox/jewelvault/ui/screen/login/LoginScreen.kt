@@ -240,8 +240,8 @@ private fun PortraitLoginScreen(
             painter = painterResource(id = R.drawable.logo_1),
             contentDescription = "Splash Logo",
             modifier = Modifier
-                .weight(1f)
-                .fillMaxSize(0.3f),
+                .weight(0.4f)
+                .fillMaxSize(0.4f),
         )
 
         Card(
@@ -623,7 +623,7 @@ private fun AuthScreen(
                         Checkbox(
                             checked = savePhoneChecked.value,
                             onCheckedChange = { savePhoneChecked.value = it })
-                        Text("Save phone number")
+                        Text("Save Number")
                     }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = {

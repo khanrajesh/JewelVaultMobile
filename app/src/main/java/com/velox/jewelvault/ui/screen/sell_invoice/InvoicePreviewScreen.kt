@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.annotation.SuppressLint
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -39,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,16 +60,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.PaymentInfo
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.SignatureBox
-import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.generateUpiQrCode
 import com.velox.jewelvault.ui.nav.Screens
-import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.sharePdf
-import com.velox.jewelvault.utils.PdfRendererPreview
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.LocalNavController
+import com.velox.jewelvault.utils.PdfRendererPreview
+import com.velox.jewelvault.utils.isLandscape
+import com.velox.jewelvault.utils.sharePdf
+import com.velox.jewelvault.utils.to3FString
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,8 +90,10 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
     // Check if we're in draft mode by looking at the context
     // Draft invoices typically come from DraftInvoiceScreen and don't have payment info
     // Regular invoices from SellInvoiceScreen should not be treated as drafts
-    val isDraftMode = invoiceViewModel.selectedItemList.isNotEmpty() &&
-            invoiceViewModel.selectedItemList.any { it.itemId.startsWith("DB_") } // Only draft items have DB_ prefix
+    val isDraftMode =
+        invoiceViewModel.selectedItemList.isNotEmpty() && invoiceViewModel.selectedItemList.any {
+            it.itemId.startsWith("DB_")
+        } // Only draft items have DB_ prefix
 
     BackHandler {
         if (orderCompleted.value) {
@@ -119,464 +128,139 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
         }
 
         // Main content area
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        )
-        {
-            if (pdfFile == null) {
-                // Before PDF generation: Item details on left, signatures on right
-                // Item Details Card
+
+        if (pdfFile == null) {
+            // Before PDF generation: Item details on left, signatures on right
+            // Item Details Card
+            /*  if (isLandscape()) {
+                  Row(
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .weight(1f)
+                  ) {
+                      ItemSummaryCard(
+                          title = "Bill Details",
+                          invoiceViewModel = invoiceViewModel,
+                          modifier = Modifier.weight(1f)
+                      )
+
+                      // Signatures section on the right
+                      Spacer(modifier = Modifier.width(8.dp))
+
+                      PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
+                  }
+
+              } else {
+                  Column(Modifier
+                      .fillMaxWidth()
+                      .verticalScroll(rememberScrollState())) {
+  //                    ItemSummaryCard(
+  //                        title = "Bill Details",
+  //                        invoiceViewModel = invoiceViewModel,
+  //                        modifier = Modifier.wrapContentHeight()
+  //                    )
+  //
+  //                    // Signatures section on the right
+  //                    Spacer(modifier = Modifier.height(8.dp))
+
+                      PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
+                  }
+              }*/
+
+            RowOrColumn(
+                rowModifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                columnModifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+
                 ItemSummaryCard(
                     title = "Bill Details",
                     invoiceViewModel = invoiceViewModel,
-                    modifier = Modifier.weight(1f)
+                    modifier = if (it) Modifier.weight(1f) else Modifier.wrapContentHeight()
                 )
 
                 // Signatures section on the right
-                Spacer(modifier = Modifier.width(8.dp))
+//                    Spacer(modifier = Modifier.width(8.dp))
+                WidthThenHeightSpacer(5.dp)
 
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                ) {
-
-
-                    //payment section
-                    val totalAmount = invoiceViewModel.getNetPayableAmount()
-                    val upiId = invoiceViewModel.upiId.value
-                    var selectedPaymentMethod by remember { mutableStateOf("Cash") }
-                    var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
-                    var paidAmountText by remember {
-                        mutableStateOf(
-                            invoiceViewModel.getTotalOrderAmount().to3FString()
-                        )
-                    }
-                    var paymentMethodExpanded by remember { mutableStateOf(false) }
-                    var paymentTypeExpanded by remember { mutableStateOf(false) }
-
-                    val paymentMethods = listOf("Cash", "Check", "Card", "UPI/Digital")
-                    val paymentTypes = listOf("Paid in Full", "Partial Payment")
-
-                    val isPaidInFull = selectedPaymentType == "Paid in Full"
-                    val paidAmount = paidAmountText.toDoubleOrNull() ?: 0.0
-                    val outstandingAmount =
-                        (invoiceViewModel.getNetPayableAmount() - paidAmount).coerceAtLeast(0.0)
-
-                    // Generate QR code for UPI payment - regenerate when payment method, amount, or payment type changes
-                    val qrCodeBitmap =
-                        remember(selectedPaymentMethod, paidAmount, selectedPaymentType) {
-                            if (selectedPaymentMethod == "UPI/Digital" && invoiceViewModel.upiId.value.isNotEmpty() && paidAmount > 0) {
-                                val amountForQr =
-                                    if (isPaidInFull) invoiceViewModel.getTotalOrderAmount() else paidAmount
-                                generateUpiQrCode(
-                                    invoiceViewModel.upiId.value,
-                                    amountForQr,
-                                    invoiceViewModel.storeName.value
-                                )
-                            } else null
-                        }
-
-                    // Update paid amount when payment type changes
-                    LaunchedEffect(selectedPaymentType) {
-                        if (selectedPaymentType == "Paid in Full") {
-                            paidAmountText = invoiceViewModel.getTotalOrderAmount().to3FString()
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Payment Details",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-
-
-                        // Total Amount Display
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Row {
-                                CusOutlinedTextField(
-                                    state = invoiceViewModel.invoiceNo,
-                                    placeholderText = "Invoice number",
-                                    modifier = Modifier.weight(1f),
-                                    keyboardType = KeyboardType.Number
-                                )
-
-                                Column(
-                                    modifier = Modifier.padding(12.dp)
-                                ) {
-                                    Text(
-                                        text = "Net Amount",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 10.sp
-                                    )
-                                    Text(
-                                        text = "Net Amount: \n₹${totalAmount.to3FString()}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center
-                                    )
-                                    if (selectedPaymentType == "Partial Payment") {
-                                        Text(
-                                            text = "Outstanding: ₹${outstandingAmount.to3FString()}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                                CusOutlinedTextField(
-                                    state = invoiceViewModel.discount,
-//                             onTextChange = { invoiceViewModel.discount.text = it },
-                                    placeholderText = "Discount Amount",
-                                    modifier = Modifier.weight(1f),
-                                    keyboardType = KeyboardType.Number
-                                )
-                            }
-                        }
-
-                        // Discount
-
-                        // Payment Method Selection
-                        Text(
-                            text = "Payment Method",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Row() {
-                            ExposedDropdownMenuBox(
-                                modifier = Modifier.weight(1f),
-                                expanded = paymentMethodExpanded,
-                                onExpandedChange = {
-                                    paymentMethodExpanded = !paymentMethodExpanded
-                                }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedPaymentMethod,
-                                    onValueChange = { },
-                                    readOnly = true,
-                                    label = { Text("Select Payment Method") },
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentMethodExpanded)
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor()
-                                )
-
-                                ExposedDropdownMenu(
-                                    expanded = paymentMethodExpanded,
-                                    onDismissRequest = { paymentMethodExpanded = false }
-                                ) {
-                                    paymentMethods.forEach { method ->
-                                        DropdownMenuItem(
-                                            text = { Text(method) },
-                                            onClick = {
-                                                selectedPaymentMethod = method
-                                                paymentMethodExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.width(6.dp))
-                            ExposedDropdownMenuBox(
-                                modifier = Modifier.weight(1f),
-                                expanded = paymentTypeExpanded,
-                                onExpandedChange = { paymentTypeExpanded = !paymentTypeExpanded }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedPaymentType,
-                                    onValueChange = { },
-                                    readOnly = true,
-                                    label = { Text("Select Payment Type") },
-                                    trailingIcon = {
-                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentTypeExpanded)
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor()
-                                )
-
-                                ExposedDropdownMenu(
-                                    expanded = paymentTypeExpanded,
-                                    onDismissRequest = { paymentTypeExpanded = false }
-                                ) {
-                                    paymentTypes.forEach { type ->
-                                        DropdownMenuItem(
-                                            text = { Text(type) },
-                                            onClick = {
-                                                selectedPaymentType = type
-                                                paymentTypeExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-
-                        // Paid Amount Input (only show if partial payment)
-                        if (selectedPaymentType == "Partial Payment") {
-                            OutlinedTextField(
-                                value = paidAmountText,
-                                onValueChange = { paidAmountText = it },
-                                label = { Text("Amount Paid") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                modifier = Modifier.fillMaxWidth(),
-                                prefix = { Text("₹") },
-                                isError = paidAmount > totalAmount
-                            )
-
-                            if (paidAmount > totalAmount) {
-                                Text(
-                                    text = "Paid amount cannot exceed total amount",
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-
-                        // UPI QR Code Display
-                        if (selectedPaymentMethod == "UPI/Digital" && qrCodeBitmap != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "Scan QR Code to Pay",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Image(
-                                        bitmap = qrCodeBitmap,
-                                        contentDescription = "UPI QR Code",
-                                        modifier = Modifier.size(200.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Amount: ₹${(if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount).to3FString()}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        } else if (selectedPaymentMethod == "UPI/Digital" && upiId.isEmpty()) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                )
-                            ) {
-                                Text(
-                                    text = "UPI ID not configured. Please contact administrator.",
-                                    modifier = Modifier.padding(12.dp),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                            }
-                        }
-
-
-                    }
-
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-
-
-                        // Customer Signature
-                        SignatureBox(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                ),
-                            title = "Customer Signature",
-                            check = invoiceViewModel.customerSign.value != null,
-                            onSignatureCaptured = { bitmap ->
-                                invoiceViewModel.customerSign.value = bitmap
-                            }
-                        )
-
-
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        SignatureBox(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                ),
-                            title = "Owner Signature",
-                            check = invoiceViewModel.ownerSign.value != null,
-                            onSignatureCaptured = { bitmap ->
-                                invoiceViewModel.ownerSign.value = bitmap
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        if (isDraftMode) {
-                            // Draft mode: Generate PDF button
-                            Button(
-                                onClick = {
-                                    if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
-                                        invoiceViewModel.draftCompleteOrder(
-                                            context = context,
-                                            invoiceNo = invoiceViewModel.invoiceNo.text,
-                                            onSuccess = {
-                                                invoiceViewModel.snackBarState.value =
-                                                    "Draft Invoice Generated"
-                                            },
-                                            onFailure = { error ->
-                                                invoiceViewModel.snackBarState.value =
-                                                    "Error: $error"
-                                            }
-                                        )
-                                    } else {
-                                        invoiceViewModel.snackBarState.value = "Please Sign"
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Generate Draft Invoice")
-                            }
-                        } else {
-                            // Regular mode: Payment and order completion
-                            Button(
-                                onClick = {
-                                    if (invoiceViewModel.invoiceNo.text.isNotEmpty() && invoiceViewModel.invoiceNo.text.isNotBlank()){
-                                        if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
-                                            val finalPaidAmount =
-                                                if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
-                                            val finalOutstandingAmount = totalAmount - finalPaidAmount
-                                            val isPaidInFullValue =
-                                                selectedPaymentType == "Paid in Full"
-
-                                            val paymentInfo = PaymentInfo(
-                                                paymentMethod = selectedPaymentMethod,
-                                                totalAmount = totalAmount,
-                                                paidAmount = finalPaidAmount,
-                                                outstandingAmount = finalOutstandingAmount,
-                                                isPaidInFull = isPaidInFullValue,
-                                                notes = ""
-                                            )
-                                            invoiceViewModel.paymentInfo.value = paymentInfo
-
-                                            invoiceViewModel.completeOrder(
-                                                invoiceNo = invoiceViewModel.invoiceNo.text,
-                                                onSuccess = {
-
-                                                    orderCompleted.value = true
-                                                    invoiceViewModel.snackBarState.value =
-                                                        "Order Completed"
-                                                },
-                                                onFailure = {
-                                                    invoiceViewModel.snackBarState.value = it
-                                                }
-                                            )
-                                        } else {
-                                            invoiceViewModel.snackBarState.value = "Please Sign"
-                                        }
-
-                                    }else{
-                                        invoiceViewModel.snackBarState.value = "invoice number can't be blank"
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Complete Order")
-                            }
-                        }
+                PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
+            }
+        } else {
+            var scale by remember { mutableStateOf(1f) }
+            var offsetX by remember { mutableStateOf(0f) }
+            var offsetY by remember { mutableStateOf(0f) }
+            val minScale = 1f
+            val maxScale = 5f
+            val panZoomModifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(minScale, maxScale)
+                        val maxPanX = 1000f * (scale - 1)
+                        val maxPanY = 1000f * (scale - 1)
+                        offsetX = (offsetX + pan.x).coerceIn(-maxPanX, maxPanX)
+                        offsetY = (offsetY + pan.y).coerceIn(-maxPanY, maxPanY)
                     }
                 }
-            } else {
 
+            val pdfRendererModifier = Modifier
+                .graphicsLayer(
+                    scaleX = scale, scaleY = scale, translationX = offsetX, translationY = offsetY
+                )
+                .background(MaterialTheme.colorScheme.surface)
+
+            val iconBtnOnClick = {
+                scale = 1f
+                offsetX = 0f
+                offsetY = 0f
+            }
+
+            // Main content area
+            RowOrColumn(
+                rowModifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                columnModifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
                 // After PDF generation: PDF on left, item details on right
                 // PDF Viewer on the left
-                Box(
-                    modifier = Modifier
+
+                val boxModifier =
+                    if (it) Modifier
                         .weight(1f)
                         .background(MaterialTheme.colorScheme.surface)
                         .zIndex(1f)
-                ) {
-                    var scale by remember { mutableStateOf(1f) }
-                    var offsetX by remember { mutableStateOf(0f) }
-                    var offsetY by remember { mutableStateOf(0f) }
-                    val minScale = 1f
-                    val maxScale = 5f
+                    else Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .zIndex(1f)
 
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(minScale, maxScale)
-                                    val maxPanX = 1000f * (scale - 1)
-                                    val maxPanY = 1000f * (scale - 1)
-                                    offsetX = (offsetX + pan.x).coerceIn(-maxPanX, maxPanX)
-                                    offsetY = (offsetY + pan.y).coerceIn(-maxPanY, maxPanY)
-                                }
-                            }
-                    ) {
+                Box(
+                    modifier = boxModifier
+                ) {
+
+                    Box(panZoomModifier) {
                         PdfRendererPreview(
                             uri = pdfFile,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offsetX,
-                                    translationY = offsetY
-                                )
-                                .background(MaterialTheme.colorScheme.surface),
+                            modifier = pdfRendererModifier.align(Alignment.Center),
                             highQuality = true
                         )
 
                         // Reset button
                         IconButton(
-                            onClick = {
-                                scale = 1f
-                                offsetX = 0f
-                                offsetY = 0f
-                            },
+                            onClick = iconBtnOnClick,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(16.dp)
                                 .size(36.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.background,
-                                    RoundedCornerShape(18.dp)
+                                    MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp)
                                 )
                         ) {
                             Icon(Icons.TwoTone.Refresh, contentDescription = "Reset Zoom/Pan")
@@ -585,13 +269,16 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                 }
 
                 // Item details on the right
-                Spacer(modifier = Modifier.width(16.dp))
+//                Spacer(modifier = Modifier.width(16.dp))
 
-                Column(Modifier.weight(1f)) {
+                val colModifier = if (it) Modifier.weight(1f) else Modifier.wrapContentHeight()
+
+
+                Column(colModifier) {
                     ItemSummaryCard(
                         title = "Invoice Summary",
                         invoiceViewModel = invoiceViewModel,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.wrapContentHeight()
                     )
 
                     // Action buttons
@@ -602,8 +289,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { sharePdf(context, pdfFile) },
-                            modifier = Modifier.weight(1f)
+                            onClick = { sharePdf(context, pdfFile) }, modifier = Modifier.weight(1f)
                         ) {
                             Text("Share PDF")
                         }
@@ -620,8 +306,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                         inclusive = true
                                     }
                                 }
-                            },
-                            modifier = Modifier.weight(1f)
+                            }, modifier = Modifier.weight(1f)
                         ) {
                             Text("Exit")
                         }
@@ -637,24 +322,392 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
 }
 
 @Composable
-fun ItemSummaryCard(
-    title: String,
+@OptIn(ExperimentalMaterial3Api::class)
+private fun PaymentDetailsSection(
     invoiceViewModel: InvoiceViewModel,
-    modifier: Modifier = Modifier
+    isDraftMode: Boolean,
+    context: Context,
+    orderCompleted: MutableState<Boolean>
+) {
+    Column(
+        modifier = Modifier
+            .heightIn(200.dp)
+            .wrapContentHeight()
+    ) {
+        //payment section
+        val totalAmount = invoiceViewModel.getNetPayableAmount()
+        val upiId = invoiceViewModel.upiId.value
+        var selectedPaymentMethod by remember { mutableStateOf("Cash") }
+        var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
+        var paidAmountText by remember {
+            mutableStateOf(
+                invoiceViewModel.getTotalOrderAmount().to3FString()
+            )
+        }
+        var paymentMethodExpanded by remember { mutableStateOf(false) }
+        var paymentTypeExpanded by remember { mutableStateOf(false) }
+
+        val paymentMethods = listOf("Cash", "Check", "Card", "UPI/Digital")
+        val paymentTypes = listOf("Paid in Full", "Partial Payment")
+
+        val isPaidInFull = selectedPaymentType == "Paid in Full"
+        val paidAmount = paidAmountText.toDoubleOrNull() ?: 0.0
+        val outstandingAmount =
+            (invoiceViewModel.getNetPayableAmount() - paidAmount).coerceAtLeast(0.0)
+
+        // Generate QR code for UPI payment - regenerate when payment method, amount, or payment type changes
+        val qrCodeBitmap = remember(selectedPaymentMethod, paidAmount, selectedPaymentType) {
+            if (selectedPaymentMethod == "UPI/Digital" && invoiceViewModel.upiId.value.isNotEmpty() && paidAmount > 0) {
+                val amountForQr =
+                    if (isPaidInFull) invoiceViewModel.getTotalOrderAmount() else paidAmount
+                generateUpiQrCode(
+                    invoiceViewModel.upiId.value, amountForQr, invoiceViewModel.storeName.value
+                )
+            } else null
+        }
+
+        // Update paid amount when payment type changes
+        LaunchedEffect(selectedPaymentType) {
+            if (selectedPaymentType == "Paid in Full") {
+                paidAmountText = invoiceViewModel.getTotalOrderAmount().to3FString()
+            }
+        }
+
+        Column(
+            modifier = Modifier
+//                .weight(1f)
+                .fillMaxWidth()
+//                .verticalScroll(rememberScrollState())
+                .padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Payment Details",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+
+            // Total Amount Display
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                RowOrColumn {
+                    CusOutlinedTextField(
+                        state = invoiceViewModel.invoiceNo,
+                        placeholderText = "Invoice number",
+                        modifier = Modifier
+//                            .weight(1f),
+                        ,
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Net Amount",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "Net Amount: \n₹${totalAmount.to3FString()}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        if (selectedPaymentType == "Partial Payment") {
+                            Text(
+                                text = "Outstanding: ₹${outstandingAmount.to3FString()}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    CusOutlinedTextField(
+                        state = invoiceViewModel.discount,
+//                             onTextChange = { invoiceViewModel.discount.text = it },
+                        placeholderText = "Discount Amount", modifier = Modifier
+//                            .weight(1f)
+                        , keyboardType = KeyboardType.Number
+                    )
+                }
+            }
+
+            // Discount
+
+            // Payment Method Selection
+            Text(
+                text = "Payment Method",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
+
+            RowOrColumn {
+                ExposedDropdownMenuBox(
+//                    modifier = Modifier.weight(1f),
+                    expanded = paymentMethodExpanded, onExpandedChange = {
+                        paymentMethodExpanded = !paymentMethodExpanded
+                    }) {
+                    OutlinedTextField(
+                        value = selectedPaymentMethod,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Select Payment Method") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentMethodExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = paymentMethodExpanded,
+                        onDismissRequest = { paymentMethodExpanded = false }) {
+                        paymentMethods.forEach { method ->
+                            DropdownMenuItem(text = { Text(method) }, onClick = {
+                                selectedPaymentMethod = method
+                                paymentMethodExpanded = false
+                            })
+                        }
+                    }
+                }
+                WidthThenHeightSpacer()
+                ExposedDropdownMenuBox(
+//                    modifier = Modifier.weight(1f),
+                    expanded = paymentTypeExpanded,
+                    onExpandedChange = { paymentTypeExpanded = !paymentTypeExpanded }) {
+                    OutlinedTextField(
+                        value = selectedPaymentType,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Select Payment Type") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentTypeExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = paymentTypeExpanded,
+                        onDismissRequest = { paymentTypeExpanded = false }) {
+                        paymentTypes.forEach { type ->
+                            DropdownMenuItem(text = { Text(type) }, onClick = {
+                                selectedPaymentType = type
+                                paymentTypeExpanded = false
+                            })
+                        }
+                    }
+                }
+            }
+
+
+            // Paid Amount Input (only show if partial payment)
+            if (selectedPaymentType == "Partial Payment") {
+                OutlinedTextField(
+                    value = paidAmountText,
+                    onValueChange = { paidAmountText = it },
+                    label = { Text("Amount Paid") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    prefix = { Text("₹") },
+                    isError = paidAmount > totalAmount
+                )
+
+                if (paidAmount > totalAmount) {
+                    Text(
+                        text = "Paid amount cannot exceed total amount",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            // UPI QR Code Display
+            if (selectedPaymentMethod == "UPI/Digital" && qrCodeBitmap != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Scan QR Code to Pay",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Image(
+                            bitmap = qrCodeBitmap,
+                            contentDescription = "UPI QR Code",
+                            modifier = Modifier.size(200.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Amount: ₹${(if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount).to3FString()}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else if (selectedPaymentMethod == "UPI/Digital" && upiId.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = "UPI ID not configured. Please contact administrator.",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
+
+        }
+
+        Column(
+            Modifier
+//                .weight(1f)
+                .fillMaxWidth()
+        ) {
+
+
+            // Customer Signature
+            SignatureBox(
+                modifier = Modifier
+//                    .weight(1f)
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                    ),
+                title = "Customer Signature",
+                check = invoiceViewModel.customerSign.value != null,
+                onSignatureCaptured = { bitmap ->
+                    invoiceViewModel.customerSign.value = bitmap
+                })
+
+
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SignatureBox(
+                modifier = Modifier
+//                    .weight(1f)
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                    ),
+                title = "Owner Signature",
+                check = invoiceViewModel.ownerSign.value != null,
+                onSignatureCaptured = { bitmap ->
+                    invoiceViewModel.ownerSign.value = bitmap
+                })
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (isDraftMode) {
+                // Draft mode: Generate PDF button
+                Button(
+                    onClick = {
+                        if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
+                            invoiceViewModel.draftCompleteOrder(
+                                context = context,
+                                invoiceNo = invoiceViewModel.invoiceNo.text,
+                                onSuccess = {
+                                    invoiceViewModel.snackBarState.value = "Draft Invoice Generated"
+                                },
+                                onFailure = { error ->
+                                    invoiceViewModel.snackBarState.value = "Error: $error"
+                                })
+                        } else {
+                            invoiceViewModel.snackBarState.value = "Please Sign"
+                        }
+                    }, modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Generate Draft Invoice")
+                }
+            } else {
+                // Regular mode: Payment and order completion
+                Button(
+                    onClick = {
+                        if (invoiceViewModel.invoiceNo.text.isNotEmpty() && invoiceViewModel.invoiceNo.text.isNotBlank()) {
+                            if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
+                                val finalPaidAmount =
+                                    if (selectedPaymentType == "Paid in Full") totalAmount else paidAmount
+                                val finalOutstandingAmount = totalAmount - finalPaidAmount
+                                val isPaidInFullValue = selectedPaymentType == "Paid in Full"
+
+                                val paymentInfo = PaymentInfo(
+                                    paymentMethod = selectedPaymentMethod,
+                                    totalAmount = totalAmount,
+                                    paidAmount = finalPaidAmount,
+                                    outstandingAmount = finalOutstandingAmount,
+                                    isPaidInFull = isPaidInFullValue,
+                                    notes = ""
+                                )
+                                invoiceViewModel.paymentInfo.value = paymentInfo
+
+                                invoiceViewModel.completeOrder(
+                                    invoiceNo = invoiceViewModel.invoiceNo.text,
+                                    onSuccess = {
+
+                                        orderCompleted.value = true
+                                        invoiceViewModel.snackBarState.value = "Order Completed"
+                                    },
+                                    onFailure = {
+                                        invoiceViewModel.snackBarState.value = it
+                                    })
+                            } else {
+                                invoiceViewModel.snackBarState.value = "Please Sign"
+                            }
+
+                        } else {
+                            invoiceViewModel.snackBarState.value = "invoice number can't be blank"
+                        }
+                    }, modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Complete Order")
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ItemSummaryCard(
+    title: String, invoiceViewModel: InvoiceViewModel, modifier: Modifier = Modifier
 ) {
 
     val summary = CalculationUtils.summaryTotals(invoiceViewModel.selectedItemList.toList())
 
+    val innerModifier = if (isLandscape()) Modifier.padding(8.dp)
+//        .verticalScroll(rememberScrollState())
+    else Modifier.padding(8.dp)
+
     Card(
-        modifier = modifier.fillMaxHeight(),
-        colors = CardDefaults.cardColors(
+        modifier = modifier.fillMaxHeight().defaultMinSize(minHeight = 200.dp), colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
-            modifier = Modifier
-                .padding(8.dp)
-                .verticalScroll(rememberScrollState())
+            modifier = innerModifier
         ) {
             Text(
                 text = title,
@@ -665,8 +718,7 @@ fun ItemSummaryCard(
 
             if (invoiceViewModel.selectedItemList.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "No items added yet.",
@@ -691,41 +743,37 @@ fun ItemSummaryCard(
                     )
 
                     // Prepare items data for TextListView
-                    val itemsData =
-                        invoiceViewModel.selectedItemList.mapIndexed { index, item ->
-                            // Use CalculationUtils for price and charge calculations
-                            val oneUnitPrice =
-                                CalculationUtils.metalUnitPrice(
-                                    item.catName,
-                                    LocalBaseViewModel.current.metalRates
-                                ) ?: 0.0
-                            val price = CalculationUtils.basePrice(
-                                item.fnWt ?: 0.0,
-                                oneUnitPrice
-                            )
+                    val itemsData = invoiceViewModel.selectedItemList.mapIndexed { index, item ->
+                        // Use CalculationUtils for price and charge calculations
+                        val oneUnitPrice = CalculationUtils.metalUnitPrice(
+                            item.catName, LocalBaseViewModel.current.metalRates
+                        ) ?: 0.0
+                        val price = CalculationUtils.basePrice(
+                            item.fnWt ?: 0.0, oneUnitPrice
+                        )
 
-                            val charge = CalculationUtils.makingCharge(
-                                chargeType = item.crgType,
-                                chargeRate = item.crg,
-                                basePrice = price,
-                                quantity = item.quantity,
-                                weight = item.ntWt ?: 0.0
-                            )
-                            val char = charge.to3FString()
+                        val charge = CalculationUtils.makingCharge(
+                            chargeType = item.crgType,
+                            chargeRate = item.crg,
+                            basePrice = price,
+                            quantity = item.quantity,
+                            weight = item.ntWt ?: 0.0
+                        )
+                        val char = charge.to3FString()
 
-                            listOf(
-                                "${index + 1}.",
-                                "${item.itemId}",
-                                "${item.subCatName} ${item.itemAddName}",
-                                "${item.quantity} P",
-                                "${item.gsWt}/${item.ntWt}gm",
-                                "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
-                                "${item.catName} (${item.purity})",
-                                "${item.crg} ${item.crgType}",
-                                "${char}\n+ ${item.othCrg}",
-                                "${item.cgst + item.sgst + item.igst} %",
-                            )
-                        }
+                        listOf(
+                            "${index + 1}.",
+                            "${item.itemId}",
+                            "${item.subCatName} ${item.itemAddName}",
+                            "${item.quantity} P",
+                            "${item.gsWt}/${item.ntWt}gm",
+                            "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
+                            "${item.catName} (${item.purity})",
+                            "${item.crg} ${item.crgType}",
+                            "${char}\n+ ${item.othCrg}",
+                            "${item.cgst + item.sgst + item.igst} %",
+                        )
+                    }
 
                     TextListView(
                         headerList = headerList,
@@ -736,8 +784,7 @@ fun ItemSummaryCard(
                         },
                         onItemLongClick = {
                             // Handle long click if needed
-                        }
-                    )
+                        })
 
                     // Exchange Items Section
                     if (invoiceViewModel.exchangeItemList.isNotEmpty()) {
@@ -778,8 +825,7 @@ fun ItemSummaryCard(
                             },
                             onItemLongClick = {
                                 // Handle long click if needed
-                            }
-                        )
+                            })
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(Modifier.fillMaxWidth()) {
@@ -805,13 +851,10 @@ fun ItemSummaryCard(
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Text(
-                            "Summary",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            "Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold
                         )
 
-                        val groupedItems =
-                            invoiceViewModel.selectedItemList.groupBy { it.catName }
+                        val groupedItems = invoiceViewModel.selectedItemList.groupBy { it.catName }
 
                         groupedItems.forEach { (metalType, items) ->
                             val totalGsWt = items.sumOf { it.gsWt }
@@ -833,7 +876,7 @@ fun ItemSummaryCard(
                         }
 
                         Spacer(Modifier.height(5.dp))
-                        androidx.compose.material3.HorizontalDivider(
+                        HorizontalDivider(
                             thickness = 1.dp
                         )
 
@@ -862,7 +905,7 @@ fun ItemSummaryCard(
                                     "₹${totalMakingCharges.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 9.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                    textAlign = TextAlign.End,
                                     color = MaterialTheme.colorScheme.onSurface.copy(
                                         alpha = 0.8f
                                     )
@@ -887,7 +930,7 @@ fun ItemSummaryCard(
                                     "₹${totalOtherCharges.to3FString()}",
                                     modifier = Modifier.weight(1f),
                                     fontSize = 9.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                    textAlign = TextAlign.End,
                                     color = MaterialTheme.colorScheme.onSurface.copy(
                                         alpha = 0.8f
                                     )
@@ -896,15 +939,14 @@ fun ItemSummaryCard(
                         }
 
                         // Charge Type Information
-                        val chargeTypes =
-                            invoiceViewModel.selectedItemList.mapNotNull { item ->
-                                when (item.crgType) {
-                                    "Percentage" -> "Making: ${item.crg}% of price"
-                                    "Piece" -> "Making: ₹${item.crg} per piece"
-                                    "PerGm" -> "Making: ₹${item.crg} per gram"
-                                    else -> null
-                                }
-                            }.distinct()
+                        val chargeTypes = invoiceViewModel.selectedItemList.mapNotNull { item ->
+                            when (item.crgType) {
+                                "Percentage" -> "Making: ${item.crg}% of price"
+                                "Piece" -> "Making: ₹${item.crg} per piece"
+                                "PerGm" -> "Making: ₹${item.crg} per gram"
+                                else -> null
+                            }
+                        }.distinct()
 
                         if (chargeTypes.isNotEmpty()) {
                             Spacer(Modifier.height(3.dp))
@@ -946,9 +988,7 @@ fun ItemSummaryCard(
                         }
                         Row(Modifier.fillMaxWidth()) {
                             Text(
-                                "Total Tax",
-                                modifier = Modifier.weight(1.5f),
-                                fontSize = 10.sp
+                                "Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp
                             )
                             Text(
                                 "₹${totalTax.to3FString()}",
@@ -1023,7 +1063,7 @@ fun ItemSummaryCard(
                                     modifier = Modifier.weight(1f),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                    textAlign = TextAlign.End,
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }

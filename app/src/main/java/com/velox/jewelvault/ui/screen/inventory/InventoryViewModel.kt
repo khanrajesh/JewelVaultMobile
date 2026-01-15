@@ -380,12 +380,11 @@ class InventoryViewModel @Inject constructor(
         ioLaunch {
             try {
                 // Verify admin pin first
-                withIo {
-                    if (!verifyAdminPin(adminPin)) {
-                        _snackBarState.value = "Invalid Admin PIN"
-                        onFailure("Invalid Admin PIN")
-                        return@withIo
-                    }
+                val isValidPin = withIo { verifyAdminPin(adminPin) }
+                if (!isValidPin) {
+                    _snackBarState.value = "Invalid Admin PIN"
+                    onFailure("Invalid Admin PIN")
+                    return@ioLaunch
                 }
 
                 // Delete category and all related data
@@ -419,12 +418,11 @@ class InventoryViewModel @Inject constructor(
         ioLaunch {
             try {
                 // Verify admin pin first
-                withIo {
-                    if (!verifyAdminPin(adminPin)) {
-                        _snackBarState.value = "Invalid Admin PIN"
-                        onFailure("Invalid Admin PIN")
-                        return@withIo
-                    }
+                val isValidPin = withIo { verifyAdminPin(adminPin) }
+                if (!isValidPin) {
+                    _snackBarState.value = "Invalid Admin PIN"
+                    onFailure("Invalid Admin PIN")
+                    return@ioLaunch
                 }
 
                 // Delete subcategory and all related data
@@ -1094,7 +1092,7 @@ class InventoryViewModel @Inject constructor(
                         val storeId = store.first.first()
                         val inventoryItems =
                             appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
-                                .filter { it.subCatName == subCatId && it.purchaseOrderId == purchase.purchaseOrderId }
+                                .filter { it.subCatId == subCatId && it.purchaseOrderId == purchase.purchaseOrderId }
 
                         // Group purchase items by purity
                         val purchaseItemsByPurity = purchaseItemList.groupBy { it.purity }
@@ -1154,11 +1152,11 @@ class InventoryViewModel @Inject constructor(
 
     // Detailed report for dialog
     suspend fun getDetailedPurchaseOrderReport(
-        purchase: PurchaseOrderEntity, subCatName: String
+        purchase: PurchaseOrderEntity, subCatId: String, subCatName: String
     ): String {
         val purchaseItemList = withIo {
             appDatabase.purchaseDao()
-                .getItemsByOrderIdAndSubCatId(purchase.purchaseOrderId, subCatName)
+                .getItemsByOrderIdAndSubCatId(purchase.purchaseOrderId, subCatId)
         }
 
         if (purchaseItemList.isEmpty()) {
@@ -1177,7 +1175,7 @@ class InventoryViewModel @Inject constructor(
         val storeId = store.first.first()
         val inventoryItems = withIo {
             appDatabase.itemDao().getAllItemsByUserIdAndStoreId(userId, storeId)
-        }.filter { it.subCatName == subCatName && it.purchaseOrderId == purchase.purchaseOrderId }
+        }.filter { it.subCatId == subCatId && it.purchaseOrderId == purchase.purchaseOrderId }
 
         // Build detailed report
         val report = StringBuilder()

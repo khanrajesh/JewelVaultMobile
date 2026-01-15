@@ -16,29 +16,53 @@ object CalculationUtils {
      * @return Unit price per gram, or null if rate not found
      */
     fun metalUnitPrice(metalName: String, metalRates: List<MetalRate>): Double? {
+        fun parsePrice(raw: String?): Double? =
+            raw?.replace(Regex("[^0-9.]"), "")?.toDoubleOrNull()
+
         return when (metalName.trim().lowercase()) {
             "gold" -> {
-                val price24k = metalRates.firstOrNull { 
-                    it.metal == "Gold" && it.caratOrPurity == "24K" 
-                }?.price?.toDoubleOrNull()
-                
-                if (price24k != null) {
-                    // Gold calculation: (100 / 99.9) * price24k for 100% purity
-                    (100.0 / 99.9) * price24k
-                } else {
-                    // Fallback to any gold rate
-                    metalRates.firstOrNull { 
-                        it.metal == "Gold" 
-                    }?.price?.toDoubleOrNull()
-                }
+                val goldRates = metalRates.filter { it.metal.equals("Gold", true) }
+
+                val price24k = goldRates.firstOrNull {
+                    it.caratOrPurity.equals("24K", true) ||
+                            it.caratOrPurity.equals("999", true) ||
+                            it.caratOrPurity.equals("999.5", true) ||
+                            it.caratOrPurity.equals("1000", true)
+                }?.price?.let(::parsePrice)
+
+                val goldFrom24 = price24k?.let { (100.0 / 99.9) * it }
+
+                val price22k = goldRates.firstOrNull {
+                    it.caratOrPurity.contains("22", true) ||
+                            it.caratOrPurity.contains("916", true)
+                }?.price?.let(::parsePrice)
+                val goldFrom22 = price22k?.let { it / 0.916 }
+
+                val price18k = goldRates.firstOrNull {
+                    it.caratOrPurity.contains("18", true) ||
+                            it.caratOrPurity.contains("750", true)
+                }?.price?.let(::parsePrice)
+                val goldFrom18 = price18k?.let { it / 0.750 }
+
+                goldFrom24 ?: goldFrom22 ?: goldFrom18
+                ?: goldRates.firstOrNull()?.price?.let(::parsePrice)
             }
             "silver" -> {
-                metalRates.firstOrNull { 
-                    it.metal == "Silver" && it.caratOrPurity == "Silver /g" 
-                }?.price?.toDoubleOrNull()
-                    ?: metalRates.firstOrNull { 
-                        it.metal == "Silver" 
-                    }?.price?.toDoubleOrNull()
+                val perGram = metalRates.firstOrNull {
+                    it.metal.equals("Silver", true) &&
+                            (it.caratOrPurity.contains("1 g", true) ||
+                                    it.caratOrPurity.contains("1g", true) ||
+                                    it.caratOrPurity.contains("/g", true))
+                }?.price?.replace(",", "")?.toDoubleOrNull()
+
+                val perKg = metalRates.firstOrNull {
+                    it.metal.equals("Silver", true) &&
+                            (it.caratOrPurity.contains("1 Kg", true) ||
+                                    it.caratOrPurity.contains("1000 g", true) ||
+                                    it.caratOrPurity.contains("/kg", true))
+                }?.price?.replace(",", "")?.toDoubleOrNull()
+
+                perGram ?: perKg?.div(1000.0)
             }
             else -> null
         }

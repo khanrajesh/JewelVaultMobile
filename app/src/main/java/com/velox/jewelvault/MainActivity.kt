@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -177,10 +177,8 @@ class MainActivity : FragmentActivity() {
 
                 Surface(
                     modifier = Modifier
-                        .padding(
-                            top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                        )
                         .fillMaxSize()
+                        .padding(WindowInsets.systemBars.asPaddingValues())
                 ) {
                     Box(Modifier.fillMaxSize()) {
 

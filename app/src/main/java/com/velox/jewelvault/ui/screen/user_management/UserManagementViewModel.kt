@@ -29,9 +29,12 @@ import javax.inject.Named
 class UserManagementViewModel @Inject constructor(
     private val database: AppDatabase,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
+    @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
     private val _firestore: FirebaseFirestore,
     private val _dataStoreManager: DataStoreManager
 ) : ViewModel() {
+
+    val currentScreenHeadingState = _currentScreenHeadingState
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo

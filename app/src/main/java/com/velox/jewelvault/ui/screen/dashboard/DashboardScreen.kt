@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,48 +18,56 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.TrendingUp
 import androidx.compose.material.icons.twotone.Analytics
 import androidx.compose.material.icons.twotone.Category
+import androidx.compose.material.icons.twotone.CloudOff
 import androidx.compose.material.icons.twotone.Pentagon
 import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material.icons.twotone.Scale
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.PullRefreshState
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.dao.IndividualSellItem
 import com.velox.jewelvault.data.roomdb.dao.TimeRange
 import com.velox.jewelvault.data.roomdb.dao.TopItemByCategory
@@ -80,6 +89,7 @@ import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
@@ -89,18 +99,11 @@ fun DashboardScreenPreview() {
     DashboardScreen(hiltViewModel<DashboardViewModel>())
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
     dashboardViewModel.currentScreenHeadingState.value = "Dashboard"
-    LandscapeMainScreen(dashboardViewModel)
-//    if (isLandscape()) LandscapeMainScreen(dashboardViewModel) else PortraitMainScreen()
-}
 
-@OptIn(ExperimentalMaterialApi::class)
-@Composable
-fun LandscapeMainScreen(
-    dashboardViewModel: DashboardViewModel
-) {
     val navHost = LocalNavController.current
     val baseViewModel = LocalBaseViewModel.current
     val subNavController = LocalSubNavController.current
@@ -134,7 +137,7 @@ fun LandscapeMainScreen(
     }
 
     // Dialog state for time range selection
-    var showTimeRangeDialog by remember { mutableStateOf(false) }
+    val showTimeRangeDialog = remember { mutableStateOf(false) }
 
     // Handle back press
     BackHandler {
@@ -201,6 +204,73 @@ fun LandscapeMainScreen(
     }
 
 
+    Box(Modifier.fillMaxSize()) {
+        if (isLandscape()) LandscapeDashboardScreen(
+            dashboardViewModel, pullRefreshState, showTimeRangeDialog
+        )
+        else PortraitDashboardScreen(
+            dashboardViewModel, pullRefreshState, showTimeRangeDialog
+        )
+
+
+        // Pull to refresh indicator
+        PullRefreshIndicator(
+            refreshing = isRefreshing.value,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        // Time Range Selection Dialog
+        if (showTimeRangeDialog.value) {
+            TimeRangeSelectionDialog(
+                currentRange = dashboardViewModel.selectedRange.value,
+                onRangeSelected = { newRange ->
+                    dashboardViewModel.updateTimeRange(newRange)
+                    showTimeRangeDialog.value = false
+                },
+                onDismiss = {
+                    showTimeRangeDialog.value = false
+                })
+        }
+
+        // Show update dialogs if needed
+        if (baseViewModel.showUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                OptionalUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) },
+                    onDismiss = { baseViewModel.dismissUpdateDialog() },
+                    onBackupClick = { baseViewModel.onUpdateClick(context) })
+            }
+        }
+
+        if (baseViewModel.showForceUpdateDialog.value) {
+            baseViewModel.updateInfo.value?.let { updateInfo ->
+                com.velox.jewelvault.ui.components.ForceUpdateDialog(
+                    updateInfo = updateInfo,
+                    onUpdateClick = { baseViewModel.onUpdateClick(context) })
+            }
+        }
+
+    }
+
+
+}
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun LandscapeDashboardScreen(
+    dashboardViewModel: DashboardViewModel,
+    pullRefreshState: PullRefreshState,
+    showTimeRangeDialog: MutableState<Boolean>,
+) {
+
+    val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+    LocalSubNavController.current
+    LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LocalFocusManager.current
 
     Box(
         Modifier
@@ -219,19 +289,26 @@ fun LandscapeMainScreen(
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
-                FlowOverView(dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                FlowOverView(Modifier
+                    .fillMaxHeight()
+                    .width(300.dp),dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
                 TopFiveSales(Modifier.weight(1f), dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                CategorySales(dashboardViewModel) { showDialog ->
-                    showTimeRangeDialog = showDialog
+                CategorySales( Modifier
+                    .fillMaxHeight()
+                    .width(200.dp), dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
                 }
                 Spacer(Modifier.width(5.dp))
-                CustomerOverview(dashboardViewModel)
+                CustomerOverview(Modifier
+                    .fillMaxHeight()
+                    .width(200.dp),
+                    dashboardViewModel)
                 Spacer(Modifier.width(5.dp))
 
                 Column(
@@ -320,7 +397,7 @@ fun LandscapeMainScreen(
                             .background(
                                 MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
                             ), contentAlignment = Alignment.Center) {
-                            Text("P.", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                            Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -331,60 +408,182 @@ fun LandscapeMainScreen(
             RecentItemSold(Modifier, dashboardViewModel.recentSellsItem)
         }
 
-        // Pull to refresh indicator
-        PullRefreshIndicator(
-            refreshing = isRefreshing.value,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
 
-        // Time Range Selection Dialog
-        if (showTimeRangeDialog) {
-            TimeRangeSelectionDialog(
-                currentRange = dashboardViewModel.selectedRange.value,
-                onRangeSelected = { newRange ->
-                    dashboardViewModel.updateTimeRange(newRange)
-                    showTimeRangeDialog = false
-                },
-                onDismiss = {
-                    showTimeRangeDialog = false
-                })
-        }
-
-        // Show update dialogs if needed
-        if (baseViewModel.showUpdateDialog.value) {
-            baseViewModel.updateInfo.value?.let { updateInfo ->
-                OptionalUpdateDialog(
-                    updateInfo = updateInfo,
-                    onUpdateClick = { baseViewModel.onUpdateClick(context) },
-                    onDismiss = { baseViewModel.dismissUpdateDialog() },
-                    onBackupClick = { baseViewModel.onUpdateClick(context) })
-            }
-        }
-
-        if (baseViewModel.showForceUpdateDialog.value) {
-            baseViewModel.updateInfo.value?.let { updateInfo ->
-                com.velox.jewelvault.ui.components.ForceUpdateDialog(
-                    updateInfo = updateInfo,
-                    onUpdateClick = { baseViewModel.onUpdateClick(context) })
-            }
-        }
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun PortraitMainScreen() {
+fun PortraitDashboardScreen(
+    dashboardViewModel: DashboardViewModel,
+    pullRefreshState: PullRefreshState,
+    showTimeRangeDialog: MutableState<Boolean>,
+) {
 
+    val navHost = LocalNavController.current
+    val baseViewModel = LocalBaseViewModel.current
+    LocalSubNavController.current
+    LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    LocalFocusManager.current
+
+    Box(
+        Modifier
+            .pullRefresh(pullRefreshState)
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .padding(5.dp)
+    ) {
+        keyboardController?.hide()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            //cash flow over view\
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                    )
+                    .padding(5.dp), verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.SellInvoice.route)
+                        }
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Create Invoice",
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.surface,
+
+                            )
+                    }
+
+                    Icon(
+                        imageVector = Icons.TwoTone.Pentagon,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .bounceClick {
+                                navHost.navigate(Screens.DraftInvoice.route)
+                            }
+                            .align(Alignment.TopStart)
+                            .padding(2.dp)
+                            .fillMaxHeight()
+                            .size(30.dp)
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .padding(7.dp),
+                        )
+
+
+                }
+                Spacer(Modifier.height(5.dp))
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                ) {
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            navHost.navigate(Screens.QrScanScreen.route)
+                        }
+                        .weight(1f)
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text("Cam", textAlign = TextAlign.Center)
+                    }
+                    Spacer(Modifier.width(5.dp))
+                    Box(modifier = Modifier
+                        .bounceClick {
+                            dashboardViewModel.getSubCategoryCount {
+                                if (it > 3) {
+                                    mainScope {
+                                        navHost.navigate(Screens.Purchase.route)
+                                    }
+                                } else {
+                                    baseViewModel.snackBarState = "Please add more sub categories."
+                                }
+                            }
+
+                        }
+                        .weight(1f)
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
+                        ), contentAlignment = Alignment.Center) {
+                        Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+
+
+            Spacer(Modifier.height(5.dp))
+            MetalRateView(Modifier.fillMaxWidth())
+            Spacer(Modifier.height(5.dp))
+            Row(Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.Center) {
+                FlowOverView(Modifier
+                    .fillMaxSize().weight(1f),dashboardViewModel) { showDialog ->
+                    showTimeRangeDialog.value = showDialog
+                }
+                Spacer(Modifier.width(5.dp))
+                CustomerOverview(Modifier
+                    .fillMaxSize().weight(1f), dashboardViewModel)
+            }
+            Spacer(Modifier.height(5.dp))
+            TopFiveSales(Modifier.fillMaxWidth().defaultMinSize(minHeight = 120.dp), dashboardViewModel) { showDialog ->
+                showTimeRangeDialog.value = showDialog
+            }
+            Spacer(Modifier.height(5.dp))
+            CategorySales( Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 120.dp),
+                dashboardViewModel) { showDialog ->
+                showTimeRangeDialog.value = showDialog
+            }
+
+            Spacer(Modifier.height(5.dp))
+            //Recent Item Sold
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+            ) {
+                RecentItemSold(Modifier.fillMaxSize(), dashboardViewModel.recentSellsItem)
+            }
+        }
+
+
+    }
 }
+
 
 @Composable
 fun CategorySales(
-    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
+    modifier: Modifier = Modifier,
+    dashboardViewModel: DashboardViewModel,
+    onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
-        Modifier
-            .fillMaxHeight()
-            .width(200.dp)
+        modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
@@ -408,12 +607,12 @@ fun CategorySales(
         }
 
         if (dashboardViewModel.topSubCategories.isNotEmpty()) {
-            LazyColumn(
+            Column(
                 Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
             ) {
-                items(dashboardViewModel.topSubCategories) {
+                dashboardViewModel.topSubCategories.forEach {
                     Row(
                         Modifier
                             .padding(3.dp)
@@ -471,7 +670,6 @@ fun TopFiveSales(
 ) {
     Column(
         modifier = modifier
-            .wrapContentWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
@@ -533,6 +731,171 @@ fun TopFiveSales(
     }
 }
 
+@Composable
+fun MetalRateView(
+    modifier: Modifier,
+) {
+
+    val baseViewModel = LocalBaseViewModel.current
+    val context = LocalContext.current
+    val latestTime = baseViewModel.metalRates.firstOrNull()?.updatedDate.orEmpty()
+    val hasApiRates = baseViewModel.metalRates.any { rate ->
+        !rate.source.trim().equals("cache", ignoreCase = true)
+    }
+    val rates = baseViewModel.metalRates.filter {
+        it.metal.equals("Gold", true) || it.metal.equals("Silver", true)
+    }
+    val groupedRates = rates.groupBy { it.metal.lowercase() }
+    Column(
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .padding(5.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(25.dp    )) {
+            Icon(
+                imageVector = Icons.TwoTone.Scale,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("Metal Rate", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+
+            if (hasApiRates && latestTime.isNotBlank()) {
+                Text(latestTime, fontSize = 10.sp, color = Color.Gray)
+                Spacer(Modifier.width(6.dp))
+            } else {
+                Icon(
+                    imageVector = Icons.TwoTone.CloudOff,
+                    contentDescription = "Using cached rates",
+                    tint = Color.Gray,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    if (!baseViewModel.metalRatesLoading.value) {
+                        ioScope {
+                            baseViewModel.refreshOnlineMetalRates(context)
+                        }
+                    }
+                },
+                enabled = !baseViewModel.metalRatesLoading.value
+            ) {
+                Icon(
+                    imageVector = Icons.TwoTone.Refresh,
+                    contentDescription = "Refresh metal rates",
+                    tint = if (baseViewModel.metalRatesLoading.value) Color.Gray else MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+        when {
+            baseViewModel.metalRatesLoading.value -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Fetching latest rates...", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
+
+            rates.isEmpty() -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text("No metal rates available", fontSize = 10.sp, color = Color.Gray)
+                }
+            }
+
+            else -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .padding(8.dp)
+                ) {
+                    listOf("Gold", "Silver").forEach { metal ->
+                        val metalRates = groupedRates[metal.lowercase()].orEmpty()
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp)
+                        ) {
+                            Text(
+                                metal,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            if (metalRates.isEmpty()) {
+                                Text(
+                                    "No $metal rates",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            } else {
+                                val orderedRates = if (metal.equals("gold", true)) {
+                                    metalRates.sortedWith(
+                                        compareBy<MetalRate> {
+                                            when (it.caratOrPurity.replace(" ", "").uppercase()) {
+                                                "24K" -> 0
+                                                "22K" -> 1
+                                                "18K" -> 2
+                                                else -> 3
+                                            }
+                                        }.thenBy { it.caratOrPurity }
+                                    )
+                                } else {
+                                    metalRates.sortedBy { it.caratOrPurity }
+                                }
+
+                                orderedRates.forEach { rate ->
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            rate.caratOrPurity,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(Modifier.weight(1f))
+                                        Text(
+                                            formatMetalPrice(rate.price),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatMetalPrice(price: String): String {
+    val trimmed = price.trim()
+    return if (trimmed.startsWith("₹") || trimmed.startsWith("?")) trimmed else "₹$trimmed"
+}
+
 
 @Composable
 fun ItemViewItem(
@@ -572,12 +935,10 @@ fun ItemViewItem(
 
 @Composable
 fun FlowOverView(
-    dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
+    modifier: Modifier=Modifier, dashboardViewModel: DashboardViewModel, onShowTimeRangeDialog: (Boolean) -> Unit
 ) {
     Column(
-        Modifier
-            .fillMaxHeight()
-            .width(300.dp)
+        modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp),
 
@@ -646,12 +1007,10 @@ fun FlowOverView(
 
 @Composable
 fun CustomerOverview(
-    dashboardViewModel: DashboardViewModel,
+    modifier: Modifier = Modifier, dashboardViewModel: DashboardViewModel,
 ) {
     Column(
-        Modifier
-            .fillMaxHeight()
-            .width(200.dp)
+        modifier
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
@@ -1007,7 +1366,7 @@ fun RecentItemSold(
             }
 
             TextListView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth().height(500.dp),
                 headerList = headers,
                 items = tableData,
                 onItemClick = { clickedItem ->

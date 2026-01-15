@@ -18,6 +18,7 @@ import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
+import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
@@ -30,8 +31,13 @@ import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.content.ContextCompat
+import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -49,8 +55,11 @@ class BaseViewModel @Inject constructor(
     private val _appUpdateManager: AppUpdateManager,
     private val _backupManager: BackupManager,
     private val _auth: FirebaseAuth,
-    private val _Internal_bluetoothManager: BleManager
+    private val _Internal_bluetoothManager: BleManager,
+    private val _repository: RepositoryImpl
     ) : ViewModel() {
+
+    private val metalRatesMutex = Mutex()
 
     var loading by _loadingState
     var snackBarState by _snackBarState
@@ -62,6 +71,7 @@ class BaseViewModel @Inject constructor(
     val isConnectedState = mutableStateOf(true)
     val storeImage = mutableStateOf<String?>(null)
     val storeName = mutableStateOf<String?>(null)
+    val storeData = mutableStateOf<StoreEntity?>(null)
     val localLogoUri = mutableStateOf<Uri?>(null)
     val pendingNotificationRoute = mutableStateOf<String?>(null)
     val pendingNotificationArg = mutableStateOf<String?>(null)
@@ -107,14 +117,32 @@ class BaseViewModel @Inject constructor(
         loadSettings()
     }
 
-    suspend fun refreshMetalRates(state: String = "visakhapatnam", context: Context) {
-        metalRates.clear()
-        metalRates.addAll(fetchAllMetalRates(state, context,metalRatesLoading,_dataStoreManager))
+    suspend fun refreshMetalRates(context: Context) {
+        metalRatesMutex.withLock {
+            if (metalRatesLoading.value) return@withLock
+            val refreshedRates =
+                fetchAllMetalRates(context, metalRatesLoading, _dataStoreManager, _repository)
+            applyMetalRates(refreshedRates)
+        }
     }
 
-    suspend fun refreshOnlineMetalRates(state: String = "visakhapatnam", context: Context) {
-        metalRates.clear()
-        metalRates.addAll(metalRates(metalRatesLoading,state, context,_dataStoreManager))
+    suspend fun refreshOnlineMetalRates(context: Context) {
+        metalRatesMutex.withLock {
+            if (metalRatesLoading.value) return@withLock
+            val refreshedRates =
+                metalRates(metalRatesLoading, context, _dataStoreManager, _repository)
+            applyMetalRates(refreshedRates)
+        }
+    }
+
+    private suspend fun applyMetalRates(newRates: List<MetalRate>) {
+        val dedupedRates = newRates.distinctBy {
+            "${it.metal.trim().lowercase()}-${it.caratOrPurity.trim().lowercase()}"
+        }
+        withContext(Dispatchers.Main) {
+            metalRates.clear()
+            metalRates.addAll(dedupedRates)
+        }
     }
 
 
@@ -217,6 +245,7 @@ class BaseViewModel @Inject constructor(
                 val storeId = _dataStoreManager.getSelectedStoreInfo().first.first()
                 val store = _appDatabase.storeDao().getStoreById(storeId)
                 log("Loading store image: ${store?.name}")
+                storeData.value = store
                 storeName.value = store?.name
             } catch (e: Exception) {
                 log("Error loading store image: ${e.message}")

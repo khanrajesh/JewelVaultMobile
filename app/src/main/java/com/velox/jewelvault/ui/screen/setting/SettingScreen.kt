@@ -189,6 +189,20 @@ fun SettingScreen() {
                     )
                 }
 
+                // Permissions
+                item {
+                    SettingsSectionHeader("Permissions", Icons.TwoTone.Lock)
+                }
+
+                item {
+                    SettingsActionItem(
+                        title = "Manage App Permissions",
+                        subtitle = "Enable or disable camera, storage, notifications, and more",
+                        icon = Icons.TwoTone.Lock,
+                        onClick = { subNavController.navigate(SubScreens.Permissions.route) }
+                    )
+                }
+
                 // Data Management
                 item {
                     SettingsSectionHeader("Data Management", Icons.TwoTone.Settings)

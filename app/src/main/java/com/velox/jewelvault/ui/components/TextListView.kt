@@ -16,16 +16,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -38,8 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
-import kotlin.math.max
-import kotlin.math.min
 
 @OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -57,13 +53,13 @@ fun TextListView(
         val scrollState = rememberScrollState()
         val textMeasurer = rememberTextMeasurer()
         val density = LocalDensity.current
-        
+
         // Calculate optimal column widths
         val columnWidths = remember(headerList, items, maxColumnWidth) {
             val minColumnWidth = 100.dp
             val numColumns = headerList.size
             val allRows = listOf(headerList) + items
-            
+
             (0 until numColumns).map { columnIndex ->
                 val maxTextWidth = allRows.mapIndexedNotNull { rowIndex, row ->
                     if (columnIndex < row.size) {
@@ -79,10 +75,10 @@ fun TextListView(
                         null
                     }
                 }.maxOrNull() ?: 0.dp
-                
+
                 // Add padding (8.dp horizontal padding total)
                 val calculatedWidth = maxTextWidth + 16.dp
-                
+
                 // Ensure width is between min and max
                 val finalWidth = min(max(calculatedWidth, minColumnWidth), maxColumnWidth)
                 println("Column $columnIndex: maxTextWidth=$maxTextWidth, calculatedWidth=$calculatedWidth, finalWidth=$finalWidth")
@@ -92,9 +88,10 @@ fun TextListView(
 
         BoxWithConstraints(modifier = modifier.fillMaxSize()) {
             val itemsWithHeader = listOf<List<String>?>(null) + items
-            val calculatedTotalWidth = columnWidths.fold(0.dp) { acc, width -> acc + width } + (columnWidths.size - 1).dp
+            val calculatedTotalWidth =
+                columnWidths.fold(0.dp) { acc, width -> acc + width } + (columnWidths.size - 1).dp
             val screenWidth = maxWidth
-            
+
             // If calculated width is less than screen width, distribute the extra space
             val finalColumnWidths = if (calculatedTotalWidth < screenWidth) {
                 val extraSpace = screenWidth - calculatedTotalWidth
@@ -103,8 +100,9 @@ fun TextListView(
             } else {
                 columnWidths
             }
-            
-            val totalWidth = if (calculatedTotalWidth < screenWidth) screenWidth else calculatedTotalWidth
+
+            val totalWidth =
+                if (calculatedTotalWidth < screenWidth) screenWidth else calculatedTotalWidth
 
             Column(modifier = Modifier.horizontalScroll(scrollState)) {
                 LazyColumn {
@@ -129,8 +127,7 @@ fun TextListView(
                                         if (!isHeader && item != null) {
                                             onItemLongClick(item)
                                         }
-                                    }),
-                                verticalAlignment = Alignment.CenterVertically
+                                    }), verticalAlignment = Alignment.CenterVertically
                             ) {
                                 values.forEachIndexed { i, value ->
                                     Box(
@@ -153,7 +150,7 @@ fun TextListView(
                                             )
                                         )
                                     }
-                                    
+
                                     // Add vertical divider between columns
                                     if (i < values.size - 1) {
                                         Box(
@@ -165,7 +162,7 @@ fun TextListView(
                                     }
                                 }
                             }
-                            
+
                             // Add horizontal divider after each row
                             Spacer(modifier = Modifier.height(1.dp))
                             Box(
@@ -175,6 +172,15 @@ fun TextListView(
                                     .background(if (isHeader) Color.Black else Color.Gray)
                             )
                             Spacer(modifier = Modifier.height(1.dp))
+                        }
+                    }
+                    if (items.isEmpty()) {
+                        item {
+                            Text(
+                                "No Data Found",
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 15.dp, start = 15.dp)
+                            )
                         }
                     }
                 }

@@ -3,8 +3,18 @@ package com.velox.jewelvault.ui.screen.user_management
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -18,8 +28,20 @@ import androidx.compose.material.icons.twotone.Delete
 import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.Person
 import androidx.compose.material.icons.twotone.Sync
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,8 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.ui.components.bounceClick
-import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.isLandscape
 
 @Composable
 fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hiltViewModel()) {
@@ -41,7 +63,9 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
     val operationSuccess by userManagementViewModel.operationSuccess.collectAsState()
     var showAddEditDialog by remember { mutableStateOf(false) }
     var selectedUserForEdit by remember { mutableStateOf<UsersEntity?>(null) }
+    val isLandscape = isLandscape()
 
+    userManagementViewModel.currentScreenHeadingState.value = "User Management"
 
     // Clear form when operation is successful
     LaunchedEffect(operationSuccess) {
@@ -56,8 +80,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
-            .padding(5.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(5.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header with action buttons
         Row(
@@ -68,15 +91,14 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "User Management",
+                text = "Users (${users.size})",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 modifier = Modifier.padding(start = 10.dp)
             )
             Spacer(Modifier.weight(1f))
             IconButton(
-                onClick = { userManagementViewModel.syncUsersFromFirestore() }
-            ) {
+                onClick = { userManagementViewModel.syncUsersFromFirestore() }) {
                 Icon(Icons.TwoTone.Sync, contentDescription = "Sync from Cloud")
             }
             IconButton(
@@ -84,8 +106,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
                     selectedUserForEdit = null
                     userManagementViewModel.clearForm()
                     showAddEditDialog = true
-                }
-            ) {
+                }) {
                 Icon(Icons.TwoTone.Add, contentDescription = "Add User")
             }
         }
@@ -94,40 +115,26 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
             Modifier.fillMaxWidth()
         ) {
             // Users Grid
-            item {
-                Text(
-                    text = "Users (${users.size})",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 10.dp, bottom = 8.dp)
-                )
-            }
 
             item {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
+                    columns = GridCells.Fixed(if (isLandscape) 4 else 2),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 600.dp)
                 ) {
                     items(users) { user ->
-                        UserCard(
-                            modifier = Modifier,
-                            user = user,
-                            onCardClick = {
-                                selectedUserForEdit = user
-                                userManagementViewModel.getUser(user.userId)
-                                showAddEditDialog = true
-                            },
-                            onEdit = {
-                                selectedUserForEdit = user
-                                userManagementViewModel.getUser(user.userId)
-                                showAddEditDialog = true
-                            },
-                            onDelete = {
-                                userManagementViewModel.deleteUser(user.userId)
-                            }
-                        )
+                        UserCard(modifier = Modifier, user = user, onCardClick = {
+                            selectedUserForEdit = user
+                            userManagementViewModel.getUser(user.userId)
+                            showAddEditDialog = true
+                        }, onEdit = {
+                            selectedUserForEdit = user
+                            userManagementViewModel.getUser(user.userId)
+                            showAddEditDialog = true
+                        }, onDelete = {
+                            userManagementViewModel.deleteUser(user.userId)
+                        })
                     }
                 }
             }
@@ -151,8 +158,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
                     }
                     showAddEditDialog = false
                     selectedUserForEdit = null
-                }
-            )
+                })
         }
     }
 }
@@ -160,8 +166,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
 
 @Composable
 fun RoleDropdown(
-    state: InputFieldState,
-    onRoleSelected: (String) -> Unit
+    state: InputFieldState, onRoleSelected: (String) -> Unit
 ) {
     val roles = listOf("Manager", "Worker", "Salesperson")
 
@@ -175,8 +180,7 @@ fun RoleDropdown(
             onDropdownItemSelected = { role ->
                 state.text = role
                 onRoleSelected(role)
-            }
-        )
+            })
     }
 }
 
@@ -195,12 +199,10 @@ fun UserCard(
             .fillMaxWidth()
             .height(140.dp)
             .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(12.dp)
+                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
             )
             .padding(4.dp)
-            .clickable { onCardClick() }
-    ) {
+            .clickable { onCardClick() }) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -209,8 +211,7 @@ fun UserCard(
         ) {
             // User Icon and Info
             Column(
-                modifier = Modifier
-                    .weight(1f)
+                modifier = Modifier.weight(1f)
 
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,8 +258,7 @@ fun UserCard(
 
             // Action Buttons
             Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()
             ) {
                 if (!isDefaultUser) {
                     // Edit Button with text and background
@@ -269,10 +269,8 @@ fun UserCard(
                             .clickable(
                                 onClick = onEdit,
                                 indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            )
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
+                                interactionSource = remember { MutableInteractionSource() })
+                            .padding(horizontal = 10.dp, vertical = 4.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
@@ -303,10 +301,8 @@ fun UserCard(
                             .clickable(
                                 onClick = onDelete,
                                 indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            )
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
+                                interactionSource = remember { MutableInteractionSource() })
+                            .padding(horizontal = 10.dp, vertical = 4.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
@@ -344,24 +340,138 @@ fun AddEditUserDialog(
     val isAdmin = userToEdit?.role?.lowercase() == "admin"
     var isEditMode by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
+    val nameValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Full name is required"
+            !it.matches(Regex("^[A-Za-z][A-Za-z .]{1,}$")) -> "Enter a valid name"
+            else -> null
+        }
+    }
+    val mobileValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "Mobile number is required"
+            it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit)) -> "Enter a valid 10-digit mobile number"
+            else -> null
+        }
+    }
+    val emailValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!InputValidator.isValidEmail(it)) "Enter a valid email" else null
+    }
+    val pinValidation: (String) -> String? = {
+        when {
+            it.isBlank() -> "PIN is required"
+            !InputValidator.isValidPin(it) -> "PIN must be 4-6 digits"
+            else -> null
+        }
+    }
+    val aadhaarValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{12}$"))) "Enter 12-digit Aadhaar" else null
+    }
+    val emergencyContactValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit))) "Enter a valid 10-digit contact" else null
+    }
+    val govIdValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^[A-Za-z0-9-]{4,20}$"))) "Enter 4-20 alphanumeric ID" else null
+    }
+    val dobValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{2}/\\d{2}/\\d{4}$"))) "Use dd/mm/yyyy" else null
+    }
+    val bloodGroupValidation: (String) -> String? = {
+        if (it.isBlank()) null else if (!it.uppercase().matches(Regex("^(A|B|AB|O)[+-]\$"))) "Use formats like A+, O-" else null
+    }
+
+    AlertDialog(onDismissRequest = onDismiss, title = {
+        Text(
+            text = if (isEditing) "User Details" else "Add New User",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }, text = {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Basic Information
             Text(
-                text = if (isEditing) "User Details" else "Add New User",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+                text = "Basic Information", fontSize = 16.sp, fontWeight = FontWeight.SemiBold
             )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                // Basic Information
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CusOutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                state = viewModel.userName,
+                placeholderText = "Full Name *",
+                keyboardType = KeyboardType.Text,
+                readOnly = isEditing && !isEditMode,
+                validation = nameValidation
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CusOutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                state = viewModel.userMobile,
+                placeholderText = "Mobile Number *",
+                keyboardType = KeyboardType.Phone,
+                readOnly = isEditing && !isEditMode,
+                validation = mobileValidation
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CusOutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                state = viewModel.userEmail,
+                placeholderText = "Email Address (Optional)",
+                keyboardType = KeyboardType.Email,
+                readOnly = isEditing && !isEditMode,
+                validation = emailValidation
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CusOutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                state = viewModel.userPin,
+                placeholderText = if (isEditing) "Enter new PIN (4-6 digits) *" else "PIN (4-6 digits) *",
+                keyboardType = KeyboardType.Number,
+                visualTransformation = PasswordVisualTransformation(),
+                readOnly = isEditing && !isEditMode,
+                validation = pinValidation
+            )
+
+            if (isEditing && !isEditMode) {
                 Text(
-                    text = "Basic Information",
+                    text = "Note: PIN will be updated when you save changes",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Role Selection (only for non-default users)
+            if (!isDefaultUser) {
+                if (isEditing && !isEditMode) {
+                    // Show role as read-only text
+                    Text(
+                        text = "Role: ${viewModel.userRole.text}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                } else {
+                    RoleDropdown(
+                        state = viewModel.userRole, onRoleSelected = { })
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Additional Information (only for non-default users)
+                Text(
+                    text = "Additional Information",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -370,199 +480,116 @@ fun AddEditUserDialog(
 
                 CusOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.userName,
-                    placeholderText = "Full Name *",
+                    state = viewModel.userAadhaar,
+                    placeholderText = "Aadhaar Number",
+                    keyboardType = KeyboardType.Number,
+                    readOnly = isEditing && !isEditMode,
+                    validation = aadhaarValidation
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CusOutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = viewModel.userAddress,
+                    placeholderText = "Address",
                     keyboardType = KeyboardType.Text,
                     readOnly = isEditing && !isEditMode
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+
                 CusOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.userMobile,
-                    placeholderText = "Mobile Number *",
+                    state = viewModel.emergencyContactPerson,
+                    placeholderText = "Emergency Contact Person",
+                    keyboardType = KeyboardType.Text,
+                    readOnly = isEditing && !isEditMode
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CusOutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = viewModel.emergencyContactNumber,
+                    placeholderText = "Emergency Contact Number",
                     keyboardType = KeyboardType.Phone,
+                    readOnly = isEditing && !isEditMode,
+                    validation = emergencyContactValidation
+                )
+
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+
+                CusOutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = viewModel.governmentIdType,
+                    placeholderText = "Government ID Type",
+                    keyboardType = KeyboardType.Text,
                     readOnly = isEditing && !isEditMode
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                CusOutlinedTextField(
+                    modifier = Modifier.fillMaxWidth(),
+                    state = viewModel.governmentIdNumber,
+                    placeholderText = "Government ID Number",
+                    keyboardType = KeyboardType.Text,
+                    readOnly = isEditing && !isEditMode,
+                    validation = govIdValidation
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 CusOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.userEmail,
-                    placeholderText = "Email Address (Optional)",
-                    keyboardType = KeyboardType.Email,
-                    readOnly = isEditing && !isEditMode
+                    state = viewModel.dateOfBirth,
+                    placeholderText = "Date of Birth",
+                    keyboardType = KeyboardType.Text,
+                    readOnly = isEditing && !isEditMode,
+                    validation = dobValidation
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 CusOutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.userPin,
-                    placeholderText = if (isEditing) "Enter new PIN (4-6 digits) *" else "PIN (4-6 digits) *",
-                    keyboardType = KeyboardType.Number,
-                    visualTransformation = PasswordVisualTransformation(),
-                    readOnly = isEditing && !isEditMode
+                    state = viewModel.bloodGroup,
+                    placeholderText = "Blood Group",
+                    keyboardType = KeyboardType.Text,
+                    readOnly = isEditing && !isEditMode,
+                    validation = bloodGroupValidation
                 )
 
-                if (isEditing && !isEditMode) {
-                    Text(
-                        text = "Note: PIN will be updated when you save changes",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Role Selection (only for non-default users)
-                if (!isDefaultUser) {
-                    if (isEditing && !isEditMode) {
-                        // Show role as read-only text
-                        Text(
-                            text = "Role: ${viewModel.userRole.text}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    } else {
-                        RoleDropdown(
-                            state = viewModel.userRole,
-                            onRoleSelected = { }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Additional Information (only for non-default users)
-                    Text(
-                        text = "Additional Information",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        state = viewModel.userAadhaar,
-                        placeholderText = "Aadhaar Number",
-                        keyboardType = KeyboardType.Number,
-                        readOnly = isEditing && !isEditMode
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    CusOutlinedTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        state = viewModel.userAddress,
-                        placeholderText = "Address",
-                        keyboardType = KeyboardType.Text,
-                        readOnly = isEditing && !isEditMode
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.emergencyContactPerson,
-                            placeholderText = "Emergency Contact Person",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = isEditing && !isEditMode
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.emergencyContactNumber,
-                            placeholderText = "Emergency Contact Number",
-                            keyboardType = KeyboardType.Phone,
-                            readOnly = isEditing && !isEditMode
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.governmentIdType,
-                            placeholderText = "Government ID Type",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = isEditing && !isEditMode
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.governmentIdNumber,
-                            placeholderText = "Government ID Number",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = isEditing && !isEditMode
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.dateOfBirth,
-                            placeholderText = "Date of Birth",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = isEditing && !isEditMode
-                        )
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.bloodGroup,
-                            placeholderText = "Blood Group",
-                            keyboardType = KeyboardType.Text,
-                            readOnly = isEditing && !isEditMode
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (isEditing && !isEditMode && !isAdmin) {
-                // Show Edit button for non-admin users
-                TextButton(
-                    onClick = { isEditMode = true },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("Edit")
-                }
-            } else {
-                // Show Save/Update button
-                TextButton(
-                    onClick = onSave,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(if (isEditing) "Update" else "Add User")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(if (isEditMode) "Cancel" else "Close")
             }
         }
-    )
+    }, confirmButton = {
+        if (isEditing && !isEditMode && !isAdmin) {
+            // Show Edit button for non-admin users
+            TextButton(
+                onClick = { isEditMode = true }, colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("Edit")
+            }
+        } else {
+            // Show Save/Update button
+            TextButton(
+                onClick = onSave, colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text(if (isEditing) "Update" else "Add User")
+            }
+        }
+    }, dismissButton = {
+        TextButton(
+            onClick = onDismiss, colors = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Text(if (isEditMode) "Cancel" else "Close")
+        }
+    })
 } 

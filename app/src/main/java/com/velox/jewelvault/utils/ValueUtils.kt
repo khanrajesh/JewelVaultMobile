@@ -211,7 +211,7 @@ fun String.canBeInt(): Boolean {
  * @return Formatted currency string (e.g., "₹1,234.56")
  */
 fun formatCurrency(amount: Double): String {
-    return "₹${amount.to3FString()}"
+    return "₹${amount.to1FString()}"
 }
 
 /**

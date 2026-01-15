@@ -75,4 +75,11 @@ object InputValidator {
         return weight.trim().matches(Regex("^\\d+\\.?\\d{0,3}$")) && 
                weight.trim().toDoubleOrNull()?.let { it > 0 } == true
     }
+    
+    // UPI ID validation (name@bank)
+    fun isValidUpiId(upi: String): Boolean {
+        if (upi.isBlank()) return false
+        val upiPattern = Pattern.compile("^[A-Za-z0-9._-]{2,256}@[A-Za-z]{2,64}$")
+        return upiPattern.matcher(upi.trim()).matches()
+    }
 } 

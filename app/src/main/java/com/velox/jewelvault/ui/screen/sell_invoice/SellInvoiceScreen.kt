@@ -2,7 +2,6 @@ package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.annotation.SuppressLint
 import android.util.Log
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,18 +27,22 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.twotone.Add
+import androidx.compose.material.icons.twotone.CameraAlt
 import androidx.compose.material.icons.twotone.Clear
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material.icons.twotone.Refresh
 import androidx.compose.material.icons.twotone.Search
-import androidx.compose.material.icons.twotone.Add
-import androidx.compose.material.icons.twotone.CameraAlt
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,8 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -76,17 +77,19 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ExchangeItemDialog
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
-import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.ui.nav.Screens
-import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
+import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
-import com.velox.jewelvault.utils.CalculationUtils
+import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.launch
 
 
@@ -97,6 +100,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
     val context = LocalContext.current
     val showQrBarScanner = remember { mutableStateOf(false) }
     val itemId = remember { mutableStateOf("") }
+    val isLandscapeMode = isLandscape()
 
     LaunchedEffect(true) {
         if (baseViewModel.metalRates.isEmpty()) {
@@ -116,62 +120,53 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
     }
 
     if (!showQrBarScanner.value) {
-        if (isLandscape()) {
-            SellInvoiceLandscape(showQrBarScanner, invoiceViewModel, itemId)
-        } else {
-            SellInvoicePortrait()
-        }
+        SellInvoiceContent(
+            isLandscapeMode = isLandscapeMode,
+            showQrBarScanner = showQrBarScanner,
+            viewModel = invoiceViewModel,
+            itemId = itemId
+        )
     } else {
-        QrBarScannerPage(
-            showPage = showQrBarScanner, scanAndClose = true,
-            onCodeScanned = { code ->
-                showQrBarScanner.value = false
-                itemId.value = code
-                if (code.isNotEmpty()) {
-                    invoiceViewModel.getItemById(
-                        itemId.value,
-                        onFailure = {
-                            invoiceViewModel.snackBarState.value =
-                                "No item found with the id: $code"
-                        },
-                        onSuccess = {
-                            invoiceViewModel.showAddItemDialog.value = true
-                        })
-                    itemId.value = ""
-                } else {
-                    invoiceViewModel.snackBarState.value = "Please Scan Valid Code"
+        QrBarScannerPage(showPage = showQrBarScanner, scanAndClose = true, onCodeScanned = { code ->
+            showQrBarScanner.value = false
+            itemId.value = code
+            if (code.isNotEmpty()) {
+                invoiceViewModel.getItemById(itemId.value, onFailure = {
+                    invoiceViewModel.snackBarState.value = "No item found with the id: $code"
+                }, onSuccess = {
+                    invoiceViewModel.showAddItemDialog.value = true
+                })
+                itemId.value = ""
+            } else {
+                invoiceViewModel.snackBarState.value = "Please Scan Valid Code"
+            }
+        }, overlayContent = {
+            BackHandler(enabled = true) {
+                // Do nothing = disable back button
+            }
+            Box(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        "Please scan the item code to add.",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.TwoTone.Clear, null, modifier = Modifier
+                        .bounceClick {
+                            showQrBarScanner.value = false
+                        }
+                        .size(50.dp), tint = Color.White)
                 }
-            }, overlayContent = {
-                BackHandler(enabled = true) {
-                    // Do nothing = disable back button
-                }
-                Box(Modifier.fillMaxSize()) {
-                    Row(Modifier.fillMaxWidth()) {
-                        Text(
-                            "Please scan the item code to add.",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Icon(
-                            Icons.TwoTone.Clear, null, modifier = Modifier
-                                .bounceClick {
-                                    showQrBarScanner.value = false
-                                }
-                                .size(50.dp), tint = Color.White)
-                    }
-                }
-            })
+            }
+        })
     }
 }
 
-@Composable
-fun SellInvoicePortrait() {
-    Text("Sell invoice Landscape view")
-}
 
 @Composable
-fun SellInvoiceLandscape(
+fun SellInvoiceContent(
+    isLandscapeMode: Boolean,
     showQrBarScanner: MutableState<Boolean>,
     viewModel: InvoiceViewModel,
     itemId: MutableState<String>
@@ -183,10 +178,18 @@ fun SellInvoiceLandscape(
     val coroutineScope = rememberCoroutineScope()
 
     val showOption = remember { mutableStateOf(false) }
+    val metalRateRefresh = {
+        coroutineScope.launch {
+            baseViewModel.refreshMetalRates(context = context)
+        }
+    }
+
+    val optionClick = {
+        showOption.value = !showOption.value
+    }
 
     Box(
-        Modifier
-            .fillMaxSize()
+        Modifier.fillMaxSize()
     ) {
         Column(
             Modifier
@@ -194,17 +197,14 @@ fun SellInvoiceLandscape(
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(5.dp)
         ) {
+
             Row(
                 Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    coroutineScope.launch {
-                        baseViewModel.refreshMetalRates(context = context)
-                    }
-                }) {
+                IconButton(onClick = { metalRateRefresh() }) {
                     Icon(
                         imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
@@ -217,73 +217,159 @@ fun SellInvoiceLandscape(
                 )
                 Text(text = currentDateTime.value)
                 Spacer(Modifier.width(10.dp))
-                IconButton(onClick = {
-                    showOption.value = !showOption.value
-                }) {
+                IconButton(onClick = optionClick) {
                     Icon(
-                        imageVector = Icons.TwoTone.MoreVert, contentDescription = "Refresh"
+                        imageVector = Icons.TwoTone.MoreVert, contentDescription = "More options"
                     )
                 }
             }
 
-            Spacer(Modifier.height(5.dp))
-            Row(Modifier.fillMaxSize()) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .weight(2.5f)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                        )
-                        .padding(5.dp)
+            Spacer(Modifier.height(8.dp))
+
+            if (isLandscapeMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    CustomerDetails(viewModel)
-
-                    Spacer(Modifier.height(5.dp))
-
-                    ItemSection(modifier = Modifier.weight(1f), viewModel)
-
-                    Spacer(Modifier.height(5.dp))
-
-                    AddItemSection(showQrBarScanner, viewModel, itemId)
-                }
-                Spacer(Modifier.width(5.dp))
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                        )
-                        .padding(5.dp)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                        .padding(3.dp)
-                ) {
-
-                    DetailSection(Modifier.weight(1f), viewModel)
-
-                    Box(
+                    LazyColumn(
                         modifier = Modifier
-                            .bounceClick {
-                                if (viewModel.customerMobile.text.isNotEmpty()
-                                    && viewModel.selectedItemList.isNotEmpty()
-                                ) {
-                                    navHost.navigate(Screens.SellPreview.route)
-                                } else {
-                                    viewModel.snackBarState.value =
-                                        "Please ensure to add customer and items details"
-                                }
-
-                            }
-                            .fillMaxWidth()
+                            .weight(2.5f)
+                            .fillMaxHeight()
                             .background(
-                                MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
                             )
-                            .padding(10.dp), contentAlignment = Alignment.Center) {
-                        Text("Proceed", textAlign = TextAlign.Center)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item { CustomerDetails(viewModel) }
+                        item { AddItemSection(showQrBarScanner, viewModel, itemId) }
+                        item {
+                            ItemSection(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 250.dp, max = 600.dp),
+                                viewModel = viewModel
+                            )
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                            )
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item { DetailSection(Modifier.fillMaxWidth(), viewModel) }
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .bounceClick {
+                                        if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                            navHost.navigate(Screens.SellPreview.route)
+                                        } else {
+                                            viewModel.snackBarState.value =
+                                                "Please ensure to add customer and items details"
+                                        }
+
+                                    }
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Proceed", textAlign = TextAlign.Center)
+                            }
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(8.dp)
+                        ) {
+                            CustomerDetails(viewModel)
+
+                            Spacer(Modifier.height(8.dp))
+                            AddItemSection(showQrBarScanner, viewModel, itemId)
+                        }
+                    }
+
+                    item {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(8.dp)
+                        ) {
+                            ItemSection(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 250.dp, max = 600.dp),
+                                viewModel = viewModel
+                            )
+                        }
+                    }
+                    item {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(8.dp)
+                        ) {
+
+                            DetailSection(Modifier.fillMaxWidth(), viewModel)
+
+                            Spacer(Modifier.height(12.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .bounceClick {
+                                        if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                            navHost.navigate(Screens.SellPreview.route)
+                                        } else {
+                                            viewModel.snackBarState.value =
+                                                "Please ensure to add customer and items details"
+                                        }
+
+                                    }
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Proceed", textAlign = TextAlign.Center)
+                            }
+                        }
                     }
                 }
             }
+
+
         }
 
         if (showOption.value) Box(
@@ -299,32 +385,16 @@ fun SellInvoiceLandscape(
                 Row(modifier = Modifier.clickable {
                     viewModel.updateChargeView(!viewModel.showSeparateCharges.value)
                 }, verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {})
+                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {
+                        viewModel.updateChargeView(it)
+                    })
                     Text(
                         "Show Charge",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
-
-                Spacer(Modifier.height(3.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = true, onCheckedChange = {
-
-                    })
-
-                    Text(
-                        "what",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.clickable {
-
-                        })
-                }
             }
-
-
         }
 
         if (viewModel.showAddItemDialog.value && viewModel.selectedItem.value != null) {
@@ -343,8 +413,7 @@ fun SellInvoiceLandscape(
                 },
                 onClearAll = {
                     viewModel.clearAllExchangeItems()
-                }
-            )
+                })
         }
 
     }
@@ -357,7 +426,7 @@ fun ViewAddItemDialog(
 ) {
 
     val item = viewModel.selectedItem.value!!
-    val context = LocalContext.current
+    LocalContext.current
     val takeHUID = remember { (InputFieldState(item.huid)) }
     val takeQuantity = remember { (InputFieldState("${item.quantity}")) }
     val takeGsWt = remember { (InputFieldState("${item.gsWt}")) }
@@ -468,6 +537,7 @@ fun ViewAddItemDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
+        val dialogScrollState = rememberScrollState()
         Surface(
             shape = RoundedCornerShape(12.dp),
             tonalElevation = 4.dp,
@@ -478,6 +548,8 @@ fun ViewAddItemDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 640.dp)
+                    .verticalScroll(dialogScrollState)
                     .padding(16.dp)
             ) {
                 Text(
@@ -530,38 +602,43 @@ fun ViewAddItemDialog(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Row {
+                    RowOrColumn() {
                         CusOutlinedTextField(
                             othCrgDes,
                             placeholderText = "O.Charge Des",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
-                        Spacer(Modifier.width(5.dp))
+                        WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             othCrg,
                             placeholderText = "Other Charge",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
                             keyboardType = KeyboardType.Number
                         )
 
                     }
                     Spacer(Modifier.height(10.dp))
-                    Row {
+                    RowOrColumn {
                         CusOutlinedTextField(
                             takeQuantity,
                             placeholderText = "Take Qty",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
-                            keyboardType = KeyboardType.Number
+                            keyboardType = KeyboardType.Number,
+                            onTextChange = {
+                                takeNtWt.clear()
+                                takeGsWt.clear()
+                                takeFnWt.clear()
+                            }
                         )
-                        Spacer(Modifier.width(5.dp))
+                        WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             takeHUID,
                             placeholderText = "HUID",
-                            modifier = Modifier.weight(1f),
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
@@ -569,20 +646,20 @@ fun ViewAddItemDialog(
 
                     if (!isSingleItem) {
                         Spacer(Modifier.height(10.dp))
-                        Row {
+                        RowOrColumn {
 
                             CusOutlinedTextField(
                                 takeGsWt,
                                 placeholderText = "Take Gs Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier =if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
-                            Spacer(Modifier.width(5.dp))
+                            WidthThenHeightSpacer(5.dp)
                             CusOutlinedTextField(
                                 takeNtWt,
                                 placeholderText = "Take Nt Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier = if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number,
                                 onTextChange = {
@@ -593,19 +670,18 @@ fun ViewAddItemDialog(
                                         } else {
                                             val multiplier =
                                                 Purity.fromLabel(item.purity)?.multiplier ?: 1.0
-                                            takeFnWt.text =
-                                                (ntWtValue * multiplier).to3FString()
+                                                Purity.fromLabel(item.purity)?.multiplier ?: 1.0
+                                            takeFnWt.text = (ntWtValue * multiplier).to3FString()
                                         }
                                     }
-                                }
-                            )
+                                })
 
 
                             Spacer(Modifier.width(5.dp))
                             CusOutlinedTextField(
                                 takeFnWt,
                                 placeholderText = "Take Fn Wt",
-                                modifier = Modifier.weight(1f),
+                                modifier = if(it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
@@ -615,21 +691,21 @@ fun ViewAddItemDialog(
 
                     Spacer(Modifier.height(10.dp))
 
-                    Row(Modifier.height(50.dp)) {
+                    RowOrColumn(Modifier.height(50.dp)) {
                         Text(
                             "Price: ${price.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Charge: ${charge.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Tax: ${tax.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f)
+                            modifier = if(it) Modifier.weight(1f) else Modifier
                         )
 
                     }
@@ -644,8 +720,7 @@ fun ViewAddItemDialog(
                     // Remove button (only show when editing)
                     if (isEditing) {
                         TextButton(
-                            onClick = onRemove,
-                            colors = ButtonDefaults.textButtonColors(
+                            onClick = onRemove, colors = ButtonDefaults.textButtonColors(
                                 contentColor = Color.Red
                             )
                         ) {
@@ -685,10 +760,7 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 textAlign = TextAlign.Start
             )
             Text(
-                "M.Amt",
-                modifier = Modifier.weight(1f),
-                fontSize = 10.sp,
-                textAlign = TextAlign.End
+                "M.Amt", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End
             )
             if (viewModel.showSeparateCharges.value) {
                 Text(
@@ -713,66 +785,62 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxWidth()) {
-
-
-            items(viewModel.selectedItemList) {
-
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            viewModel.selectedItemList.forEach { item ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 30.dp)
                 ) {
-                    // Name
                     Text(
-                        "${it.itemAddName} ${it.subCatName}",
+                        "${item.itemAddName} ${item.subCatName}",
                         modifier = Modifier.weight(0.7f),
-                        fontSize = 10.sp, textAlign = TextAlign.Start
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Start
                     )
 
-                    // M.Amt
                     Text(
                         CalculationUtils.displayPrice(
-                            it,
-                            viewModel.showSeparateCharges.value
+                            item, viewModel.showSeparateCharges.value
                         ).to3FString(),
                         modifier = Modifier.weight(1f),
-                        fontSize = 10.sp, textAlign = TextAlign.End
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.End
                     )
 
-                    // Charge
                     if (viewModel.showSeparateCharges.value) {
-
                         Text(
-                            it.chargeAmount.to3FString(),
+                            item.chargeAmount.to3FString(),
                             modifier = Modifier.weight(1f),
-                            fontSize = 10.sp, textAlign = TextAlign.End
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.End
                         )
-                        // O.Charge
                         Text(
-                            it.othCrg.to3FString(),
+                            item.othCrg.to3FString(),
                             modifier = Modifier.weight(1f),
-                            fontSize = 10.sp, textAlign = TextAlign.End
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.End
                         )
                     }
 
-
-                    // Tax
                     Text(
-                        it.tax.to3FString(),
+                        item.tax.to3FString(),
                         modifier = Modifier.weight(1f),
-                        fontSize = 10.sp, textAlign = TextAlign.End
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.End
                     )
 
-                    // Total
                     val itemTotals = CalculationUtils.totalPrice(
-                        it.price,
-                        it.chargeAmount, it.othCrg, it.tax
+                        item.price, item.chargeAmount, item.othCrg, item.tax
                     )
                     Text(
                         itemTotals.to3FString(),
                         modifier = Modifier.weight(1.5f),
-                        fontSize = 10.sp, textAlign = TextAlign.End
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.End
                     )
                 }
             }
@@ -806,7 +874,8 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                 Text(
                     "${metalSummary.totalGrossWeight.to3FString()}/${metalSummary.totalFineWeight.to3FString()} gm",
                     modifier = Modifier.weight(1f),
-                    fontSize = 10.sp, textAlign = TextAlign.End
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.End
                 )
             }
         }
@@ -845,7 +914,8 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                 "₹${summary.grandTotal.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium, textAlign = TextAlign.End
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.End
             )
         }
 
@@ -864,8 +934,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
             // Display exchange items in a more structured way
             viewModel.exchangeItemList.forEachIndexed { index, exchangeItem ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
+                    modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 ) {
@@ -948,7 +1017,9 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
     }
 
     Box(
-        modifier.fillMaxWidth()
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 250.dp, max = 700.dp)
     ) {
         Column(
             Modifier
@@ -1003,7 +1074,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
             TextListView(
                 headerList = headerList,
                 items = itemsData,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier,
                 onItemClick = { clickedItemData ->
                     // Find the corresponding item from selectedItemList
                     val itemIndex =
@@ -1017,8 +1088,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 onItemLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     // Handle long click if needed
-                }
-            )
+                })
 
             // Exchange Items Section
             if (viewModel.exchangeItemList.isNotEmpty()) {
@@ -1071,8 +1141,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                             val exchangeItemToDelete = viewModel.exchangeItemList[itemIndex]
                             viewModel.deleteExchangeItem(exchangeItemToDelete)
                         }
-                    }
-                )
+                    })
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(Modifier.fillMaxWidth()) {
@@ -1119,40 +1188,37 @@ private fun AddItemSection(
                 .bounceClick {
                     viewModel.showExchangeItemDialog.value = true
                 }
-                .padding(horizontal = 10.dp), contentAlignment = Alignment.Center
-        ) {
+                .padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
             Text(
                 text = "Exchange Item (${viewModel.exchangeItemList.size})",
             )
         }
-
         Spacer(Modifier.weight(1f))
-
         Row(
             Modifier
-                .weight(1f)
                 .fillMaxHeight()
+                .wrapContentWidth()
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
                 )
-                .padding(3.dp)
-        ) {
-            Icon(
-                Icons.TwoTone.CameraAlt, null, modifier = Modifier
-                    .bounceClick {
-                        showQrBarScanner.value = !showQrBarScanner.value
-                    }
+                .padding(3.dp).align(Alignment.CenterVertically),
 
-                    .fillMaxHeight()
-                    .aspectRatio(1f)
-                    .background(
-                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                    )
-                    .padding(5.dp))
-            Spacer(Modifier.width(10.dp))
+        ) {
+            Icon(Icons.TwoTone.CameraAlt, null, modifier = Modifier
+                .bounceClick {
+                    showQrBarScanner.value = !showQrBarScanner.value
+                }
+                .fillMaxHeight()
+                .aspectRatio(1f)
+                .background(
+                    MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                )
+                .padding(5.dp))
+            Spacer(Modifier.width(5.dp))
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
+                    .width(100.dp)
                     .background(
                         MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
                     ),
@@ -1165,43 +1231,53 @@ private fun AddItemSection(
                         keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
                     ), keyboardActions = KeyboardActions(onDone = {
                         if (itemId.value.isNotEmpty()) {
-                            viewModel.getItemById(
-                                itemId.value,
-                                onFailure = {},
-                                onSuccess = {
-                                    viewModel.showAddItemDialog.value = true
-                                })
+                            viewModel.getItemById(itemId.value, onFailure = {}, onSuccess = {
+                                viewModel.showAddItemDialog.value = true
+                            })
                             itemId.value = ""
                         }
                         focusManager.clearFocus()
                     }), textStyle = TextStyle(
-                        fontSize = 16.sp,
+                        fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                    ), modifier = Modifier.padding(horizontal = 8.dp) // optional inner padding
+                        color =MaterialTheme.colorScheme.onSurface,
+                    ),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), // optional inner padding
+                    decorationBox = { innerTextField ->
+                        Box(contentAlignment = Alignment.Center) {
+                            if (itemId.value.isEmpty()) {
+                                Text(
+                                    text = "Item Id",
+                                    style = TextStyle(
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                    )
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
             }
-            Spacer(Modifier.width(10.dp))
-            Box(
-                modifier = Modifier
-                    .bounceClick {
-                        if (itemId.value.isNotEmpty()) {
-                            viewModel.getItemById(
-                                itemId.value, onFailure = {
+            Spacer(Modifier.width(5.dp))
+            Box(modifier = Modifier
+                .bounceClick {
+                    if (itemId.value.isNotEmpty()) {
+                        viewModel.getItemById(itemId.value, onFailure = {
 
-                                }, onSuccess = {
-                                    viewModel.showAddItemDialog.value = true
-                                })
-                            itemId.value = ""
-                        }
-                        focusManager.clearFocus()
+                        }, onSuccess = {
+                            viewModel.showAddItemDialog.value = true
+                        })
+                        itemId.value = ""
                     }
-                    .fillMaxHeight()
-                    .background(
-                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                    ), contentAlignment = Alignment.Center) {
+                    focusManager.clearFocus()
+                }
+                .fillMaxHeight()
+                .background(
+                    MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
+                ), contentAlignment = Alignment.Center) {
                 Row {
-                    Spacer(Modifier.width(5.dp))
-                    Text("Add Item")
                     Spacer(Modifier.width(5.dp))
                     Icon(
                         Icons.TwoTone.Add,
@@ -1217,8 +1293,7 @@ private fun AddItemSection(
 
 @Composable
 fun CustomerDetails(viewModel: InvoiceViewModel) {
-    val context = LocalContext.current
-
+    LocalContext.current
     Column(
         Modifier
             .fillMaxWidth()
@@ -1227,25 +1302,43 @@ fun CustomerDetails(viewModel: InvoiceViewModel) {
     ) {
         Text("Customer Details")
         Column {
-            Row(Modifier) {
+            if (isLandscape()) {
+                Row(Modifier) {
+                    CusOutlinedTextField(
+                        viewModel.customerName,
+                        placeholderText = "Name",
+                        modifier = Modifier.weight(2f)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    CusOutlinedTextField(
+                        viewModel.customerMobile,
+                        placeholderText = "Mobile No",
+                        modifier = Modifier.weight(1f),
+                        trailingIcon = Icons.TwoTone.Search,
+                        onTrailingIconClick = {
+                            viewModel.getCustomerByMobile()
+                        },
+                        maxLines = 1,
+                        keyboardType = KeyboardType.Phone,
+                        validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
+                }
+
+            } else {
                 CusOutlinedTextField(
-                    viewModel.customerName,
-                    placeholderText = "Name",
-                    modifier = Modifier.weight(2f)
+                    viewModel.customerName, placeholderText = "Name", modifier = Modifier
                 )
                 Spacer(Modifier.width(5.dp))
                 CusOutlinedTextField(
                     viewModel.customerMobile,
                     placeholderText = "Mobile No",
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                     trailingIcon = Icons.TwoTone.Search,
                     onTrailingIconClick = {
                         viewModel.getCustomerByMobile()
                     },
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
-                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
-                )
+                    validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
             }
             Spacer(Modifier.height(5.dp))
             CusOutlinedTextField(

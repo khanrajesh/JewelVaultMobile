@@ -27,8 +27,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 15
-        versionName = "0.0.15-test"
+        versionCode = 19
+        versionName = "0.0.19-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -154,6 +154,13 @@ dependencies {
     // Optional for Android compatibility
     implementation(libs.xmlbeans)
     implementation(libs.commons.collections4)
+
+    // Ktor client (no Retrofit)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
 
 // ML Kit Barcode Scanning
