@@ -1,5 +1,7 @@
 package com.velox.jewelvault.ui.screen.preorder
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -14,7 +16,10 @@ import com.velox.jewelvault.data.roomdb.entity.preorder.PreOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.preorder.PreOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.generateId
+import com.velox.jewelvault.utils.generatePreOrderReceiptPdf
 import com.velox.jewelvault.utils.ioLaunch
+import com.velox.jewelvault.utils.mainScope
+import com.velox.jewelvault.utils.withMain
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
@@ -139,6 +144,37 @@ class PreOrderViewModel @Inject constructor(
 
     fun observePreOrderPayments(preOrderId: String): Flow<List<CustomerTransactionEntity>> =
         appDatabase.customerTransactionDao().getTransactionsByPreOrderId(preOrderId)
+
+    fun generatePreOrderReceipt(
+        context: Context,
+        preOrderId: String,
+        onFileReady: (Uri) -> Unit,
+        onFailure: (String) -> Unit = {}
+    ) {
+        ioLaunch {
+            try {
+                val preOrder = appDatabase.preOrderDao().observePreOrder(preOrderId).first()
+                    ?: return@ioLaunch withMain { onFailure("Pre-order not found") }
+
+                val items = appDatabase.preOrderDao().observePreOrderItems(preOrderId).first()
+                val payments = appDatabase.customerTransactionDao().getTransactionsByPreOrderId(preOrderId).first()
+                val store = appDatabase.storeDao().getStoreById(preOrder.storeId)
+                val customer = appDatabase.customerDao().getCustomerByMobile(preOrder.customerMobile)
+
+                generatePreOrderReceiptPdf(
+                    context = context,
+                    store = store,
+                    customer = customer,
+                    preOrder = preOrder,
+                    items = items,
+                    payments = payments,
+                    onFileReady = { uri -> mainScope { onFileReady(uri) } }
+                )
+            } catch (e: Exception) {
+                withMain { onFailure("Failed to generate receipt: ${e.message}") }
+            }
+        }
+    }
 
     fun deletePreOrder(preOrderId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
         ioLaunch {

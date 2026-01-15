@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.utils.sharePdf
 import com.velox.jewelvault.utils.to3FString
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -43,6 +45,7 @@ import java.util.Locale
 fun PreOrderDetailScreen(viewModel: PreOrderViewModel, preOrderId: String) {
     viewModel.currentScreenHeadingState.value = "Pre-Order"
     val subNavController = LocalSubNavController.current
+    val context = LocalContext.current
 
     BackHandler {
         subNavController.popBackStack()
@@ -107,6 +110,21 @@ fun PreOrderDetailScreen(viewModel: PreOrderViewModel, preOrderId: String) {
             )
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        viewModel.generatePreOrderReceipt(
+                            context = context,
+                            preOrderId = preOrderId,
+                            onFileReady = { uri ->
+                                sharePdf(context, uri, "Share Pre-Order Receipt")
+                            },
+                            onFailure = { viewModel.snackBarState.value = it }
+                        )
+                    }
+                ) {
+                    Text("Receipt")
+                }
                 Button(modifier = Modifier.weight(1f), onClick = { showAddPaymentDialog.value = true }) {
                     Text("Add Payment")
                 }
@@ -263,4 +281,3 @@ fun PreOrderDetailScreen(viewModel: PreOrderViewModel, preOrderId: String) {
         )
     }
 }
-
