@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.graphics.pdf.PdfRenderer
@@ -39,7 +40,11 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfElementEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfTemplateEntity
 import com.velox.jewelvault.ui.components.PaymentInfo
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -2453,6 +2458,599 @@ data class InvoiceData(
     )
 
 
+}
+
+data class PdfTableColumn(
+    val binding: String,
+    val label: String,
+    val align: Paint.Align = Paint.Align.LEFT,
+    val width: Float? = null
+)
+
+data class PdfTextStyle(
+    val fontSize: Float? = null,
+    val bold: Boolean = false,
+    val align: Paint.Align = Paint.Align.LEFT,
+    val wrap: Boolean = false
+)
+
+data class PdfTableStyle(
+    val rowHeight: Float = 14f,
+    val headerFontSize: Float = 10f,
+    val cellFontSize: Float = 9f,
+    val headerBold: Boolean = true,
+    val cellBold: Boolean = false,
+    val cellWrap: Boolean = false,
+    val cellPadding: Float = 2f
+)
+
+data class PdfTemplateRenderData(
+    val resolveText: (String?) -> String,
+    val resolveSignature: (String?) -> ImageBitmap?,
+    val tableRows: List<Map<String, String>>,
+    val fileName: String = "document_${System.currentTimeMillis()}.pdf"
+)
+
+fun generateInvoicePdfFromTemplate(
+    context: Context,
+    template: PdfTemplateEntity,
+    elements: List<PdfElementEntity>,
+    data: InvoiceData,
+    scale: Float = 1f,
+    onFileReady: (Uri) -> Unit
+) {
+    val renderData = PdfTemplateRenderData(
+        resolveText = { binding -> resolveBindingValue(data, binding) },
+        resolveSignature = { binding ->
+            when (binding) {
+                "customerSignature" -> data.customerSignature
+                "ownerSignature" -> data.ownerSignature
+                else -> null
+            }
+        },
+        tableRows = buildInvoiceRows(data.items),
+        fileName = "${data.customerInfo.name}_${data.customerInfo.mobileNo}_${System.currentTimeMillis()}.pdf"
+    )
+    generatePdfFromTemplateInternal(
+        context = context,
+        template = template,
+        elements = elements,
+        renderData = renderData,
+        scale = scale,
+        onFileReady = onFileReady
+    )
+}
+
+private fun generatePdfFromTemplateInternal(
+    context: Context,
+    template: PdfTemplateEntity,
+    elements: List<PdfElementEntity>,
+    renderData: PdfTemplateRenderData,
+    scale: Float = 1f,
+    onFileReady: (Uri) -> Unit
+) {
+    val pdfDocument = PdfDocument()
+    val pageInfo = PdfDocument.PageInfo.Builder(
+        (template.pageWidth * scale).toInt(),
+        (template.pageHeight * scale).toInt(),
+        1
+    ).create()
+
+    val textPaint = Paint().apply {
+        color = Color.BLACK
+        textSize = 10f
+    }
+    val linePaint = Paint().apply {
+        color = Color.LTGRAY
+        strokeWidth = 0.5f
+        style = Paint.Style.STROKE
+    }
+
+    val sortedElements = elements.sortedBy { it.zIndex }
+    val tableElement = sortedElements.firstOrNull {
+        it.elementType.equals("TABLE", ignoreCase = true)
+    }
+    val nonTableElements =
+        if (tableElement == null) sortedElements else sortedElements.filterNot { it == tableElement }
+
+    val tableRows = renderData.tableRows
+    val tableStyle = tableElement?.let { parseTableStyle(it.properties) }
+    val rowsPerPage = if (tableElement != null && tableStyle != null && tableRows.isNotEmpty()) {
+        calculateRowsPerPage(tableElement, tableStyle)
+    } else {
+        0
+    }
+    val totalPages = if (tableElement == null || tableRows.isEmpty()) {
+        1
+    } else {
+        ((tableRows.size + rowsPerPage - 1) / rowsPerPage).coerceAtLeast(1)
+    }
+
+    for (pageIndex in 0 until totalPages) {
+        val page = pdfDocument.startPage(pageInfo)
+        val canvas = page.canvas
+
+        canvas.drawColor(Color.WHITE)
+        canvas.scale(scale, scale)
+
+        renderTemplateElements(
+            canvas = canvas,
+            elements = nonTableElements,
+            renderData = renderData,
+            baseTextPaint = textPaint,
+            linePaint = linePaint,
+            repeatOnly = pageIndex > 0
+        )
+
+        if (tableElement != null && tableStyle != null && tableRows.isNotEmpty()) {
+            val startIndex = pageIndex * rowsPerPage
+            val endIndex = minOf(startIndex + rowsPerPage, tableRows.size)
+            if (startIndex < endIndex) {
+                drawItemsTable(
+                    canvas = canvas,
+                    element = tableElement,
+                    rows = tableRows.subList(startIndex, endIndex),
+                    tableStyle = tableStyle,
+                    baseTextPaint = textPaint,
+                    linePaint = linePaint
+                )
+            }
+        }
+
+        pdfDocument.finishPage(page)
+    }
+
+    val fileName = renderData.fileName.ifBlank { "document_${System.currentTimeMillis()}.pdf" }
+    val resolver = context.contentResolver
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault")
+    }
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+
+    if (uri != null) {
+        try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                pdfDocument.writeTo(outputStream)
+            }
+            onFileReady(uri)
+        } catch (e: Exception) {
+            Log.e("PDF_TEMPLATE", "Error writing PDF: ${e.message}")
+        } finally {
+            pdfDocument.close()
+        }
+    } else {
+        Log.e("PDF_TEMPLATE", "Failed to create file in MediaStore")
+        pdfDocument.close()
+    }
+}
+
+private fun renderTemplateElements(
+    canvas: android.graphics.Canvas,
+    elements: List<PdfElementEntity>,
+    renderData: PdfTemplateRenderData,
+    baseTextPaint: Paint,
+    linePaint: Paint,
+    repeatOnly: Boolean
+) {
+    elements.forEach { element ->
+        if (!element.isVisible) return@forEach
+        if (element.elementType.equals("TABLE", ignoreCase = true)) return@forEach
+        if (repeatOnly && !shouldRepeatOnEachPage(element.properties)) return@forEach
+
+        when (element.elementType.uppercase()) {
+            "TEXT" -> {
+                val value = renderData.resolveText(element.dataBinding)
+                val label = parseLabel(element.properties)
+                val content = when {
+                    label.isNotBlank() && value.isNotBlank() -> "$label: $value"
+                    label.isNotBlank() -> label
+                    else -> value
+                }
+                val style = parseTextStyle(element.properties)
+                val paint = Paint(baseTextPaint).apply {
+                    textSize = style.fontSize ?: textSize
+                    isFakeBoldText = style.bold
+                    textAlign = style.align
+                }
+                val maxWidth = if (style.wrap || style.align != Paint.Align.LEFT) {
+                    element.width
+                } else {
+                    null
+                }
+                drawTextBlock(
+                    canvas = canvas,
+                    text = content,
+                    x = element.x,
+                    y = element.y,
+                    paint = paint,
+                    maxWidth = maxWidth,
+                    align = style.align,
+                    wrap = style.wrap
+                )
+            }
+            "SIGNATURE" -> {
+                val signatureBitmap = renderData.resolveSignature(element.dataBinding)
+                if (signatureBitmap != null) {
+                    val rect = RectF(
+                        element.x,
+                        element.y,
+                        element.x + element.width,
+                        element.y + element.height
+                    )
+                    canvas.drawBitmap(signatureBitmap.asAndroidBitmap(), null, rect, null)
+                } else {
+                    canvas.drawRect(
+                        element.x,
+                        element.y,
+                        element.x + element.width,
+                        element.y + element.height,
+                        linePaint
+                    )
+                    drawTextBlock(
+                        canvas = canvas,
+                        text = "Signature",
+                        x = element.x + 4f,
+                        y = element.y + 14f,
+                        paint = baseTextPaint
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun drawItemsTable(
+    canvas: android.graphics.Canvas,
+    element: PdfElementEntity,
+    rows: List<Map<String, String>>,
+    tableStyle: PdfTableStyle,
+    baseTextPaint: Paint,
+    linePaint: Paint
+) {
+    val columns = parseTableColumns(element.properties)
+    if (columns.isEmpty()) return
+
+    val startX = element.x
+    val startY = element.y
+    val totalWidth = element.width
+    val columnWidths = resolveColumnWidths(columns, totalWidth)
+    val headerPaint = Paint(baseTextPaint).apply {
+        textSize = tableStyle.headerFontSize
+        isFakeBoldText = tableStyle.headerBold
+    }
+    val cellPaint = Paint(baseTextPaint).apply {
+        textSize = tableStyle.cellFontSize
+        isFakeBoldText = tableStyle.cellBold
+    }
+
+    val headerBaseline = startY + tableStyle.rowHeight
+    var headerX = startX
+    columns.forEachIndexed { index, column ->
+        val colWidth = columnWidths[index]
+        drawCellText(
+            canvas = canvas,
+            text = column.label,
+            x = headerX,
+            y = headerBaseline,
+            width = colWidth,
+            paint = headerPaint,
+            align = column.align,
+            padding = tableStyle.cellPadding,
+            wrap = false
+        )
+        headerX += colWidth
+    }
+    canvas.drawRect(startX, startY, startX + totalWidth, headerBaseline + 4f, linePaint)
+
+    var rowY = headerBaseline + tableStyle.rowHeight
+    rows.forEach { row ->
+        var cellX = startX
+        columns.forEachIndexed { index, column ->
+            val colWidth = columnWidths[index]
+            val value = row[column.binding].orEmpty()
+            drawCellText(
+                canvas = canvas,
+                text = value,
+                x = cellX,
+                y = rowY,
+                width = colWidth,
+                paint = cellPaint,
+                align = column.align,
+                padding = tableStyle.cellPadding,
+                wrap = tableStyle.cellWrap
+            )
+            cellX += colWidth
+        }
+        rowY += tableStyle.rowHeight
+    }
+
+    canvas.drawRect(
+        startX,
+        startY,
+        startX + totalWidth,
+        startY + element.height,
+        linePaint
+    )
+}
+
+private fun drawCellText(
+    canvas: android.graphics.Canvas,
+    text: String,
+    x: Float,
+    y: Float,
+    width: Float,
+    paint: Paint,
+    align: Paint.Align,
+    padding: Float,
+    wrap: Boolean
+) {
+    val maxWidth = (width - (padding * 2f)).coerceAtLeast(0f)
+    val startX = x + padding
+    paint.textAlign = align
+    val displayText = if (wrap) text else truncateText(text, paint, maxWidth)
+    drawTextBlock(
+        canvas = canvas,
+        text = displayText,
+        x = startX,
+        y = y,
+        paint = paint,
+        maxWidth = maxWidth,
+        align = align,
+        wrap = wrap
+    )
+}
+
+private fun calculateRowsPerPage(element: PdfElementEntity, style: PdfTableStyle): Int {
+    val availableHeight = element.height - style.rowHeight
+    return if (availableHeight <= 0f) {
+        1
+    } else {
+        (availableHeight / style.rowHeight).toInt().coerceAtLeast(1)
+    }
+}
+
+private fun buildInvoiceRows(items: List<InvoiceData.DraftItemModel>): List<Map<String, String>> {
+    return items.map { item ->
+        mapOf(
+            "items.serialNumber" to item.serialNumber,
+            "items.productDescription" to item.productDescription,
+            "items.quantitySet" to item.quantitySet,
+            "items.grossWeightGms" to item.grossWeightGms,
+            "items.netWeightGms" to item.netWeightGms,
+            "items.ratePerGm" to item.ratePerGm,
+            "items.makingAmount" to item.makingAmount,
+            "items.purityPercent" to item.purityPercent,
+            "items.metalType" to item.metalType,
+            "items.metalPrice" to item.metalPrice,
+            "items.totalAmount" to item.totalAmount
+        )
+    }
+}
+
+private fun resolveBindingValue(data: InvoiceData, binding: String?): String {
+    if (binding.isNullOrBlank()) return ""
+    return when (binding) {
+        "storeInfo.name" -> data.storeInfo.name
+        "storeInfo.address" -> data.storeInfo.address
+        "storeInfo.proprietor" -> data.storeInfo.proprietor
+        "storeInfo.phone" -> data.storeInfo.phone
+        "storeInfo.email" -> data.storeInfo.email
+        "storeInfo.registrationNo" -> data.storeInfo.registrationNo
+        "storeInfo.gstinNo" -> data.storeInfo.gstinNo
+        "storeInfo.panNo" -> data.storeInfo.panNo
+        "customerInfo.name" -> data.customerInfo.name
+        "customerInfo.mobileNo" -> data.customerInfo.mobileNo
+        "customerInfo.address" -> data.customerInfo.address.orEmpty()
+        "invoiceMeta.invoiceNumber" -> data.invoiceMeta.invoiceNumber
+        "invoiceMeta.date" -> data.invoiceMeta.date
+        "invoiceMeta.time" -> data.invoiceMeta.time
+        "invoiceMeta.salesMan" -> data.invoiceMeta.salesMan
+        "invoiceMeta.documentType" -> data.invoiceMeta.documentType
+        "goldRate" -> data.goldRate
+        "silverRate" -> data.silverRate
+        "paymentSummary.subTotal" -> data.paymentSummary.subTotal
+        "paymentSummary.gstAmount" -> data.paymentSummary.gstAmount
+        "paymentSummary.gstLabel" -> data.paymentSummary.gstLabel
+        "paymentSummary.discount" -> data.paymentSummary.discount
+        "paymentSummary.cardCharges" -> data.paymentSummary.cardCharges
+        "paymentSummary.totalAmountBeforeOldExchange" -> data.paymentSummary.totalAmountBeforeOldExchange
+        "paymentSummary.oldExchange" -> data.paymentSummary.oldExchange
+        "paymentSummary.roundOff" -> data.paymentSummary.roundOff
+        "paymentSummary.netAmountPayable" -> data.paymentSummary.netAmountPayable
+        "paymentSummary.amountInWords" -> data.paymentSummary.amountInWords
+        "paymentReceived.cashLabel1" -> data.paymentReceived.cashLabel1
+        "paymentReceived.cashAmount1" -> data.paymentReceived.cashAmount1
+        "declarationPoints" -> data.declarationPoints.joinToString(separator = "\n")
+        "termsAndConditions" -> data.termsAndConditions.orEmpty()
+        "thankYouMessage" -> data.thankYouMessage
+        "customerSignature" -> ""
+        "ownerSignature" -> ""
+        else -> ""
+    }
+}
+
+private fun drawTextBlock(
+    canvas: android.graphics.Canvas,
+    text: String,
+    x: Float,
+    y: Float,
+    paint: Paint,
+    maxWidth: Float? = null,
+    align: Paint.Align = Paint.Align.LEFT,
+    wrap: Boolean = false
+) {
+    if (text.isBlank()) return
+    val lineHeight = paint.textSize + 4f
+    val renderLines = if (wrap && maxWidth != null && maxWidth > 0f) {
+        wrapText(text, paint, maxWidth)
+    } else {
+        text.split("\n")
+    }
+    val baseX = when (align) {
+        Paint.Align.CENTER -> x + ((maxWidth ?: 0f) / 2f)
+        Paint.Align.RIGHT -> x + (maxWidth ?: 0f)
+        else -> x
+    }
+    var currentY = y
+    renderLines.forEach { line ->
+        if (line.isNotBlank()) {
+            canvas.drawText(line, baseX, currentY, paint)
+            currentY += lineHeight
+        }
+    }
+}
+
+private fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+    val lines = mutableListOf<String>()
+    text.split("\n").forEach { rawLine ->
+        val words = rawLine.split(" ")
+        var current = ""
+        for (word in words) {
+            val candidate = if (current.isEmpty()) word else "$current $word"
+            if (paint.measureText(candidate) <= maxWidth) {
+                current = candidate
+            } else {
+                if (current.isNotEmpty()) {
+                    lines.add(current)
+                    current = word
+                } else {
+                    lines.addAll(breakLongWord(word, paint, maxWidth))
+                    current = ""
+                }
+            }
+        }
+        if (current.isNotEmpty()) {
+            lines.add(current)
+        }
+    }
+    return lines
+}
+
+private fun breakLongWord(word: String, paint: Paint, maxWidth: Float): List<String> {
+    val parts = mutableListOf<String>()
+    var start = 0
+    while (start < word.length) {
+        var end = word.length
+        while (end > start && paint.measureText(word.substring(start, end)) > maxWidth) {
+            end--
+        }
+        if (end == start) {
+            break
+        }
+        parts.add(word.substring(start, end))
+        start = end
+    }
+    return parts
+}
+
+private fun truncateText(text: String, paint: Paint, maxWidth: Float): String {
+    if (maxWidth <= 0f || paint.measureText(text) <= maxWidth) return text
+    var end = text.length
+    val ellipsis = "…"
+    while (end > 0 && paint.measureText(text.substring(0, end) + ellipsis) > maxWidth) {
+        end--
+    }
+    return if (end > 0) text.substring(0, end) + ellipsis else ""
+}
+
+private fun resolveColumnWidths(
+    columns: List<PdfTableColumn>,
+    totalWidth: Float
+): List<Float> {
+    val fixedWidths = columns.map { it.width ?: 0f }
+    val fixedTotal = fixedWidths.sum()
+    val autoCount = columns.count { it.width == null }
+    val remaining = totalWidth - fixedTotal
+    val autoWidth = if (autoCount > 0) remaining / autoCount else 0f
+    val fallbackWidth = totalWidth / columns.size
+    return columns.map { column ->
+        val width = column.width ?: autoWidth
+        if (width > 0f) width else fallbackWidth
+    }
+}
+
+private fun parseTextStyle(properties: String): PdfTextStyle {
+    if (properties.isBlank()) return PdfTextStyle()
+    return runCatching {
+        val obj = JSONObject(properties)
+        val fontSize = obj.optDouble("fontSize", Double.NaN).takeIf { !it.isNaN() }?.toFloat()
+        val bold = obj.optBoolean("bold", false)
+        val wrap = obj.optBoolean("wrap", false)
+        val align = when (obj.optString("align", "left").lowercase()) {
+            "center" -> Paint.Align.CENTER
+            "right" -> Paint.Align.RIGHT
+            else -> Paint.Align.LEFT
+        }
+        PdfTextStyle(
+            fontSize = fontSize,
+            bold = bold,
+            align = align,
+            wrap = wrap
+        )
+    }.getOrDefault(PdfTextStyle())
+}
+
+private fun parseTableStyle(properties: String): PdfTableStyle {
+    if (properties.isBlank()) return PdfTableStyle()
+    return runCatching {
+        val obj = JSONObject(properties)
+        PdfTableStyle(
+            rowHeight = obj.optDouble("rowHeight", 14.0).toFloat(),
+            headerFontSize = obj.optDouble("headerFontSize", 10.0).toFloat(),
+            cellFontSize = obj.optDouble("cellFontSize", 9.0).toFloat(),
+            headerBold = obj.optBoolean("headerBold", true),
+            cellBold = obj.optBoolean("cellBold", false),
+            cellWrap = obj.optBoolean("cellWrap", false),
+            cellPadding = obj.optDouble("cellPadding", 2.0).toFloat()
+        )
+    }.getOrDefault(PdfTableStyle())
+}
+
+private fun shouldRepeatOnEachPage(properties: String): Boolean {
+    if (properties.isBlank()) return false
+    return runCatching {
+        val obj = JSONObject(properties)
+        obj.optBoolean("repeatOnEachPage", false)
+    }.getOrDefault(false)
+}
+
+private fun parseTableColumns(properties: String): List<PdfTableColumn> {
+    if (properties.isBlank()) return emptyList()
+    return runCatching {
+        val obj = JSONObject(properties)
+        val columns = obj.optJSONArray("columns") ?: JSONArray()
+        val parsed = mutableListOf<PdfTableColumn>()
+        for (i in 0 until columns.length()) {
+            val col = columns.optJSONObject(i) ?: continue
+            val binding = col.optString("binding")
+            if (binding.isBlank()) continue
+            val label = col.optString("label").ifBlank {
+                binding.removePrefix("items.")
+            }
+            val align = when (col.optString("align", "left").lowercase()) {
+                "center" -> Paint.Align.CENTER
+                "right" -> Paint.Align.RIGHT
+                else -> Paint.Align.LEFT
+            }
+            val width = if (col.has("width")) {
+                col.optDouble("width", Double.NaN).takeIf { !it.isNaN() }?.toFloat()
+            } else {
+                null
+            }
+            parsed.add(PdfTableColumn(binding = binding, label = label, align = align, width = width))
+        }
+        parsed
+    }.getOrDefault(emptyList())
+}
+
+private fun parseLabel(properties: String): String {
+    if (properties.isBlank()) return ""
+    return runCatching {
+        val obj = JSONObject(properties)
+        obj.optString("label")
+    }.getOrDefault("")
 }
 
 

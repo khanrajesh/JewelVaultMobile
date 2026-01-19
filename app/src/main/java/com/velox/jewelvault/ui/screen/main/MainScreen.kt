@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.twotone.ReceiptLong
 import androidx.compose.material.icons.twotone.AssuredWorkload
 import androidx.compose.material.icons.twotone.Dashboard
 import androidx.compose.material.icons.twotone.People
+import androidx.compose.material.icons.twotone.PictureAsPdf
 import androidx.compose.material.icons.twotone.Print
 import androidx.compose.material.icons.twotone.RuleFolder
 import androidx.compose.material.icons.twotone.Settings
@@ -231,6 +232,15 @@ fun MainScreen() {
             "Device", Icons.TwoTone.Print
         ) {
             subNavController.navigate(SubScreens.BluetoothScanConnect.route) {
+                popUpTo(SubScreens.Dashboard.route) {
+                    inclusive = true
+                }
+            }
+        },
+        InputIconState(
+            "PDF Templates", Icons.TwoTone.PictureAsPdf
+        ) {
+            subNavController.navigate(SubScreens.PdfTemplateList.route) {
                 popUpTo(SubScreens.Dashboard.route) {
                     inclusive = true
                 }

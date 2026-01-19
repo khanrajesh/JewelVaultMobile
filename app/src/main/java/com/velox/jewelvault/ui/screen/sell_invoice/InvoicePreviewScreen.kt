@@ -95,6 +95,10 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
             it.itemId.startsWith("DB_")
         } // Only draft items have DB_ prefix
 
+    LaunchedEffect(Unit) {
+        invoiceViewModel.refreshPdfTemplates()
+    }
+
     BackHandler {
         if (orderCompleted.value) {
             if (isDraftMode) {
@@ -618,6 +622,60 @@ private fun PaymentDetailsSection(
                 onSignatureCaptured = { bitmap ->
                     invoiceViewModel.ownerSign.value = bitmap
                 })
+
+            val templateOptions =
+                if (isDraftMode) invoiceViewModel.draftPdfTemplates.value
+                else invoiceViewModel.invoicePdfTemplates.value
+            val selectedTemplateId =
+                if (isDraftMode) invoiceViewModel.selectedDraftTemplateId
+                else invoiceViewModel.selectedInvoiceTemplateId
+            val selectedTemplateName =
+                templateOptions.firstOrNull { it.templateId == selectedTemplateId }?.templateName
+                    ?: "Default"
+            var templateExpanded by remember { mutableStateOf(false) }
+
+            if (templateOptions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "PDF Template",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                ExposedDropdownMenuBox(
+                    expanded = templateExpanded,
+                    onExpandedChange = { templateExpanded = !templateExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedTemplateName,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = templateExpanded)
+                        }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = templateExpanded,
+                        onDismissRequest = { templateExpanded = false }
+                    ) {
+                        templateOptions.forEach { template ->
+                            DropdownMenuItem(
+                                text = { Text(template.templateName) },
+                                onClick = {
+                                    templateExpanded = false
+                                    if (isDraftMode) {
+                                        invoiceViewModel.selectedDraftTemplateId = template.templateId
+                                    } else {
+                                        invoiceViewModel.selectedInvoiceTemplateId = template.templateId
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 

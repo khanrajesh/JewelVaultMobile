@@ -8,13 +8,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.model.pdf.PdfTemplateStatus
+import com.velox.jewelvault.data.model.pdf.PdfTemplateType
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderDetailsEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfElementEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfTemplateEntity
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.generateInvoicePdfFromTemplate
 import com.velox.jewelvault.utils.createDraftInvoiceData
 import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.SecurityUtils
@@ -148,13 +153,27 @@ class OrderItemViewModel @Inject constructor(
                     invoiceNo = invoiceNo.text
                 )
                 
-                generateInvoicePdf(
-                    context = context,
-                    data = invoiceData,
-                    scale = 2f
-                ) { uri ->
-                    generatedPdfUri = uri
-                    isPdfGenerating = false
+                val template = resolvePdfTemplate(PdfTemplateType.INVOICE)
+                if (template != null && template.second.isNotEmpty()) {
+                    generateInvoicePdfFromTemplate(
+                        context = context,
+                        template = template.first,
+                        elements = template.second,
+                        data = invoiceData,
+                        scale = 2f
+                    ) { uri ->
+                        generatedPdfUri = uri
+                        isPdfGenerating = false
+                    }
+                } else {
+                    generateInvoicePdf(
+                        context = context,
+                        data = invoiceData,
+                        scale = 2f
+                    ) { uri ->
+                        generatedPdfUri = uri
+                        isPdfGenerating = false
+                    }
                 }
                 
             } catch (e: Exception) {
@@ -166,6 +185,19 @@ class OrderItemViewModel @Inject constructor(
     
     fun clearPdf() {
         generatedPdfUri = null
+    }
+
+    private suspend fun resolvePdfTemplate(
+        templateType: String
+    ): Pair<PdfTemplateEntity, List<PdfElementEntity>>? {
+        val defaultTemplate = appDatabase.pdfTemplateDao().getDefaultTemplateByTypeSync(templateType)
+        val resolved = if (defaultTemplate != null && defaultTemplate.status == PdfTemplateStatus.PUBLISHED) {
+            defaultTemplate
+        } else {
+            appDatabase.pdfTemplateDao().getSystemDefaultByTypeSync(templateType)
+        } ?: return null
+        val elements = appDatabase.pdfElementDao().getElementsByTemplateIdSync(resolved.templateId)
+        return Pair(resolved, elements)
     }
     
     

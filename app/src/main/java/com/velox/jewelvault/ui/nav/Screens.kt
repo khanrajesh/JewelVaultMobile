@@ -41,4 +41,6 @@ sealed class SubScreens(val route:String) {
     data object ScanAddItem : SubScreens("scanAddItem")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
+    data object PdfTemplateList : SubScreens("pdf_template_list")
+    data object PdfTemplateDesigner : SubScreens("pdf_template_designer")
 }

@@ -37,4 +37,8 @@ object TableNames {
     // Label designer related tables
     const val LABEL_TEMPLATE = "label_template"
     const val LABEL_ELEMENT = "label_element"
+
+    // PDF template designer related tables
+    const val PDF_TEMPLATE = "pdf_template"
+    const val PDF_ELEMENT = "pdf_element"
 }

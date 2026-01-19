@@ -20,6 +20,8 @@ import com.velox.jewelvault.data.roomdb.dao.UsersDao
 import com.velox.jewelvault.data.roomdb.dao.UserAdditionalInfoDao
 import com.velox.jewelvault.data.roomdb.dao.LabelTemplateDao
 import com.velox.jewelvault.data.roomdb.dao.LabelElementDao
+import com.velox.jewelvault.data.roomdb.dao.PdfElementDao
+import com.velox.jewelvault.data.roomdb.dao.PdfTemplateDao
 import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
@@ -41,6 +43,8 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.SellerEntity
 import com.velox.jewelvault.utils.Converters
 import com.velox.jewelvault.data.roomdb.entity.label.LabelTemplateEntity
 import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfElementEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfTemplateEntity
 
 
 
@@ -65,9 +69,11 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
         MetalExchangeEntity::class,
         PrinterEntity::class,
         LabelTemplateEntity::class,
-        LabelElementEntity::class
+        LabelElementEntity::class,
+        PdfTemplateEntity::class,
+        PdfElementEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -89,4 +95,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun printerDao(): PrinterDao
     abstract fun labelTemplateDao(): LabelTemplateDao
     abstract fun labelElementDao(): LabelElementDao
+    abstract fun pdfTemplateDao(): PdfTemplateDao
+    abstract fun pdfElementDao(): PdfElementDao
 }

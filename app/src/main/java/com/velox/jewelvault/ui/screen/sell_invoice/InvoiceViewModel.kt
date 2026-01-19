@@ -19,12 +19,17 @@ import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.PaymentInfo
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.model.pdf.PdfTemplateStatus
+import com.velox.jewelvault.data.model.pdf.PdfTemplateType
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfElementEntity
+import com.velox.jewelvault.data.roomdb.entity.pdf.PdfTemplateEntity
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.generateInvoicePdfFromTemplate
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -93,7 +98,11 @@ class InvoiceViewModel @Inject constructor(
     val storeName = mutableStateOf("Merchant")
 
     var generatedPdfFile by mutableStateOf<Uri?>(null)
-        private set
+    val invoicePdfTemplates = mutableStateOf<List<PdfTemplateEntity>>(emptyList())
+    val draftPdfTemplates = mutableStateOf<List<PdfTemplateEntity>>(emptyList())
+    var selectedInvoiceTemplateId by mutableStateOf<String?>(null)
+    var selectedDraftTemplateId by mutableStateOf<String?>(null)
+
 
     init {
         ioLaunch {
@@ -568,13 +577,30 @@ class InvoiceViewModel @Inject constructor(
                     )
 
 
-                    generateInvoicePdf(
-                        context = context,
-                        data = invoiceData,
-                        scale = 2f
-                    ) { file ->
-                        generatedPdfFile = file
-                        onSuccess()
+                    val template = resolvePdfTemplate(
+                        PdfTemplateType.INVOICE,
+                        selectedInvoiceTemplateId
+                    )
+                    if (template != null && template.second.isNotEmpty()) {
+                        generateInvoicePdfFromTemplate(
+                            context = context,
+                            template = template.first,
+                            elements = template.second,
+                            data = invoiceData,
+                            scale = 2f
+                        ) { file ->
+                            generatedPdfFile = file
+                            onSuccess()
+                        }
+                    } else {
+                        generateInvoicePdf(
+                            context = context,
+                            data = invoiceData,
+                            scale = 2f
+                        ) { file ->
+                            generatedPdfFile = file
+                            onSuccess()
+                        }
                     }
                 } else {
                     onFailure("Store Details Not Found")
@@ -583,6 +609,32 @@ class InvoiceViewModel @Inject constructor(
                 onFailure("Unable to Generate Invoice PDF")
             }
         }
+    }
+
+    private suspend fun resolvePdfTemplate(
+        templateType: String,
+        preferredTemplateId: String?
+    ): Pair<PdfTemplateEntity, List<PdfElementEntity>>? {
+        val preferred = preferredTemplateId?.let {
+            appDatabase.pdfTemplateDao().getTemplateById(it)
+        }
+        val resolved = if (
+            preferred != null &&
+            preferred.templateType == templateType &&
+            preferred.status == PdfTemplateStatus.PUBLISHED
+        ) {
+            preferred
+        } else {
+            val defaultTemplate =
+                appDatabase.pdfTemplateDao().getDefaultTemplateByTypeSync(templateType)
+            if (defaultTemplate != null && defaultTemplate.status == PdfTemplateStatus.PUBLISHED) {
+                defaultTemplate
+            } else {
+                appDatabase.pdfTemplateDao().getSystemDefaultByTypeSync(templateType)
+            }
+        } ?: return null
+        val elements = appDatabase.pdfElementDao().getElementsByTemplateIdSync(resolved.templateId)
+        return Pair(resolved, elements)
     }
 
 
@@ -599,6 +651,34 @@ class InvoiceViewModel @Inject constructor(
         showPaymentDialog.value = false
         paymentInfo.value = null
         generatedPdfFile = null
+    }
+
+    fun refreshPdfTemplates() {
+        ioLaunch {
+            val invoiceTemplates = appDatabase.pdfTemplateDao()
+                .getTemplatesByTypeAndStatusSync(
+                    PdfTemplateType.INVOICE,
+                    PdfTemplateStatus.PUBLISHED
+                )
+            val draftTemplates = appDatabase.pdfTemplateDao()
+                .getTemplatesByTypeAndStatusSync(
+                    PdfTemplateType.DRAFT_INVOICE,
+                    PdfTemplateStatus.PUBLISHED
+                )
+            invoicePdfTemplates.value = invoiceTemplates
+            draftPdfTemplates.value = draftTemplates
+            selectedInvoiceTemplateId = pickTemplateSelection(selectedInvoiceTemplateId, invoiceTemplates)
+            selectedDraftTemplateId = pickTemplateSelection(selectedDraftTemplateId, draftTemplates)
+        }
+    }
+
+    private fun pickTemplateSelection(
+        currentId: String?,
+        templates: List<PdfTemplateEntity>
+    ): String? {
+        if (currentId != null && templates.any { it.templateId == currentId }) return currentId
+        return templates.firstOrNull { it.isDefault }?.templateId
+            ?: templates.firstOrNull()?.templateId
     }
 
     //region Draft Invoice - Using same variables as regular invoice
@@ -1056,13 +1136,30 @@ class InvoiceViewModel @Inject constructor(
                         invoiceNo = invoiceNo
                     )
 
-                    generateInvoicePdf(
-                        context = context,
-                        data = invoiceData,
-                        scale = 2f
-                    ) { file ->
-                        generatedPdfFile = file
-                        onSuccess()
+                    val template = resolvePdfTemplate(
+                        PdfTemplateType.DRAFT_INVOICE,
+                        selectedDraftTemplateId
+                    )
+                    if (template != null && template.second.isNotEmpty()) {
+                        generateInvoicePdfFromTemplate(
+                            context = context,
+                            template = template.first,
+                            elements = template.second,
+                            data = invoiceData,
+                            scale = 2f
+                        ) { file ->
+                            generatedPdfFile = file
+                            onSuccess()
+                        }
+                    } else {
+                        generateInvoicePdf(
+                            context = context,
+                            data = invoiceData,
+                            scale = 2f
+                        ) { file ->
+                            generatedPdfFile = file
+                            onSuccess()
+                        }
                     }
                 } else {
                     onFailure("Please add at least one item to generate the invoice")

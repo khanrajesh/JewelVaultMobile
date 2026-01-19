@@ -422,4 +422,51 @@ object RoomMigration {
             db.execSQL("ALTER TABLE label_template ADD COLUMN labelPadding REAL NOT NULL DEFAULT 1.5")
         }
     }
+
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS pdf_template (
+                    templateId TEXT NOT NULL PRIMARY KEY,
+                    templateName TEXT NOT NULL,
+                    templateType TEXT NOT NULL,
+                    pageWidth REAL NOT NULL,
+                    pageHeight REAL NOT NULL,
+                    orientation TEXT NOT NULL,
+                    marginLeft REAL NOT NULL,
+                    marginTop REAL NOT NULL,
+                    marginRight REAL NOT NULL,
+                    marginBottom REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    isDefault INTEGER NOT NULL,
+                    isSystemDefault INTEGER NOT NULL,
+                    baseTemplateId TEXT,
+                    createdAt INTEGER NOT NULL,
+                    modifiedAt INTEGER NOT NULL,
+                    publishedAt INTEGER,
+                    description TEXT
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS pdf_element (
+                    elementId TEXT NOT NULL PRIMARY KEY,
+                    templateId TEXT NOT NULL,
+                    elementType TEXT NOT NULL,
+                    x REAL NOT NULL,
+                    y REAL NOT NULL,
+                    width REAL NOT NULL,
+                    height REAL NOT NULL,
+                    rotation REAL NOT NULL,
+                    zIndex INTEGER NOT NULL,
+                    properties TEXT NOT NULL,
+                    dataBinding TEXT,
+                    isVisible INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }
