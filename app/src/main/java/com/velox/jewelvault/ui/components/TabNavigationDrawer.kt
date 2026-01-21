@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Colors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowRight
@@ -383,7 +384,7 @@ private fun PortraitNavView(
                     Icon(
                         imageVector = Icons.TwoTone.Menu,
                         contentDescription = "Menu",
-                        tint = MaterialTheme.colorScheme.onBackground
+                        tint = Color.Black
                     )
                 }
                 Box(contentAlignment = Alignment.TopStart) {
@@ -393,7 +394,7 @@ private fun PortraitNavView(
                         fontSize = 22.sp,
                         fontFamily = ZenFontFamily,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = Color.Black,
                         modifier = Modifier
                             .bounceClick {
                                 ioScope.launch {
@@ -408,7 +409,7 @@ private fun PortraitNavView(
                             text = baseViewModel.currentScreenHeading,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            color = Color.Black,
                             modifier = Modifier.offset(y = (17).dp)
                         )
                     }
@@ -794,11 +795,7 @@ private fun LandscapeNavView(
                         }
                     }
                 }
-
-
             }
-
-
         }
 
         Column(Modifier.fillMaxSize()) {
@@ -823,7 +820,7 @@ private fun LandscapeNavView(
                             fontSize = 22.sp,
                             fontFamily = ZenFontFamily,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
+                            color = Color.Black,
                             modifier = Modifier
                                 .bounceClick {
                                     ioScope.launch {
@@ -838,7 +835,7 @@ private fun LandscapeNavView(
                                 text = baseViewModel.currentScreenHeading,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                                color = Color.Black,
                                 modifier = Modifier
                                     .padding(start = 10.dp)
                                     .offset(y = (-7).dp)

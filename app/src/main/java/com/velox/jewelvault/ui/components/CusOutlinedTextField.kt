@@ -262,7 +262,7 @@ fun ColumnScope.CusOutlinedTextField(
 )
 
 @Composable
-private fun CusOutlinedTextFieldInternal(
+fun CusOutlinedTextFieldInternal(
     state: InputFieldState,
     modifier: Modifier = Modifier,
     onTextChange:(String)->Unit={},

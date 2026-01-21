@@ -85,6 +85,10 @@ class ProfileViewModel @Inject constructor(
         ).forEach { it.error = "" }
     }
 
+    fun clearFieldErrors() {
+        resetFieldErrors()
+    }
+
     private fun setError(state: InputFieldState, message: String): Boolean {
         state.error = message
         _snackBarState.value = message

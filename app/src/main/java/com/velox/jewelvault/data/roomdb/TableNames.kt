@@ -17,6 +17,7 @@ object TableNames {
     // Customer related tables
     const val CUSTOMER = "customer"
     const val CUSTOMER_KHATA_BOOK = "customer_khata_book"
+    const val CUSTOMER_KHATA_BOOK_PLAN = "customer_khata_book_plan"
     const val CUSTOMER_TRANSACTION = "customer_transaction"
     
     // Order related tables

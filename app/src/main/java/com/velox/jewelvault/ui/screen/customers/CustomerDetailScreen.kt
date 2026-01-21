@@ -277,6 +277,7 @@ fun CustomerDetailScreen(
         
         DialogState.AddKhataBook -> {
             AddKhataBookDialog(
+                planOptions = viewModel.planList,
                 onDismiss = { dialogState = DialogState.None },
                 onConfirm = { monthlyAmount, totalMonths, planName, notes ->
                     viewModel.khataBookMonthlyAmount.text = monthlyAmount
@@ -1255,21 +1256,34 @@ fun AddOutstandingDialog(
 
 @Composable
 fun AddKhataBookDialog(
-    onDismiss: () -> Unit, 
-    onConfirm: (String, String, String, String) -> Unit, 
+    planOptions: List<KhataBookPlan>,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, String) -> Unit,
     isLoading: Boolean = false
 ) {
+    val defaultPlan =
+        planOptions.firstOrNull { it.name == "Standard Plan" } ?: planOptions.firstOrNull()
     var monthlyAmount by remember { mutableStateOf("") }
-    var totalMonths by remember { mutableStateOf("12") }
-    var planName by remember { mutableStateOf("Standard Plan") }
+    var planName by remember(planOptions) { mutableStateOf(defaultPlan?.name.orEmpty()) }
+    var selectedPlan by remember(planOptions) { mutableStateOf(defaultPlan) }
+    var totalMonths by remember(planOptions) {
+        mutableStateOf((defaultPlan?.effectiveMonths ?: 12).toString())
+    }
     var notes by remember { mutableStateOf("") }
+    val planNames = planOptions.map { it.name }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Create Khata Book Plan") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CusOutlinedTextField(
                 state = InputFieldState(planName),
                 onTextChange = { planName = it },
-                placeholderText = "Plan Name"
+                placeholderText = "Plan Name",
+                dropdownItems = planNames,
+                onDropdownItemSelected = { selected ->
+                    planName = selected
+                    selectedPlan = planOptions.firstOrNull { it.name == selected }
+                    totalMonths = (selectedPlan?.effectiveMonths ?: 12).toString()
+                }
             )
 
             CusOutlinedTextField(
@@ -1283,8 +1297,65 @@ fun AddKhataBookDialog(
                 state = InputFieldState(totalMonths),
                 onTextChange = { totalMonths = it },
                 placeholderText = "Total Months",
-                keyboardType = KeyboardType.Number
+                keyboardType = KeyboardType.Number,
+                readOnly = true
             )
+
+            selectedPlan?.let { plan ->
+                val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
+                val results = calculateKhataBook(amount, plan)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "Plan Summary",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Pay: ${plan.payMonths}m",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "Benefit: ${plan.benefitMonths}m",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "Total: ${plan.effectiveMonths}m",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Total Pay: ${formatCurrency(results.totalPayAmount)}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "Benefit: ${formatCurrency(results.totalBenefitAmount)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                        Text(
+                            text = "Effective Monthly: ${formatCurrency(results.effectiveMonthlyAmount)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
 
             CusOutlinedTextField(
                 state = InputFieldState(notes),

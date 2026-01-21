@@ -422,4 +422,28 @@ object RoomMigration {
             db.execSQL("ALTER TABLE label_template ADD COLUMN labelPadding REAL NOT NULL DEFAULT 1.5")
         }
     }
+
+    val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS customer_khata_book_plan (
+                    planId TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    payMonths INTEGER NOT NULL,
+                    benefitMonths INTEGER NOT NULL,
+                    description TEXT NOT NULL,
+                    benefitPercentage REAL NOT NULL,
+                    userId TEXT NOT NULL,
+                    storeId TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_customer_khata_book_plan_userId_storeId ON customer_khata_book_plan (userId, storeId)"
+            )
+        }
+    }
 }

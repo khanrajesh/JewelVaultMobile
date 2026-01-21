@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.AddAPhoto
@@ -59,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.CusOutlinedTextFieldInternal
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.InputValidator
@@ -89,17 +89,27 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
         if (isEditable.value) Modifier else Modifier.bounceClick {
             subNavController.navigate(SubScreens.UserManagement.route)
         }
-    val proprietorValidation: (String) -> String? = {
+    val shopNameValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
         when {
-            it.isBlank() -> "Proprietor name is required"
-            it.length < 2 -> "Proprietor name must be at least 2 characters"
+            normalized.isBlank() -> "Store name is required"
+            normalized.length < 3 -> "Store name must be at least 3 characters"
             else -> null
         }
     }
-    val emailValidation: (String) -> String? = {
+    val proprietorValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
         when {
-            it.isBlank() -> "Email address is required"
-            !InputValidator.isValidEmail(it) -> "Enter a valid email address"
+            normalized.isBlank() -> "Proprietor name is required"
+            normalized.length < 2 -> "Proprietor name must be at least 2 characters"
+            else -> null
+        }
+    }
+    val emailValidation: (String) -> String? = { input ->
+        val trimmed = input.trim()
+        when {
+            trimmed.isBlank() -> "Email address is required"
+            !InputValidator.isValidEmail(trimmed) -> "Enter a valid email address"
             else -> null
         }
     }
@@ -111,37 +121,42 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
             else -> null
         }
     }
-    val addressValidation: (String) -> String? = {
+    val addressValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
         when {
-            it.isBlank() -> "Store address is required"
-            it.length < 10 -> "Please enter a complete address (min 10 characters)"
+            normalized.isBlank() -> "Store address is required"
+            normalized.length < 10 -> "Please enter a complete address (min 10 characters)"
             else -> null
         }
     }
-    val registrationValidation: (String) -> String? = {
+    val registrationValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input).uppercase()
         when {
-            it.isBlank() -> "Registration number is required"
+            normalized.isBlank() -> "Registration number is required"
             else -> null
         }
     }
-    val gstinValidation: (String) -> String? = {
+    val gstinValidation: (String) -> String? = { input ->
+        val normalized = input.trim().uppercase()
         when {
-            it.isBlank() -> "GSTIN number is required"
-            !InputValidator.isValidGSTIN(it) -> "Enter a valid GSTIN (15 characters, e.g. 22AAAAA0000A1Z5)"
+            normalized.isBlank() -> "GSTIN number is required"
+            !InputValidator.isValidGSTIN(normalized) -> "Enter a valid GSTIN (15 characters, e.g. 22AAAAA0000A1Z5)"
             else -> null
         }
     }
-    val panValidation: (String) -> String? = {
+    val panValidation: (String) -> String? = { input ->
+        val normalized = input.trim().uppercase()
         when {
-            it.isBlank() -> "PAN number is required"
-            !InputValidator.isValidPAN(it) -> "Enter a valid PAN (format ABCDE1234F)"
+            normalized.isBlank() -> "PAN number is required"
+            !InputValidator.isValidPAN(normalized) -> "Enter a valid PAN (format ABCDE1234F)"
             else -> null
         }
     }
-    val upiValidation: (String) -> String? = {
+    val upiValidation: (String) -> String? = { input ->
+        val trimmed = input.trim()
         when {
-            it.isBlank() -> "UPI ID is required"
-            !InputValidator.isValidUpiId(it) -> "Enter a valid UPI ID (name@bank)"
+            trimmed.isBlank() -> "UPI ID is required"
+            !InputValidator.isValidUpiId(trimmed) -> "Enter a valid UPI ID (name@bank)"
             else -> null
         }
     }
@@ -391,37 +406,28 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        BasicTextField(
-                            modifier = if (isEditable.value) {
-                                Modifier
-                                    .border(
-                                        width = 1.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        RoundedCornerShape(5.dp)
-                                    )
-                                    .padding(5.dp)
-                            } else {
-                                Modifier
-                            },
-                            value = profileViewModel.shopName.text,
-                            onValueChange = {
-                                profileViewModel.shopName.textChange(it)
-                            },
-                            textStyle = shopNameTextStyle,
-                            decorationBox = { innerTextField ->
-                                Box(contentAlignment = Alignment.Center) {
-                                    if (isEditable.value && profileViewModel.shopName.text.isBlank()) {
-                                        Text(
-                                            text = "Store Name",
-                                            style = shopNameTextStyle.copy(
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                            )
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            }
-                        )
+                        if (isEditable.value) {
+                            CusOutlinedTextFieldInternal(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.shopName,
+                                placeholderText = "Store Name",
+                                keyboardType = KeyboardType.Text,
+                                singleLine = true,
+                                textStyle = shopNameTextStyle,
+                                onTextChange = {
+                                    profileViewModel.shopName.text = InputValidator.sanitizeText(it)
+                                },
+                                validation = shopNameValidation
+                            )
+                        } else {
+                            Text(
+                                text = profileViewModel.shopName.text,
+                                modifier = Modifier.fillMaxWidth(),
+                                style = shopNameTextStyle
+                            )
+                        }
                     }
                 }
 
@@ -442,7 +448,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.propName.textChange(InputValidator.sanitizeText(it))
+                                    profileViewModel.propName.text = InputValidator.sanitizeText(it)
                                 },
                                 validation = proprietorValidation
                             )
@@ -455,7 +461,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Email,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.userEmail.textChange(it.trim())
+                                    profileViewModel.userEmail.text = it.trim()
                                 },
                                 validation = emailValidation
                             )
@@ -469,7 +475,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
                                     val digits = input.filter { it.isDigit() }.take(10)
-                                    profileViewModel.userMobile.textChange(digits)
+                                    profileViewModel.userMobile.text = digits
                                 },
                                 validation = phoneValidation
                             )
@@ -484,7 +490,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 readOnly = !isEditable.value,
                                 maxLines = 3,
                                 onTextChange = {
-                                    profileViewModel.address.textChange(it)
+                                    profileViewModel.address.text = it
                                 },
                                 validation = addressValidation
                             )
@@ -497,7 +503,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.registrationNo.textChange(input.uppercase())
+                                    profileViewModel.registrationNo.text = input.uppercase()
                                 },
                                 validation = registrationValidation
                             )
@@ -510,7 +516,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.gstinNo.textChange(input.uppercase())
+                                    profileViewModel.gstinNo.text = input.uppercase()
                                 },
                                 validation = gstinValidation
                             )
@@ -523,7 +529,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.panNumber.textChange(input.uppercase())
+                                    profileViewModel.panNumber.text = input.uppercase()
                                 },
                                 validation = panValidation
                             )
@@ -539,7 +545,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Email,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.upiId.textChange(it.trim())
+                                    profileViewModel.upiId.text = it.trim()
                                 },
                                 validation = upiValidation
                             )
@@ -601,7 +607,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.propName.textChange(InputValidator.sanitizeText(it))
+                                    profileViewModel.propName.text = InputValidator.sanitizeText(it)
                                 },
                                 validation = proprietorValidation
                             )
@@ -614,7 +620,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Email,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.userEmail.textChange(it.trim())
+                                    profileViewModel.userEmail.text = it.trim()
                                 },
                                 validation = emailValidation
                             )
@@ -628,7 +634,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
                                     val digits = input.filter { it.isDigit() }.take(10)
-                                    profileViewModel.userMobile.textChange(digits)
+                                    profileViewModel.userMobile.text = digits
                                 },
                                 validation = phoneValidation
                             )
@@ -643,7 +649,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 readOnly = !isEditable.value,
                                 maxLines = 3,
                                 onTextChange = {
-                                    profileViewModel.address.textChange(it)
+                                    profileViewModel.address.text = it
                                 },
                                 validation = addressValidation
                             )
@@ -656,7 +662,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.registrationNo.textChange(input.uppercase())
+                                    profileViewModel.registrationNo.text = input.uppercase()
                                 },
                                 validation = registrationValidation
                             )
@@ -669,7 +675,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.gstinNo.textChange(input.uppercase())
+                                    profileViewModel.gstinNo.text = input.uppercase()
                                 },
                                 validation = gstinValidation
                             )
@@ -682,7 +688,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
                                 onTextChange = { input ->
-                                    profileViewModel.panNumber.textChange(input.uppercase())
+                                    profileViewModel.panNumber.text = input.uppercase()
                                 },
                                 validation = panValidation
                             )
@@ -700,7 +706,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Email,
                                 readOnly = !isEditable.value,
                                 onTextChange = {
-                                    profileViewModel.upiId.textChange(it.trim())
+                                    profileViewModel.upiId.text = it.trim()
                                 },
                                 validation = upiValidation
                             )
@@ -763,6 +769,7 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                         .clickable {
                             ioScope {
                                 isEditable.value = !isEditable.value
+                                profileViewModel.clearFieldErrors()
                                 // Reset to original data when canceling
                                 val storeId = store.first.first()
                                 profileViewModel.getStoreData(storeId)

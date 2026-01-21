@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.MoreVert
@@ -24,12 +23,15 @@ import androidx.compose.ui.unit.sp
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.*
 import com.velox.jewelvault.utils.CalculationUtils
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
@@ -40,6 +42,15 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val showOption = remember { mutableStateOf(false) }
     val itemId = remember { mutableStateOf("") }
+
+    val metalRateRefresh = {
+        coroutineScope.launch {
+            baseViewModel.refreshMetalRates(context = context)
+        }
+    }
+    val optionClick = {
+        showOption.value = !showOption.value
+    }
 
     Box(
         Modifier.fillMaxSize()
@@ -56,11 +67,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    ioScope {
-                        baseViewModel.refreshMetalRates(context = context)
-                    }
-                }) {
+                IconButton(onClick = { metalRateRefresh() }) {
                     Icon(
                         imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
@@ -72,58 +79,152 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                 )
                 Text(text = currentDateTime.value)
                 Spacer(Modifier.width(10.dp))
-                IconButton(onClick = {
-                    showOption.value = !showOption.value
-                }) {
+                IconButton(onClick = optionClick) {
                     Icon(
                         imageVector = Icons.TwoTone.MoreVert, contentDescription = "Options"
                     )
                 }
             }
-            Spacer(Modifier.height(5.dp))
-            Row(Modifier.fillMaxSize()) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .weight(2.5f)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                        )
-                        .padding(5.dp)
-                ) {
-                    DraftCustomerDetails(viewModel)
-                    Spacer(Modifier.height(5.dp))
-                    DraftItemSection(modifier = Modifier.weight(1f), viewModel)
-                    Spacer(Modifier.height(5.dp))
-                    DraftAddItemSection(itemId, viewModel)
-                }
-                Spacer(Modifier.width(5.dp))
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                        )
-                        .padding(5.dp)
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                        .padding(3.dp)
-                ) {
-                    DraftDetailSection(Modifier.weight(1f), viewModel)
-                    Box(modifier = Modifier
-                        .bounceClick {
-                            if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
-                                navHost.navigate(Screens.SellPreview.route)
-                            } else {
-                                viewModel.snackBarState.value = "Please ensure to add customer and items details"
+            Spacer(Modifier.height(8.dp))
+
+            RowOrColumn(
+                rowModifier = Modifier.fillMaxSize(),
+                columnModifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) { isLandscape ->
+                if (isLandscape) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(2.5f)
+                            .fillMaxHeight()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                            )
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item { DraftCustomerDetails(viewModel) }
+                        item { DraftAddItemSection(itemId, viewModel) }
+                        item {
+                            DraftItemSection(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 250.dp, max = 600.dp),
+                                viewModel = viewModel
+                            )
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
+                            )
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item { DraftDetailSection(Modifier.fillMaxWidth(), viewModel) }
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .bounceClick {
+                                        if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                            navHost.navigate(Screens.SellPreview.route)
+                                        } else {
+                                            viewModel.snackBarState.value =
+                                                "Please ensure to add customer and items details"
+                                        }
+                                    }
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Proceed", textAlign = TextAlign.Center)
                             }
                         }
-                        .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                        )
-                        .padding(10.dp), contentAlignment = Alignment.Center) {
-                        Text("Proceed", textAlign = TextAlign.Center)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(8.dp)
+                            ) {
+                                DraftCustomerDetails(viewModel)
+
+                                Spacer(Modifier.height(8.dp))
+                                DraftAddItemSection(itemId, viewModel)
+                            }
+                        }
+
+                        item {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(8.dp)
+                            ) {
+                                DraftItemSection(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 250.dp, max = 600.dp),
+                                    viewModel = viewModel
+                                )
+                            }
+                        }
+                        item {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(8.dp)
+                            ) {
+                                DraftDetailSection(Modifier.fillMaxWidth(), viewModel)
+
+                                Spacer(Modifier.height(12.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .bounceClick {
+                                            if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                                navHost.navigate(Screens.SellPreview.route)
+                                            } else {
+                                                viewModel.snackBarState.value =
+                                                    "Please ensure to add customer and items details"
+                                            }
+                                        }
+                                        .fillMaxWidth()
+                                        .background(
+                                            MaterialTheme.colorScheme.primary,
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Proceed", textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -141,7 +242,9 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                 Row(modifier = Modifier.clickable {
                     viewModel.draftUpdateChargeView(!viewModel.showSeparateCharges.value)
                 }, verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {})
+                    Checkbox(checked = viewModel.showSeparateCharges.value, onCheckedChange = {
+                        viewModel.draftUpdateChargeView(it)
+                    })
                     Text(
                         "Show Charge",
                         fontSize = 10.sp,
@@ -195,21 +298,19 @@ fun DraftCustomerDetails(viewModel: InvoiceViewModel) {
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
             .padding(5.dp)
     ) {
-        Text("Customer Details", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        Spacer(Modifier.height(8.dp))
-        
+        Text("Customer Details")
         Column {
-            Row(Modifier) {
+            RowOrColumn {
                 CusOutlinedTextField(
                     viewModel.customerName,
                     placeholderText = "Name",
-                    modifier = Modifier.weight(2f)
+                    modifier = if (it) Modifier.weight(2f) else Modifier
                 )
-                Spacer(Modifier.width(5.dp))
+                WidthThenHeightSpacer(5.dp)
                 CusOutlinedTextField(
                     viewModel.customerMobile,
                     placeholderText = "Mobile No",
-                    modifier = Modifier.weight(1f),
+                    modifier = if (it) Modifier.weight(1f) else Modifier,
                     maxLines = 1,
                     keyboardType = KeyboardType.Phone,
                     validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
@@ -259,9 +360,10 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
         
         Spacer(Modifier.height(5.dp))
         
-        if (!viewModel.selectedItemList.isEmpty()) {
+        if (viewModel.selectedItemList.isNotEmpty()) {
             // Prepare header list for TextListView
             val headerList = listOf(
+                "Sl.No",
                 "Id",
                 "Item",
                 "Qty",
@@ -362,99 +464,97 @@ fun DraftAddItemSection(itemId: MutableState<String>, viewModel: InvoiceViewMode
 @Composable
 fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
     Column(modifier = modifier.padding(5.dp)) {
-        Text("Summary", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        Spacer(Modifier.height(10.dp))
-        
-        // Item Summary Table - Using same design as SellInvoiceScreen
         Row(Modifier.fillMaxWidth()) {
             Text(
                 "Item",
+                modifier = Modifier.weight(0.7f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.Start
             )
-            Spacer(Modifier.width(8.dp))
             Text(
                 "M.Amt",
+                modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
             if (viewModel.showSeparateCharges.value) {
-                Spacer(Modifier.width(8.dp))
                 Text(
                     "Charge",
+                    modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.End
                 )
-                Spacer(Modifier.width(8.dp))
                 Text(
                     "O.Crg",
+                    modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.End
                 )
             }
-            Spacer(Modifier.width(8.dp))
-            Text("Tax", fontSize = 10.sp, textAlign = TextAlign.End)
-            Spacer(Modifier.width(8.dp))
+            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End)
             Text(
                 "Total",
+                modifier = Modifier.weight(1.5f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
         }
 
-        LazyColumn(Modifier.fillMaxWidth()) {
-            items(viewModel.selectedItemList) { item ->
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            viewModel.selectedItemList.forEach { item ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .heightIn(min = 30.dp)
                 ) {
-                    // Name
                     Text(
                         "${item.itemAddName} ${item.subCatName}",
-                        fontSize = 10.sp, 
+                        modifier = Modifier.weight(0.7f),
+                        fontSize = 10.sp,
                         textAlign = TextAlign.Start
                     )
-                    Spacer(Modifier.width(8.dp))
 
-                    // M.Amt
                     Text(
-                        CalculationUtils.displayPrice(item, viewModel.showSeparateCharges.value).to3FString(),
-                        fontSize = 10.sp, 
+                        CalculationUtils.displayPrice(
+                            item, viewModel.showSeparateCharges.value
+                        ).to3FString(),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 10.sp,
                         textAlign = TextAlign.End
                     )
 
-                    // Charge
                     if (viewModel.showSeparateCharges.value) {
-                        Spacer(Modifier.width(8.dp))
                         Text(
                             item.chargeAmount.to3FString(),
-                            fontSize = 10.sp, 
+                            modifier = Modifier.weight(1f),
+                            fontSize = 10.sp,
                             textAlign = TextAlign.End
                         )
-                        // O.Charge
-                        Spacer(Modifier.width(8.dp))
                         Text(
                             item.othCrg.to3FString(),
-                            fontSize = 10.sp, 
+                            modifier = Modifier.weight(1f),
+                            fontSize = 10.sp,
                             textAlign = TextAlign.End
                         )
                     }
 
-                    // Tax
-                    Spacer(Modifier.width(8.dp))
                     Text(
                         item.tax.to3FString(),
-                        fontSize = 10.sp, 
+                        modifier = Modifier.weight(1f),
+                        fontSize = 10.sp,
                         textAlign = TextAlign.End
                     )
 
-                    // Total
-                    val itemTotals = CalculationUtils.totalPrice(item.price,item.crg,item.othCrg,item.tax)
-                    Spacer(Modifier.width(8.dp))
+                    val itemTotals = CalculationUtils.totalPrice(
+                        item.price, item.crg, item.othCrg, item.tax
+                    )
                     Text(
                         itemTotals.to3FString(),
-                        fontSize = 10.sp, 
+                        modifier = Modifier.weight(1.5f),
+                        fontSize = 10.sp,
                         textAlign = TextAlign.End
                     )
                 }
@@ -468,50 +568,50 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
 @Composable
 fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
-    val groupedItems = selectedItemList.groupBy { it.catName }
+    val summary = CalculationUtils.summaryTotals(selectedItemList)
 
     Column(Modifier.padding(16.dp)) {
         Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)
 
-        groupedItems.forEach { (metalType, items) ->
-            val totalGsWt = items.sumOf { it.gsWt }
-            val totalFnWt = items.sumOf { it.fnWt }
-
-                    Row(Modifier.fillMaxWidth()) {
-            Text("$metalType Gs/Fn Wt", fontSize = 10.sp)
-            Spacer(Modifier.weight(1f))
-            Text(
-                "${totalGsWt.to3FString()}/${totalFnWt.to3FString()} gm",
-                fontSize = 10.sp, 
-                textAlign = TextAlign.End
-            )
-        }
+        summary.metalSummaries.forEach { metalSummary ->
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    "${metalSummary.metalType} Gs/Fn Wt",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp
+                )
+                Text(
+                    "${metalSummary.totalGrossWeight.to3FString()}/${metalSummary.totalFineWeight.to3FString()} gm",
+                    modifier = Modifier.weight(1f),
+                    fontSize = 10.sp,
+                    textAlign = TextAlign.End
+                )
+            }
         }
 
         Spacer(Modifier.height(5.dp))
         HorizontalDivider(thickness = 1.dp)
 
         // Total calculations using CalculationUtils
-        val summary = CalculationUtils.summaryTotals(selectedItemList.toList())
         val totalPrice = summary.totalPriceBeforeTax
         val totalTax = summary.totalTax
         val grandTotal = summary.grandTotal
 
         Spacer(Modifier.height(5.dp))
         Row(Modifier.fillMaxWidth()) {
-            Text("Price (before tax)", fontSize = 10.sp)
-            Spacer(Modifier.weight(1f))
+            Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "₹${totalPrice.to3FString()}",
+                "ƒ,1${totalPrice.to3FString()}",
+                modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
         }
         Row(Modifier.fillMaxWidth()) {
-            Text("Total Tax", fontSize = 10.sp)
-            Spacer(Modifier.weight(1f))
+            Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "₹${totalTax.to3FString()}",
+                "ƒ,1${totalTax.to3FString()}",
+                modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
             )
@@ -519,14 +619,15 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
         Row(Modifier.fillMaxWidth()) {
             Text(
                 "Grand Total (after tax)",
+                modifier = Modifier.weight(1.5f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )
-            Spacer(Modifier.weight(1f))
             Text(
-                "₹${grandTotal.to3FString()}",
+                "ƒ,1${grandTotal.to3FString()}",
+                modifier = Modifier.weight(1f),
                 fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold, 
+                fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.End
             )
         }
@@ -546,212 +647,226 @@ fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    // Basic Item Info
-                    Text("Basic Information", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(5.dp))
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogItemName,
-                            placeholderText = "Item Name",
-                            keyboardType = KeyboardType.Text
-                        )
-                    }
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogCategoryName,
-                            placeholderText = "Category",
-                            keyboardType = KeyboardType.Text
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogSubCategoryName,
-                            placeholderText = "Sub Category",
-                            keyboardType = KeyboardType.Text
-                        )
-                    }
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogEntryType,
-                            placeholderText = "Entry Type",
-                            dropdownItems = EntryType.list(),
-                            onDropdownItemSelected = { selected ->
-                                when (selected) {
-                                    EntryType.Piece.type -> {
-                                        viewModel.draftDialogQuantity.text = "1"
+                    Column() {
+                        // Basic Item Info
+                        Text("Basic Information", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(5.dp))
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogItemName,
+                                placeholderText = "Item Name",
+                                keyboardType = KeyboardType.Text
+                            )
+                        }
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogCategoryName,
+                                placeholderText = "Category",
+                                keyboardType = KeyboardType.Text
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogSubCategoryName,
+                                placeholderText = "Sub Category",
+                                keyboardType = KeyboardType.Text
+                            )
+                        }
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogEntryType,
+                                placeholderText = "Entry Type",
+                                dropdownItems = EntryType.list(),
+                                onDropdownItemSelected = { selected ->
+                                    when (selected) {
+                                        EntryType.Piece.type -> {
+                                            viewModel.draftDialogQuantity.text = "1"
+                                        }
+                                        EntryType.Lot.type -> {
+                                            // Keep current quantity
+                                        }
                                     }
-                                    EntryType.Lot.type -> {
-                                        // Keep current quantity
+                                    viewModel.draftDialogEntryType.text = selected
+                                }
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogQuantity,
+                                placeholderText = "Quantity",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+                    }
+
+                }
+                
+                item {
+                    Column() {
+                        // Weight Information
+                        Spacer(Modifier.height(10.dp))
+                        Text("Weight Information", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(5.dp))
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogGrossWeight,
+                                placeholderText = "Gross Wt (gm)",
+                                keyboardType = KeyboardType.Number,
+                                onTextChange = {
+                                    viewModel.draftDialogNetWeight.text = it
+                                }
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogNetWeight,
+                                placeholderText = "Net Wt (gm)",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogPurity,
+                                placeholderText = "Purity",
+                                dropdownItems = Purity.list(),
+                                onDropdownItemSelected = { selected ->
+                                    if (viewModel.draftDialogNetWeight.text.isNotBlank()) {
+                                        val ntWtValue = viewModel.draftDialogNetWeight.text.toDoubleOrNull() ?: 0.0
+                                        val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
+                                        viewModel.draftDialogFineWeight.text = (ntWtValue * multiplier).to3FString()
                                     }
+                                    viewModel.draftDialogPurity.text = selected
                                 }
-                                viewModel.draftDialogEntryType.text = selected
-                            }
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogQuantity,
-                            placeholderText = "Quantity",
-                            keyboardType = KeyboardType.Number
-                        )
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogFineWeight,
+                                placeholderText = "Fine Wt (gm)",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+                    }
+
+                }
+                
+                item {
+                    Column() {
+                        // Charges Information
+                        Spacer(Modifier.height(10.dp))
+                        Text("Making Charges Information", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(5.dp))
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogChargeType,
+                                placeholderText = "Charge Type",
+                                dropdownItems = ChargeType.list()
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogCharge,
+                                placeholderText = "Charge",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogOtherChargeDescription,
+                                placeholderText = "Other Charge Desc",
+                                keyboardType = KeyboardType.Text
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogOtherCharge,
+                                placeholderText = "Other Charge",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
+                    }
+
+                }
+                
+                item {
+                    Column() {
+                        // Tax Information
+                        Spacer(Modifier.height(10.dp))
+                        Text("Tax Information", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(5.dp))
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogCgst,
+                                placeholderText = "CGST",
+                                keyboardType = KeyboardType.Number
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogSgst,
+                                placeholderText = "SGST",
+                                keyboardType = KeyboardType.Number
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogIgst,
+                                placeholderText = "IGST",
+                                keyboardType = KeyboardType.Number
+                            )
+                        }
                     }
                 }
                 
                 item {
-                    // Weight Information
-                    Spacer(Modifier.height(10.dp))
-                    Text("Weight Information", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(5.dp))
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogGrossWeight,
-                            placeholderText = "Gross Wt (gm)",
-                            keyboardType = KeyboardType.Number,
-                            onTextChange = {
-                                viewModel.draftDialogNetWeight.text = it
-                            }
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogNetWeight,
-                            placeholderText = "Net Wt (gm)",
-                            keyboardType = KeyboardType.Number
-                        )
+                    Column() {
+                        // Additional Information
+                        Spacer(Modifier.height(10.dp))
+                        Text("Additional Information", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(5.dp))
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(2f) else Modifier,
+                                state = viewModel.draftDialogHuid,
+                                placeholderText = "H-UID",
+                                keyboardType = KeyboardType.Text
+                            )
+                        }
+
+                        RowOrColumn {
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
+                                state = viewModel.draftDialogDescription,
+                                placeholderText = "Description Key",
+                                keyboardType = KeyboardType.Text
+                            )
+                            WidthThenHeightSpacer(5.dp)
+                            CusOutlinedTextField(
+                                modifier = if (it) Modifier.weight(2f) else Modifier,
+                                state = viewModel.draftDialogDescriptionValue,
+                                placeholderText = "Description Value",
+                                keyboardType = KeyboardType.Text
+                            )
+                        }
                     }
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogPurity,
-                            placeholderText = "Purity",
-                            dropdownItems = Purity.list(),
-                            onDropdownItemSelected = { selected ->
-                                if (viewModel.draftDialogNetWeight.text.isNotBlank()) {
-                                    val ntWtValue = viewModel.draftDialogNetWeight.text.toDoubleOrNull() ?: 0.0
-                                    val multiplier = Purity.fromLabel(selected)?.multiplier ?: 1.0
-                                    viewModel.draftDialogFineWeight.text = (ntWtValue * multiplier).to3FString()
-                                }
-                                viewModel.draftDialogPurity.text = selected
-                            }
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogFineWeight,
-                            placeholderText = "Fine Wt (gm)",
-                            keyboardType = KeyboardType.Number
-                        )
-                    }
-                }
-                
-                item {
-                    // Charges Information
-                    Spacer(Modifier.height(10.dp))
-                    Text("Making Charges Information", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(5.dp))
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogChargeType,
-                            placeholderText = "Charge Type",
-                            dropdownItems = ChargeType.list()
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogCharge,
-                            placeholderText = "Charge",
-                            keyboardType = KeyboardType.Number
-                        )
-                    }
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogOtherChargeDescription,
-                            placeholderText = "Other Charge Desc",
-                            keyboardType = KeyboardType.Text
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogOtherCharge,
-                            placeholderText = "Other Charge",
-                            keyboardType = KeyboardType.Number
-                        )
-                    }
-                }
-                
-                item {
-                    // Tax Information
-                    Spacer(Modifier.height(10.dp))
-                    Text("Tax Information", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(5.dp))
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogCgst,
-                            placeholderText = "CGST",
-                            keyboardType = KeyboardType.Number
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogSgst,
-                            placeholderText = "SGST",
-                            keyboardType = KeyboardType.Number
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogIgst,
-                            placeholderText = "IGST",
-                            keyboardType = KeyboardType.Number
-                        )
-                    }
-                }
-                
-                item {
-                    // Additional Information
-                    Spacer(Modifier.height(10.dp))
-                    Text("Additional Information", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(5.dp))
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(2f),
-                            state = viewModel.draftDialogHuid,
-                            placeholderText = "H-UID",
-                            keyboardType = KeyboardType.Text
-                        )
-                    }
-                    
-                    Row(Modifier.fillMaxWidth()) {
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(1f),
-                            state = viewModel.draftDialogDescription,
-                            placeholderText = "Description Key",
-                            keyboardType = KeyboardType.Text
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        CusOutlinedTextField(
-                            modifier = Modifier.weight(2f),
-                            state = viewModel.draftDialogDescriptionValue,
-                            placeholderText = "Description Value",
-                            keyboardType = KeyboardType.Text
-                        )
-                    }
+
                 }
             }
         },

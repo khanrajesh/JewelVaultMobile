@@ -130,6 +130,93 @@ class BackupManager(
             Result.failure(e)
         }
     }
+
+    /**
+     * Export data to a local Excel file (no Firebase upload).
+     */
+    suspend fun performLocalExport(
+        onProgress: (String, Int) -> Unit = { _, _ -> }
+    ): Result<Uri> {
+        return try {
+            onProgress("Starting local export...", 0)
+            val userId = dataStoreManager.getAdminInfo().first.first()
+            val userData = database.userDao().getUserById(userId)
+            val userMobile = userData?.mobileNo ?: "unknown"
+
+            val exportUri = createBackupFile(userMobile)
+            val exportResult = excelExporter.exportAllEntitiesToExcel(
+                database,
+                exportUri,
+                context
+            ) { message, progress ->
+                onProgress(message, progress)
+            }
+
+            if (exportResult.isFailure) {
+                return Result.failure(exportResult.exceptionOrNull() ?: Exception("Export failed"))
+            }
+
+            onProgress("Export completed successfully!", 100)
+            Result.success(exportUri)
+        } catch (e: Exception) {
+            log("BackupManager: Local export failed: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Import data from a local Excel file (no Firebase download).
+     */
+    suspend fun performLocalImport(
+        localFileUri: Uri,
+        restoreMode: RestoreMode = RestoreMode.MERGE,
+        onProgress: (String, Int) -> Unit = { _, _ -> }
+    ): Result<RestoreResult> {
+        return try {
+            onProgress("Validating local file...", 10)
+            val validationResult = validateExcelFile(localFileUri)
+            if (!validationResult.isValid) {
+                return Result.failure(Exception(validationResult.message))
+            }
+
+            val currentUserId = dataStoreManager.getAdminInfo().first.first()
+            val currentStoreId = dataStoreManager.getSelectedStoreInfo().first.first()
+
+            onProgress("Importing data from Excel...", 60)
+            val importResult = excelImporter.importAllEntitiesFromExcel(
+                validationResult.file!!,
+                currentUserId,
+                currentStoreId,
+                restoreMode
+            ) { message, progress ->
+                onProgress(message, (progress * 0.3).toInt() + 60)
+            }
+
+            if (importResult.isFailure) {
+                return Result.failure(importResult.exceptionOrNull() ?: Exception("Import failed"))
+            }
+
+            onProgress("Cleaning up temporary files...", 90)
+            val tempFile = validationResult.file
+            if (tempFile != null && tempFile.exists() && tempFile.name.startsWith("validation")) {
+                tempFile.delete()
+            }
+
+            onProgress("Import completed successfully!", 100)
+            val summary = importResult.getOrNull()!!
+            Result.success(
+                RestoreResult(
+                    success = true,
+                    message = "Local import completed successfully",
+                    summary = summary,
+                    restoreMode = restoreMode
+                )
+            )
+        } catch (e: Exception) {
+            log("BackupManager: Local import failed: ${e.message}")
+            Result.failure(e)
+        }
+    }
     
     /**
      * Perform complete restore operation with smart conflict resolution
@@ -287,7 +374,10 @@ class BackupManager(
                 FileValidationResult(true, "File is valid and ready for import.", tempFile)
             } else {
                 tempFile.delete()
-                FileValidationResult(false, "Invalid Excel structure: ${validationResult.exceptionOrNull()?.message ?: "Unknown error"}")
+                FileValidationResult(
+                    false,
+                    validationResult.exceptionOrNull()?.message ?: "Invalid Excel structure."
+                )
             }
 
         } catch (e: Exception) {

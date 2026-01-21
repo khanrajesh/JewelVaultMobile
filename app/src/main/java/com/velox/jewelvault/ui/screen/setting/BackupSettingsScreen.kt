@@ -1,12 +1,17 @@
 package com.velox.jewelvault.ui.screen.setting
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
@@ -16,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.backup.*
@@ -35,6 +41,7 @@ fun BackupSettingsScreen(
     val subNavController = LocalSubNavController.current
     val uiState by viewModel.uiState.collectAsState()
     val backupPermissions = remember { getBackupRestorePermissions() }
+    var showLocalImportDialog by remember { mutableStateOf(false) }
     viewModel.currentScreenHeadingState.value= "Backup & Restore"
     BackHandler {
         subNavController.navigate(SubScreens.Setting.route) {
@@ -103,6 +110,33 @@ fun BackupSettingsScreen(
                                     Icon(Icons.TwoTone.CloudDownload, contentDescription = null)
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Restore")
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.startLocalExport() },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !uiState.isLoading
+                                ) {
+                                    Icon(Icons.TwoTone.Download, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Export File")
+                                }
+
+                                OutlinedButton(
+                                    onClick = { showLocalImportDialog = true },
+                                    modifier = Modifier.weight(1f),
+                                    enabled = !uiState.isLoading
+                                ) {
+                                    Icon(Icons.TwoTone.UploadFile, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Import File")
                                 }
                             }
                         }
@@ -320,6 +354,21 @@ fun BackupSettingsScreen(
                 viewModel.validateLocalFile(fileUri, onResult)
             },
             defaultBackupFolder = viewModel.getDefaultBackupFolder()
+        )
+    }
+
+    if (showLocalImportDialog) {
+        LocalImportDialog(
+            isLoading = uiState.isLoading,
+            defaultBackupFolder = viewModel.getDefaultBackupFolder(),
+            validateLocalFile = { fileUri, onResult ->
+                viewModel.validateLocalFile(fileUri, onResult)
+            },
+            onImport = { fileUri, restoreMode ->
+                viewModel.startLocalImport(fileUri, restoreMode)
+                showLocalImportDialog = false
+            },
+            onDismiss = { showLocalImportDialog = false }
         )
     }
     
@@ -708,5 +757,189 @@ private fun formatFileSize(bytes: Long): String {
         mb >= 1 -> "${mb.to1FString()} MB"
         kb >= 1 -> "${kb.to1FString()} KB"
         else -> "$bytes B"
+    }
+}
+
+@Composable
+private fun LocalImportDialog(
+    isLoading: Boolean,
+    defaultBackupFolder: String,
+    validateLocalFile: (Uri, (FileValidationResult) -> Unit) -> Unit,
+    onImport: (Uri, RestoreMode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedMode by remember { mutableStateOf(RestoreMode.MERGE) }
+    var fileValidationResult by remember { mutableStateOf<FileValidationResult?>(null) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedFileUri = uri
+            validateLocalFile(uri) { result ->
+                fileValidationResult = result
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Import From File",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Default location: $defaultBackupFolder",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        filePickerLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
+                ) {
+                    Text("Select Excel File (.xlsx)")
+                }
+
+                selectedFileUri?.let { uri ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Selected File:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = uri.lastPathSegment ?: "Unknown file",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                fileValidationResult?.let { result ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val isValid = result.isValid
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isValid)
+                                MaterialTheme.colorScheme.surfaceVariant
+                            else
+                                MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .heightIn(max = 180.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = if (isValid) "File validated successfully." else "File validation failed:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isValid)
+                                    MaterialTheme.colorScheme.onSurface
+                                else
+                                    MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = result.message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isValid)
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                else
+                                    MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Import Mode:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedMode == RestoreMode.MERGE,
+                            onClick = { selectedMode = RestoreMode.MERGE }
+                        )
+                        Text(
+                            text = "Merge",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RadioButton(
+                            selected = selectedMode == RestoreMode.REPLACE,
+                            onClick = { selectedMode = RestoreMode.REPLACE }
+                        )
+                        Text(
+                            text = "Replace",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        enabled = !isLoading,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = {
+                            val fileUri = selectedFileUri
+                            if (fileUri != null) {
+                                onImport(fileUri, selectedMode)
+                            }
+                        },
+                        enabled = !isLoading && selectedFileUri != null && fileValidationResult?.isValid == true,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Start Import")
+                    }
+                }
+            }
+        }
     }
 }

@@ -57,6 +57,7 @@ import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.nav.SubScreens
+import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.isLandscape
@@ -194,16 +195,6 @@ fun CustomerScreen(
         AddCustomerDialog(
             onDismiss = { showAddCustomerDialog = false },
             onConfirm = { name, mobile, address, gstin, notes ->
-                // Validation
-                val phoneRegex = Regex("^[6-9][0-9]{9}")
-                if (!phoneRegex.matches(mobile.trim())) {
-                    viewModel.snackBarState.value = "Invalid mobile number format."
-                    return@AddCustomerDialog
-                }
-                if (viewModel.customerList.any { it.mobileNo == mobile.trim() }) {
-                    viewModel.snackBarState.value = "Customer with this mobile already exists."
-                    return@AddCustomerDialog
-                }
                 viewModel.customerName.text = name
                 viewModel.customerMobile.text = mobile
                 viewModel.customerAddress.text = address
@@ -466,49 +457,116 @@ fun CustomerCard(
 fun AddCustomerDialog(
     onDismiss: () -> Unit, onConfirm: (String, String, String, String, String) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var mobile by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var gstin by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
+    val nameState = remember { InputFieldState() }
+    val mobileState = remember { InputFieldState() }
+    val addressState = remember { InputFieldState() }
+    val gstinState = remember { InputFieldState() }
+    val notesState = remember { InputFieldState() }
+
+    val nameValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        when {
+            normalized.isBlank() -> "Customer name is required"
+            normalized.length < 2 -> "Customer name must be at least 2 characters"
+            else -> null
+        }
+    }
+    val mobileValidation: (String) -> String? = { input ->
+        val digits = input.filter(Char::isDigit)
+        when {
+            digits.isBlank() -> "Mobile number is required"
+            !digits.matches(Regex("^[6-9][0-9]{9}$")) -> "Enter a valid 10-digit mobile number"
+            else -> null
+        }
+    }
+    val addressValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        when {
+            normalized.isBlank() -> "Address is required"
+            normalized.length < 10 -> "Please enter a complete address (min 10 characters)"
+            else -> null
+        }
+    }
+    val gstinPanValidation: (String) -> String? = { input ->
+        val normalized = input.trim().uppercase()
+        if (normalized.isBlank()) {
+            null
+        } else if (InputValidator.isValidGSTIN(normalized) || InputValidator.isValidPAN(normalized)) {
+            null
+        } else {
+            "Enter a valid GSTIN or PAN"
+        }
+    }
+
+    fun validateForm(): Boolean {
+        val validations = listOf(
+            nameState to nameValidation,
+            mobileState to mobileValidation,
+            addressState to addressValidation,
+            gstinState to gstinPanValidation
+        )
+        var isValid = true
+        validations.forEach { (state, validator) ->
+            val error = validator(state.text)
+            state.error = error ?: ""
+            if (error != null) isValid = false
+        }
+        return isValid
+    }
 
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Add New Customer") }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
             CusOutlinedTextField(
-                state = InputFieldState(name),
-                onTextChange = { name = it },
-                placeholderText = "Customer Name *"
+                state = nameState,
+                onTextChange = { nameState.textChange(InputValidator.sanitizeText(it)) },
+                placeholderText = "Customer Name *",
+                validation = nameValidation
             )
 
             CusOutlinedTextField(
-                state = InputFieldState(mobile),
-                onTextChange = { mobile = it },
+                state = mobileState,
+                onTextChange = { input ->
+                    val digits = input.filter(Char::isDigit).take(10)
+                    mobileState.textChange(digits)
+                },
                 placeholderText = "Mobile Number *",
                 keyboardType = KeyboardType.Phone,
-                validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null })
-
-            CusOutlinedTextField(
-                state = InputFieldState(address),
-                onTextChange = { address = it },
-                placeholderText = "Address *"
+                validation = mobileValidation
             )
 
             CusOutlinedTextField(
-                state = InputFieldState(gstin),
-                onTextChange = { gstin = it },
-                placeholderText = "GSTIN/PAN (Optional)"
+                state = addressState,
+                onTextChange = { addressState.textChange(InputValidator.sanitizeText(it)) },
+                placeholderText = "Address *",
+                validation = addressValidation
             )
 
             CusOutlinedTextField(
-                state = InputFieldState(notes),
-                onTextChange = { notes = it },
+                state = gstinState,
+                onTextChange = { gstinState.textChange(it.trim().uppercase()) },
+                placeholderText = "GSTIN/PAN (Optional)",
+                validation = gstinPanValidation
+            )
+
+            CusOutlinedTextField(
+                state = notesState,
+                onTextChange = { notesState.textChange(InputValidator.sanitizeText(it)) },
                 placeholderText = "Notes (Optional)"
             )
         }
     }, confirmButton = {
         Button(
-            onClick = { onConfirm(name, mobile, address, gstin, notes) },
-            enabled = name.isNotEmpty() && mobile.isNotEmpty() && address.isNotEmpty()
+            onClick = {
+                if (!validateForm()) return@Button
+                onConfirm(
+                    InputValidator.sanitizeText(nameState.text),
+                    mobileState.text.trim(),
+                    InputValidator.sanitizeText(addressState.text),
+                    gstinState.text.trim().uppercase(),
+                    InputValidator.sanitizeText(notesState.text)
+                )
+            },
+            enabled = nameState.text.isNotBlank() && mobileState.text.isNotBlank() && addressState.text.isNotBlank()
         ) {
             Text("Add Customer")
         }

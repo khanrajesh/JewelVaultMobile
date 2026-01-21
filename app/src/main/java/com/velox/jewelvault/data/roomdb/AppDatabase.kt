@@ -6,6 +6,7 @@ import androidx.room.TypeConverters
 import com.velox.jewelvault.data.roomdb.dao.CategoryDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerKhataBookDao
+import com.velox.jewelvault.data.roomdb.dao.CustomerKhataBookPlanDao
 import com.velox.jewelvault.data.roomdb.dao.CustomerTransactionDao
 import com.velox.jewelvault.data.roomdb.dao.FirmDao
 import com.velox.jewelvault.data.roomdb.dao.ItemDao
@@ -23,6 +24,7 @@ import com.velox.jewelvault.data.roomdb.dao.LabelElementDao
 import com.velox.jewelvault.data.roomdb.entity.category.CategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookPlanEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.roomdb.entity.ItemEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
@@ -54,6 +56,7 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
         UserAdditionalInfoEntity::class,
         CustomerEntity::class,
         CustomerKhataBookEntity::class,
+        CustomerKhataBookPlanEntity::class,
         CustomerTransactionEntity::class,
         OrderEntity::class,
         OrderItemEntity::class,
@@ -67,7 +70,7 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
         LabelTemplateEntity::class,
         LabelElementEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -83,6 +86,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
     abstract fun customerDao(): CustomerDao
     abstract fun customerKhataBookDao(): CustomerKhataBookDao
+    abstract fun customerKhataBookPlanDao(): CustomerKhataBookPlanDao
     abstract fun customerTransactionDao(): CustomerTransactionDao
     abstract fun orderDao(): OrderDao
     abstract fun purchaseDao(): PurchaseDao

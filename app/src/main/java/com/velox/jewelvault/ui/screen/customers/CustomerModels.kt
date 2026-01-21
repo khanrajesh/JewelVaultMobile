@@ -6,7 +6,11 @@ data class KhataBookPlan(
     val payMonths: Int,
     val benefitMonths: Int,
     val description: String,
-    val benefitPercentage: Double = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
+    val benefitPercentage: Double = if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0,
+    val planId: String = "",
+    val isCustom: Boolean = false,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
 ) {
     val effectiveMonths: Int = payMonths + benefitMonths
 }
@@ -26,28 +30,36 @@ fun getPredefinedPlans(): List<KhataBookPlan> {
             payMonths = 11,
             benefitMonths = 1,
             description = "Pay for 11 months, get 1 month reward",
-            benefitPercentage = 8.33
+            benefitPercentage = 8.33,
+            planId = "predefined:Standard Plan",
+            isCustom = false
         ),
         KhataBookPlan(
             name = "Premium Plan",
             payMonths = 22,
             benefitMonths = 2,
             description = "Pay for 22 months, get 2 months reward",
-            benefitPercentage = 8.33
+            benefitPercentage = 8.33,
+            planId = "predefined:Premium Plan",
+            isCustom = false
         ),
         KhataBookPlan(
             name = "Extended Plan",
             payMonths = 33,
             benefitMonths = 3,
             description = "Pay for 33 months, get 3 months reward",
-            benefitPercentage = 8.33
+            benefitPercentage = 8.33,
+            planId = "predefined:Extended Plan",
+            isCustom = false
         ),
         KhataBookPlan(
             name = "Long Term Plan",
             payMonths = 44,
             benefitMonths = 4,
             description = "Pay for 44 months, get 4 months reward",
-            benefitPercentage = 8.33
+            benefitPercentage = 8.33,
+            planId = "predefined:Long Term Plan",
+            isCustom = false
         )
     )
 }

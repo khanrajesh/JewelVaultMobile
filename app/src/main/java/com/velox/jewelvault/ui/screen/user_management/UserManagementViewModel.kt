@@ -146,14 +146,16 @@ class UserManagementViewModel @Inject constructor(
                 log("Created user entity: $user")
                 
                 // Create additional info entity
+                val govIdNumber = governmentIdNumber.text.trim().uppercase().takeIf { it.isNotBlank() }
+                val govIdType = governmentIdType.text.trim().uppercase().takeIf { it.isNotBlank() }
                 val additionalInfo = UserAdditionalInfoEntity(
                     userId = appUserMobileNumber,
                     aadhaarNumber = userAadhaar.text.takeIf { it.isNotBlank() },
                     address = userAddress.text.takeIf { it.isNotBlank() },
                     emergencyContactPerson = emergencyContactPerson.text.takeIf { it.isNotBlank() },
                     emergencyContactNumber = emergencyContactNumber.text.takeIf { it.isNotBlank() },
-                    governmentIdNumber = governmentIdNumber.text.takeIf { it.isNotBlank() },
-                    governmentIdType = governmentIdType.text.takeIf { it.isNotBlank() },
+                    governmentIdNumber = govIdNumber,
+                    governmentIdType = govIdType,
                     dateOfBirth = dateOfBirth.text.takeIf { it.isNotBlank() },
                     bloodGroup = bloodGroup.text.takeIf { it.isNotBlank() }
                 )
@@ -204,8 +206,8 @@ class UserManagementViewModel @Inject constructor(
     }
 
     fun updateUser() {
-        if (editingUserId.value.isBlank() || userName.text.isBlank() || userMobile.text.isBlank() || userRole.text.isBlank() || userPin.text.isBlank()) {
-            _snackBarState.value = "Please fill all required fields (Name, Mobile, Role, PIN)"
+        if (editingUserId.value.isBlank() || userName.text.isBlank() || userMobile.text.isBlank() || userRole.text.isBlank()) {
+            _snackBarState.value = "Please fill all required fields (Name, Mobile, Role)"
             return
         }
         
@@ -215,8 +217,8 @@ class UserManagementViewModel @Inject constructor(
             return
         }
         
-        // Validate PIN format (4-6 digits)
-        if (!InputValidator.isValidPin(userPin.text)) {
+        // Validate PIN format only when user enters a new PIN
+        if (userPin.text.isNotBlank() && !InputValidator.isValidPin(userPin.text)) {
             _snackBarState.value = "PIN must be 4-6 digits"
             return
         }
@@ -231,8 +233,11 @@ class UserManagementViewModel @Inject constructor(
                 // Update user entity
                 val existingUser = database.userDao().getUserById(editingUserId.value)
                 if (existingUser != null) {
-                    // Hash the PIN before storing
-                    val hashedPin = SecurityUtils.hashPin(userPin.text)
+                    val hashedPin = if (userPin.text.isBlank()) {
+                        existingUser.pin
+                    } else {
+                        SecurityUtils.hashPin(userPin.text)
+                    }
                     
                     val updatedUser = existingUser.copy(
                         name = userName.text,
@@ -256,13 +261,15 @@ class UserManagementViewModel @Inject constructor(
                         // Update additional info entity
                         val existingAdditionalInfo = database.userAdditionalInfoDao().getUserAdditionalInfoById(editingUserId.value)
                         if (existingAdditionalInfo != null) {
+                            val govIdNumber = governmentIdNumber.text.trim().uppercase().takeIf { it.isNotBlank() }
+                            val govIdType = governmentIdType.text.trim().uppercase().takeIf { it.isNotBlank() }
                             val updatedAdditionalInfo = existingAdditionalInfo.copy(
                                 aadhaarNumber = userAadhaar.text.takeIf { it.isNotBlank() },
                                 address = userAddress.text.takeIf { it.isNotBlank() },
                                 emergencyContactPerson = emergencyContactPerson.text.takeIf { it.isNotBlank() },
                                 emergencyContactNumber = emergencyContactNumber.text.takeIf { it.isNotBlank() },
-                                governmentIdNumber = governmentIdNumber.text.takeIf { it.isNotBlank() },
-                                governmentIdType = governmentIdType.text.takeIf { it.isNotBlank() },
+                                governmentIdNumber = govIdNumber,
+                                governmentIdType = govIdType,
                                 dateOfBirth = dateOfBirth.text.takeIf { it.isNotBlank() },
                                 bloodGroup = bloodGroup.text.takeIf { it.isNotBlank() },
                                 updatedAt = System.currentTimeMillis()
@@ -293,14 +300,16 @@ class UserManagementViewModel @Inject constructor(
                             }
                         } else {
                             // Create additional info if it doesn't exist
+                            val govIdNumber = governmentIdNumber.text.trim().uppercase().takeIf { it.isNotBlank() }
+                            val govIdType = governmentIdType.text.trim().uppercase().takeIf { it.isNotBlank() }
                             val additionalInfo = UserAdditionalInfoEntity(
                                 userId = appUserMobileNumber,
                                 aadhaarNumber = userAadhaar.text.takeIf { it.isNotBlank() },
                                 address = userAddress.text.takeIf { it.isNotBlank() },
                                 emergencyContactPerson = emergencyContactPerson.text.takeIf { it.isNotBlank() },
                                 emergencyContactNumber = emergencyContactNumber.text.takeIf { it.isNotBlank() },
-                                governmentIdNumber = governmentIdNumber.text.takeIf { it.isNotBlank() },
-                                governmentIdType = governmentIdType.text.takeIf { it.isNotBlank() },
+                                governmentIdNumber = govIdNumber,
+                                governmentIdType = govIdType,
                                 dateOfBirth = dateOfBirth.text.takeIf { it.isNotBlank() },
                                 bloodGroup = bloodGroup.text.takeIf { it.isNotBlank() }
                             )
@@ -398,8 +407,8 @@ class UserManagementViewModel @Inject constructor(
                         userAddress.text = additionalInfo.address ?: ""
                         emergencyContactPerson.text = additionalInfo.emergencyContactPerson ?: ""
                         emergencyContactNumber.text = additionalInfo.emergencyContactNumber ?: ""
-                        governmentIdNumber.text = additionalInfo.governmentIdNumber ?: ""
-                        governmentIdType.text = additionalInfo.governmentIdType ?: ""
+                        governmentIdNumber.text = additionalInfo.governmentIdNumber?.uppercase() ?: ""
+                        governmentIdType.text = additionalInfo.governmentIdType?.uppercase() ?: ""
                         dateOfBirth.text = additionalInfo.dateOfBirth ?: ""
                         bloodGroup.text = additionalInfo.bloodGroup ?: ""
                     }

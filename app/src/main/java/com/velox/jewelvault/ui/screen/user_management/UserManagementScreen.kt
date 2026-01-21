@@ -71,6 +71,8 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
     LaunchedEffect(operationSuccess) {
         if (operationSuccess) {
             userManagementViewModel.clearForm()
+            showAddEditDialog = false
+            selectedUserForEdit = null
             userManagementViewModel._operationSuccess.value = false
         }
     }
@@ -156,8 +158,6 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
                     } else {
                         userManagementViewModel.addUser()
                     }
-                    showAddEditDialog = false
-                    selectedUserForEdit = null
                 })
         }
     }
@@ -166,7 +166,9 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
 
 @Composable
 fun RoleDropdown(
-    state: InputFieldState, onRoleSelected: (String) -> Unit
+    state: InputFieldState,
+    onRoleSelected: (String) -> Unit,
+    validation: ((String) -> String?)? = null
 ) {
     val roles = listOf("Manager", "Worker", "Salesperson")
 
@@ -177,6 +179,7 @@ fun RoleDropdown(
             placeholderText = "Select Role *",
             readOnly = true,
             dropdownItems = roles,
+            validation = validation,
             onDropdownItemSelected = { role ->
                 state.text = role
                 onRoleSelected(role)
@@ -340,45 +343,71 @@ fun AddEditUserDialog(
     val isAdmin = userToEdit?.role?.lowercase() == "admin"
     var isEditMode by remember { mutableStateOf(false) }
 
-    val nameValidation: (String) -> String? = {
+    val nameValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
         when {
-            it.isBlank() -> "Full name is required"
-            !it.matches(Regex("^[A-Za-z][A-Za-z .]{1,}$")) -> "Enter a valid name"
+            normalized.isBlank() -> "Full name is required"
+            !normalized.matches(Regex("^[A-Za-z][A-Za-z .]{1,}$")) -> "Enter a valid name"
             else -> null
         }
     }
-    val mobileValidation: (String) -> String? = {
+    val mobileValidation: (String) -> String? = { input ->
+        val digits = input.filter(Char::isDigit)
         when {
-            it.isBlank() -> "Mobile number is required"
-            it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit)) -> "Enter a valid 10-digit mobile number"
+            digits.isBlank() -> "Mobile number is required"
+            digits.length != 10 || !InputValidator.isValidPhoneNumber(digits) -> "Enter a valid 10-digit mobile number"
             else -> null
         }
     }
-    val emailValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (!InputValidator.isValidEmail(it)) "Enter a valid email" else null
+    val emailValidation: (String) -> String? = { input ->
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) null else if (!InputValidator.isValidEmail(trimmed)) "Enter a valid email" else null
     }
-    val pinValidation: (String) -> String? = {
+    val pinValidation: (String) -> String? = { input ->
+        val digits = input.filter(Char::isDigit)
         when {
-            it.isBlank() -> "PIN is required"
-            !InputValidator.isValidPin(it) -> "PIN must be 4-6 digits"
+            digits.isBlank() -> "PIN is required"
+            !InputValidator.isValidPin(digits) -> "PIN must be 4-6 digits"
             else -> null
         }
     }
-    val aadhaarValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{12}$"))) "Enter 12-digit Aadhaar" else null
+    val aadhaarValidation: (String) -> String? = { input ->
+        val digits = input.filter(Char::isDigit)
+        if (digits.isBlank()) null else if (!digits.matches(Regex("^\\d{12}$"))) "Enter 12-digit Aadhaar" else null
     }
-    val emergencyContactValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (it.filter(Char::isDigit).length != 10 || !InputValidator.isValidPhoneNumber(it.filter(Char::isDigit))) "Enter a valid 10-digit contact" else null
+    val emergencyContactValidation: (String) -> String? = { input ->
+        val digits = input.filter(Char::isDigit)
+        if (digits.isBlank()) null else if (digits.length != 10 || !InputValidator.isValidPhoneNumber(digits)) "Enter a valid 10-digit contact" else null
     }
-    val govIdValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (!it.matches(Regex("^[A-Za-z0-9-]{4,20}$"))) "Enter 4-20 alphanumeric ID" else null
+    val govIdValidation: (String) -> String? = { input ->
+        val normalized = input.trim().uppercase()
+        if (normalized.isBlank()) null else if (!normalized.matches(Regex("^[A-Za-z0-9-]{4,20}$"))) "Enter 4-20 alphanumeric ID" else null
     }
-    val dobValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (!it.matches(Regex("^\\d{2}/\\d{2}/\\d{4}$"))) "Use dd/mm/yyyy" else null
+    val dobValidation: (String) -> String? = { input ->
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) null else if (!trimmed.matches(Regex("^\\d{2}/\\d{2}/\\d{4}$"))) "Use dd/mm/yyyy" else null
     }
-    val bloodGroupValidation: (String) -> String? = {
-        if (it.isBlank()) null else if (!it.uppercase().matches(Regex("^(A|B|AB|O)[+-]\$"))) "Use formats like A+, O-" else null
+    val bloodGroupValidation: (String) -> String? = { input ->
+        val normalized = input.trim().uppercase()
+        if (normalized.isBlank()) null else if (!normalized.matches(Regex("^(A|B|AB|O)[+-]\$"))) "Use formats like A+, O-" else null
     }
+    val roleValidation: (String) -> String? = { input ->
+        if (input.isBlank()) "Role is required" else null
+    }
+    val addressValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        if (normalized.isBlank()) null else if (normalized.length < 10) "Please enter a complete address (min 10 characters)" else null
+    }
+    val emergencyContactPersonValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        if (normalized.isBlank()) null else if (normalized.length < 2) "Enter a valid contact name" else null
+    }
+    val govIdTypeValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        if (normalized.isBlank()) null else if (normalized.length < 2) "Enter a valid ID type" else null
+    }
+    val governmentIdTypes = listOf("PAN", "PASSPORT", "DRIVING LICENSE", "VOTER ID", "OTHER")
+    val bloodGroups = listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
 
     AlertDialog(onDismissRequest = onDismiss, title = {
         Text(
@@ -405,6 +434,9 @@ fun AddEditUserDialog(
                 placeholderText = "Full Name *",
                 keyboardType = KeyboardType.Text,
                 readOnly = isEditing && !isEditMode,
+                onTextChange = {
+                    viewModel.userName.text = InputValidator.sanitizeText(it)
+                },
                 validation = nameValidation
             )
 
@@ -416,6 +448,10 @@ fun AddEditUserDialog(
                 placeholderText = "Mobile Number *",
                 keyboardType = KeyboardType.Phone,
                 readOnly = isEditing && !isEditMode,
+                onTextChange = { input ->
+                    val digits = input.filter(Char::isDigit).take(10)
+                    viewModel.userMobile.text = digits
+                },
                 validation = mobileValidation
             )
 
@@ -427,6 +463,9 @@ fun AddEditUserDialog(
                 placeholderText = "Email Address (Optional)",
                 keyboardType = KeyboardType.Email,
                 readOnly = isEditing && !isEditMode,
+                onTextChange = {
+                    viewModel.userEmail.text = it.trim()
+                },
                 validation = emailValidation
             )
 
@@ -435,16 +474,20 @@ fun AddEditUserDialog(
             CusOutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
                 state = viewModel.userPin,
-                placeholderText = if (isEditing) "Enter new PIN (4-6 digits) *" else "PIN (4-6 digits) *",
+                placeholderText = if (isEditing) "New PIN (4-6 digits)" else "PIN (4-6 digits) *",
                 keyboardType = KeyboardType.Number,
                 visualTransformation = PasswordVisualTransformation(),
                 readOnly = isEditing && !isEditMode,
+                onTextChange = { input ->
+                    val digits = input.filter(Char::isDigit).take(6)
+                    viewModel.userPin.text = digits
+                },
                 validation = pinValidation
             )
 
             if (isEditing && !isEditMode) {
                 Text(
-                    text = "Note: PIN will be updated when you save changes",
+                    text = "Note: Leave PIN empty to keep the current one",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.padding(top = 4.dp)
@@ -464,7 +507,10 @@ fun AddEditUserDialog(
                     )
                 } else {
                     RoleDropdown(
-                        state = viewModel.userRole, onRoleSelected = { })
+                        state = viewModel.userRole,
+                        onRoleSelected = { },
+                        validation = roleValidation
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -484,6 +530,10 @@ fun AddEditUserDialog(
                     placeholderText = "Aadhaar Number",
                     keyboardType = KeyboardType.Number,
                     readOnly = isEditing && !isEditMode,
+                    onTextChange = { input ->
+                        val digits = input.filter(Char::isDigit).take(12)
+                        viewModel.userAadhaar.text = digits
+                    },
                     validation = aadhaarValidation
                 )
 
@@ -494,7 +544,11 @@ fun AddEditUserDialog(
                     state = viewModel.userAddress,
                     placeholderText = "Address",
                     keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    onTextChange = {
+                        viewModel.userAddress.text = it
+                    },
+                    validation = addressValidation
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -505,7 +559,11 @@ fun AddEditUserDialog(
                     state = viewModel.emergencyContactPerson,
                     placeholderText = "Emergency Contact Person",
                     keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
+                    readOnly = isEditing && !isEditMode,
+                    onTextChange = {
+                        viewModel.emergencyContactPerson.text = InputValidator.sanitizeText(it)
+                    },
+                    validation = emergencyContactPersonValidation
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -515,6 +573,10 @@ fun AddEditUserDialog(
                     placeholderText = "Emergency Contact Number",
                     keyboardType = KeyboardType.Phone,
                     readOnly = isEditing && !isEditMode,
+                    onTextChange = { input ->
+                        val digits = input.filter(Char::isDigit).take(10)
+                        viewModel.emergencyContactNumber.text = digits
+                    },
                     validation = emergencyContactValidation
                 )
 
@@ -522,13 +584,26 @@ fun AddEditUserDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
 
-                CusOutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.governmentIdType,
-                    placeholderText = "Government ID Type",
-                    keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode
-                )
+                if (isEditing && !isEditMode) {
+                    Text(
+                        text = "Government ID Type: ${viewModel.governmentIdType.text}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                } else {
+                    CusOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        state = viewModel.governmentIdType,
+                        placeholderText = "Government ID Type",
+                        keyboardType = KeyboardType.Text,
+                        dropdownItems = governmentIdTypes,
+                        readOnly = false,
+                        onDropdownItemSelected = { selected ->
+                            viewModel.governmentIdType.text = selected
+                        },
+                        validation = govIdTypeValidation
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
 
                 CusOutlinedTextField(
@@ -537,29 +612,51 @@ fun AddEditUserDialog(
                     placeholderText = "Government ID Number",
                     keyboardType = KeyboardType.Text,
                     readOnly = isEditing && !isEditMode,
+                    onTextChange = { input ->
+                        viewModel.governmentIdNumber.text = input.trim().uppercase()
+                    },
                     validation = govIdValidation
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                CusOutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.dateOfBirth,
-                    placeholderText = "Date of Birth",
-                    keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode,
-                    validation = dobValidation
-                )
+                if (isEditing && !isEditMode) {
+                    Text(
+                        text = "Date of Birth: ${viewModel.dateOfBirth.text}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                } else {
+                    CusOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        state = viewModel.dateOfBirth,
+                        placeholderText = "Date of Birth",
+                        isDatePicker = true,
+                        validation = dobValidation
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
 
-                CusOutlinedTextField(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = viewModel.bloodGroup,
-                    placeholderText = "Blood Group",
-                    keyboardType = KeyboardType.Text,
-                    readOnly = isEditing && !isEditMode,
-                    validation = bloodGroupValidation
-                )
+                if (isEditing && !isEditMode) {
+                    Text(
+                        text = "Blood Group: ${viewModel.bloodGroup.text}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                } else {
+                    CusOutlinedTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        state = viewModel.bloodGroup,
+                        placeholderText = "Blood Group",
+                        keyboardType = KeyboardType.Text,
+                        dropdownItems = bloodGroups,
+                        readOnly = false,
+                        onDropdownItemSelected = { selected ->
+                            viewModel.bloodGroup.text = selected
+                        },
+                        validation = bloodGroupValidation
+                    )
+                }
 
             }
         }

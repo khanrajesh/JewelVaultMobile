@@ -214,6 +214,76 @@ class BackupSettingsViewModel @Inject constructor(
             }
         }
     }
+
+    fun startLocalExport() {
+        viewModelScope.launch {
+            try {
+                _uiState.update {
+                    it.copy(
+                        isLoading = true,
+                        progressMessage = "Starting local export...",
+                        progressPercent = 0
+                    )
+                }
+
+                val result = backupManager.performLocalExport { message, progress ->
+                    updateBackupProgress(message, progress)
+                }
+
+                if (result.isSuccess) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            statusMessage = "Export saved to Downloads/JewelVault/Backup",
+                            showResultMessage = true
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            statusMessage = "Local export failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}",
+                            showResultMessage = true
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        statusMessage = "Local export failed: ${e.message}",
+                        showResultMessage = true
+                    )
+                }
+            }
+        }
+    }
+
+    fun startLocalImport(localFileUri: Uri, restoreMode: RestoreMode = RestoreMode.MERGE) {
+        viewModelScope.launch {
+            try {
+                _uiState.update {
+                    it.copy(
+                        isLoading = true,
+                        progressMessage = "Starting local import...",
+                        progressPercent = 0
+                    )
+                }
+
+                val result = backupManager.performLocalImport(localFileUri, restoreMode) { message, progress ->
+                    updateBackupProgress(message, progress)
+                }
+
+                if (result.isSuccess) {
+                    onRestoreCompleted(true, result.getOrNull()?.message ?: "Import completed")
+                } else {
+                    onRestoreCompleted(false, result.exceptionOrNull()?.message ?: "Local import failed")
+                }
+            } catch (e: Exception) {
+                onRestoreCompleted(false, "Local import failed: ${e.message}")
+            }
+        }
+    }
     
     fun startRestore(fileName: String, restoreMode: RestoreMode = RestoreMode.MERGE) {
         viewModelScope.launch {

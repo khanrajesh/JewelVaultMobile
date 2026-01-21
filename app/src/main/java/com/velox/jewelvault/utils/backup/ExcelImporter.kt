@@ -8,6 +8,7 @@ import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.*
 import com.velox.jewelvault.data.roomdb.entity.order.*
 import com.velox.jewelvault.data.roomdb.entity.purchase.*
+import com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.utils.log
 import org.apache.poi.ss.usermodel.*
@@ -34,6 +35,7 @@ class ExcelImporter(
     private object SubCategoryCols { const val SUBCATID = 0; const val CATID = 1; const val USERID = 2; const val STOREID = 3; const val CATNAME = 4; const val SUBCATNAME = 5; const val QUANTITY = 6; const val GSWt = 7; const val FNWt = 8 }
     private object ItemCols { const val ITEMID = 0; const val ITEMADDNAME = 1; const val CATID = 2; const val USERID = 3; const val STOREID = 4; const val CATNAME = 5; const val SUBCATID = 6; const val SUBCATNAME = 7; const val ENTRYTYPE = 8; const val QUANTITY = 9; const val GSWt = 10; const val NTWt = 11; const val FNWt = 12; const val PURITY = 13; const val CRGTYPE = 14; const val CRG = 15; const val OTHCRGDES = 16; const val OTHCRG = 17; const val CGST = 18; const val SGST = 19; const val IGST = 20; const val HUID = 21; const val UNIT = 22; const val ADDDESKEY = 23; const val ADDDESVALUE = 24; const val ADDDATE = 25; const val MODIFIEDDATE = 26; const val SELLERFIRMID = 27; const val PURCHASEORDERID = 28; const val PURCHASEITEMID = 29 }
     private object CustomerCols { const val MOBILENO = 0; const val NAME = 1; const val ADDRESS = 2; const val GSTINPAN = 3; const val ADDDATE = 4; const val LASTMODIFIED = 5; const val TOTALITEMBOUGHT = 6; const val TOTALAMOUNT = 7; const val NOTES = 8;  const val USERID = 9; const val STOREID = 10 }
+    private object KhataBookPlanCols { const val PLANID = 0; const val NAME = 1; const val PAYMONTHS = 2; const val BENEFITMONTHS = 3; const val DESCRIPTION = 4; const val BENEFITPERCENTAGE = 5; const val USERID = 6; const val STOREID = 7; const val CREATEDAT = 8; const val UPDATEDAT = 9 }
     private object KhataBookCols { const val KHATABOOKID = 0; const val CUSTOMERMOBILE = 1; const val PLANNAME = 2; const val STARTDATE = 3; const val ENDDATE = 4; const val MONTHLYAMOUNT = 5; const val TOTALMONTHS = 6; const val TOTALAMOUNT = 7; const val STATUS = 8; const val NOTES = 9; const val USERID = 10; const val STOREID = 11 }
     private object TransactionCols { const val TRANSACTIONID = 0; const val CUSTOMERMOBILE = 1; const val TRANSACTIONDATE = 2; const val AMOUNT = 3; const val TRANSACTIONTYPE = 4; const val CATEGORY = 5; const val DESCRIPTION = 6; const val REFERENCENUMBER = 7; const val PAYMENTMETHOD = 8; const val KHATABOOKID = 9; const val MONTHNUMBER = 10; const val NOTES = 11; const val USERID = 12; const val STOREID = 13 }
     private object OrderCols { const val ORDERID = 0; const val CUSTOMERMOBILE = 1; const val STOREID = 2; const val USERID = 3; const val ORDERDATE = 4; const val TOTALAMOUNT = 5; const val TOTALTAX = 6; const val TOTALCHARGE = 7; const val DISCOUNT = 8 ; const val NOTE = 9 }
@@ -43,6 +45,7 @@ class ExcelImporter(
     private object PurchaseOrderCols { const val PURCHASEORDERID = 0; const val SELLERID = 1; const val BILLNO = 2; const val BILLDATE = 3; const val ENTRYDATE = 4; const val EXTRACHARGEDESCRIPTION = 5; const val EXTRACHARGE = 6; const val TOTALFINALWEIGHT = 7; const val TOTALFINALAMOUNT = 8; const val NOTES = 9; const val CGSTPERCENT = 10; const val SGSTPERCENT = 11; const val IGSTPERCENT = 12 }
     private object PurchaseOrderItemCols { const val PURCHASEITEMID = 0; const val PURCHASEORDERID = 1; const val CATID = 2; const val CATNAME = 3; const val SUBCATID = 4; const val SUBCATNAME = 5; const val GSWt = 6; const val PURITY = 7; const val NTWt = 8; const val FNWt = 9; const val FNRATE = 10; const val WASTAGEPERCENT = 11 }
     private object MetalExchangeCols { const val EXCHANGEID = 0; const val PURCHASEORDERID = 1; const val CATID = 2; const val CATNAME = 3; const val SUBCATID = 4; const val SUBCATNAME = 5; const val FNWEIGHT = 6 }
+    private object UserAdditionalInfoCols { const val USERID = 0; const val AADHAAR = 1; const val ADDRESS = 2; const val EMERGENCYCONTACTPERSON = 3; const val EMERGENCYCONTACTNUMBER = 4; const val GOVERNMENTIDNUMBER = 5; const val GOVERNMENTIDTYPE = 6; const val DATEOFBIRTH = 7; const val BLOODGROUP = 8; const val ISACTIVE = 9; const val CREATEDAT = 10; const val UPDATEDAT = 11 }
     
     /**
      * Import all entities from Excel file with smart conflict resolution
@@ -63,47 +66,53 @@ class ExcelImporter(
             // Import each entity from its sheet (order matters due to foreign key constraints)
             onProgress("Importing users...", 10)
             importUsersEntity(workbook, currentUserId, restoreMode, summary)
+
+            onProgress("Importing user additional info...", 15)
+            importUserAdditionalInfoEntity(workbook, currentUserId, restoreMode, summary)
             
-            onProgress("Importing stores...", 15)
+            onProgress("Importing stores...", 20)
             importStoreEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing categories...", 20)
+            onProgress("Importing categories...", 25)
             importCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing subcategories...", 25)
+            onProgress("Importing subcategories...", 30)
             importSubCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing items...", 30)
+            onProgress("Importing items...", 35)
             importItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing customers...", 35)
+            onProgress("Importing customers...", 40)
             importCustomerEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+            onProgress("Importing khata book plans...", 45)
+            importCustomerKhataBookPlanEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing khata books...", 40)
+            onProgress("Importing khata books...", 50)
             importCustomerKhataBookEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing transactions...", 45)
+            onProgress("Importing transactions...", 55)
             importCustomerTransactionEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing orders...", 50)
+            onProgress("Importing orders...", 60)
             importOrderEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing order items...", 55)
+            onProgress("Importing order items...", 65)
             importOrderItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing exchange items...", 60)
+            onProgress("Importing exchange items...", 70)
             importExchangeItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
             
-            onProgress("Importing firms...", 65)
+            onProgress("Importing firms...", 75)
             importFirmEntity(workbook, restoreMode, summary)
             
-            onProgress("Importing purchase orders...", 65)
+            onProgress("Importing purchase orders...", 80)
             importPurchaseOrderEntity(workbook, restoreMode, summary)
             
-            onProgress("Importing purchase order items...", 70)
+            onProgress("Importing purchase order items...", 85)
             importPurchaseOrderItemEntity(workbook, restoreMode, summary)
             
-            onProgress("Importing metal exchanges...", 75)
+            onProgress("Importing metal exchanges...", 90)
             importMetalExchangeEntity(workbook, restoreMode, summary)
             
             workbook.close()
@@ -169,6 +178,80 @@ class ExcelImporter(
             } catch (e: Exception) {
                 log("Error importing user at row $rowIndex: ${e.message}")
                 summary.usersFailed++
+            }
+        }
+    }
+
+    private suspend fun importUserAdditionalInfoEntity(
+        workbook: Workbook,
+        currentUserId: String,
+        restoreMode: RestoreMode,
+        summary: ImportSummary
+    ) {
+        val sheet = workbook.getSheet("UserAdditionalInfoEntity") ?: return
+        val existingInfos = database.userAdditionalInfoDao()
+            .getAllUserAdditionalInfos()
+            .associateBy { it.userId }
+
+        for (rowIndex in 1..sheet.lastRowNum) {
+            val row = sheet.getRow(rowIndex) ?: continue
+            try {
+                val userId = getCellValueAsString(row.getCell(UserAdditionalInfoCols.USERID))
+                if (userId.isBlank()) {
+                    summary.userAdditionalInfoFailed++
+                    continue
+                }
+                val existingInfo = existingInfos[userId]
+
+                val createdAtValue =
+                    parseDateString(getCellValueAsString(row.getCell(UserAdditionalInfoCols.CREATEDAT))).time
+                val updatedAtValue =
+                    parseDateString(getCellValueAsString(row.getCell(UserAdditionalInfoCols.UPDATEDAT))).time
+
+                val userInfo = UserAdditionalInfoEntity(
+                    userId = userId,
+                    aadhaarNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.AADHAAR))
+                        .takeIf { it.isNotBlank() },
+                    address = getCellValueAsString(row.getCell(UserAdditionalInfoCols.ADDRESS))
+                        .takeIf { it.isNotBlank() },
+                    emergencyContactPerson = getCellValueAsString(row.getCell(UserAdditionalInfoCols.EMERGENCYCONTACTPERSON))
+                        .takeIf { it.isNotBlank() },
+                    emergencyContactNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.EMERGENCYCONTACTNUMBER))
+                        .takeIf { it.isNotBlank() },
+                    governmentIdNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.GOVERNMENTIDNUMBER))
+                        .takeIf { it.isNotBlank() },
+                    governmentIdType = getCellValueAsString(row.getCell(UserAdditionalInfoCols.GOVERNMENTIDTYPE))
+                        .takeIf { it.isNotBlank() },
+                    dateOfBirth = getCellValueAsString(row.getCell(UserAdditionalInfoCols.DATEOFBIRTH))
+                        .takeIf { it.isNotBlank() },
+                    bloodGroup = getCellValueAsString(row.getCell(UserAdditionalInfoCols.BLOODGROUP))
+                        .takeIf { it.isNotBlank() },
+                    isActive = getCellValueAsBoolean(row.getCell(UserAdditionalInfoCols.ISACTIVE)),
+                    createdAt = createdAtValue,
+                    updatedAt = updatedAtValue
+                )
+
+                when (restoreMode) {
+                    RestoreMode.MERGE -> {
+                        if (existingInfo == null) {
+                            database.userAdditionalInfoDao().insertUserAdditionalInfo(userInfo)
+                            summary.userAdditionalInfoAdded++
+                        } else {
+                            summary.userAdditionalInfoSkipped++
+                        }
+                    }
+                    RestoreMode.REPLACE -> {
+                        if (userId != currentUserId) {
+                            database.userAdditionalInfoDao().insertUserAdditionalInfo(userInfo)
+                            summary.userAdditionalInfoAdded++
+                        } else {
+                            summary.userAdditionalInfoSkipped++
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                log("Error importing user additional info at row $rowIndex: ${e.message}")
+                summary.userAdditionalInfoFailed++
             }
         }
     }
@@ -512,6 +595,67 @@ class ExcelImporter(
             } catch (e: Exception) {
                 log("Error importing customer at row $rowIndex: ${e.message}")
                 summary.customersFailed++
+            }
+        }
+    }
+
+    private suspend fun importCustomerKhataBookPlanEntity(
+        workbook: Workbook,
+        currentUserId: String,
+        currentStoreId: String,
+        restoreMode: RestoreMode,
+        summary: ImportSummary
+    ) {
+        val sheet = workbook.getSheet("CustomerKhataBookPlanEntity") ?: return
+        val existingPlans = database.customerKhataBookPlanDao()
+            .getPlansByUserAndStore(currentUserId, currentStoreId)
+            .associateBy { it.planId }
+
+        for (rowIndex in 1..sheet.lastRowNum) {
+            val row = sheet.getRow(rowIndex) ?: continue
+            try {
+                val planId = getCellValueAsString(row.getCell(KhataBookPlanCols.PLANID))
+                if (planId.isBlank()) {
+                    summary.khataBookPlansFailed++
+                    continue
+                }
+                val existingPlan = existingPlans[planId]
+
+                val createdAtValue =
+                    parseDateString(getCellValueAsString(row.getCell(KhataBookPlanCols.CREATEDAT))).time
+                val updatedAtValue =
+                    parseDateString(getCellValueAsString(row.getCell(KhataBookPlanCols.UPDATEDAT))).time
+
+                val plan = CustomerKhataBookPlanEntity(
+                    planId = planId,
+                    name = getCellValueAsString(row.getCell(KhataBookPlanCols.NAME)),
+                    payMonths = getCellValueAsInt(row.getCell(KhataBookPlanCols.PAYMONTHS)),
+                    benefitMonths = getCellValueAsInt(row.getCell(KhataBookPlanCols.BENEFITMONTHS)),
+                    description = getCellValueAsString(row.getCell(KhataBookPlanCols.DESCRIPTION)),
+                    benefitPercentage = getCellValueAsDouble(row.getCell(KhataBookPlanCols.BENEFITPERCENTAGE)),
+                    userId = currentUserId,
+                    storeId = currentStoreId,
+                    createdAt = createdAtValue,
+                    updatedAt = updatedAtValue
+                )
+
+                when (restoreMode) {
+                    RestoreMode.MERGE -> {
+                        if (existingPlan == null) {
+                            database.customerKhataBookPlanDao().insertPlan(plan)
+                            summary.khataBookPlansAdded++
+                        } else {
+                            summary.khataBookPlansSkipped++
+                        }
+                    }
+                    RestoreMode.REPLACE -> {
+                        database.customerKhataBookPlanDao().insertPlan(plan)
+                        summary.khataBookPlansAdded++
+                    }
+                }
+            } catch (e: Exception) {
+                log("Error importing khata book plan at row $rowIndex: ${e.message}")
+                summary.khataBookPlansFailed++
             }
         }
     }
@@ -1123,36 +1267,307 @@ class ExcelImporter(
     suspend fun validateExcelStructure(inputFile: File): Result<Unit> {
         return try {
             val workbook = XSSFWorkbook(FileInputStream(inputFile))
-            
-            // Check if required sheets exist
-            val requiredSheets = listOf(
-                "UsersEntity", "StoreEntity", "CategoryEntity", "SubCategoryEntity",
-                "ItemEntity", "CustomerEntity", "CustomerKhataBookEntity", "CustomerTransactionEntity",
-                "OrderEntity", "OrderItemEntity", "FirmEntity", "PurchaseOrderEntity",
-                "PurchaseOrderItemEntity", "MetalExchangeEntity"
+
+            val expectedHeaders = mapOf(
+                "UsersEntity" to listOf(
+                    "id",
+                    "name",
+                    "email",
+                    "mobileNo",
+                    "token",
+                    "pin",
+                    "role"
+                ),
+                "UserAdditionalInfoEntity" to listOf(
+                    "userId",
+                    "aadhaarNumber",
+                    "address",
+                    "emergencyContactPerson",
+                    "emergencyContactNumber",
+                    "governmentIdNumber",
+                    "governmentIdType",
+                    "dateOfBirth",
+                    "bloodGroup",
+                    "isActive",
+                    "createdAt",
+                    "updatedAt"
+                ),
+                "StoreEntity" to listOf(
+                    "storeId",
+                    "userId",
+                    "proprietor",
+                    "name",
+                    "email",
+                    "phone",
+                    "address",
+                    "registrationNo",
+                    "gstinNo",
+                    "panNo",
+                    "image",
+                    "invoiceNo",
+                    "upiId"
+                ),
+                "CategoryEntity" to listOf(
+                    "catId",
+                    "catName",
+                    "gsWt",
+                    "fnWt",
+                    "userId",
+                    "storeId"
+                ),
+                "SubCategoryEntity" to listOf(
+                    "subCatId",
+                    "catId",
+                    "userId",
+                    "storeId",
+                    "catName",
+                    "subCatName",
+                    "quantity",
+                    "gsWt",
+                    "fnWt"
+                ),
+                "ItemEntity" to listOf(
+                    "itemId",
+                    "itemAddName",
+                    "catId",
+                    "userId",
+                    "storeId",
+                    "catName",
+                    "subCatId",
+                    "subCatName",
+                    "entryType",
+                    "quantity",
+                    "gsWt",
+                    "ntWt",
+                    "fnWt",
+                    "purity",
+                    "crgType",
+                    "crg",
+                    "othCrgDes",
+                    "othCrg",
+                    "cgst",
+                    "sgst",
+                    "igst",
+                    "huid",
+                    "unit",
+                    "addDesKey",
+                    "addDesValue",
+                    "addDate",
+                    "modifiedDate",
+                    "sellerFirmId",
+                    "purchaseOrderId",
+                    "purchaseItemId"
+                ),
+                "CustomerEntity" to listOf(
+                    "mobileNo",
+                    "name",
+                    "address",
+                    "gstin_pan",
+                    "addDate",
+                    "lastModifiedDate",
+                    "totalItemBought",
+                    "totalAmount",
+                    "notes",
+                    "userId",
+                    "storeId"
+                ),
+                "CustomerKhataBookPlanEntity" to listOf(
+                    "planId",
+                    "name",
+                    "payMonths",
+                    "benefitMonths",
+                    "description",
+                    "benefitPercentage",
+                    "userId",
+                    "storeId",
+                    "createdAt",
+                    "updatedAt"
+                ),
+                "CustomerKhataBookEntity" to listOf(
+                    "khataBookId",
+                    "customerMobile",
+                    "planName",
+                    "startDate",
+                    "endDate",
+                    "monthlyAmount",
+                    "totalMonths",
+                    "totalAmount",
+                    "status",
+                    "notes",
+                    "userId",
+                    "storeId"
+                ),
+                "CustomerTransactionEntity" to listOf(
+                    "transactionId",
+                    "customerMobile",
+                    "transactionDate",
+                    "amount",
+                    "transactionType",
+                    "category",
+                    "description",
+                    "referenceNumber",
+                    "paymentMethod",
+                    "khataBookId",
+                    "monthNumber",
+                    "notes",
+                    "userId",
+                    "storeId"
+                ),
+                "OrderEntity" to listOf(
+                    "orderId",
+                    "customerMobile",
+                    "storeId",
+                    "userId",
+                    "orderDate",
+                    "totalAmount",
+                    "totalTax",
+                    "totalCharge",
+                    "discount",
+                    "note"
+                ),
+                "OrderItemEntity" to listOf(
+                    "orderItemId",
+                    "orderId",
+                    "orderDate",
+                    "itemId",
+                    "customerMobile",
+                    "catId",
+                    "catName",
+                    "itemAddName",
+                    "subCatId",
+                    "subCatName",
+                    "entryType",
+                    "quantity",
+                    "gsWt",
+                    "ntWt",
+                    "fnWt",
+                    "fnMetalPrice",
+                    "purity",
+                    "crgType",
+                    "crg",
+                    "othCrgDes",
+                    "othCrg",
+                    "cgst",
+                    "sgst",
+                    "igst",
+                    "huid",
+                    "addDesKey",
+                    "addDesValue",
+                    "price",
+                    "charge",
+                    "tax",
+                    "sellerFirmId",
+                    "purchaseOrderId",
+                    "purchaseItemId"
+                ),
+                "ExchangeItemEntity" to listOf(
+                    "exchangeItemId",
+                    "orderId",
+                    "orderDate",
+                    "customerMobile",
+                    "metalType",
+                    "purity",
+                    "grossWeight",
+                    "fineWeight",
+                    "price",
+                    "isExchangedByMetal",
+                    "exchangeValue",
+                    "addDate"
+                ),
+                "FirmEntity" to listOf(
+                    "firmId",
+                    "firmName",
+                    "firmMobileNumber",
+                    "gstNumber",
+                    "address"
+                ),
+                "PurchaseOrderEntity" to listOf(
+                    "purchaseOrderId",
+                    "sellerId",
+                    "billNo",
+                    "billDate",
+                    "entryDate",
+                    "extraChargeDescription",
+                    "extraCharge",
+                    "totalFinalWeight",
+                    "totalFinalAmount",
+                    "notes",
+                    "cgstPercent",
+                    "sgstPercent",
+                    "igstPercent"
+                ),
+                "PurchaseOrderItemEntity" to listOf(
+                    "purchaseItemId",
+                    "purchaseOrderId",
+                    "catId",
+                    "catName",
+                    "subCatId",
+                    "subCatName",
+                    "gsWt",
+                    "purity",
+                    "ntWt",
+                    "fnWt",
+                    "fnRate",
+                    "wastagePercent"
+                ),
+                "MetalExchangeEntity" to listOf(
+                    "exchangeId",
+                    "purchaseOrderId",
+                    "catId",
+                    "catName",
+                    "subCatId",
+                    "subCatName",
+                    "fnWeight"
+                )
             )
-            
+
+            val errors = mutableListOf<String>()
+            val requiredSheets = expectedHeaders.keys
+
             val existingSheets = mutableListOf<String>()
             for (i in 0 until workbook.numberOfSheets) {
                 existingSheets.add(workbook.getSheetName(i))
             }
-            
+
             val missingSheets = requiredSheets.filter { !existingSheets.contains(it) }
             if (missingSheets.isNotEmpty()) {
-                return Result.failure(Exception("Missing required sheets: ${missingSheets.joinToString(", ")}"))
+                errors.add("Missing sheets: ${missingSheets.joinToString(", ")}")
             }
-            
-            // Check if sheets have data (at least header row)
-            for (sheetName in requiredSheets) {
-                val sheet = workbook.getSheet(sheetName)
-                if (sheet == null || sheet.lastRowNum < 0) {
-                    return Result.failure(Exception("Sheet '$sheetName' is empty or corrupted"))
+
+            for ((sheetName, headers) in expectedHeaders) {
+                val sheet = workbook.getSheet(sheetName) ?: continue
+                if (sheet.lastRowNum < 0) {
+                    errors.add("Sheet '$sheetName' is empty or corrupted")
+                    continue
+                }
+
+                val headerRow = sheet.getRow(0)
+                if (headerRow == null) {
+                    errors.add("Sheet '$sheetName' is missing the header row")
+                    continue
+                }
+
+                val actualHeaders = headers.indices.map { index ->
+                    getCellValueAsString(headerRow.getCell(index)).trim()
+                }
+                val mismatchedHeaders = headers.filterIndexed { index, expected ->
+                    actualHeaders.getOrNull(index)?.equals(expected, ignoreCase = true) != true
+                }
+                if (mismatchedHeaders.isNotEmpty()) {
+                    errors.add(
+                        "Sheet '$sheetName' missing or mismatched columns: ${mismatchedHeaders.joinToString(", ")}"
+                    )
                 }
             }
-            
+
             workbook.close()
+
+            if (errors.isNotEmpty()) {
+                return Result.failure(Exception(errors.joinToString("\n")))
+            }
+
             Result.success(Unit)
-            
+
         } catch (e: Exception) {
             log("Excel structure validation failed: ${e.message}")
             Result.failure(e)
@@ -1190,6 +1605,9 @@ data class ImportSummary(
     var customersAdded: Int = 0,
     var customersSkipped: Int = 0,
     var customersFailed: Int = 0,
+    var khataBookPlansAdded: Int = 0,
+    var khataBookPlansSkipped: Int = 0,
+    var khataBookPlansFailed: Int = 0,
     var ordersAdded: Int = 0,
     var ordersSkipped: Int = 0,
     var ordersFailed: Int = 0,
@@ -1216,7 +1634,10 @@ data class ImportSummary(
     var transactionsFailed: Int = 0,
     var exchangeItemsAdded: Int = 0,
     var exchangeItemsSkipped: Int = 0,
-    var exchangeItemsFailed: Int = 0
+    var exchangeItemsFailed: Int = 0,
+    var userAdditionalInfoAdded: Int = 0,
+    var userAdditionalInfoSkipped: Int = 0,
+    var userAdditionalInfoFailed: Int = 0
 ) {
     override fun toString(): String {
         return "Import Summary: " +
@@ -1226,6 +1647,7 @@ data class ImportSummary(
                 "SubCategories($subCategoriesAdded added, $subCategoriesSkipped skipped, $subCategoriesFailed failed), " +
                 "Items($itemsAdded added, $itemsSkipped skipped, $itemsFailed failed), " +
                 "Customers($customersAdded added, $customersSkipped skipped, $customersFailed failed), " +
+                "KhataBookPlans($khataBookPlansAdded added, $khataBookPlansSkipped skipped, $khataBookPlansFailed failed), " +
                 "Orders($ordersAdded added, $ordersSkipped skipped, $ordersFailed failed), " +
                 "OrderItems($orderItemsAdded added, $orderItemsSkipped skipped, $orderItemsFailed failed), " +
                 "Firms($firmsAdded added, $firmsSkipped skipped, $firmsFailed failed), " +
@@ -1234,6 +1656,7 @@ data class ImportSummary(
                 "MetalExchanges($metalExchangesAdded added, $metalExchangesSkipped skipped, $metalExchangesFailed failed), " +
                 "KhataBooks($khataBooksAdded added, $khataBooksSkipped skipped, $khataBooksFailed failed), " +
                 "Transactions($transactionsAdded added, $transactionsSkipped skipped, $transactionsFailed failed), " +
-                "ExchangeItems($exchangeItemsAdded added, $exchangeItemsSkipped skipped, $exchangeItemsFailed failed)"
+                "ExchangeItems($exchangeItemsAdded added, $exchangeItemsSkipped skipped, $exchangeItemsFailed failed), " +
+                "UserAdditionalInfo($userAdditionalInfoAdded added, $userAdditionalInfoSkipped skipped, $userAdditionalInfoFailed failed)"
     }
 }

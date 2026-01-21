@@ -295,6 +295,19 @@ private fun AuthScreen(
             loginViewModel.resetOtpStates()
         }
     }
+    val onMobileChanged = remember(loginViewModel.isOtpGenerated.value, loginViewModel.isOtpVerified.value) {
+        { newValue: String ->
+            val sentTo = loginViewModel.otpSentTo.value
+            if (loginViewModel.isOtpGenerated.value &&
+                !loginViewModel.isOtpVerified.value &&
+                !sentTo.isNullOrBlank() &&
+                sentTo != newValue
+            ) {
+                loginViewModel.resetOtpStates()
+                otp.clear()
+            }
+        }
+    }
 
 
     val buttonText = if (isLogin.value) {
@@ -466,10 +479,12 @@ private fun AuthScreen(
                         .fillMaxWidth()
                         .focusRequester(mobileNoFocusRequester),
                     state = mobileNo,
+                    onTextChange = onMobileChanged,
                     placeholderText = "Mobile Number",
                     keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Next,
                     nextFocusRequester = if (loginViewModel.isOtpGenerated.value) otpFocusRequester else null,
+                    enabled = !loginViewModel.isOtpVerified.value,
                     validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null }
 
                 )
@@ -487,7 +502,8 @@ private fun AuthScreen(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next,
                         nextFocusRequester = if (loginViewModel.isOtpVerified.value) passwordFocusRequester else null,
-                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.TwoTone.Done else null
+                        trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.TwoTone.Done else null,
+                        enabled = !loginViewModel.isOtpVerified.value
                     )
                 }
 
@@ -527,8 +543,10 @@ private fun AuthScreen(
                         .fillMaxWidth()
                         .focusRequester(mobileNoFocusRequester),
                     state = mobileNo,
+                    onTextChange = onMobileChanged,
                     placeholderText = "Mobile Number",
                     keyboardType = KeyboardType.Phone,
+                    enabled = !loginViewModel.isOtpVerified.value,
                     validation = { input -> if (input.length != 10) "Please Enter Valid Number" else null },
                     imeAction = ImeAction.Next,
                     nextFocusRequester = if (loginViewModel.isOtpGenerated.value) otpFocusRequester else null,
@@ -554,6 +572,7 @@ private fun AuthScreen(
                         placeholderText = "OTP",
                         keyboardType = KeyboardType.Number,
                         trailingIcon = if (loginViewModel.isOtpVerified.value) Icons.TwoTone.Done else null,
+                        enabled = !loginViewModel.isOtpVerified.value,
                         imeAction = ImeAction.Next,
                         nextFocusRequester = if (loginViewModel.isOtpVerified.value) passwordFocusRequester else null,
                         keyboardActions = KeyboardActions(onNext = {

@@ -48,82 +48,87 @@ class ExcelExporter(private val context: Context) {
             log("Starting entity export process...")
             
             onProgress("Exporting Stores...", 5)
-            log("Step 1/15: Exporting StoreEntity...")
+            log("Step 1/17: Exporting StoreEntity...")
             exportStoreEntity(database, workbook, headerStyle)
             log("✓ StoreEntity export completed")
             
             onProgress("Exporting Users...", 10)
-            log("Step 2/15: Exporting UsersEntity...")
+            log("Step 2/17: Exporting UsersEntity...")
             exportUserEntity(database, workbook, headerStyle)
             log("✓ UsersEntity export completed")
             
             onProgress("Exporting Categories...", 15)
-            log("Step 3/15: Exporting CategoryEntity...")
+            log("Step 3/17: Exporting CategoryEntity...")
             exportCategoryEntity(database, workbook, headerStyle)
             log("✓ CategoryEntity export completed")
             
             onProgress("Exporting SubCategories...", 20)
-            log("Step 4/15: Exporting SubCategoryEntity...")
+            log("Step 4/17: Exporting SubCategoryEntity...")
             exportSubCategoryEntity(database, workbook, headerStyle)
             log("✓ SubCategoryEntity export completed")
             
             onProgress("Exporting Items...", 30)
-            log("Step 5/15: Exporting ItemEntity...")
+            log("Step 5/17: Exporting ItemEntity...")
             exportItemEntity(database, workbook, headerStyle)
             log("✓ ItemEntity export completed")
             
             onProgress("Exporting Customers...", 40)
-            log("Step 6/15: Exporting CustomerEntity...")
+            log("Step 6/17: Exporting CustomerEntity...")
             exportCustomerEntity(database, workbook, headerStyle)
             log("✓ CustomerEntity export completed")
             
+            onProgress("Exporting Customer Khata Book Plans...", 45)
+            log("Step 7/17: Exporting CustomerKhataBookPlanEntity...")
+            exportCustomerKhataBookPlanEntity(database, workbook, headerStyle)
+            log("CustomerKhataBookPlanEntity export completed")
+
             onProgress("Exporting Customer Khata Books...", 50)
-            log("Step 7/15: Exporting CustomerKhataBookEntity...")
+            log("Step 8/17: Exporting CustomerKhataBookEntity...")
             exportCustomerKhataBookEntity(database, workbook, headerStyle)
             log("✓ CustomerKhataBookEntity export completed")
             
             onProgress("Exporting Customer Transactions...", 60)
-            log("Step 8/15: Exporting CustomerTransactionEntity...")
+            log("Step 9/17: Exporting CustomerTransactionEntity...")
             exportCustomerTransactionEntity(database, workbook, headerStyle)
             log("✓ CustomerTransactionEntity export completed")
             
             onProgress("Exporting Orders...", 70)
-            log("Step 9/15: Exporting OrderEntity...")
+            log("Step 10/17: Exporting OrderEntity...")
             exportOrderEntity(database, workbook, headerStyle)
             log("✓ OrderEntity export completed")
             
             onProgress("Exporting Order Items...", 75)
-            log("Step 10/15: Exporting OrderItemEntity...")
+            log("Step 11/17: Exporting OrderItemEntity...")
             exportOrderItemEntity(database, workbook, headerStyle)
             log("✓ OrderItemEntity export completed")
             
             onProgress("Exporting Exchange Items...", 78)
-            log("Step 11/15: Exporting ExchangeItemEntity...")
+            log("Step 12/17: Exporting ExchangeItemEntity...")
             exportExchangeItemEntity(database, workbook, headerStyle)
             log("✓ ExchangeItemEntity export completed")
             
             onProgress("Exporting Firms...", 80)
-            log("Step 12/15: Exporting FirmEntity...")
+            log("Step 13/17: Exporting FirmEntity...")
             exportFirmEntity(database, workbook, headerStyle)
             log("✓ FirmEntity export completed")
             
             onProgress("Exporting Purchase Orders...", 85)
-            log("Step 13/15: Exporting PurchaseOrderEntity...")
+            log("Step 14/17: Exporting PurchaseOrderEntity...")
             exportPurchaseOrderEntity(database, workbook, headerStyle)
             log("✓ PurchaseOrderEntity export completed")
             
             onProgress("Exporting Purchase Order Items...", 90)
-            log("Step 14/15: Exporting PurchaseOrderItemEntity...")
+            log("Step 15/17: Exporting PurchaseOrderItemEntity...")
             exportPurchaseOrderItemEntity(database, workbook, headerStyle)
             log("✓ PurchaseOrderItemEntity export completed")
             
             onProgress("Exporting Metal Exchanges...", 95)
-            log("Step 15/15: Exporting MetalExchangeEntity...")
+            log("Step 16/17: Exporting MetalExchangeEntity...")
             exportMetalExchangeEntity(database, workbook, headerStyle)
             log("✓ MetalExchangeEntity export completed")
             
             onProgress("Exporting User Additional Info...", 98)
-            log("Final step: Exporting UserAdditionalInfoEntity...")
+            log("Step 17/17: Exporting UserAdditionalInfoEntity...")
             exportUserAdditionalInfoEntity(database, workbook, headerStyle)
             log("✓ UserAdditionalInfoEntity export completed")
             
@@ -189,7 +194,7 @@ class ExcelExporter(private val context: Context) {
         val users = database.userDao().getAllUsers()
         log("  → Found ${users.size} users to export")
         
-        val headers = listOf("id", "name", "email", "mobileNo", "token", "pin")
+        val headers = listOf("id", "name", "email", "mobileNo", "token", "pin", "role")
         log("  → Creating headers: ${headers.joinToString(", ")}")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -207,6 +212,7 @@ class ExcelExporter(private val context: Context) {
             row.createCell(3).setCellValue(user.mobileNo)
             row.createCell(4).setCellValue(user.token ?: "")
             row.createCell(5).setCellValue(user.pin ?: "")
+            row.createCell(6).setCellValue(user.role)
         }
         log("  → UsersEntity export completed: ${users.size} records")
     }
@@ -344,6 +350,50 @@ class ExcelExporter(private val context: Context) {
         }
         log("  → CustomerEntity export completed: ${customers.size} records")
     }
+
+    private suspend fun exportCustomerKhataBookPlanEntity(
+        database: AppDatabase,
+        workbook: Workbook,
+        headerStyle: CellStyle
+    ) {
+        log("  → Starting CustomerKhataBookPlanEntity export...")
+        val sheet = workbook.createSheet("CustomerKhataBookPlanEntity")
+        val plans = database.customerKhataBookPlanDao().getAllPlansList()
+        log("  → Found ${plans.size} khata book plans to export")
+
+        val headers = listOf(
+            "planId",
+            "name",
+            "payMonths",
+            "benefitMonths",
+            "description",
+            "benefitPercentage",
+            "userId",
+            "storeId",
+            "createdAt",
+            "updatedAt"
+        )
+        val headerRow = sheet.createRow(0)
+        headers.forEachIndexed { index, header ->
+            val cell = headerRow.createCell(index)
+            cell.setCellValue(header)
+            cell.cellStyle = headerStyle
+        }
+        plans.forEachIndexed { rowIndex, plan ->
+            val row = sheet.createRow(rowIndex + 1)
+            row.createCell(0).setCellValue(plan.planId)
+            row.createCell(1).setCellValue(plan.name)
+            row.createCell(2).setCellValue(plan.payMonths.toDouble())
+            row.createCell(3).setCellValue(plan.benefitMonths.toDouble())
+            row.createCell(4).setCellValue(plan.description)
+            row.createCell(5).setCellValue(plan.benefitPercentage)
+            row.createCell(6).setCellValue(plan.userId)
+            row.createCell(7).setCellValue(plan.storeId)
+            row.createCell(8).setCellValue(dateFormat.format(Date(plan.createdAt)))
+            row.createCell(9).setCellValue(dateFormat.format(Date(plan.updatedAt)))
+        }
+        log("  → CustomerKhataBookPlanEntity export completed: ${plans.size} records")
+    }
     
     private suspend fun exportCustomerKhataBookEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
         log("  → Starting CustomerKhataBookEntity export...")
@@ -415,7 +465,7 @@ class ExcelExporter(private val context: Context) {
         val orders = database.orderDao().getAllOrders()
         log("  → Found ${orders.size} orders to export")
         
-        val headers = listOf("orderId", "customerMobile", "storeId", "userId", "orderDate", "totalAmount", "totalTax", "totalCharge", "note")
+        val headers = listOf("orderId", "customerMobile", "storeId", "userId", "orderDate", "totalAmount", "totalTax", "totalCharge", "discount", "note")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -432,7 +482,8 @@ class ExcelExporter(private val context: Context) {
             row.createCell(5).setCellValue(order.totalAmount)
             row.createCell(6).setCellValue(order.totalTax)
             row.createCell(7).setCellValue(order.totalCharge)
-            row.createCell(8).setCellValue(order.note ?: "")
+            row.createCell(8).setCellValue(order.discount)
+            row.createCell(9).setCellValue(order.note ?: "")
         }
         log("  → OrderEntity export completed: ${orders.size} records")
     }

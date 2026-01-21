@@ -55,6 +55,7 @@ class LoginViewModel @Inject constructor(
     val snackBarState = _snackBarState
     val isOtpGenerated = mutableStateOf(false)
     val isOtpVerified = mutableStateOf(false)
+    val otpSentTo = mutableStateOf<String?>(null)
 
     val firebaseUser = mutableStateOf<FirebaseUser?>(null)
 
@@ -289,6 +290,7 @@ class LoginViewModel @Inject constructor(
                     ) {
                         isOtpGenerated.value = true
                         otpVerificationId.value = verificationId
+                        otpSentTo.value = phoneNumber
                         _loadingState.value = false
                         _snackBarState.value = "Otp has been sent."
                         startTimer() // Start the timer when OTP is sent
@@ -366,32 +368,39 @@ class LoginViewModel @Inject constructor(
     fun verifyOtpAndSignIn(
         otp: String, onSuccess: (FirebaseUser) -> Unit = {}, onFailure: (String) -> Unit = {}
     ) {
-        if (!otpVerificationId.value.isNullOrBlank()) {
-            log("LOGIN: verifyOtpAndSignIn called")
-            if (otp.isBlank() || otp.length < 4) {
-                log("LOGIN: OTP input invalid (length=${otp.length})")
-                onFailure("Enter valid OTP")
-                return
-            }
-            val credential = PhoneAuthProvider.getCredential(otpVerificationId.value!!, otp)
-            _loadingState.value = true
-            _auth.signInWithCredential(credential).addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    task.result?.user?.let { user ->
-                        isOtpVerified.value = true
-                        firebaseUser.value = user
-                        stopTimer() // Stop timer when OTP is verified
-                        log("LOGIN: OTP verification successful, user=${user.uid}")
-                        onSuccess(user)
-                    }
-                    _loadingState.value = false
-                } else {
-                    _loadingState.value = false
-                    log("LOGIN: OTP verification failed -> ${task.exception?.message}")
-                    onFailure(task.exception?.message ?: "OTP verification failed")
+        if (otpVerificationId.value.isNullOrBlank()) {
+            val message = "OTP verification ID not found"
+            _snackBarState.value = message
+            onFailure(message)
+            return
+        }
+        log("LOGIN: verifyOtpAndSignIn called")
+        if (otp.isBlank() || otp.length < 4) {
+            val message = "Enter valid OTP"
+            log("LOGIN: OTP input invalid (length=${otp.length})")
+            _snackBarState.value = message
+            onFailure(message)
+            return
+        }
+        val credential = PhoneAuthProvider.getCredential(otpVerificationId.value!!, otp)
+        _loadingState.value = true
+        _auth.signInWithCredential(credential).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                task.result?.user?.let { user ->
+                    isOtpVerified.value = true
+                    firebaseUser.value = user
+                    stopTimer() // Stop timer when OTP is verified
+                    log("LOGIN: OTP verification successful, user=${user.uid}")
+                    onSuccess(user)
                 }
+                _loadingState.value = false
+            } else {
+                _loadingState.value = false
+                val message = task.exception?.message ?: "OTP verification failed"
+                log("LOGIN: OTP verification failed -> ${task.exception?.message}")
+                _snackBarState.value = message
+                onFailure(message)
             }
-
         }
     }
 
@@ -781,6 +790,7 @@ class LoginViewModel @Inject constructor(
         isOtpGenerated.value = false
         isOtpVerified.value = false
         otpVerificationId.value = null
+        otpSentTo.value = null
         firebaseUser.value = null
         stopTimer()
     }

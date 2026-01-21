@@ -74,6 +74,7 @@ fun KhataBookPlansScreen(
     var showDeletePlanDialog by remember { mutableStateOf<KhataBookPlan?>(null) }
 
     LaunchedEffect(Unit) {
+        viewModel.currentScreenHeadingState.value = "Khata Book Plans"
         viewModel.loadKhataBookPlans()
     }
 
@@ -138,7 +139,14 @@ fun KhataBookPlansScreen(
                             plan = plan,
                             onClick = { selectedPlan = plan },
                             onEdit = { showEditPlanDialog = plan },
-                            onDelete = { showDeletePlanDialog = plan })
+                            onDelete = {
+                                if (plan.isCustom) {
+                                    showDeletePlanDialog = plan
+                                } else {
+                                    viewModel.snackBarState.value =
+                                        "Predefined plans can't be deleted"
+                                }
+                            })
                     }
                 }
             }

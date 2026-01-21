@@ -12,9 +12,11 @@ import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.data.roomdb.dto.TransactionItem
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerKhataBookPlanEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.utils.TransactionUtils
+import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.formatCurrency
 import com.velox.jewelvault.utils.formatDate
 import com.velox.jewelvault.utils.generateId
@@ -164,14 +166,50 @@ class CustomerViewModel @Inject constructor(
     val planList = mutableStateListOf<KhataBookPlan>()
 
     init {
-        // Load predefined plans
+        // Load predefined plans and refresh custom plans from DB.
         planList.addAll(getPredefinedPlans())
+        ioLaunch {
+            try {
+                val userId = admin.first.first()
+                val storeId = store.first.first()
+                refreshPlanList(userId, storeId)
+            } catch (e: Exception) {
+                log("Failed to load khata book plans: ${e.message}")
+            }
+        }
     }
 
     fun addPlan(name: String, payMonths: Int, benefitMonths: Int, description: String) {
-        val benefitPercentage =
-            if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
-        planList.add(KhataBookPlan(name, payMonths, benefitMonths, description, benefitPercentage))
+        ioLaunch {
+            try {
+                val userId = admin.first.first()
+                val storeId = store.first.first()
+                val now = System.currentTimeMillis()
+                val benefitPercentage = calculateBenefitPercentage(payMonths, benefitMonths)
+                val planEntity = CustomerKhataBookPlanEntity(
+                    planId = generateId(),
+                    name = name.trim(),
+                    payMonths = payMonths,
+                    benefitMonths = benefitMonths,
+                    description = description.trim(),
+                    benefitPercentage = benefitPercentage,
+                    userId = userId,
+                    storeId = storeId,
+                    createdAt = now,
+                    updatedAt = now
+                )
+                appDatabase.customerKhataBookPlanDao().insertPlan(planEntity)
+                refreshPlanList(userId, storeId)
+                mainScope {
+                    _snackBarState.value = "Khata book plan added successfully"
+                }
+            } catch (e: Exception) {
+                log("Failed to add khata book plan: ${e.message}")
+                mainScope {
+                    _snackBarState.value = "Failed to add khata book plan: ${e.message}"
+                }
+            }
+        }
     }
 
     fun editPlan(
@@ -181,20 +219,111 @@ class CustomerViewModel @Inject constructor(
         benefitMonths: Int,
         description: String
     ) {
-        val idx = planList.indexOf(plan)
-        val benefitPercentage =
-            if (payMonths + benefitMonths > 0) benefitMonths * 100.0 / (payMonths + benefitMonths) else 0.0
-        if (idx >= 0) planList[idx] = plan.copy(
-            name = name,
-            payMonths = payMonths,
-            benefitMonths = benefitMonths,
-            description = description,
-            benefitPercentage = benefitPercentage
-        )
+        val benefitPercentage = calculateBenefitPercentage(payMonths, benefitMonths)
+        if (!plan.isCustom || plan.planId.isBlank()) {
+            val idx = planList.indexOfFirst { it.planId == plan.planId && plan.planId.isNotBlank() }
+                .takeIf { it >= 0 } ?: planList.indexOf(plan)
+            if (idx >= 0) {
+                planList[idx] = plan.copy(
+                    name = name,
+                    payMonths = payMonths,
+                    benefitMonths = benefitMonths,
+                    description = description,
+                    benefitPercentage = benefitPercentage,
+                    updatedAt = System.currentTimeMillis()
+                )
+            }
+            return
+        }
+
+        ioLaunch {
+            try {
+                val userId = admin.first.first()
+                val storeId = store.first.first()
+                val now = System.currentTimeMillis()
+                val updatedEntity = CustomerKhataBookPlanEntity(
+                    planId = plan.planId,
+                    name = name.trim(),
+                    payMonths = payMonths,
+                    benefitMonths = benefitMonths,
+                    description = description.trim(),
+                    benefitPercentage = benefitPercentage,
+                    userId = userId,
+                    storeId = storeId,
+                    createdAt = if (plan.createdAt > 0) plan.createdAt else now,
+                    updatedAt = now
+                )
+                appDatabase.customerKhataBookPlanDao().insertPlan(updatedEntity)
+                refreshPlanList(userId, storeId)
+                mainScope {
+                    _snackBarState.value = "Khata book plan updated successfully"
+                }
+            } catch (e: Exception) {
+                log("Failed to update khata book plan: ${e.message}")
+                mainScope {
+                    _snackBarState.value = "Failed to update khata book plan: ${e.message}"
+                }
+            }
+        }
     }
 
     fun deletePlan(plan: KhataBookPlan) {
-        planList.remove(plan)
+        if (!plan.isCustom || plan.planId.isBlank()) {
+            _snackBarState.value = "Predefined plans can't be deleted"
+            return
+        }
+
+        ioLaunch {
+            try {
+                val userId = admin.first.first()
+                val storeId = store.first.first()
+                appDatabase.customerKhataBookPlanDao().deletePlanById(plan.planId)
+                refreshPlanList(userId, storeId)
+                mainScope {
+                    _snackBarState.value = "Khata book plan deleted successfully"
+                }
+            } catch (e: Exception) {
+                log("Failed to delete khata book plan: ${e.message}")
+                mainScope {
+                    _snackBarState.value = "Failed to delete khata book plan: ${e.message}"
+                }
+            }
+        }
+    }
+
+    private fun calculateBenefitPercentage(payMonths: Int, benefitMonths: Int): Double {
+        return if (payMonths + benefitMonths > 0) {
+            benefitMonths * 100.0 / (payMonths + benefitMonths)
+        } else 0.0
+    }
+
+    private fun findPlanByName(planName: String): KhataBookPlan? {
+        return planList.firstOrNull { it.name == planName }
+            ?: getPredefinedPlans().firstOrNull { it.name == planName }
+    }
+
+    private fun mapPlanEntity(entity: CustomerKhataBookPlanEntity): KhataBookPlan {
+        return KhataBookPlan(
+            name = entity.name,
+            payMonths = entity.payMonths,
+            benefitMonths = entity.benefitMonths,
+            description = entity.description,
+            benefitPercentage = entity.benefitPercentage,
+            planId = entity.planId,
+            isCustom = true,
+            createdAt = entity.createdAt,
+            updatedAt = entity.updatedAt
+        )
+    }
+
+    private suspend fun refreshPlanList(userId: String, storeId: String) {
+        val customPlans =
+            appDatabase.customerKhataBookPlanDao().getPlansByUserAndStore(userId, storeId)
+        mainScope {
+            planList.clear()
+            planList.addAll(customPlans.map { mapPlanEntity(it) })
+            planList.addAll(getPredefinedPlans())
+        }
     }
 
 
@@ -329,6 +458,7 @@ class CustomerViewModel @Inject constructor(
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
+                refreshPlanList(userId, storeId)
 
                 // Load active khata book customers
                 val activeKhataBooks =
@@ -549,26 +679,49 @@ class CustomerViewModel @Inject constructor(
     }
 
     fun addCustomer() {
-        if (customerName.text.isEmpty() || customerMobile.text.isEmpty()) {
-            _snackBarState.value = "Name and mobile number are required"
-            return
-        }
-
         ioLaunch {
             try {
                 val userId = admin.first.first()
                 val storeId = store.first.first()
                 val currentTime = Timestamp(System.currentTimeMillis())
 
-                val customer = CustomerEntity(
+                val name = InputValidator.sanitizeText(customerName.text)
+                val mobile = customerMobile.text.filter(Char::isDigit)
+                val address = InputValidator.sanitizeText(customerAddress.text)
+                val gstinPan = customerGstin.text.trim().uppercase()
+                val notes = InputValidator.sanitizeText(customerNotes.text)
 
-                    mobileNo = customerMobile.text.trim(),
-                    name = customerName.text.trim(),
-                    address = customerAddress.text.trim().takeIf { it.isNotEmpty() },
-                    gstin_pan = customerGstin.text.trim().takeIf { it.isNotEmpty() },
+                if (name.isBlank() || name.length < 2) {
+                    _snackBarState.value = "Customer name is required"
+                    return@ioLaunch
+                }
+                if (mobile.isBlank() || !mobile.matches(Regex("^[6-9][0-9]{9}$"))) {
+                    _snackBarState.value = "Enter a valid 10-digit mobile number"
+                    return@ioLaunch
+                }
+                if (address.isBlank() || address.length < 10) {
+                    _snackBarState.value = "Please enter a complete address (min 10 characters)"
+                    return@ioLaunch
+                }
+                if (gstinPan.isNotBlank() && !InputValidator.isValidGSTIN(gstinPan) && !InputValidator.isValidPAN(gstinPan)) {
+                    _snackBarState.value = "Enter a valid GSTIN or PAN"
+                    return@ioLaunch
+                }
+
+                val existingCustomer = appDatabase.customerDao().getCustomerByMobile(mobile)
+                if (existingCustomer != null) {
+                    _snackBarState.value = "Customer with this mobile already exists."
+                    return@ioLaunch
+                }
+
+                val customer = CustomerEntity(
+                    mobileNo = mobile,
+                    name = name,
+                    address = address.takeIf { it.isNotEmpty() },
+                    gstin_pan = gstinPan.takeIf { it.isNotEmpty() },
                     addDate = currentTime,
                     lastModifiedDate = currentTime,
-                    notes = customerNotes.text.trim().takeIf { it.isNotEmpty() },
+                    notes = notes.takeIf { it.isNotEmpty() },
                     userId = userId,
                     storeId = storeId
                 )
@@ -944,7 +1097,7 @@ class CustomerViewModel @Inject constructor(
                 val paidMonthNumbers = paidMonths.mapNotNull { it.monthNumber }.toSet()
 
                 // Get plan info to determine pay months
-                val planInfo = getPredefinedPlans().find { it.name == khataBook.planName }
+                val planInfo = findPlanByName(khataBook.planName)
                 val requiredPayMonths = planInfo?.payMonths ?: khataBook.totalMonths
 
                 val completedPayMonths = paidMonthNumbers.count { it <= requiredPayMonths }
