@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -38,7 +38,7 @@ class GoogleSheetsExporter(private val context: Context) {
                 // Create a new spreadsheet
                 val spreadsheet = Spreadsheet().apply {
                     properties = SpreadsheetProperties().apply {
-                        title = "JewelVault_Backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                        title = "JewelVault_Sync_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
                     }
                 }
                 

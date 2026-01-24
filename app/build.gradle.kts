@@ -27,8 +27,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 29
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.0.19-test"
+        versionCode = 20
+        versionName = "0.0.20-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.androidx.material)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.lottie.compose)
     implementation(libs.androidx.junit.ktx)
     implementation(libs.androidx.room.testing.android)
     testImplementation(libs.junit)

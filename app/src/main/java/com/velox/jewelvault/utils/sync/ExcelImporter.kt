@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
 import com.velox.jewelvault.data.roomdb.AppDatabase
@@ -29,8 +29,8 @@ class ExcelImporter(
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     
     // --- Constants for column indexes ---
-    private object UserCols { const val ID = 0; const val NAME = 1; const val EMAIL = 2; const val MOBILENO = 3; const val TOKEN = 4; const val PIN = 5; const val ROLE = 6 }
-    private object StoreCols { const val STOREID = 0; const val USERID = 1; const val PROPRIETOR = 2; const val NAME = 3; const val EMAIL = 4; const val PHONE = 5; const val ADDRESS = 6; const val REGNO = 7; const val GSTIN = 8; const val PAN = 9; const val IMAGE = 10; const val INVOICENO = 11; const val UPIID = 12 }
+    private object UserCols { const val ID = 0; const val NAME = 1; const val EMAIL = 2; const val MOBILENO = 3; const val TOKEN = 4; const val PIN = 5; const val ROLE = 6; const val LASTUPDATED = 7 }
+    private object StoreCols { const val STOREID = 0; const val USERID = 1; const val PROPRIETOR = 2; const val NAME = 3; const val EMAIL = 4; const val PHONE = 5; const val ADDRESS = 6; const val REGNO = 7; const val GSTIN = 8; const val PAN = 9; const val IMAGE = 10; const val INVOICENO = 11; const val UPIID = 12; const val LASTUPDATED = 13 }
     private object CategoryCols { const val CATID = 0; const val CATNAME = 1; const val GSWt = 2; const val FNWt = 3; const val USERID = 4; const val STOREID = 5 }
     private object SubCategoryCols { const val SUBCATID = 0; const val CATID = 1; const val USERID = 2; const val STOREID = 3; const val CATNAME = 4; const val SUBCATNAME = 5; const val QUANTITY = 6; const val GSWt = 7; const val FNWt = 8 }
     private object ItemCols { const val ITEMID = 0; const val ITEMADDNAME = 1; const val CATID = 2; const val USERID = 3; const val STOREID = 4; const val CATNAME = 5; const val SUBCATID = 6; const val SUBCATNAME = 7; const val ENTRYTYPE = 8; const val QUANTITY = 9; const val GSWt = 10; const val NTWt = 11; const val FNWt = 12; const val PURITY = 13; const val CRGTYPE = 14; const val CRG = 15; const val OTHCRGDES = 16; const val OTHCRG = 17; const val CGST = 18; const val SGST = 19; const val IGST = 20; const val HUID = 21; const val UNIT = 22; const val ADDDESKEY = 23; const val ADDDESVALUE = 24; const val ADDDATE = 25; const val MODIFIEDDATE = 26; const val SELLERFIRMID = 27; const val PURCHASEORDERID = 28; const val PURCHASEITEMID = 29 }
@@ -147,7 +147,8 @@ class ExcelImporter(
                                 mobileNo = mobileNo,
                                 token = getCellValueAsString(row.getCell(UserCols.TOKEN)),
                                 pin = getCellValueAsString(row.getCell(UserCols.PIN)),
-                                role = getCellValueAsString(row.getCell(UserCols.ROLE))
+                                role = getCellValueAsString(row.getCell(UserCols.ROLE)),
+                                lastUpdated = getCellValueAsLong(row.getCell(UserCols.LASTUPDATED))
                             )
                             database.userDao().insertUser(user)
                             summary.usersAdded++
@@ -166,7 +167,8 @@ class ExcelImporter(
                                 mobileNo = mobileNo,
                                 token = getCellValueAsString(row.getCell(UserCols.TOKEN)),
                                 pin = getCellValueAsString(row.getCell(UserCols.PIN)),
-                                role = getCellValueAsString(row.getCell(UserCols.ROLE))
+                                role = getCellValueAsString(row.getCell(UserCols.ROLE)),
+                                lastUpdated = getCellValueAsLong(row.getCell(UserCols.LASTUPDATED))
                             )
                             database.userDao().insertUser(user)
                             summary.usersAdded++
@@ -288,7 +290,8 @@ class ExcelImporter(
                                 panNo = getCellValueAsString(row.getCell(StoreCols.PAN)),
                                 image = getCellValueAsString(row.getCell(StoreCols.IMAGE)),
                                 invoiceNo = getCellValueAsInt(row.getCell(StoreCols.INVOICENO)),
-                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID))
+                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID)),
+                                lastUpdated = getCellValueAsLong(row.getCell(StoreCols.LASTUPDATED))
                             )
                             database.storeDao().insertStore(store)
                             summary.storesAdded++
@@ -313,7 +316,8 @@ class ExcelImporter(
                                 panNo = getCellValueAsString(row.getCell(StoreCols.PAN)),
                                 image = getCellValueAsString(row.getCell(StoreCols.IMAGE)),
                                 invoiceNo = getCellValueAsInt(row.getCell(StoreCols.INVOICENO)),
-                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID))
+                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID)),
+                                lastUpdated = getCellValueAsLong(row.getCell(StoreCols.LASTUPDATED))
                             )
                             database.storeDao().insertStore(store)
                             summary.storesAdded++
@@ -1240,6 +1244,15 @@ class ExcelImporter(
             CellType.NUMERIC -> cell.numericCellValue
             CellType.STRING -> cell.stringCellValue.toDoubleOrNull() ?: 0.0
             else -> 0.0
+        }
+    }
+
+    private fun getCellValueAsLong(cell: Cell?): Long {
+        return when (cell?.cellType) {
+            CellType.NUMERIC -> cell.numericCellValue.toLong()
+            CellType.STRING -> cell.stringCellValue.toLongOrNull() ?: 0L
+            CellType.BOOLEAN -> if (cell.booleanCellValue) 1L else 0L
+            else -> 0L
         }
     }
     

@@ -188,32 +188,32 @@ enum class PermissionType(
     STORAGE(
         icon = Icons.TwoTone.Folder,
         detailIcon = Icons.TwoTone.Storage,
-        description = "• Save and read backup files\n• Import data from Excel files\n• Export data to local storage"
+        description = "- Save and read sync files\n- Import data from Excel files\n- Export data to local storage"
     ),
     NOTIFICATION(
         icon = Icons.TwoTone.Notifications,
         detailIcon = Icons.TwoTone.NotificationsActive,
-        description = "• Show backup/restore progress\n• Display completion notifications\n• Alert you about important events"
+        description = "- Show sync/restore progress\n- Display completion notifications\n- Alert you about important events"
     ),
     CAMERA(
         icon = Icons.TwoTone.CameraAlt,
         detailIcon = Icons.TwoTone.QrCodeScanner,
-        description = "• Scan QR codes and barcodes\n• Capture product images\n• Read product information"
+        description = "- Scan QR codes and barcodes\n- Capture product images\n- Read product information"
     ),
     LOCATION(
         icon = Icons.TwoTone.LocationOn,
         detailIcon = Icons.TwoTone.MyLocation,
-        description = "• Find nearby shops\n• Get location-based recommendations\n• Improve service accuracy"
+        description = "- Find nearby shops\n- Get location-based recommendations\n- Improve service accuracy"
     ),
     CONTACTS(
         icon = Icons.TwoTone.Contacts,
         detailIcon = Icons.TwoTone.People,
-        description = "• Import customer contacts\n• Sync with phone contacts\n• Invite friends to the app"
+        description = "- Import customer contacts\n- Sync with phone contacts\n- Invite friends to the app"
     ),
     MICROPHONE(
         icon = Icons.TwoTone.Mic,
         detailIcon = Icons.TwoTone.RecordVoiceOver,
-        description = "• Voice search functionality\n• Audio notes for items\n• Voice commands"
+        description = "- Voice search functionality\n- Audio notes for items\n- Voice commands"
     )
 }
 
@@ -260,7 +260,7 @@ fun IconPermissionDialogPreview() {
         IconPermissionDialog(
             showDialog = showDialog,
             title = "Storage Permission Required",
-            message = "This app needs access to your device's storage to save backup files and import data. This ensures your data is safely backed up and can be restored when needed.",
+            message = "This app needs access to your device's storage to save sync files and import data. This ensures your data can be synced and restored when needed.",
             permissionType = PermissionType.STORAGE,
             onDismiss = { showDialog = false },
             onConfirm = { showDialog = false }
@@ -277,7 +277,7 @@ fun NotificationPermissionDialogPreview() {
         IconPermissionDialog(
             showDialog = showDialog,
             title = "Notification Permission",
-            message = "Enable notifications to stay updated on backup progress, completion status, and important app events. This helps you track the status of your data operations.",
+            message = "Enable notifications to stay updated on sync progress, completion status, and important app events. This helps you track the status of your data operations.",
             permissionType = PermissionType.NOTIFICATION,
             onDismiss = { showDialog = false },
             onConfirm = { showDialog = false }

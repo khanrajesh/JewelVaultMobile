@@ -140,7 +140,8 @@ class UserManagementViewModel @Inject constructor(
                     email = userEmail.text.takeIf { it.isNotBlank() },
                     mobileNo = appUserMobileNumber,
                     pin = hashedPin,
-                    role = userRole.text
+                    role = userRole.text,
+                    lastUpdated = System.currentTimeMillis()
                 )
                 
                 log("Created user entity: $user")
@@ -244,7 +245,8 @@ class UserManagementViewModel @Inject constructor(
                         email = userEmail.text.takeIf { it.isNotBlank() },
                         mobileNo = appUserMobileNumber,
                         pin = hashedPin,
-                        role = userRole.text
+                        role = userRole.text,
+                        lastUpdated = System.currentTimeMillis()
                     )
                     
                     // Update to Firestore first
@@ -452,16 +454,23 @@ class UserManagementViewModel @Inject constructor(
                     val userDocuments = firestoreResult.getOrNull() ?: emptyList()
                     
                     for ((appUserMobileNumber, userData) in userDocuments) {
-                        val userEntity = FirebaseUtils.mapToUserEntity(userData).copy(userId = appUserMobileNumber)
+                        val userEntity = FirebaseUtils.mapToUserEntity(userData).copy(
+                            userId = appUserMobileNumber,
+                            mobileNo = userData["mobileNo"] as? String ?: appUserMobileNumber
+                        )
                         
                         // Check if user exists in local database
                         val existingUser = database.userDao().getUserById(appUserMobileNumber)
-                        if (existingUser != null) {
-                            // Update existing user
-                            database.userDao().updateUser(userEntity)
-                        } else {
-                            // Insert new user
-                            database.userDao().insertUser(userEntity)
+                        val localUpdated = existingUser?.lastUpdated ?: 0L
+                        val remoteUpdated = userEntity.lastUpdated
+                        val shouldUpdate = existingUser == null || remoteUpdated > localUpdated || localUpdated == 0L
+
+                        if (shouldUpdate) {
+                            if (existingUser != null) {
+                                database.userDao().updateUser(userEntity)
+                            } else {
+                                database.userDao().insertUser(userEntity)
+                            }
                         }
                         
                         // Get additional info for this user
@@ -479,10 +488,18 @@ class UserManagementViewModel @Inject constructor(
                             
                             // Check if additional info exists in local database
                             val existingAdditionalInfo = database.userAdditionalInfoDao().getUserAdditionalInfoById(appUserMobileNumber)
-                            if (existingAdditionalInfo != null) {
-                                database.userAdditionalInfoDao().updateUserAdditionalInfo(additionalInfoEntity)
-                            } else {
-                                database.userAdditionalInfoDao().insertUserAdditionalInfo(additionalInfoEntity)
+                            val localInfoUpdated = existingAdditionalInfo?.updatedAt ?: 0L
+                            val remoteInfoUpdated = additionalInfoEntity.updatedAt
+                            val shouldUpdateInfo = existingAdditionalInfo == null ||
+                                remoteInfoUpdated > localInfoUpdated ||
+                                localInfoUpdated == 0L
+
+                            if (shouldUpdateInfo) {
+                                if (existingAdditionalInfo != null) {
+                                    database.userAdditionalInfoDao().updateUserAdditionalInfo(additionalInfoEntity)
+                                } else {
+                                    database.userAdditionalInfoDao().insertUserAdditionalInfo(additionalInfoEntity)
+                                }
                             }
                         }
                     }

@@ -125,6 +125,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
 
     LaunchedEffect(true) {
+        viewModel.clearCategoryOverrides()
         viewModel.categoryFilter.clear()
         viewModel.subCategoryFilter.clear()
         viewModel.getCategoryAndSubCategoryDetails()
@@ -244,11 +245,10 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             placeholderText = "Category",
                             dropdownItems = viewModel.catSubCatDto.map { it.catName },
                             onDropdownItemSelected = { selected ->
-                                viewModel.categoryFilter.text = selected
-                                val selectedCat =
-                                    viewModel.catSubCatDto.find { it.catName == selected }
+                                val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
                                 subCategories.clear()
                                 selectedCat?.subCategoryList?.let { subCategories.addAll(it) }
+                                selectedCat?.let { viewModel.setCategoryOverride(it.catId, it.catName) }
                                 viewModel.subCategoryFilter.text = ""
                             })
                         WidthThenHeightSpacer()
@@ -258,7 +258,16 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             placeholderText = "Sub Category",
                             dropdownItems = subCategories.map { it.subCatName },
                             onDropdownItemSelected = { selected ->
-                                viewModel.subCategoryFilter.text = selected
+                                val selectedSubCat =
+                                    subCategories.find { it.subCatName == selected }
+                                if (selectedSubCat != null) {
+                                    viewModel.setSubCategoryOverride(
+                                        selectedSubCat.subCatId,
+                                        selectedSubCat.subCatName
+                                    )
+                                } else {
+                                    viewModel.subCategoryFilter.text = selected
+                                }
                             })
                         WidthThenHeightSpacer()
                         CusOutlinedTextField(

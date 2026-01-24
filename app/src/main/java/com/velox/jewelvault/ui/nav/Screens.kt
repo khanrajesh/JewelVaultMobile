@@ -3,6 +3,7 @@ package com.velox.jewelvault.ui.nav
 sealed class Screens(val route:String) {
     data object Splash : Screens("splash")
     data object Login : Screens("login")
+    data object StartLoading : Screens("startLoading")
     data object Main : Screens("main")
     data object SellInvoice : Screens("sellInvoice")
     data object QrScanScreen : Screens("qrScan")

@@ -209,8 +209,8 @@ fun SettingScreen() {
                 }
                 item {
                     SettingsActionItem(
-                        title = "Back UP & Export App Data",
-                        subtitle = "Back UP & Export all data to xlsx file",
+                        title = "Sync & Export App Data",
+                        subtitle = "Sync & Export all data to xlsx file",
                         icon = Icons.TwoTone.CloudCircle,
                         onClick = {
                             subNavController.navigate(SubScreens.BackUpSetting.route)

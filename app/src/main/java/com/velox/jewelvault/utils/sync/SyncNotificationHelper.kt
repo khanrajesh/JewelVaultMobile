@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -6,22 +6,21 @@ import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.velox.jewelvault.R
 
 /**
- * Helper class for backup/restore notifications
+ * Helper class for sync/restore notifications
  */
-object BackupNotificationHelper {
+object SyncNotificationHelper {
     
     private const val CHANNEL_ID = "backup_channel"
-    private const val CHANNEL_NAME = "Backup & Restore"
-    private const val CHANNEL_DESCRIPTION = "Notifications for backup and restore operations"
+    private const val CHANNEL_NAME = "Sync & Restore"
+    private const val CHANNEL_DESCRIPTION = "Notifications for sync and restore operations"
     
     const val BACKUP_NOTIFICATION_ID = 1001
     const val RESTORE_NOTIFICATION_ID = 1002
     
     /**
-     * Create notification channel for backup operations
+     * Create notification channel for sync operations
      */
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -40,7 +39,7 @@ object BackupNotificationHelper {
     }
     
     /**
-     * Create backup progress notification
+     * Create sync progress notification
      */
     fun createBackupNotification(
         context: Context,

@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.login
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,6 +65,9 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.mainScope
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 @Composable
@@ -164,6 +170,67 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
                     )
                 }
             )
+        }
+
+        val activeSessionInfo = loginViewModel.activeDeviceBlock.value
+        if (activeSessionInfo != null) {
+            val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .wrapContentHeight(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Session Active on Another Device",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "You are already logged in on another device.",
+                            fontSize = 14.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Device: ${activeSessionInfo.manufacturer} ${activeSessionInfo.model}",
+                            fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        val lastLoginText = if (activeSessionInfo.lastLoginAt > 0L) {
+                            dateFormat.format(Date(activeSessionInfo.lastLoginAt))
+                        } else {
+                            "Unknown"
+                        }
+                        Text(
+                            text = "Last login: $lastLoginText",
+                            fontSize = 13.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { loginViewModel.clearActiveDeviceBlock() }) {
+                            Text("OK")
+                        }
+                    }
+                }
+            }
         }
 
     }
@@ -760,7 +827,7 @@ private fun loginAction(
                 onSuccess = {
                     mainScope {
                         keyboardController?.hide()
-                        navHost.navigate(Screens.Main.route) {
+                        navHost.navigate(Screens.StartLoading.route) {
                             popUpTo(Screens.Login.route) {
                                 inclusive = true
                             }
@@ -789,7 +856,7 @@ private fun loginAction(
             savePhone = savePhoneChecked.value,
             onSuccess = {
                 mainScope {
-                    navHost.navigate(Screens.Main.route) {
+                    navHost.navigate(Screens.StartLoading.route) {
                         popUpTo(Screens.Login.route) {
                             inclusive = true
                         }

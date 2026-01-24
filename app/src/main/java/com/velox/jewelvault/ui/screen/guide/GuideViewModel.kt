@@ -120,16 +120,16 @@ class GuideViewModel @Inject constructor(
             )
         ),
         GuideSection(
-            title = "Settings, backup & devices",
+            title = "Settings, sync & devices",
             steps = listOf(
                 "Set up store profile (name, GSTIN, PAN, registration, address, logo) so invoices use the correct header.",
                 "Configure taxes, invoice numbering and UPI ID under Billing/Payments before creating invoices.",
                 "Pair Bluetooth printers or scanners in Bluetooth Devices (app tested with Seznix printers) and run a test print to save the default device.",
-                "Use Backup & Restore to push data to Firebase Storage and verify the latest backup timestamp.",
-                "Restore from cloud backup on a new device after signing in with the same account."
+                "Use Sync & Restore to push data to Firebase Storage and verify the latest sync timestamp.",
+                "Restore from cloud sync on a new device after signing in with the same account."
             ),
             questions = listOf(
-                "Have you scheduled regular Firebase backups and checked the last backup time?",
+                "Have you scheduled regular Firebase syncs and checked the last sync time?",
                 "Does the selected default printer stay paired across app restarts?"
             )
         )

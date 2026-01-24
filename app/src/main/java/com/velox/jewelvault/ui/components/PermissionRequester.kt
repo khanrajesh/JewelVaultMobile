@@ -1,5 +1,6 @@
 package com.velox.jewelvault.ui.components
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -14,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.velox.jewelvault.utils.permissions.IconPermissionDialog
@@ -27,7 +29,11 @@ import com.velox.jewelvault.utils.permissions.requestNextPermission
 @Composable
 fun PermissionRequester(
     permissions: List<String>,
-    onAllPermissionsGranted: () -> Unit
+    onAllPermissionsGranted: () -> Unit,
+    autoRequest: Boolean = true,
+    requestKey: Int = 0,
+    showDialogs: Boolean = true,
+    onPermissionsChanged: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var permissionQueue by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -35,11 +41,13 @@ fun PermissionRequester(
     var showInitialPermissionDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var hasReturnedFromSettings by remember { mutableStateOf(false) }
+    var manageStorageRequested by rememberSaveable { mutableStateOf(false) }
 
     val contextState = rememberUpdatedState(context)
     val permissionQueueState = rememberUpdatedState(permissionQueue)
     val currentPermissionIndexState = rememberUpdatedState(currentPermissionIndex)
     val onAllPermissionsGrantedState = rememberUpdatedState(onAllPermissionsGranted)
+    val onPermissionsChangedState = rememberUpdatedState(onPermissionsChanged)
     val launchers = remember {
         mutableStateOf<Pair<
                 ManagedActivityResultLauncher<String, Boolean>?,
@@ -60,6 +68,7 @@ fun PermissionRequester(
             requestManageStorageLauncher = launchers.value.second!!,
             onShowSettings = { showSettingsDialog = true }
         )
+        onPermissionsChangedState.value?.invoke()
     }
 
     val requestManageStorageLauncher = rememberLauncherForActivityResult(
@@ -75,6 +84,7 @@ fun PermissionRequester(
             requestManageStorageLauncher = launchers.value.second!!,
             onShowSettings = { showSettingsDialog = true }
         )
+        onPermissionsChangedState.value?.invoke()
     }
 
     // Save both launchers together safely
@@ -82,20 +92,56 @@ fun PermissionRequester(
         launchers.value = requestPermissionLauncher to requestManageStorageLauncher
     }
 
-    LaunchedEffect(Unit) {
-        permissionQueue = filterUngrantedPermissions(context, permissions)
+    fun startRequestFlow() {
+        val queue = filterUngrantedPermissions(context, permissions).let { ungranted ->
+            if (manageStorageRequested) {
+                ungranted.filterNot { it == Manifest.permission.MANAGE_EXTERNAL_STORAGE }
+            } else {
+                ungranted
+            }
+        }
+        permissionQueue = queue
         if (permissionQueue.isNotEmpty()) {
             currentPermissionIndex = 0
-            showInitialPermissionDialog = true
+            if (showDialogs) {
+                showInitialPermissionDialog = true
+            } else {
+                requestNextPermission(
+                    context = context,
+                    permissionQueue = permissionQueue,
+                    currentPermissionIndex = currentPermissionIndex,
+                    requestPermissionLauncher = requestPermissionLauncher,
+                    requestManageStorageLauncher = requestManageStorageLauncher
+                )
+            }
         } else {
             onAllPermissionsGranted()
+        }
+        onPermissionsChangedState.value?.invoke()
+    }
+
+    LaunchedEffect(Unit) {
+        if (autoRequest) {
+            startRequestFlow()
+        }
+    }
+
+    LaunchedEffect(requestKey) {
+        if (!autoRequest && requestKey > 0) {
+            startRequestFlow()
         }
     }
 
     // Re-check permissions when returning from settings
     LaunchedEffect(hasReturnedFromSettings) {
         if (hasReturnedFromSettings) {
-            val remainingPermissions = filterUngrantedPermissions(context, permissions)
+            val remainingPermissions = filterUngrantedPermissions(context, permissions).let { ungranted ->
+                if (manageStorageRequested) {
+                    ungranted.filterNot { it == Manifest.permission.MANAGE_EXTERNAL_STORAGE }
+                } else {
+                    ungranted
+                }
+            }
             if (remainingPermissions.isEmpty()) {
                 onAllPermissionsGranted()
             } else {
@@ -104,10 +150,11 @@ fun PermissionRequester(
                 showInitialPermissionDialog = true
             }
             hasReturnedFromSettings = false
+            onPermissionsChangedState.value?.invoke()
         }
     }
 
-    if (showInitialPermissionDialog) {
+    if (showDialogs && showInitialPermissionDialog) {
         IconPermissionDialog(
             showDialog = true,
             title = "Permissions Required",
@@ -116,6 +163,9 @@ fun PermissionRequester(
             onDismiss = { showInitialPermissionDialog = false },
             onConfirm = {
                 showInitialPermissionDialog = false
+                if (permissionQueue.getOrNull(currentPermissionIndex) == Manifest.permission.MANAGE_EXTERNAL_STORAGE) {
+                    manageStorageRequested = true
+                }
                 requestNextPermission(
                     context = context,
                     permissionQueue = permissionQueue,
@@ -127,11 +177,11 @@ fun PermissionRequester(
         )
     }
 
-    if (showSettingsDialog) {
+    if (showDialogs && showSettingsDialog) {
         IconPermissionDialog(
             showDialog = true,
             title = "Permission Required",
-            message = "Some permissions are required for backup and restore functionality. They were denied and can only be granted through device settings. Please open settings and enable the required permissions.",
+            message = "Some permissions are required for sync and restore functionality. They were denied and can only be granted through device settings. Please open settings and enable the required permissions.",
             permissionType = getPermissionTypeForQueue(permissionQueue),
             onDismiss = {
                 showSettingsDialog = false

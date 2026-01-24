@@ -161,21 +161,9 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
         }
     }
 
-    val isFirstLogin = remember { mutableStateOf(false) }
-
     LaunchedEffect(true) {
         //refreshing the metal rate here
         withContext(Dispatchers.IO) {
-            val storeId = baseViewModel.dataStoreManager.getSelectedStoreInfo().first.first()
-            if (storeId.isBlank()) {
-                isFirstLogin.value = true
-                baseViewModel.snackBarState = "Please Set Up Your Store First."
-                mainScope {
-                    subNavController.navigate("${SubScreens.Profile.route}/${true}")
-                }
-                return@withContext
-            }
-
             if (baseViewModel.metalRates.isEmpty()) {
                 baseViewModel.refreshMetalRates(context = context)
             }
@@ -192,17 +180,6 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel) {
         keyboardController?.hide()
 
     }
-
-    if (!isFirstLogin.value) {
-        PermissionRequester(
-            permissions = listOf(
-                Manifest.permission.CAMERA,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.POST_NOTIFICATIONS
-            )
-        ) {}
-    }
-
 
     Box(Modifier.fillMaxSize()) {
         if (isLandscape()) LandscapeDashboardScreen(

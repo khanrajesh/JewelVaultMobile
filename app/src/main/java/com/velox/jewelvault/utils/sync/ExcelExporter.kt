@@ -1,12 +1,10 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.utils.log
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Date
@@ -135,7 +133,7 @@ class ExcelExporter(private val context: Context) {
             // Write workbook to output stream from content resolver
             context.contentResolver.openOutputStream(outputUri)?.use { outputStream ->
                 workbook.write(outputStream)
-            } ?: throw Exception("Unable to open output stream for backup Uri")
+            } ?: throw Exception("Unable to open output stream for sync file")
             workbook.close()
             log("Excel export completed and file saved to: $outputUri")
             Result.success(Unit)
@@ -157,7 +155,7 @@ class ExcelExporter(private val context: Context) {
         val headerRow = sheet.createRow(0)
         val headers = listOf(
             "storeId", "userId", "proprietor", "name", "email", "phone", "address",
-            "registrationNo", "gstinNo", "panNo", "image", "invoiceNo", "upiId"
+            "registrationNo", "gstinNo", "panNo", "image", "invoiceNo", "upiId", "lastUpdated"
         )
         log("  → Creating headers: ${headers.joinToString(", ")}")
         headers.forEachIndexed { index, header ->
@@ -182,6 +180,7 @@ class ExcelExporter(private val context: Context) {
             row.createCell(10).setCellValue(store.image)
             row.createCell(11).setCellValue(store.invoiceNo.toDouble())
             row.createCell(12).setCellValue(store.upiId)
+            row.createCell(13).setCellValue(store.lastUpdated.toDouble())
         }
         log("  → StoreEntity export completed: ${stores.size} records")
     }
@@ -194,7 +193,7 @@ class ExcelExporter(private val context: Context) {
         val users = database.userDao().getAllUsers()
         log("  → Found ${users.size} users to export")
         
-        val headers = listOf("id", "name", "email", "mobileNo", "token", "pin", "role")
+        val headers = listOf("id", "name", "email", "mobileNo", "token", "pin", "role", "lastUpdated")
         log("  → Creating headers: ${headers.joinToString(", ")}")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -213,6 +212,7 @@ class ExcelExporter(private val context: Context) {
             row.createCell(4).setCellValue(user.token ?: "")
             row.createCell(5).setCellValue(user.pin ?: "")
             row.createCell(6).setCellValue(user.role)
+            row.createCell(7).setCellValue(user.lastUpdated.toDouble())
         }
         log("  → UsersEntity export completed: ${users.size} records")
     }

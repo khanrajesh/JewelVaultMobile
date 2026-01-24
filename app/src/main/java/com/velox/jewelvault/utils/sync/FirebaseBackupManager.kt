@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
@@ -8,7 +8,7 @@ import java.io.File
 import java.util.*
 
 /**
- * Manages backup operations with Firebase Storage
+ * Manages sync operations with Firebase Storage
  */
 class FirebaseBackupManager(private val storage: FirebaseStorage) {
     
@@ -18,25 +18,26 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
     }
     
     /**
-     * Upload backup file to Firebase Storage
+     * Upload sync file to Firebase Storage
      */
-    suspend fun uploadBackupFile(backupFile: File, userMobile: String): Result<String> {
-        log("FirebaseBackupManager: Starting upload for user: $userMobile, file: ${backupFile.name}")
+    suspend fun uploadBackupFile(backupFile: File, userMobile: String, storeId: String): Result<String> {
+        log("FirebaseBackupManager: Starting upload for user: $userMobile, store: $storeId, file: ${backupFile.name}")
         return try {
-            // Delete previous backup files for this user
-            cleanupPreviousBackups(userMobile)
+            // Delete previous sync files for this user
+            cleanupPreviousBackups(userMobile, storeId)
             
             val fileName = backupFile.name
             val storageRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
                 .child(fileName)
             
             // Upload file
             val uploadTask = storageRef.putFile(Uri.fromFile(backupFile)).await()
             val downloadUrl = storageRef.downloadUrl.await()
             
-            log("Backup uploaded successfully: ${downloadUrl}")
+            log("Sync uploaded successfully: ${downloadUrl}")
             log("FirebaseBackupManager: Upload completed successfully")
             Result.success(downloadUrl.toString())
             
@@ -47,35 +48,36 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
     }
     
     /**
-     * Download latest backup file from Firebase Storage
+     * Download latest sync file from Firebase Storage
      */
-    suspend fun downloadLatestBackup(userMobile: String): Result<File> {
-        log("FirebaseBackupManager: Starting download for user: $userMobile")
+    suspend fun downloadLatestBackup(userMobile: String, storeId: String): Result<File> {
+        log("FirebaseBackupManager: Starting download for user: $userMobile, store: $storeId")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
             
-            // List all backup files for the user
+            // List all sync files for the user
             val listResult = userBackupRef.listAll().await()
             
             if (listResult.items.isEmpty()) {
-                return Result.failure(Exception("No backup files found for user: $userMobile"))
+                return Result.failure(Exception("No sync files found for user: $userMobile"))
             }
             
-            // Find the latest backup file (by name timestamp)
+            // Find the latest sync file (by name timestamp)
             val latestBackup = listResult.items
                 .sortedByDescending { it.name }
                 .firstOrNull()
-                ?: return Result.failure(Exception("No backup files found"))
+                ?: return Result.failure(Exception("No sync files found"))
             
             // Create temporary file for download
-            val tempFile = File.createTempFile("backup_download", ".xlsx")
+            val tempFile = File.createTempFile("backup_file", ".xlsx")
             
             // Download the file
             latestBackup.getFile(tempFile).await()
             
-            log("Backup downloaded successfully: ${tempFile.absolutePath}")
+            log("Sync downloaded successfully: ${tempFile.absolutePath}")
             log("FirebaseBackupManager: Download completed successfully")
             Result.success(tempFile)
             
@@ -86,13 +88,14 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
     }
     
     /**
-     * Get list of available backups for a user
+     * Get list of available sync files for a user
      */
-    suspend fun getBackupList(userMobile: String): Result<List<BackupInfo>> {
+    suspend fun getBackupList(userMobile: String, storeId: String): Result<List<BackupInfo>> {
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
             
             val listResult = userBackupRef.listAll().await()
             
@@ -113,7 +116,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
                     
                     backupInfoList.add(backupInfo)
                 } catch (e: Exception) {
-                    log("Error getting metadata for backup file ${item.name}: ${e.message}")
+                    log("Error getting metadata for sync file ${item.name}: ${e.message}")
                 }
             }
             
@@ -123,19 +126,20 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             Result.success(sortedList)
             
         } catch (e: Exception) {
-            log("Failed to get backup list: ${e.message}")
+            log("Failed to get sync list: ${e.message}")
             Result.failure(e)
         }
     }
     
     /**
-     * Clean up old backup files (keep only the specified number of recent backups)
+     * Clean up old sync files (keep only the specified number of recent syncs)
      */
-    suspend fun cleanupOldBackups(userMobile: String, keepCount: Int): Result<Int> {
+    suspend fun cleanupOldBackups(userMobile: String, storeId: String, keepCount: Int): Result<Int> {
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
             
             val listResult = userBackupRef.listAll().await()
             
@@ -152,82 +156,85 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
                 try {
                     item.delete().await()
                     deletedCount++
-                    log("Deleted old backup: ${item.name}")
+                    log("Deleted old sync file: ${item.name}")
                 } catch (e: Exception) {
-                    log("Failed to delete backup ${item.name}: ${e.message}")
+                    log("Failed to delete sync file ${item.name}: ${e.message}")
                 }
             }
             
-            log("Cleanup completed. Deleted $deletedCount old backup files.")
+            log("Cleanup completed. Deleted $deletedCount old sync files.")
             Result.success(deletedCount)
             
         } catch (e: Exception) {
-            log("Failed to cleanup old backups: ${e.message}")
+            log("Failed to cleanup old syncs: ${e.message}")
             Result.failure(e)
         }
     }
     
     /**
-     * Delete all previous backup files for a user before uploading new one
+     * Delete all previous sync files for a user before uploading new one
      */
-    private suspend fun cleanupPreviousBackups(userMobile: String) {
+    private suspend fun cleanupPreviousBackups(userMobile: String, storeId: String) {
         try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
             
             val listResult = userBackupRef.listAll().await()
             
-            // Delete all existing backup files
+            // Delete all existing sync files
             for (item in listResult.items) {
                 try {
                     item.delete().await()
-                    log("Deleted previous backup: ${item.name}")
+                    log("Deleted previous sync file: ${item.name}")
                 } catch (e: Exception) {
-                    log("Failed to delete previous backup ${item.name}: ${e.message}")
+                    log("Failed to delete previous sync file ${item.name}: ${e.message}")
                 }
             }
             
         } catch (e: Exception) {
-            log("Failed to cleanup previous backups: ${e.message}")
+            log("Failed to cleanup previous syncs: ${e.message}")
         }
     }
     
     /**
-     * Delete a specific backup file
+     * Delete a specific sync file
      */
-    suspend fun deleteBackup(userMobile: String, fileName: String): Result<Unit> {
+    suspend fun deleteBackup(userMobile: String, storeId: String, fileName: String): Result<Unit> {
         return try {
             val backupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
                 .child(fileName)
             
             backupRef.delete().await()
             
-            log("Backup deleted successfully: $fileName")
+            log("Sync file deleted successfully: $fileName")
             Result.success(Unit)
             
         } catch (e: Exception) {
-            log("Failed to delete backup: ${e.message}")
+            log("Failed to delete sync file: ${e.message}")
             Result.failure(e)
         }
     }
     
     /**
-     * Check if backup exists for a user
+     * Check if sync exists for a user
      */
-    suspend fun hasBackup(userMobile: String): Boolean {
+    suspend fun hasBackup(userMobile: String, storeId: String): Boolean {
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
+                .child(storeId)
             
             val listResult = userBackupRef.listAll().await()
             listResult.items.isNotEmpty()
             
         } catch (e: Exception) {
-            log("Failed to check backup existence: ${e.message}")
+            log("Failed to check sync existence: ${e.message}")
             false
         }
     }

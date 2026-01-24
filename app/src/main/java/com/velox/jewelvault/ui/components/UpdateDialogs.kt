@@ -257,7 +257,7 @@ fun OptionalUpdateDialog(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "We recommend backing up your data before updating to ensure your information is safe.",
+                            text = "We recommend syncing your data before updating to ensure your information is safe.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -280,7 +280,7 @@ fun OptionalUpdateDialog(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Backup & Update")
+                    Text("Sync & Update")
                 }
 
                 OutlinedButton(
@@ -330,7 +330,7 @@ fun BackupBeforeUpdateDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "Backup Before Update",
+                    text = "Sync Before Update",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -339,7 +339,7 @@ fun BackupBeforeUpdateDialog(
         text = {
             Column {
                 Text(
-                    text = "We'll create a backup of your data before proceeding with the update. This ensures your information is safe in case of any issues during the update process.",
+                    text = "We'll sync your data before proceeding with the update. This ensures your information is safe in case of any issues during the update process.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Start
                 )
@@ -347,7 +347,7 @@ fun BackupBeforeUpdateDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    text = "The backup process may take a few moments. Please wait until it completes before the update begins.",
+                    text = "The sync process may take a few moments. Please wait until it completes before the update begins.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -364,7 +364,7 @@ fun BackupBeforeUpdateDialog(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Start Backup & Update")
+                Text("Start Sync & Update")
             }
         },
         dismissButton = {

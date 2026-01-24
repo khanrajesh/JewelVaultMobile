@@ -128,6 +128,10 @@ class InventoryViewModel @Inject constructor(
     val firmIdFilter = InputFieldState()
     val purchaseOrderIdFilter = InputFieldState()
 
+    // Optional overrides used by sub-category screens to filter by IDs directly.
+    private val categoryIdOverride = mutableStateOf<String?>(null)
+    private val subCategoryIdOverride = mutableStateOf<String?>(null)
+
     // Firm and seller lists for dropdowns
     val firmList = mutableStateListOf<Pair<String, String>>() // Pair<firmId, firmName>
     val purchaseOrderList = mutableStateListOf<Pair<String, String>>() // Pair<orderId, billNo>
@@ -557,13 +561,23 @@ class InventoryViewModel @Inject constructor(
                 itemList.clear()
 
                 // Parse inputs safely outside the flow collection to avoid throwing inside the Flow
-                val catId = runCatching {
+                val catId = categoryIdOverride.value ?: runCatching {
                     catSubCatDto.asSequence().find { it.catName == categoryFilter.text }?.catId
                 }.getOrNull()
 
-                val subCatId = runCatching {
-                    catSubCatDto.asSequence().flatMap { it.subCategoryList.asSequence() }
-                        .find { it.subCatName == subCategoryFilter.text }?.subCatId
+                val subCatId = subCategoryIdOverride.value ?: runCatching {
+                    if (catId != null) {
+                        catSubCatDto.asSequence()
+                            .filter { it.catId == catId }
+                            .flatMap { it.subCategoryList.asSequence() }
+                            .find { it.subCatName == subCategoryFilter.text }
+                            ?.subCatId
+                    } else {
+                        catSubCatDto.asSequence()
+                            .flatMap { it.subCategoryList.asSequence() }
+                            .find { it.subCatName == subCategoryFilter.text }
+                            ?.subCatId
+                    }
                 }.getOrNull()
 
                 val startDate = runCatching {
@@ -694,6 +708,7 @@ class InventoryViewModel @Inject constructor(
 
 
     fun clearAllFilters() {
+        clearCategoryOverrides()
         categoryFilter.text = ""
         subCategoryFilter.text = ""
         entryTypeFilter.text = ""
@@ -719,6 +734,35 @@ class InventoryViewModel @Inject constructor(
         sortOrder.value = "DESC"
 
         loadRecentItems()
+    }
+
+    fun resetFiltersForSubCategory(catName: String, subCatName: String) {
+        categoryFilter.text = catName
+        subCategoryFilter.text = subCatName
+    }
+
+    fun setCategoryOverrides(catId: String, catName: String, subCatId: String, subCatName: String) {
+        categoryIdOverride.value = catId
+        subCategoryIdOverride.value = subCatId
+        categoryFilter.text = catName
+        subCategoryFilter.text = subCatName
+    }
+
+    fun setCategoryOverride(catId: String, catName: String) {
+        categoryIdOverride.value = catId
+        categoryFilter.text = catName
+        // Reset sub-category override when category changes
+        subCategoryIdOverride.value = null
+    }
+
+    fun setSubCategoryOverride(subCatId: String, subCatName: String) {
+        subCategoryIdOverride.value = subCatId
+        subCategoryFilter.text = subCatName
+    }
+
+    fun clearCategoryOverrides() {
+        categoryIdOverride.value = null
+        subCategoryIdOverride.value = null
     }
 
     fun clearAddItemFields() {

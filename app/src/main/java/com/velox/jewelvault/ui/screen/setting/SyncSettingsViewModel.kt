@@ -6,10 +6,11 @@ import androidx.compose.runtime.MutableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.firestore.FirebaseFirestore
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.roomdb.AppDatabase
-import com.velox.jewelvault.utils.backup.*
-import com.velox.jewelvault.utils.backup.BackupFrequency
+import com.velox.jewelvault.utils.sync.*
+import com.velox.jewelvault.utils.sync.SyncFrequency
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,13 +26,14 @@ import javax.inject.Inject
 import javax.inject.Named
 
 /**
- * ViewModel for backup settings screen
+ * ViewModel for sync settings screen
  */
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: AppDatabase,
     private val storage: FirebaseStorage,
+    private val firestore: FirebaseFirestore,
     private val dataStoreManager: DataStoreManager,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     @Named("currentScreenHeading") private val _currentScreenHeadingState: MutableState<String>,
@@ -45,8 +47,8 @@ class BackupSettingsViewModel @Inject constructor(
     val admin: Triple<Flow<String>, Flow<String>, Flow<String>> = dataStoreManager.getAdminInfo()
 
     
-    private val backupManager = BackupManager(context, database, storage, dataStoreManager)
-    private val backupScheduler = BackupScheduler(context)
+    private val syncManager = SyncManager(context, database, storage, dataStoreManager, firestore)
+    private val syncScheduler = SyncScheduler(context)
     
     private val _uiState = MutableStateFlow(BackupSettingsUiState())
     val uiState: StateFlow<BackupSettingsUiState> = _uiState.asStateFlow()
@@ -62,22 +64,22 @@ class BackupSettingsViewModel @Inject constructor(
     }
     
     private fun collectBackupProgress() {
-        log("BackupSettingsViewModel: Starting to collect backup and restore progress from SharedFlow")
+        log("BackupSettingsViewModel: Starting to collect sync and restore progress from SharedFlow")
         viewModelScope.launch {
             try {
-                BackupService.progressFlow.collect { progress ->
+                SyncService.progressFlow.collect { progress ->
                     log("BackupSettingsViewModel: Received progress update - message: '${progress.message}', progress: ${progress.progress}, isComplete: ${progress.isComplete}, isSuccess: ${progress.isSuccess}")
                     
                     if (progress.isComplete) {
                         // Handle completion
                         onBackupCompleted(progress.isSuccess, progress.message)
                     } else {
-                        // Handle progress update (for both backup and restore)
+                        // Handle progress update (for both sync and restore)
                         updateBackupProgress(progress.message, progress.progress)
                     }
                 }
             } catch (e: Exception) {
-                log("BackupSettingsViewModel: Error collecting backup/restore progress: ${e.message}")
+                log("BackupSettingsViewModel: Error collecting sync/restore progress: ${e.message}")
             }
         }
     }
@@ -85,7 +87,7 @@ class BackupSettingsViewModel @Inject constructor(
 
     
     private fun updateBackupProgress(message: String, progress: Int) {
-        log("BackupSettingsViewModel: Updating backup progress - message: '$message', progress: $progress")
+        log("BackupSettingsViewModel: Updating sync progress - message: '$message', progress: $progress")
         _uiState.update { 
             it.copy(
                 progressMessage = message,
@@ -109,22 +111,23 @@ class BackupSettingsViewModel @Inject constructor(
     private fun loadBackupSettings() {
         viewModelScope.launch {
             try {
-                // Load backup frequency from DataStore
-                dataStoreManager.backupFrequency.collect { frequencyString ->
+                // Load sync frequency from DataStore
+                dataStoreManager.syncFrequency.collect { frequencyString ->
                     val frequency = try {
-                        BackupFrequency.valueOf(frequencyString)
+                        SyncFrequency.valueOf(frequencyString)
                     } catch (e: Exception) {
-                        BackupFrequency.WEEKLY // Default
+                        SyncFrequency.WEEKLY // Default
                     }
                     
-                    _uiState.update { it.copy(backupFrequency = frequency) }
+                    dataStoreManager.setValue(DataStoreManager.SYNC_INTERVAL_MINUTES, frequency.intervalMinutes)
+                    _uiState.update { it.copy(syncFrequency = frequency) }
                     
-                    // Schedule automatic backup based on saved frequency
-                    backupScheduler.scheduleAutomaticBackup(frequency)
+                    // Schedule automatic sync based on saved frequency
+                    syncScheduler.scheduleAutomaticBackup(frequency)
                 }
                 
             } catch (e: Exception) {
-                log("Error loading backup settings: ${e.message}")
+                log("Error loading sync settings: ${e.message}")
             }
         }
     }
@@ -137,7 +140,7 @@ class BackupSettingsViewModel @Inject constructor(
                 val userMobile = userData?.mobileNo ?: ""
                 
                 if (userMobile.isNotEmpty()) {
-                    val result = backupManager.getAvailableBackups(userMobile)
+                    val result = syncManager.getAvailableBackups(userMobile)
                     if (result.isSuccess) {
                         val backups = result.getOrNull() ?: emptyList()
                         _uiState.update { 
@@ -152,34 +155,35 @@ class BackupSettingsViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
-                log("Error loading available backups: ${e.message}")
+                log("Error loading available syncs: ${e.message}")
             }
         }
     }
     
-    fun setBackupFrequency(frequency: BackupFrequency) {
+    fun setBackupFrequency(frequency: SyncFrequency) {
         viewModelScope.launch {
             try {
-                _uiState.update { it.copy(backupFrequency = frequency) }
+                _uiState.update { it.copy(syncFrequency = frequency) }
                 
                 // Save to DataStore
                 dataStoreManager.setBackupFrequency(frequency.name)
+                dataStoreManager.setValue(DataStoreManager.SYNC_INTERVAL_MINUTES, frequency.intervalMinutes)
                 
-                // Update scheduled backup
-                backupScheduler.scheduleAutomaticBackup(frequency)
+                // Update scheduled sync
+                syncScheduler.scheduleAutomaticBackup(frequency)
                 
                 _uiState.update { 
                     it.copy(
-                        statusMessage = "Automatic backup ${frequency.name.lowercase()} scheduled",
+                        statusMessage = "Automatic sync ${frequency.name.lowercase()} scheduled",
                         showResultMessage = true
                     )
                 }
                 
             } catch (e: Exception) {
-                log("Error setting backup frequency: ${e.message}")
+                log("Error setting sync frequency: ${e.message}")
                 _uiState.update { 
                     it.copy(
-                        statusMessage = "Failed to schedule backup: ${e.message}",
+                        statusMessage = "Failed to schedule sync: ${e.message}",
                         showResultMessage = true
                     )
                 }
@@ -194,20 +198,20 @@ class BackupSettingsViewModel @Inject constructor(
                 _uiState.update { 
                     it.copy(
                         isLoading = true,
-                        progressMessage = "Starting backup...",
+                        progressMessage = "Starting sync...",
                         progressPercent = 0
                     )
                 }
                 
-                // Start backup service
-                BackupService.startBackup(context)
+                // Start sync service
+                SyncService.startBackup(context)
                 
             } catch (e: Exception) {
-                log("Error starting backup: ${e.message}")
+                log("Error starting sync: ${e.message}")
                 _uiState.update { 
                     it.copy(
                         isLoading = false,
-                        statusMessage = "Failed to start backup: ${e.message}",
+                        statusMessage = "Failed to start sync: ${e.message}",
                         showResultMessage = true
                     )
                 }
@@ -226,7 +230,7 @@ class BackupSettingsViewModel @Inject constructor(
                     )
                 }
 
-                val result = backupManager.performLocalExport { message, progress ->
+                val result = syncManager.performLocalExport { message, progress ->
                     updateBackupProgress(message, progress)
                 }
 
@@ -234,7 +238,7 @@ class BackupSettingsViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            statusMessage = "Export saved to Downloads/JewelVault/Backup",
+                            statusMessage = "Export saved to Downloads/JewelVault/Sync",
                             showResultMessage = true
                         )
                     }
@@ -270,7 +274,7 @@ class BackupSettingsViewModel @Inject constructor(
                     )
                 }
 
-                val result = backupManager.performLocalImport(localFileUri, restoreMode) { message, progress ->
+                val result = syncManager.performLocalImport(localFileUri, restoreMode) { message, progress ->
                     updateBackupProgress(message, progress)
                 }
 
@@ -304,7 +308,7 @@ class BackupSettingsViewModel @Inject constructor(
                 
                 if (userMobile.isNotEmpty()) {
                     // Start restore service with specified mode
-                    BackupService.startRestore(context, userMobile, restoreMode)
+                    SyncService.startRestore(context, userMobile, restoreMode)
                 } else {
                     throw Exception("User mobile number not found")
                 }
@@ -324,7 +328,7 @@ class BackupSettingsViewModel @Inject constructor(
     
     fun showBackupDialog() {
         _uiState.update { it.copy(showBackupDialog = true) }
-        loadAvailableBackups() // Refresh backup list
+        loadAvailableBackups() // Refresh sync list
     }
     
     fun hideBackupDialog() {
@@ -343,7 +347,7 @@ class BackupSettingsViewModel @Inject constructor(
         }
         
         if (success) {
-            loadAvailableBackups() // Refresh backup list
+            loadAvailableBackups() // Refresh sync list
         }
     }
     
@@ -358,7 +362,7 @@ class BackupSettingsViewModel @Inject constructor(
         
         if (success) {
             // Refresh data after successful restore to update UI
-            loadAvailableBackups() // Refresh backup list
+            loadAvailableBackups() // Refresh sync list
             // Note: The UI should automatically refresh when navigating to other screens
             // since the database has been updated with new data
         }
@@ -369,7 +373,7 @@ class BackupSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Check if Firebase backup exists for current user
+     * Check if Firebase sync exists for current user
      */
     fun checkFirebaseBackupExists(onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
@@ -383,7 +387,7 @@ class BackupSettingsViewModel @Inject constructor(
                     return@launch
                 }
                 
-                val result = backupManager.checkFirebaseBackupExists(userMobile)
+                val result = syncManager.checkFirebaseBackupExists(userMobile)
                 if (result.isSuccess) {
                     val exists = result.getOrNull() ?: false
                     onResult(exists, null)
@@ -402,7 +406,7 @@ class BackupSettingsViewModel @Inject constructor(
     fun validateLocalFile(fileUri: Uri, onResult: (FileValidationResult) -> Unit) {
         viewModelScope.launch {
             try {
-                val result = backupManager.validateExcelFile(fileUri)
+                val result = syncManager.validateExcelFile(fileUri)
                 onResult(result)
             } catch (e: Exception) {
                 onResult(FileValidationResult(false, "Validation failed: ${e.message}"))
@@ -440,7 +444,7 @@ class BackupSettingsViewModel @Inject constructor(
                 }
                 
                 // Start restore service with source selection
-                BackupService.startRestoreWithSource(context, userMobile, restoreSource, localFileUri, restoreMode)
+                SyncService.startRestoreWithSource(context, userMobile, restoreSource, localFileUri, restoreMode)
                 
             } catch (e: Exception) {
                 log("Error starting restore with source: ${e.message}")
@@ -464,18 +468,18 @@ class BackupSettingsViewModel @Inject constructor(
     }
     
     /**
-     * Get default backup folder path
+     * Get default sync folder path
      */
     fun getDefaultBackupFolder(): String {
-        return backupManager.getDefaultBackupFolder()
+        return syncManager.getDefaultBackupFolder()
     }
 }
 
 /**
- * UI state for backup settings screen
+ * UI state for sync settings screen
  */
 data class BackupSettingsUiState(
-    val backupFrequency: BackupFrequency = BackupFrequency.WEEKLY,
+    val syncFrequency: SyncFrequency = SyncFrequency.WEEKLY,
     val availableBackups: List<BackupInfo> = emptyList(),
     val isLoading: Boolean = false,
     val progressMessage: String = "",

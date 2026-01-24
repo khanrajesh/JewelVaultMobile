@@ -24,8 +24,8 @@ import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.utils.SecurityUtils
-import com.velox.jewelvault.utils.backup.BackupManager
-import com.velox.jewelvault.utils.backup.BackupService
+import com.velox.jewelvault.utils.sync.SyncManager
+import com.velox.jewelvault.utils.sync.SyncService
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,7 +53,7 @@ class BaseViewModel @Inject constructor(
     private val _appDatabase: AppDatabase,
     private val _remoteConfigManager: RemoteConfigManager,
     private val _appUpdateManager: AppUpdateManager,
-    private val _backupManager: BackupManager,
+    private val _syncManager: SyncManager,
     private val _auth: FirebaseAuth,
     private val _Internal_bluetoothManager: BleManager,
     private val _repository: RepositoryImpl
@@ -79,7 +79,7 @@ class BaseViewModel @Inject constructor(
     // Update management
     val remoteConfigManager = _remoteConfigManager
     val appUpdateManager = _appUpdateManager
-    val backupManager = _backupManager
+    val syncManager = _syncManager
     val updateInfo = mutableStateOf<UpdateInfo?>(null)
     val showUpdateDialog = mutableStateOf(false)
     val showForceUpdateDialog = mutableStateOf(false)
@@ -342,13 +342,13 @@ class BaseViewModel @Inject constructor(
         if (info != null) {
             try {
                 if (!hasBackupPermission(context)) {
-                    snackBarState = "Storage permission required to backup before updating"
+                    snackBarState = "Storage permission required to sync before updating"
                     return
                 }
-                BackupService.startBackup(context)
-                snackBarState = "Backup started before redirecting to update"
+                SyncService.startBackup(context)
+                snackBarState = "Sync started before redirecting to update"
             } catch (e: Exception) {
-                snackBarState = "Backup failed to start: ${e.message}"
+                snackBarState = "Sync failed to start: ${e.message}"
                 return
             }
             log("📱 Opening Play Store with update info: $info")

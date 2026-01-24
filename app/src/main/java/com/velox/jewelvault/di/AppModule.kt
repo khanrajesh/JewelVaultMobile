@@ -34,7 +34,7 @@ import com.velox.jewelvault.utils.AppUpdateManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.SessionManager
-import com.velox.jewelvault.utils.backup.BackupManager
+import com.velox.jewelvault.utils.sync.SyncManager
 import com.velox.jewelvault.utils.fcm.FCMTokenManager
 import dagger.Module
 import dagger.Provides
@@ -140,7 +140,8 @@ object AppModule {
                 RoomMigration.MIGRATION_10_11,
                 RoomMigration.MIGRATION_11_12,
                 RoomMigration.MIGRATION_12_13,
-                RoomMigration.MIGRATION_13_14
+                RoomMigration.MIGRATION_13_14,
+                RoomMigration.MIGRATION_14_15
             )
             .build()
     }
@@ -186,13 +187,15 @@ object AppModule {
         @ApplicationContext context: Context,
         database: AppDatabase,
         storage: FirebaseStorage,
-        dataStoreManager: DataStoreManager
-    ): BackupManager {
-        return BackupManager(
+        dataStoreManager: DataStoreManager,
+        firestore: FirebaseFirestore
+    ): SyncManager {
+        return SyncManager(
             context = context,
             database = database,
             storage = storage,
-            dataStoreManager = dataStoreManager
+            dataStoreManager = dataStoreManager,
+            firestore = firestore
         )
     }
 

@@ -51,7 +51,7 @@ fun buildPermissionItems(): List<PermissionItem> {
         PermissionItem(
             id = "storage",
             title = "Storage & Media",
-            description = "Enable backup, restore, and exports to your device storage.",
+            description = "Enable sync, restore, and exports to your device storage.",
             permissions = storagePermissions,
             icon = Icons.TwoTone.Folder
         ),
@@ -72,7 +72,7 @@ fun buildPermissionItems(): List<PermissionItem> {
         PermissionItem(
             id = "notifications",
             title = "Notifications",
-            description = "Show updates, alerts, and backup status notifications.",
+            description = "Show updates, alerts, and sync status notifications.",
             permissions = listOf(Manifest.permission.POST_NOTIFICATIONS),
             icon = Icons.TwoTone.Notifications,
             minApiLevel = Build.VERSION_CODES.TIRAMISU
@@ -91,7 +91,7 @@ fun buildPermissionItems(): List<PermissionItem> {
         PermissionItem(
             id = "manage_storage",
             title = "All Files Access",
-            description = "Allow full file access for backups and exports on some devices.",
+            description = "Allow full file access for sync files and exports on some devices.",
             permissions = listOf(Manifest.permission.MANAGE_EXTERNAL_STORAGE),
             icon = Icons.TwoTone.Folder,
             minApiLevel = Build.VERSION_CODES.R
@@ -282,10 +282,10 @@ fun getMultiplePermissionMessage(permissions: List<String>): String {
             Manifest.permission.READ_CONTACTS -> "- Contacts access to invite friends."
             Manifest.permission.ACCESS_FINE_LOCATION -> "- Location access for nearby shop recommendations."
             Manifest.permission.RECORD_AUDIO -> "- Microphone access for voice search."
-            Manifest.permission.POST_NOTIFICATIONS -> "- Notification access to show backup/restore progress."
+            Manifest.permission.POST_NOTIFICATIONS -> "- Notification access to show sync/restore progress."
             Manifest.permission.READ_MEDIA_IMAGES,
             Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO -> "- Media access to read backup files."
+            Manifest.permission.READ_MEDIA_AUDIO -> "- Media access to read sync files."
             else -> null
         }
     }

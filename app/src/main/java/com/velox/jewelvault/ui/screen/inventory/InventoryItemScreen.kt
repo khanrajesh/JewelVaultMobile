@@ -179,10 +179,7 @@ fun LandscapeInventoryItemScreen(
     LocalSubNavController.current
     LaunchedEffect(true) {
         delay(200)
-        inventoryViewModel.categoryFilter.text = catName
-        inventoryViewModel.subCategoryFilter.text = subCatName
-        inventoryViewModel.startDateFilter.text = ""
-        inventoryViewModel.endDateFilter.text = ""
+        inventoryViewModel.setCategoryOverrides(catId, catName, subCatId, subCatName)
 
         // Call filterItems() which is async
         inventoryViewModel.filterItems()

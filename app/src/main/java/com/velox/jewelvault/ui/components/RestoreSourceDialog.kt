@@ -16,9 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.velox.jewelvault.utils.backup.FileValidationResult
-import com.velox.jewelvault.utils.backup.RestoreMode
-import com.velox.jewelvault.utils.backup.RestoreSource
+import com.velox.jewelvault.utils.sync.FileValidationResult
+import com.velox.jewelvault.utils.sync.RestoreMode
+import com.velox.jewelvault.utils.sync.RestoreSource
 
 /**
  * Dialog for selecting restore source (Firebase or Local file)
@@ -33,7 +33,9 @@ fun RestoreSourceDialog(
 ) {
     var selectedSource by remember { mutableStateOf<RestoreSource?>(null) }
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedMode by remember { mutableStateOf(RestoreMode.MERGE) }
+    var pendingMode by remember { mutableStateOf<RestoreMode?>(null) }
+    var termsAccepted by remember { mutableStateOf(false) }
+    var confirmError by remember { mutableStateOf(false) }
     var isCheckingFirebase by remember { mutableStateOf(false) }
     var isSelectingFile by remember { mutableStateOf(false) }
     var firebaseCheckResult by remember { mutableStateOf<Pair<Boolean, String?>?>(null) }
@@ -41,6 +43,13 @@ fun RestoreSourceDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
+
+    val canRestore = selectedSource != null &&
+        ((selectedSource == RestoreSource.FIREBASE &&
+            (firebaseCheckResult?.first == true || firebaseCheckResult == null)) ||
+            (selectedSource == RestoreSource.LOCAL &&
+                selectedFileUri != null &&
+                fileValidationResult?.isValid == true))
 
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -112,13 +121,13 @@ fun RestoreSourceDialog(
                         selectedFileUri = null
                         fileValidationResult = null
                         errorMessage = null
-                        // Check Firebase backup availability
+                        // Check Firebase sync availability
                         isCheckingFirebase = true
                         checkFirebaseBackup(RestoreSource.FIREBASE) { exists, error ->
                             isCheckingFirebase = false
                             firebaseCheckResult = Pair(exists, error)
                             if (!exists) {
-                                errorMessage = error ?: "No backup files found in Firebase"
+                            errorMessage = error ?: "No sync files found in cloud"
                             }
                         }
                     }
@@ -136,12 +145,12 @@ fun RestoreSourceDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Download from Firebase",
+                                text = "Download from Cloud",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "Restore from your cloud backup",
+                                text = "Restore from your cloud sync",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -154,7 +163,7 @@ fun RestoreSourceDialog(
                             } else if (firebaseCheckResult != null) {
                                 val (exists, _) = firebaseCheckResult!!
                                 Text(
-                                    text = if (exists) "✓ Backup available" else "✗ No backup found",
+                                text = if (exists) "✓ Sync data available" else "✗ No sync data found",
                                     fontSize = 12.sp,
                                     color = if (exists) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                 )
@@ -198,7 +207,7 @@ fun RestoreSourceDialog(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = "Choose an Excel backup file from your device",
+                                text = "Choose an Excel sync file from your device",
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -264,59 +273,145 @@ fun RestoreSourceDialog(
                     }
                 }
 
-                // Restore Mode Selection
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Restore Mode:",
+                    text = "Choose Restore Mode",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
+                if (pendingMode != null) {
+                    val infoLines = when (pendingMode) {
+                        RestoreMode.MERGE -> listOf(
+                            "Adds data from the sync file into this device.",
+                            "Keeps your existing local data as-is.",
+                            "If the same ID already exists, it is skipped.",
+                            "Deletes from other devices are NOT removed here.",
+                            "Duplicates are possible if IDs differ.",
+                            "Recommended when you already have data."
+                        )
+                        RestoreMode.REPLACE -> listOf(
+                            "Imports all rows from the sync file.",
+                            "Existing local data may be overwritten where IDs match.",
+                            "Local-only data may remain (no delete tracking).",
+                            "Deletes from other devices are NOT removed here.",
+                            "Data loss or duplicates are possible.",
+                            "Use only if you are sure about the file."
+                        )
+                        else -> emptyList()
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (pendingMode == RestoreMode.REPLACE)
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .heightIn(max = 200.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            infoLines.forEach { line ->
+                                Text(
+                                    text = "• $line",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = termsAccepted,
+                            onCheckedChange = {
+                                termsAccepted = it
+                                if (it) confirmError = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "I understand the risks. I am responsible for any data loss.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Text(
+                        text = "After checking the box, tap ${pendingMode?.name?.lowercase()} again to confirm.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (confirmError) {
+                        Text(
+                            text = "Please accept the conditions to continue.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // MERGE Mode
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Button(
+                        onClick = {
+                            if (pendingMode != RestoreMode.MERGE) {
+                                pendingMode = RestoreMode.MERGE
+                                termsAccepted = false
+                                confirmError = false
+                                return@Button
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@Button
+                            }
+                            val currentSource = selectedSource
+                            if (currentSource != null) {
+                                onRestore(currentSource, selectedFileUri, RestoreMode.MERGE)
+                            }
+                        },
+                        enabled = canRestore,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        RadioButton(
-                            selected = selectedMode == RestoreMode.MERGE,
-                            onClick = { selectedMode = RestoreMode.MERGE }
-                        )
-                        Text(
-                            text = "Merge",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "Add new data,\nskip existing",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Text("Merge")
                     }
-
-                    // REPLACE Mode
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (pendingMode != RestoreMode.REPLACE) {
+                                pendingMode = RestoreMode.REPLACE
+                                termsAccepted = false
+                                confirmError = false
+                                return@OutlinedButton
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@OutlinedButton
+                            }
+                            val currentSource = selectedSource
+                            if (currentSource != null) {
+                                onRestore(currentSource, selectedFileUri, RestoreMode.REPLACE)
+                            }
+                        },
+                        enabled = canRestore,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
                     ) {
-                        RadioButton(
-                            selected = selectedMode == RestoreMode.REPLACE,
-                            onClick = { selectedMode = RestoreMode.REPLACE }
-                        )
-                        Text(
-                            text = "Replace",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "Replace all data\nexcept current user",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Text("Replace")
                     }
                 }
 
@@ -339,38 +434,12 @@ fun RestoreSourceDialog(
                     }
                 }
 
-                // Action Buttons
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Button(
-                        onClick = {
-                            val currentSource = selectedSource
-                            if (currentSource != null) {
-                                onRestore(currentSource, selectedFileUri, selectedMode)
-                            }
-                        },
-                        enabled = selectedSource != null && 
-                                (selectedSource == RestoreSource.FIREBASE && 
-                                 (firebaseCheckResult?.first == true || firebaseCheckResult == null)) ||
-                                (selectedSource == RestoreSource.LOCAL && 
-                                 selectedFileUri != null && 
-                                 fileValidationResult?.isValid == true),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Start Restore")
-                    }
+                    Text("Cancel")
                 }
             }
         }

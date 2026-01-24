@@ -12,5 +12,6 @@ data class UsersEntity(
     val mobileNo: String,
     val token: String?=null,
     val pin: String? = null,
-    val role:String
+    val role:String,
+    val lastUpdated: Long = 0L
 )

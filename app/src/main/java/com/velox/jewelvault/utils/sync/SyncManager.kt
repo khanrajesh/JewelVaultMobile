@@ -1,21 +1,20 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.flow.first
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
 import android.content.ContentValues
 import android.os.Environment
 import android.provider.MediaStore
 import android.net.Uri
-import com.velox.jewelvault.utils.backup.ExcelExporter
-import com.velox.jewelvault.utils.backup.ExcelImporter
-import com.velox.jewelvault.utils.backup.FirebaseBackupManager
+import android.os.Build
 
 /**
  * Enum for restore source options
@@ -35,19 +34,19 @@ data class FileValidationResult(
 )
 
 /**
- * Main backup manager class that coordinates backup and restore operations
+ * Main sync manager class that coordinates sync and restore operations
  */
-class BackupManager(
+class SyncManager(
     private val context: Context,
     private val database: AppDatabase,
     private val storage: FirebaseStorage,
-    private val dataStoreManager: DataStoreManager
+    private val dataStoreManager: DataStoreManager,
+    private val firestore: FirebaseFirestore
 ) {
     
     companion object {
         private const val BACKUP_FOLDER = "database_backups"
-        private const val BACKUP_FILE_PREFIX = "jewelvault_backup"
-        private const val BACKUP_FILE_EXTENSION = ".xlsx"
+        private const val FIXED_SYNC_FILE_NAME = "backup_file.xlsx"
     }
     
     private val excelExporter = ExcelExporter(context)
@@ -56,17 +55,17 @@ class BackupManager(
     private val firebaseBackupManager = FirebaseBackupManager(storage)
     
     /**
-     * Perform complete backup operation
+     * Perform complete sync operation
      */
     suspend fun performBackup(
         useGoogleSheets: Boolean = false, // Default to Excel (Google Sheets available for future use)
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<String> {
-        log("BackupManager: Backup process started (${if (useGoogleSheets) "Google Sheets" else "Excel"})")
+        log("SyncManager: Sync process started (${if (useGoogleSheets) "Google Sheets" else "Excel"})")
         return try {
-            onProgress("Starting backup process...", 0)
+            onProgress("Starting sync process...", 0)
             
-            // Get user info for backup file naming
+            // Get user info for sync file naming
             val userId = dataStoreManager.getAdminInfo().first.first()
             val userData = database.userDao().getUserById(userId)
             val userMobile = userData?.mobileNo ?: "unknown"
@@ -82,17 +81,17 @@ class BackupManager(
                     return Result.failure(sheetsResult.exceptionOrNull() ?: Exception("Google Sheets export failed"))
                 }
                 
-                onProgress("Google Sheets backup completed!", 100)
+                onProgress("Google Sheets sync completed!", 100)
                 val sheetsUrl = sheetsResult.getOrNull() ?: ""
-                log("Google Sheets backup completed successfully: $sheetsUrl")
-                Result.success("Google Sheets backup completed! Access at: $sheetsUrl")
+                log("Google Sheets sync completed successfully: $sheetsUrl")
+                Result.success("Google Sheets sync completed! Access at: $sheetsUrl")
                 
             } else {
                 // Use Excel (current default)
                 onProgress("Exporting data to Excel...", 20)
                 
                 // Create Excel file with all entities (now returns Uri)
-                val backupUri = createBackupFile(userMobile)
+                val backupUri = createBackupFile()
                 val exportResult = excelExporter.exportAllEntitiesToExcel(database, backupUri, context) { message, progress ->
                     onProgress(message, (progress * 0.4).toInt() + 20) // Scale to 20-60% range
                 }
@@ -101,32 +100,45 @@ class BackupManager(
                     return Result.failure(exportResult.exceptionOrNull() ?: Exception("Export failed"))
                 }
                 
-                onProgress("Uploading to Firebase Storage...", 60)
+                onProgress("Uploading to cloud sync...", 60)
                 
-                // Copy from Uri to temp file for upload
-                val tempFile = File(context.cacheDir, "temp_backup_upload.xlsx")
+                val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+                if (storeId.isBlank()) {
+                    return Result.failure(Exception("Store ID not found. Please set up a store before syncing."))
+                }
+
+                // Copy from Uri to temp file for upload (used as sync filename in Firebase)
+                val tempFile = File(context.cacheDir, FIXED_SYNC_FILE_NAME)
                 context.contentResolver.openInputStream(backupUri)?.use { input ->
                     tempFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
-                } ?: throw Exception("Unable to open input stream for backup Uri")
-                val uploadResult = firebaseBackupManager.uploadBackupFile(tempFile, userMobile)
+                } ?: throw Exception("Unable to open input stream for sync file")
+                val uploadResult = firebaseBackupManager.uploadBackupFile(tempFile, userMobile, storeId)
                 // Clean up temp file
                 if (tempFile.exists()) tempFile.delete()
                 if (uploadResult.isFailure) {
                     return Result.failure(uploadResult.exceptionOrNull() ?: Exception("Upload failed"))
                 }
+                val deviceLabel = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+                FirebaseUtils.updateStoreBackupTime(
+                    firestore,
+                    userMobile,
+                    storeId,
+                    System.currentTimeMillis(),
+                    deviceLabel
+                )
                 onProgress("Cleaning up local files...", 90)
                 // Optionally delete the public file using contentResolver.delete(backupUri, null, null)
-                onProgress("Backup completed successfully!", 100)
+                onProgress("Sync completed successfully!", 100)
                 val downloadUrl = uploadResult.getOrNull() ?: ""
-                log("Backup completed successfully. Download URL: $downloadUrl")
-                log("BackupManager: Backup file saved to Downloads/JewelVault/Backup/ - User can find it in their Downloads folder")
-                Result.success("Backup completed! File saved to Downloads/JewelVault/Backup/ and uploaded to cloud.")
+                log("Sync completed successfully. Download URL: $downloadUrl")
+                log("SyncManager: Sync file saved to Downloads/JewelVault/Sync/ - User can find it in their Downloads folder")
+                Result.success("Sync completed! File saved to Downloads/JewelVault/Sync/ and uploaded to cloud.")
             }
             
         } catch (e: Exception) {
-            log("BackupManager: Backup process failed: ${e.message}")
+            log("SyncManager: Sync process failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -142,8 +154,9 @@ class BackupManager(
             val userId = dataStoreManager.getAdminInfo().first.first()
             val userData = database.userDao().getUserById(userId)
             val userMobile = userData?.mobileNo ?: "unknown"
+            val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
 
-            val exportUri = createBackupFile(userMobile)
+            val exportUri = createBackupFile()
             val exportResult = excelExporter.exportAllEntitiesToExcel(
                 database,
                 exportUri,
@@ -159,7 +172,7 @@ class BackupManager(
             onProgress("Export completed successfully!", 100)
             Result.success(exportUri)
         } catch (e: Exception) {
-            log("BackupManager: Local export failed: ${e.message}")
+            log("SyncManager: Local export failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -213,7 +226,7 @@ class BackupManager(
                 )
             )
         } catch (e: Exception) {
-            log("BackupManager: Local import failed: ${e.message}")
+            log("SyncManager: Local import failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -226,7 +239,7 @@ class BackupManager(
         restoreMode: RestoreMode = RestoreMode.MERGE,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<RestoreResult> {
-        log("BackupManager: Restore process started for user: $userMobile with mode: $restoreMode")
+        log("SyncManager: Restore process started for user: $userMobile with mode: $restoreMode")
         return try {
             onProgress("Starting restore process...", 0)
             
@@ -237,11 +250,17 @@ class BackupManager(
             if (currentUserId.isEmpty()) {
                 return Result.failure(Exception("No current user found. Please login first."))
             }
+            if (currentStoreId.isBlank()) {
+                return Result.failure(Exception("No store selected. Please set up a store before restoring."))
+            }
+            if (currentStoreId.isBlank()) {
+                return Result.failure(Exception("No store selected. Please set up a store before restoring."))
+            }
             
-            onProgress("Downloading backup from Firebase...", 20)
+            onProgress("Downloading sync data from cloud...", 20)
             
-            // Download backup file from Firebase
-            val downloadResult = firebaseBackupManager.downloadLatestBackup(userMobile)
+            // Download sync file from Firebase
+            val downloadResult = firebaseBackupManager.downloadLatestBackup(userMobile, currentStoreId)
             
             if (downloadResult.isFailure) {
                 return Result.failure(downloadResult.exceptionOrNull() ?: Exception("Download failed"))
@@ -286,53 +305,64 @@ class BackupManager(
             Result.success(result)
             
         } catch (e: Exception) {
-            log("BackupManager: Restore process failed: ${e.message}")
+            log("SyncManager: Restore process failed: ${e.message}")
             Result.failure(e)
         }
     }
     
     /**
-     * Get list of available backups for a user
+     * Get list of available sync files for a user
      */
     suspend fun getAvailableBackups(userMobile: String): Result<List<BackupInfo>> {
-        return firebaseBackupManager.getBackupList(userMobile)
+        val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+        if (storeId.isBlank()) {
+            return Result.failure(Exception("Store ID not found. Please set up a store first."))
+        }
+        return firebaseBackupManager.getBackupList(userMobile, storeId)
     }
     
     /**
-     * Delete old backup files (keep only latest N backups)
+     * Delete old sync files (keep only latest N syncs)
      */
     suspend fun cleanupOldBackups(userMobile: String, keepCount: Int = 5): Result<Int> {
-        return firebaseBackupManager.cleanupOldBackups(userMobile, keepCount)
+        val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+        if (storeId.isBlank()) {
+            return Result.failure(Exception("Store ID not found. Please set up a store first."))
+        }
+        return firebaseBackupManager.cleanupOldBackups(userMobile, storeId, keepCount)
     }
     
-    private fun createBackupFile(userMobile: String): Uri {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "jewelvault_backup_${userMobile}_$timestamp.xlsx"
+    private fun createBackupFile(): Uri {
+        val fileName = FIXED_SYNC_FILE_NAME
         
-        log("BackupManager: Creating backup file: $fileName")
+        log("SyncManager: Creating sync file: $fileName")
         
         val contentValues = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Backup")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Sync")
         }
         
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw Exception("Unable to create backup file in MediaStore")
+            ?: throw Exception("Unable to create sync file in MediaStore")
         
-        log("BackupManager: Backup file created successfully at: $uri")
-        log("BackupManager: File will be saved to: Downloads/JewelVault/Backup/$fileName")
+        log("SyncManager: Sync file created successfully at: $uri")
+        log("SyncManager: File will be saved to: Downloads/JewelVault/Sync/$fileName")
         
         return uri
     }
 
     /**
-     * Check if Firebase backup exists for user
+     * Check if Firebase sync exists for user
      */
     suspend fun checkFirebaseBackupExists(userMobile: String): Result<Boolean> {
         return try {
-            val backupList = firebaseBackupManager.getBackupList(userMobile)
+            val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+            if (storeId.isBlank()) {
+                return Result.success(false)
+            }
+            val backupList = firebaseBackupManager.getBackupList(userMobile, storeId)
             if (backupList.isSuccess) {
                 val backups = backupList.getOrNull() ?: emptyList()
                 Result.success(backups.isNotEmpty())
@@ -340,7 +370,7 @@ class BackupManager(
                 Result.success(false)
             }
         } catch (e: Exception) {
-            log("BackupManager: Error checking Firebase backup: ${e.message}")
+            log("SyncManager: Error checking Firebase sync: ${e.message}")
             Result.failure(e)
         }
     }
@@ -381,7 +411,7 @@ class BackupManager(
             }
 
         } catch (e: Exception) {
-            log("BackupManager: File validation failed: ${e.message}")
+            log("SyncManager: File validation failed: ${e.message}")
             FileValidationResult(false, "File validation failed: ${e.message}")
         }
     }
@@ -407,11 +437,11 @@ class BackupManager(
     }
 
     /**
-     * Get default backup folder path
+     * Get default sync folder path
      */
     fun getDefaultBackupFolder(): String {
         val downloadsDir = context.getExternalFilesDir(null)?.absolutePath ?: context.filesDir.absolutePath
-        return "$downloadsDir/JewelVault/Backup"
+        return "$downloadsDir/JewelVault/Sync"
     }
 
     /**
@@ -424,7 +454,7 @@ class BackupManager(
         restoreMode: RestoreMode = RestoreMode.MERGE,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<RestoreResult> {
-        log("BackupManager: Restore process started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+        log("SyncManager: Restore process started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
         return try {
             onProgress("Starting restore process...", 0)
             
@@ -438,22 +468,22 @@ class BackupManager(
 
             val backupFile: File = when (restoreSource) {
                 RestoreSource.FIREBASE -> {
-                    onProgress("Checking Firebase backup availability...", 10)
+                    onProgress("Checking cloud sync availability...", 10)
                     
-                    // Check if backup exists in Firebase
+                    // Check if sync exists in Firebase
                     val backupExists = checkFirebaseBackupExists(userMobile)
                     if (backupExists.isFailure) {
-                        return Result.failure(Exception("Failed to check Firebase backup: ${backupExists.exceptionOrNull()?.message}"))
+                        return Result.failure(Exception("Failed to check cloud sync: ${backupExists.exceptionOrNull()?.message}"))
                     }
                     
                     if (!backupExists.getOrNull()!!) {
-                        return Result.failure(Exception("No backup files found in Firebase for user: $userMobile"))
+                        return Result.failure(Exception("No sync files found in cloud for user: $userMobile"))
                     }
                     
-                    onProgress("Downloading backup from Firebase...", 20)
+                    onProgress("Downloading sync data from cloud...", 20)
                     
-                    // Download backup file from Firebase
-                    val downloadResult = firebaseBackupManager.downloadLatestBackup(userMobile)
+                    // Download sync file from Firebase
+                    val downloadResult = firebaseBackupManager.downloadLatestBackup(userMobile, currentStoreId)
                     
                     if (downloadResult.isFailure) {
                         return Result.failure(downloadResult.exceptionOrNull() ?: Exception("Download failed"))
@@ -499,7 +529,7 @@ class BackupManager(
             onProgress("Cleaning up temporary files...", 90)
             
             // Clean up temporary file
-            if (backupFile.exists() && (backupFile.name.startsWith("validation") || backupFile.name.startsWith("backup_download"))) {
+            if (backupFile.exists() && (backupFile.name.startsWith("validation") || backupFile.name.startsWith("backup_file"))) {
                 backupFile.delete()
             }
             
@@ -517,14 +547,14 @@ class BackupManager(
             Result.success(result)
             
         } catch (e: Exception) {
-            log("BackupManager: Restore process failed: ${e.message}")
+            log("SyncManager: Restore process failed: ${e.message}")
             Result.failure(e)
         }
     }
 }
 
 /**
- * Data class to hold backup information
+ * Data class to hold sync file information
  */
 data class BackupInfo(
     val fileName: String,

@@ -3,6 +3,7 @@ package com.velox.jewelvault.data.firebase
 import android.net.Uri
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
@@ -19,6 +20,9 @@ class FirebaseUtils {
         private const val STORE_IMAGES_FOLDER = "store_images"
         private const val APP_USERS_SUBCOLLECTION = "app_users"
         private const val USER_ADDITIONAL_INFO_SUBCOLLECTION = "user_additional_info"
+        private const val FEATURE_LIST_SUBCOLLECTION = "feature_list"
+        private const val SUBSCRIPTION_SUBCOLLECTION = "subscription"
+        private const val META_DOC_ID = "data"
 
         /**
          * Save store data to Firestore
@@ -113,6 +117,122 @@ class FirebaseUtils {
             }
         }
 
+        suspend fun updateStoreBackupTime(
+            firestore: FirebaseFirestore,
+            mobileNumber: String,
+            storeId: String,
+            backupTimeMillis: Long,
+            backupDevice: String? = null
+        ): Result<Unit> {
+            return try {
+                val payload = mutableMapOf<String, Any>(
+                    "lastBackupAt" to backupTimeMillis
+                )
+                if (!backupDevice.isNullOrBlank()) {
+                    payload["lastBackupDevice"] = backupDevice
+                }
+                firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(STORE_DETAILS_SUBCOLLECTION)
+                    .document(storeId)
+                    .set(payload, SetOptions.merge())
+                    .await()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                log("Error updating store backup time: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+        suspend fun saveFeatureList(
+            firestore: FirebaseFirestore,
+            mobileNumber: String,
+            featureData: Map<String, Any>
+        ): Result<Unit> {
+            return try {
+                firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(FEATURE_LIST_SUBCOLLECTION)
+                    .document(META_DOC_ID)
+                    .set(featureData)
+                    .await()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                log("Error saving feature list: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+        suspend fun getFeatureList(
+            firestore: FirebaseFirestore,
+            mobileNumber: String
+        ): Result<Map<String, Any>?> {
+            return try {
+                val document = firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(FEATURE_LIST_SUBCOLLECTION)
+                    .document(META_DOC_ID)
+                    .get()
+                    .await()
+
+                if (document.exists()) {
+                    Result.success(document.data)
+                } else {
+                    Result.success(null)
+                }
+            } catch (e: Exception) {
+                log("Error getting feature list: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+        suspend fun saveSubscription(
+            firestore: FirebaseFirestore,
+            mobileNumber: String,
+            subscriptionData: Map<String, Any>
+        ): Result<Unit> {
+            return try {
+                firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(SUBSCRIPTION_SUBCOLLECTION)
+                    .document(META_DOC_ID)
+                    .set(subscriptionData)
+                    .await()
+                Result.success(Unit)
+            } catch (e: Exception) {
+                log("Error saving subscription: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
+        suspend fun getSubscription(
+            firestore: FirebaseFirestore,
+            mobileNumber: String
+        ): Result<Map<String, Any>?> {
+            return try {
+                val document = firestore
+                    .collection(USERS_COLLECTION)
+                    .document(mobileNumber)
+                    .collection(SUBSCRIPTION_SUBCOLLECTION)
+                    .document(META_DOC_ID)
+                    .get()
+                    .await()
+
+                if (document.exists()) {
+                    Result.success(document.data)
+                } else {
+                    Result.success(null)
+                }
+            } catch (e: Exception) {
+                log("Error getting subscription: ${e.message}")
+                Result.failure(e)
+            }
+        }
+
         /**
          * Upload image to Firebase Storage and return download URL
          */
@@ -158,6 +278,11 @@ class FirebaseUtils {
          * Convert StoreEntity to Firestore map
          */
         fun storeEntityToMap(storeEntity: StoreEntity): Map<String, Any> {
+            val lastUpdated = if (storeEntity.lastUpdated > 0L) {
+                storeEntity.lastUpdated
+            } else {
+                System.currentTimeMillis()
+            }
             return mapOf(
                 "storeId" to storeEntity.storeId,
                 "userId" to storeEntity.userId,
@@ -172,7 +297,7 @@ class FirebaseUtils {
                 "image" to storeEntity.image,
                 "invoiceNo" to storeEntity.invoiceNo,
                 "upiId" to storeEntity.upiId,
-                "lastUpdated" to System.currentTimeMillis()
+                "lastUpdated" to lastUpdated
             )
         }
 
@@ -180,6 +305,7 @@ class FirebaseUtils {
          * Convert Firestore map to StoreEntity
          */
         fun mapToStoreEntity(data: Map<String, Any>): StoreEntity {
+            val lastUpdated = (data["lastUpdated"] as? Number)?.toLong() ?: 0L
             return StoreEntity(
                 storeId = (data["storeId"] as? String) ?: "",
                 userId = (data["userId"] as? String) ?: "",
@@ -193,7 +319,8 @@ class FirebaseUtils {
                 panNo = data["panNo"] as? String ?: "",
                 image = data["image"] as? String ?: "",
                 invoiceNo = (data["invoiceNo"] as? Long)?.toInt() ?: 0,
-                upiId = data["upiId"] as? String ?: ""
+                upiId = data["upiId"] as? String ?: "",
+                lastUpdated = lastUpdated
             )
         }
 
@@ -397,6 +524,11 @@ class FirebaseUtils {
          * Convert UsersEntity to Firestore map
          */
         fun userEntityToMap(userEntity: UsersEntity): Map<String, Any> {
+            val lastUpdated = if (userEntity.lastUpdated > 0L) {
+                userEntity.lastUpdated
+            } else {
+                System.currentTimeMillis()
+            }
             return mapOf(
                 "userId" to userEntity.userId,
                 "name" to userEntity.name,
@@ -404,6 +536,7 @@ class FirebaseUtils {
                 "mobileNo" to userEntity.mobileNo,
                 "pin" to (userEntity.pin ?: ""),
                 "role" to userEntity.role,
+                "lastUpdated" to lastUpdated
             )
         }
 
@@ -431,6 +564,7 @@ class FirebaseUtils {
          * Convert Firestore map to UsersEntity
          */
         fun mapToUserEntity(data: Map<String, Any>): UsersEntity {
+            val lastUpdated = (data["lastUpdated"] as? Number)?.toLong() ?: 0L
             return UsersEntity(
                 userId = (data["userId"] as? String) ?: "",
                 name = data["name"] as? String ?: "",
@@ -438,6 +572,7 @@ class FirebaseUtils {
                 mobileNo = data["mobileNo"] as? String ?: "",
                 pin = data["pin"] as? String,
                 role = data["role"] as? String ?: "",
+                lastUpdated = lastUpdated
             )
         }
 

@@ -416,8 +416,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 keyboardType = KeyboardType.Text,
                                 singleLine = true,
                                 textStyle = shopNameTextStyle,
-                                onTextChange = {
-                                    profileViewModel.shopName.text = InputValidator.sanitizeText(it)
+                                onTextChange = { input ->
+                                    profileViewModel.shopName.text = input
                                 },
                                 validation = shopNameValidation
                             )
@@ -447,8 +447,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Proprietor",
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
-                                onTextChange = {
-                                    profileViewModel.propName.text = InputValidator.sanitizeText(it)
+                                onTextChange = { input ->
+                                    profileViewModel.propName.text = input
                                 },
                                 validation = proprietorValidation
                             )
@@ -606,8 +606,8 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 placeholderText = "Proprietor",
                                 keyboardType = KeyboardType.Text,
                                 readOnly = !isEditable.value,
-                                onTextChange = {
-                                    profileViewModel.propName.text = InputValidator.sanitizeText(it)
+                                onTextChange = { input ->
+                                    profileViewModel.propName.text = input
                                 },
                                 validation = proprietorValidation
                             )
