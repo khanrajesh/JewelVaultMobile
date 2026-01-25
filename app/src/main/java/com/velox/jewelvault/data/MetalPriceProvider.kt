@@ -49,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -78,7 +79,6 @@ import java.time.LocalDateTime
 fun MetalRatesTicker(
     modifier: Modifier = Modifier,
     textColor: Color = Color.Black,
-    backgroundColor: Color = Color.Transparent,
 ) {
     val showEditDialog = remember { mutableStateOf(false) }
     val baseViewModel = LocalBaseViewModel.current
@@ -88,9 +88,7 @@ fun MetalRatesTicker(
     val latestTime = baseViewModel.metalRates.firstOrNull()?.updatedDate.orEmpty()
     val infiniteTransition = rememberInfiniteTransition()
     val animatedOffsetX by infiniteTransition.animateFloat(
-        initialValue = 1.5f,
-        targetValue = -1.5f,
-        animationSpec = infiniteRepeatable(
+        initialValue = 1.5f, targetValue = -1.5f, animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         )
@@ -109,16 +107,13 @@ fun MetalRatesTicker(
                             "MetalRatesTicker: long press detected, opening edit dialog (rates=${baseViewModel.metalRates.size})"
                         )
                         showEditDialog.value = true
-                    }
-                )
-            }
-    ) {
+                    })
+            }) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically
         ) {
             if (baseViewModel.metalRatesLoading.value) {
                 CircularProgressIndicator(Modifier.size(20.dp), color = Color.Black)
@@ -148,40 +143,6 @@ fun MetalRatesTicker(
                     maxLines = 1,
                 )
             }
-        }
-
-        // Left fade gradient (start of scroll)
-        if (backgroundColor != Color.Transparent) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .width(40.dp)
-                    .height(20.dp)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(
-                                backgroundColor,
-                                backgroundColor.copy(alpha = 0.8f),
-                                backgroundColor.copy(alpha = 0.0f)
-                            )
-                        )
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .width(40.dp)
-                    .height(20.dp)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(
-                                backgroundColor.copy(alpha = 0.0f),
-                                backgroundColor.copy(alpha = 0.8f),
-                                backgroundColor
-                            )
-                        )
-                    )
-            )
         }
     }
 
@@ -223,9 +184,11 @@ fun EditMetalRatesDialog(
                 Text("Edit Metal Rates", fontWeight = FontWeight.Black)
                 Spacer(Modifier.height(10.dp))
                 if (isLandscape()) {
-                    Row(Modifier
-                        .weight(1f)
-                        .fillMaxWidth()) {
+                    Row(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
                         CalculatorScreen(
                             Modifier
                                 .weight(0.6f)
@@ -241,12 +204,18 @@ fun EditMetalRatesDialog(
 
                         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                             itemsIndexed(editedRates) { index, metalRate ->
-                                val isGold24 = metalRate.metal.equals("Gold", true) && metalRate.caratOrPurity.equals("24K", true)
-                                val isSilverKg = metalRate.metal.equals("Silver", true) && metalRate.caratOrPurity.contains("1 Kg", true)
+                                val isGold24 = metalRate.metal.equals(
+                                    "Gold",
+                                    true
+                                ) && metalRate.caratOrPurity.equals("24K", true)
+                                val isSilverKg = metalRate.metal.equals(
+                                    "Silver",
+                                    true
+                                ) && metalRate.caratOrPurity.contains("1 Kg", true)
                                 val isEditable = isGold24 || isSilverKg
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-        text = "${metalRate.metal}, ${metalRate.caratOrPurity}",
+                                        text = "${metalRate.metal}, ${metalRate.caratOrPurity}",
                                         modifier = Modifier.weight(1f)
                                     )
                                     Spacer(Modifier.width(5.dp))
@@ -258,9 +227,18 @@ fun EditMetalRatesDialog(
                                         onValueChange = {
                                             try {
                                                 when {
-                                                    isGold24 -> updateConjugateMetalPrice(editedRates, it.toDouble())
-                                                    isSilverKg -> updateSilverPrices(editedRates, it.toDouble())
-                                                    else -> viewModel.snackBarState = "Only Gold 24K and Silver 1 Kg are editable"
+                                                    isGold24 -> updateConjugateMetalPrice(
+                                                        editedRates,
+                                                        it.toDouble()
+                                                    )
+
+                                                    isSilverKg -> updateSilverPrices(
+                                                        editedRates,
+                                                        it.toDouble()
+                                                    )
+
+                                                    else -> viewModel.snackBarState =
+                                                        "Only Gold 24K and Silver 1 Kg are editable"
                                                 }
                                             } catch (e: Exception) {
                                                 viewModel.snackBarState = "Invalid input"
@@ -277,13 +255,21 @@ fun EditMetalRatesDialog(
                     }
 
                 } else {
-                    Column(Modifier
-                        .weight(1f)
-                        .fillMaxWidth()) {
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
                         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                             itemsIndexed(editedRates) { index, metalRate ->
-                                val isGold24 = metalRate.metal.equals("Gold", true) && metalRate.caratOrPurity.equals("24K", true)
-                                val isSilverKg = metalRate.metal.equals("Silver", true) && metalRate.caratOrPurity.contains("1 Kg", true)
+                                val isGold24 = metalRate.metal.equals(
+                                    "Gold",
+                                    true
+                                ) && metalRate.caratOrPurity.equals("24K", true)
+                                val isSilverKg = metalRate.metal.equals(
+                                    "Silver",
+                                    true
+                                ) && metalRate.caratOrPurity.contains("1 Kg", true)
                                 val isEditable = isGold24 || isSilverKg
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
@@ -299,9 +285,18 @@ fun EditMetalRatesDialog(
                                         onValueChange = {
                                             try {
                                                 when {
-                                                    isGold24 -> updateConjugateMetalPrice(editedRates, it.toDouble())
-                                                    isSilverKg -> updateSilverPrices(editedRates, it.toDouble())
-                                                    else -> viewModel.snackBarState = "Only Gold 24K and Silver 1 Kg are editable"
+                                                    isGold24 -> updateConjugateMetalPrice(
+                                                        editedRates,
+                                                        it.toDouble()
+                                                    )
+
+                                                    isSilverKg -> updateSilverPrices(
+                                                        editedRates,
+                                                        it.toDouble()
+                                                    )
+
+                                                    else -> viewModel.snackBarState =
+                                                        "Only Gold 24K and Silver 1 Kg are editable"
                                                 }
                                             } catch (e: Exception) {
                                                 viewModel.snackBarState = "Invalid input"
@@ -358,8 +353,7 @@ fun EditMetalRatesDialog(
                                 val todayIso = LocalDate.now().toString()
                                 val gold24k = editedRates.firstOrNull {
                                     it.metal == "Gold" && it.caratOrPurity.equals(
-                                        "24K",
-                                        true
+                                        "24K", true
                                     )
                                 }?.price?.replace(",", "")?.toDoubleOrNull()
 
@@ -368,19 +362,16 @@ fun EditMetalRatesDialog(
 
                                 if (gold24k != null) {
                                     viewModel.dataStoreManager.setValue(
-                                        DataStoreManager.METAL_GOLD_24K,
-                                        gold24k
+                                        DataStoreManager.METAL_GOLD_24K, gold24k
                                     )
                                 }
                                 if (computedSilverKg != null) {
                                     viewModel.dataStoreManager.setValue(
-                                        DataStoreManager.METAL_SILVER_KG,
-                                        computedSilverKg
+                                        DataStoreManager.METAL_SILVER_KG, computedSilverKg
                                     )
                                 }
                                 viewModel.dataStoreManager.setValue(
-                                    DataStoreManager.METAL_FETCH_DATE,
-                                    todayIso
+                                    DataStoreManager.METAL_FETCH_DATE, todayIso
                                 )
                                 Log.d(
                                     "MetalRates",
@@ -439,7 +430,11 @@ fun updateSilverPrices(
         if (metalRate.metal.equals("Silver", true)) {
             val updatedPrice = when {
                 metalRate.caratOrPurity.contains("1 Kg", true) -> valueKg
-                metalRate.caratOrPurity.contains("1 g", true) || metalRate.caratOrPurity.contains("1g", true) -> valueKg / 1000.0
+                metalRate.caratOrPurity.contains(
+                    "1 g",
+                    true
+                ) || metalRate.caratOrPurity.contains("1g", true) -> valueKg / 1000.0
+
                 else -> null
             }
             if (updatedPrice != null) {
@@ -514,11 +509,7 @@ suspend fun fetchAllMetalRates(
 
         out.add(
             MetalRate(
-                "Cache",
-                "Silver",
-                "1 Kg",
-                String.format("%.0f", silverKgCached),
-                updated
+                "Cache", "Silver", "1 Kg", String.format("%.0f", silverKgCached), updated
             )
         )
         out.add(
@@ -686,14 +677,12 @@ suspend fun metalRates(
         if (silverKg != null) {
             val hasKg = combinedRates.any {
                 it.metal == "Silver" && it.caratOrPurity.contains(
-                    "1 Kg",
-                    true
+                    "1 Kg", true
                 )
             }
             val hasG = combinedRates.any {
                 it.metal == "Silver" && (it.caratOrPurity.contains(
-                    "1 g",
-                    true
+                    "1 g", true
                 ) || it.caratOrPurity.contains("1g", true))
             }
             if (!hasKg) {
@@ -743,29 +732,17 @@ private fun mapMetalRatesResponse(response: MetalRatesResponseDto?): List<MetalR
                 val gold100 = (100 / 99.9) * perGram
                 output.add(
                     MetalRate(
-                        "API",
-                        "Gold",
-                        "24K",
-                        String.format("%.0f", perGram),
-                        updatedDate
+                        "API", "Gold", "24K", String.format("%.0f", perGram), updatedDate
                     )
                 )
                 output.add(
                     MetalRate(
-                        "API",
-                        "Gold",
-                        "22K",
-                        String.format("%.0f", gold100 * 0.916),
-                        updatedDate
+                        "API", "Gold", "22K", String.format("%.0f", gold100 * 0.916), updatedDate
                     )
                 )
                 output.add(
                     MetalRate(
-                        "API",
-                        "Gold",
-                        "18K",
-                        String.format("%.0f", gold100 * 0.750),
-                        updatedDate
+                        "API", "Gold", "18K", String.format("%.0f", gold100 * 0.750), updatedDate
                     )
                 )
             }
@@ -774,11 +751,7 @@ private fun mapMetalRatesResponse(response: MetalRatesResponseDto?): List<MetalR
                 val pricePerKg = price * (1000.0 / unitGm)
                 output.add(
                     MetalRate(
-                        "API",
-                        "Silver",
-                        "1 Kg",
-                        String.format("%.0f", pricePerKg),
-                        updatedDate
+                        "API", "Silver", "1 Kg", String.format("%.0f", pricePerKg), updatedDate
                     )
                 )
                 output.add(

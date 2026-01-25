@@ -42,4 +42,5 @@ sealed class SubScreens(val route:String) {
     data object ScanAddItem : SubScreens("scanAddItem")
 
     data object KhataBookPlans : SubScreens("khataBookPlans")
+    data object SubscriptionDetails : SubScreens("subscriptionDetails")
 }

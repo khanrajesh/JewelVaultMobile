@@ -7,23 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.twotone.DeleteForever
-import androidx.compose.material.icons.twotone.Lock
-import androidx.compose.material.icons.twotone.Refresh
-import androidx.compose.material.icons.twotone.Sms
-import androidx.compose.material.icons.twotone.Settings
-import androidx.compose.material.icons.twotone.Business
-import androidx.compose.material.icons.twotone.Wifi
-import androidx.compose.material.icons.twotone.Security
-import androidx.compose.material.icons.twotone.Info
-import androidx.compose.material.icons.twotone.ChevronRight
-import androidx.compose.material.icons.twotone.CloudCircle
-import androidx.compose.material.icons.twotone.Description
+import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,7 +23,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
-import com.velox.jewelvault.ui.screen.dashboard.DashboardViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.LocalBaseViewModel
@@ -189,6 +178,19 @@ fun SettingScreen() {
                     )
                 }
 
+                // Subscription
+                item {
+                    SettingsSectionHeader("Subscription", Icons.TwoTone.Star)
+                }
+                item {
+                    SettingsActionItem(
+                        title = "Subscription Details",
+                        subtitle = "View your active plan and features",
+                        icon = Icons.TwoTone.Star,
+                        onClick = { subNavController.navigate(SubScreens.SubscriptionDetails.route) }
+                    )
+                }
+
                 // Permissions
                 item {
                     SettingsSectionHeader("Permissions", Icons.TwoTone.Lock)
@@ -292,12 +294,12 @@ fun SettingScreen() {
         }
     }
 
-    // Data Wipe Confirmation Dialog
+    // Data Wipe Confirmation Dialog logic...
     if (baseViewModel.showDataWipeConfirmation.value) {
         AlertDialog(
             onDismissRequest = { baseViewModel.showDataWipeConfirmation.value = false },
-            title = { Text("Confirm Data Wipe") },
-            text = { Text("This action will permanently delete all your data including:\n\n• All inventory items\n• Customer information\n• Order history\n• Store settings\n• User data\n\nThis action cannot be undone. Are you sure you want to continue?") },
+            title = { Text("Wipe All Data?") },
+            text = { Text("This will permanently delete all your data and logout. This action cannot be undone.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -305,72 +307,84 @@ fun SettingScreen() {
                         baseViewModel.initiateDataWipe()
                     }
                 ) {
-                    Text("Yes, Wipe All Data", color = MaterialTheme.colorScheme.error)
+                    Text("WIPE DATA", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { baseViewModel.showDataWipeConfirmation.value = false }) {
-                    Text("Cancel")
+                    Text("CANCEL")
                 }
             }
         )
     }
 
-    // PIN Verification Dialog
     if (baseViewModel.showPinVerificationDialog.value) {
-        PinVerificationDialog(
-            onPinSubmit = { pin -> baseViewModel.verifyPinForWipe(pin) },
-            onDismiss = { baseViewModel.showPinVerificationDialog.value = false }
+        var pin by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { baseViewModel.showPinVerificationDialog.value = false },
+            title = { Text("Enter PIN") },
+            text = {
+                OutlinedTextField(
+                    value = pin,
+                    onValueChange = { if (it.length <= 4) pin = it },
+                    label = { Text("4-Digit PIN") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(onClick = { baseViewModel.verifyPinForWipe(pin) }) {
+                    Text("Verify")
+                }
+            }
         )
     }
 
-    // OTP Verification Dialog
     if (baseViewModel.showOtpVerificationDialog.value) {
-        OtpVerificationDialog(
-            onOtpSubmit = { otp -> baseViewModel.verifyOtpForWipe(otp) },
-            onDismiss = { baseViewModel.showOtpVerificationDialog.value = false },
-            onResend = { baseViewModel.resendOtpForWipe() },
-            isLoading = baseViewModel.isWipeInProgress.value
+        var otp by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { baseViewModel.showOtpVerificationDialog.value = false },
+            title = { Text("Verify OTP") },
+            text = {
+                Column {
+                    Text("Enter the OTP sent to your registered mobile number.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = otp,
+                        onValueChange = { if (it.length <= 6) otp = it },
+                        label = { Text("6-Digit OTP") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { baseViewModel.verifyOtpForWipe(otp) }) {
+                    Text("Confirm Wipe")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { baseViewModel.resendOtpForWipe() }) {
+                    Text("Resend OTP")
+                }
+            }
         )
-    }
-    
-    // Show update dialogs if needed
-    if (baseViewModel.showUpdateDialog.value) {
-        baseViewModel.updateInfo.value?.let { updateInfo ->
-            OptionalUpdateDialog(
-                updateInfo = updateInfo,
-                onUpdateClick = { baseViewModel.onUpdateClick(context) },
-                onDismiss = { baseViewModel.dismissUpdateDialog() },
-                onBackupClick = { baseViewModel.onUpdateClick(context) }
-            )
-        }
-    }
-    
-    if (baseViewModel.showForceUpdateDialog.value) {
-        baseViewModel.updateInfo.value?.let { updateInfo ->
-            com.velox.jewelvault.ui.components.ForceUpdateDialog(
-                updateInfo = updateInfo,
-                onUpdateClick = { baseViewModel.onUpdateClick(context) }
-            )
-        }
     }
 }
 
 @Composable
-fun SettingsSectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+fun SettingsSectionHeader(title: String, icon: ImageVector) {
     Row(
-        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        icon?.let {
-            Icon(
-                imageVector = it,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -381,34 +395,80 @@ fun SettingsSectionHeader(title: String, icon: androidx.compose.ui.graphics.vect
 }
 
 @Composable
+fun SettingsActionItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.TwoTone.ChevronRight,
+                contentDescription = null,
+                tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
 fun SettingsSwitchItem(
     title: String,
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -421,6 +481,81 @@ fun SettingsSwitchItem(
 }
 
 @Composable
+fun SettingsTextInputItem(
+    title: String,
+    subtitle: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    var isEditing by remember { mutableStateOf(false) }
+    var textValue by remember { mutableStateOf(value) }
+
+    Surface(
+        onClick = { isEditing = true },
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+
+    if (isEditing) {
+        AlertDialog(
+            onDismissRequest = { isEditing = false },
+            title = { Text(title) },
+            text = {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { textValue = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onValueChange(textValue)
+                    isEditing = false
+                }) {
+                    Text("SAVE")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    textValue = value
+                    isEditing = false
+                }) {
+                    Text("CANCEL")
+                }
+            }
+        )
+    }
+}
+
+@Composable
 fun SettingsSliderItem(
     title: String,
     subtitle: String,
@@ -429,124 +564,35 @@ fun SettingsSliderItem(
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Slider(
                 value = value,
                 onValueChange = onValueChange,
                 valueRange = valueRange,
-                steps = steps,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingsTextInputItem(
-    title: String,
-    subtitle: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                singleLine = true
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingsActionItem(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    isDestructive: Boolean = false
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isDestructive) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isDestructive) Color(0xFFD32F2F) else MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDestructive) Color(0xFFD32F2F) else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Icon(
-                imageVector = Icons.TwoTone.ChevronRight,
-                contentDescription = "Navigate",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                steps = steps
             )
         }
     }
@@ -557,254 +603,28 @@ fun SettingsInfoItem(
     title: String,
     subtitle: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    Surface(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun PinVerificationDialog(
-    onPinSubmit: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var pin by remember { mutableStateOf("") }
-    var showError by remember { mutableStateOf(false) }
-    
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.TwoTone.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = "Enter PIN",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Text(
-                    text = "Please enter your PIN to continue",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = { 
-                        if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                            pin = it
-                            showError = false
-                        }
-                    },
-                    label = { Text("PIN") },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
-                    ),
-                    singleLine = true,
-                    isError = showError,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                if (showError) {
-                    Text(
-                        text = "PIN is required",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
-                    
-                    Button(
-                        onClick = {
-                            if (pin.isNotEmpty()) {
-                                onPinSubmit(pin)
-                            } else {
-                                showError = true
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Continue")
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun OtpVerificationDialog(
-    onOtpSubmit: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onResend: () -> Unit,
-    isLoading: Boolean
-) {
-    var otp by remember { mutableStateOf("") }
-    var showError by remember { mutableStateOf(false) }
-    
-    Dialog(
-        onDismissRequest = { if (!isLoading) onDismiss() },
-        properties = DialogProperties(dismissOnBackPress = !isLoading, dismissOnClickOutside = !isLoading)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.TwoTone.Sms,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = if (isLoading) "Wiping Data..." else "Enter OTP",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Text(
-                    text = if (isLoading) "Please wait while we wipe all data" else "Please enter the OTP sent to your phone",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-                
-                if (!isLoading) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    OutlinedTextField(
-                        value = otp,
-                        onValueChange = { 
-                            if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                                otp = it
-                                showError = false
-                            }
-                        },
-                        label = { Text("OTP") },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                        ),
-                        singleLine = true,
-                        isError = showError,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    if (showError) {
-                        Text(
-                            text = "OTP is required",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    TextButton(
-                        onClick = onResend,
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text("Resend OTP")
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Cancel")
-                        }
-                        
-                        Button(
-                            onClick = {
-                                if (otp.isNotEmpty()) {
-                                    onOtpSubmit(otp)
-                                } else {
-                                    showError = true
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Verify")
-                        }
-                    }
-                }
             }
         }
     }

@@ -248,6 +248,7 @@ fun LandscapeDashboardScreen(
     LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     Box(
         Modifier
@@ -345,7 +346,13 @@ fun LandscapeDashboardScreen(
                     ) {
                         Box(modifier = Modifier
                             .bounceClick {
-                                navHost.navigate(Screens.QrScanScreen.route)
+                                scope.launch {
+                                    if (baseViewModel.dataStoreManager.getFeature("quick_cam")) {
+                                        navHost.navigate(Screens.QrScanScreen.route)
+                                    } else {
+                                        baseViewModel.snackBarState = "Please upgrade your subscription to use Quick Cam."
+                                    }
+                                }
                             }
                             .weight(1f)
                             .fillMaxSize()
@@ -403,6 +410,7 @@ fun PortraitDashboardScreen(
     LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     Box(
         Modifier
@@ -478,7 +486,13 @@ fun PortraitDashboardScreen(
                 ) {
                     Box(modifier = Modifier
                         .bounceClick {
-                            navHost.navigate(Screens.QrScanScreen.route)
+                            scope.launch {
+                                if (baseViewModel.dataStoreManager.getFeature("quick_cam")) {
+                                    navHost.navigate(Screens.QrScanScreen.route)
+                                } else {
+                                    baseViewModel.snackBarState = "Please upgrade your subscription to use Quick Cam."
+                                }
+                            }
                         }
                         .weight(1f)
                         .fillMaxSize()
@@ -1358,4 +1372,3 @@ fun RecentItemSold(
         }
     }
 }
-

@@ -196,6 +196,7 @@ object CalculationUtils {
         val totalBasePrice = items.sumOf { it.price }
         val totalMakingCharges = items.sumOf { it.chargeAmount }
         val totalOtherCharges = items.sumOf { it.othCrg }
+
         val totalTax = items.sumOf { it.tax }
         val totalPriceBeforeTax = totalBasePrice + totalMakingCharges + totalOtherCharges
         val grandTotal = totalPriceBeforeTax + totalTax

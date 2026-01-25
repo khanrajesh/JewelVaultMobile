@@ -48,9 +48,9 @@ class StartLoadingViewModel @Inject constructor(
 
     private val tasks = listOf(
         LoadingTask(id = "permissions", title = "Grant permissions"),
+        LoadingTask(id = "feature_list", title = "Load feature list"),
         LoadingTask(id = "store_setup", title = "Check store setup"),
-        LoadingTask(id = "backup_check", title = "Check cloud sync"),
-        LoadingTask(id = "feature_list", title = "Load feature list")
+        LoadingTask(id = "backup_check", title = "Check cloud sync")
     ).toMutableStateList()
 
     val workItems: SnapshotStateList<LoadingTask> = tasks
@@ -61,6 +61,10 @@ class StartLoadingViewModel @Inject constructor(
         if (permissionsGranted.value) return
         permissionsGranted.value = true
         markComplete("permissions")
+    }
+
+    suspend fun getFeature(key: String): Boolean {
+        return dataStoreManager.getFeature(key)
     }
 
     fun startLoadingWork() {
@@ -74,12 +78,22 @@ class StartLoadingViewModel @Inject constructor(
 
             if (needsSetup) {
                 clearImportProgress()
-                markComplete("backup_check")
                 markComplete("feature_list")
+                markComplete("backup_check")
                 return@launch
             }
 
-            handleBackupDecisionFlow()
+            // 1. Sync features and subscription first
+            syncFeaturesAndSubscription()
+            markComplete("feature_list")
+
+            // 2. Then check for backup only if back_up_online is true
+            val isBackupOnline = dataStoreManager.getFeature("back_up_online")
+            if (isBackupOnline) {
+                handleBackupDecisionFlow()
+            } else {
+                markComplete("backup_check")
+            }
         }
     }
 
@@ -267,8 +281,6 @@ class StartLoadingViewModel @Inject constructor(
         if (!isFreshInstall || adminMobile.isBlank() || storeId.isBlank()) {
             clearImportProgress()
             markComplete("backup_check")
-            syncFeaturesAndSubscription()
-            markComplete("feature_list")
             return
         }
 
@@ -283,8 +295,6 @@ class StartLoadingViewModel @Inject constructor(
         clearImportProgress()
         initializeDefaultCategoriesIfMissing()
         markComplete("backup_check")
-        syncFeaturesAndSubscription()
-        markComplete("feature_list")
     }
 
     fun onBackupRestoreConfirmed() {
@@ -314,8 +324,6 @@ class StartLoadingViewModel @Inject constructor(
                 backupDecisionPending.value = false
                 markComplete("backup_check")
                 clearImportProgress()
-                syncFeaturesAndSubscription()
-                markComplete("feature_list")
             }
         }
     }
@@ -327,8 +335,6 @@ class StartLoadingViewModel @Inject constructor(
             initializeDefaultCategoriesIfMissing()
             backupDecisionPending.value = false
             markComplete("backup_check")
-            syncFeaturesAndSubscription()
-            markComplete("feature_list")
         }
     }
 

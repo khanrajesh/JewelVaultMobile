@@ -250,6 +250,33 @@ class DataStoreManager @Inject constructor(
         }
     }
 
+    suspend fun getFeature(key: String): Boolean {
+        return try {
+            val featureList = getFeatureList()
+            featureList.features[key] ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getFeatureLastUpdated(): Long {
+        return getValue(FEATURE_LIST_UPDATED, 0L).first() ?: 0L
+    }
+
+    fun getFeatureListFlow(): Flow<FeatureListState> = dataStore.data.map { prefs ->
+        val json = prefs[FEATURE_LIST_JSON] ?: ""
+        if (json.isBlank()) {
+            FeatureListState()
+        } else {
+            try {
+                val type = object : TypeToken<FeatureListState>() {}.type
+                gson.fromJson(json, type) ?: FeatureListState()
+            } catch (e: Exception) {
+                FeatureListState()
+            }
+        }
+    }
+
     suspend fun getFeatureList(): FeatureListState {
         return try {
             val json = getValue(FEATURE_LIST_JSON, "").first() ?: ""
@@ -271,6 +298,20 @@ class DataStoreManager @Inject constructor(
             setValue(SUBSCRIPTION_UPDATED, subscription.lastUpdated)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    fun getSubscriptionFlow(): Flow<SubscriptionState> = dataStore.data.map { prefs ->
+        val json = prefs[SUBSCRIPTION_JSON] ?: ""
+        if (json.isBlank()) {
+            SubscriptionState()
+        } else {
+            try {
+                val type = object : TypeToken<SubscriptionState>() {}.type
+                gson.fromJson(json, type) ?: SubscriptionState()
+            } catch (e: Exception) {
+                SubscriptionState()
+            }
         }
     }
 

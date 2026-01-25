@@ -52,6 +52,7 @@ import com.velox.jewelvault.ui.screen.sell_invoice.SellPreviewScreen
 import com.velox.jewelvault.ui.screen.setting.BackupSettingsScreen
 import com.velox.jewelvault.ui.screen.setting.PermissionSettingsScreen
 import com.velox.jewelvault.ui.screen.setting.SettingScreen
+import com.velox.jewelvault.ui.screen.setting.SubscriptionDetailsScreen
 import com.velox.jewelvault.ui.screen.start_loading.StartLoadingScreen
 import com.velox.jewelvault.ui.screen.user_management.UserManagementScreen
 import com.velox.jewelvault.ui.screen.webview.PrivacyPolicyScreen
@@ -282,6 +283,10 @@ fun SubAppNavigation(
             ) { backStackEntry ->
                 val templateId = backStackEntry.arguments?.getString("templateId")
                 com.velox.jewelvault.ui.screen.label.LabelDesignerScreen(templateId = templateId)
+            }
+
+            composable(SubScreens.SubscriptionDetails.route) {
+                SubscriptionDetailsScreen()
             }
         }
     }

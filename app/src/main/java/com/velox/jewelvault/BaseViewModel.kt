@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -17,6 +18,8 @@ import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.FeatureListState
+import com.velox.jewelvault.data.SubscriptionState
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.AppUpdateManager
@@ -34,7 +37,10 @@ import androidx.core.content.ContextCompat
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -84,6 +90,12 @@ class BaseViewModel @Inject constructor(
     val showUpdateDialog = mutableStateOf(false)
     val showForceUpdateDialog = mutableStateOf(false)
     val updateCheckLoading = mutableStateOf(false)
+
+    val featureList: StateFlow<FeatureListState> = _dataStoreManager.getFeatureListFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FeatureListState())
+
+    val subscription: StateFlow<SubscriptionState> = _dataStoreManager.getSubscriptionFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SubscriptionState())
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo

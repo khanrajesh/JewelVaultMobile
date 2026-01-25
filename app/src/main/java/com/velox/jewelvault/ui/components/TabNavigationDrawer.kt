@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Colors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowRight
@@ -74,6 +73,7 @@ import coil.request.ImageRequest
 import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
+import com.velox.jewelvault.ui.theme.GoldBackground
 import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
@@ -375,7 +375,7 @@ private fun PortraitNavView(
                 Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(GoldBackground),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
@@ -419,7 +419,6 @@ private fun PortraitNavView(
                     Modifier
                         .height(30.dp)
                         .weight(1f),
-                    backgroundColor = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(5.dp))
                 BluetoothToggleIcon(
@@ -660,7 +659,7 @@ private fun LandscapeNavView(
                 .fillMaxHeight()
                 .width(width)
                 .background(
-                    color = MaterialTheme.colorScheme.primary
+                    GoldBackground
                 )
                 .padding(8.dp)
         ) {
@@ -847,7 +846,6 @@ private fun LandscapeNavView(
                         Modifier
                             .height(30.dp)
                             .weight(1f),
-                        backgroundColor = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(10.dp))
                     Column(

@@ -85,7 +85,7 @@ fun StartLoadingScreen() {
     val permissionItems = remember { buildPermissionInfoList() }
     val permissionStatuses = remember { mutableStateMapOf<String, Boolean>() }
     val permissionRefreshKey = remember { mutableStateOf(0) }
-    val showPermissionDialog = remember { mutableStateOf(true) }
+    val showPermissionDialog = remember { mutableStateOf(false) }
     val permissionRequestInProgress = remember { mutableStateOf(false) }
 
     val permissionList = remember { permissionItems.map { it.permission }.distinct() }
@@ -141,6 +141,9 @@ fun StartLoadingScreen() {
         permissionStatuses.clear()
         permissionItems.forEach { item ->
             permissionStatuses[item.permission] = isPermissionGranted(context, item.permission)
+        }
+        if (permissionItems.any { permissionStatuses[it.permission] != true }) {
+            showPermissionDialog.value = true
         }
     }
 

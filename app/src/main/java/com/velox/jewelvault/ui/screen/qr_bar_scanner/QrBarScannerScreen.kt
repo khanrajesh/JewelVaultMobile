@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.twotone.ArrowBack
+import androidx.compose.material.icons.twotone.ArrowBack
 import androidx.compose.material.icons.twotone.Clear
 import androidx.compose.material.icons.twotone.Delete
 import androidx.compose.material.icons.twotone.MoreVert
@@ -62,7 +64,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(6.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Column(Modifier.fillMaxWidth()) {
@@ -70,20 +72,18 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    MetalRatesTicker(
-                        Modifier
-                            .weight(1f)
-                            .height(50.dp), textColor = Color.White
-                    )
-
                     Icon(
-                        Icons.TwoTone.Clear,
+                        Icons.AutoMirrored.TwoTone.ArrowBack,
                         null,
                         modifier = Modifier
                             .bounceClick { navHost.popBackStack() }
                             .size(50.dp),
                         tint = Color.White)
-                    Spacer(Modifier.width(8.dp))
+                    MetalRatesTicker(
+                        Modifier
+                            .weight(1f)
+                            .height(50.dp), textColor = Color.White
+                    )
                     Box {
                         Icon(
                             Icons.TwoTone.MoreVert,
@@ -111,7 +111,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                         Text(
                             text = "Place the item code under the camera view to get the details.",
                             color = Color.White,
-                            fontSize = 16.sp
+                            fontSize = 12.sp
                         )
 
                         LazyColumn {

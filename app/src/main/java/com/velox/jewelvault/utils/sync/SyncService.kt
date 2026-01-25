@@ -5,14 +5,17 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import androidx.compose.material.MaterialTheme
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.toArgb
 import com.velox.jewelvault.MainActivity
 import com.velox.jewelvault.R
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.data.remort.RepositoryImpl
+import com.velox.jewelvault.ui.theme.primaryLight
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -456,9 +459,10 @@ class SyncService : Service() {
         )
         
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("JewelVault Sync")
+            .setContentTitle("Jewel Vault")
             .setContentText(message)
-            .setSmallIcon(R.drawable.logo_1) // Changed to logo_1 which should exist
+            .setSmallIcon(R.drawable.logo) // Changed to logo which should exist
+            .setColor(primaryLight.toArgb())
             .setContentIntent(pendingIntent)
             .setProgress(100, progress, progress == 0)
             .setOngoing(true)
@@ -546,9 +550,9 @@ class SyncService : Service() {
         )
         
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("JewelVault Sync")
+            .setContentTitle("Jewel Vault")
             .setContentText(message)
-            .setSmallIcon(R.drawable.logo_1) // Use the same logo icon
+            .setSmallIcon(R.drawable.logo) // Use the same logo icon
             .setContentIntent(pendingIntent)
             .setAutoCancel(false)
             .setOngoing(true)
@@ -681,9 +685,7 @@ class SyncService : Service() {
                     )
                     val lastSeen = doc.getLong("lastSeenAt") ?: doc.getLong("lastLoginAt") ?: 0L
                     Triple(label, lastSeen, doc.id)
-                }
-                .sortedByDescending { it.second }
-                .firstOrNull()
+                }.maxByOrNull { it.second }
 
             if (activeDevice != null) {
                 activeDeviceLabel = activeDevice.first
@@ -729,7 +731,7 @@ class SyncService : Service() {
         val activeLabel = activeDeviceLabel ?: "None"
         val activeTime = formatTime(activeDeviceAt)
 
-        val line1 = "Gold 24K: ₹${formatNumber(gold)} | Silver 1 Kg: ₹${formatNumber(silver)}"
+        val line1 = "Gold: ₹${formatNumber(gold)} | Silver: ₹${formatNumber(silver)}"
         val line2 = "Last sync: $lastSyncTime | Device: $lastSyncDeviceLabel"
         val line3 = if (activeDeviceAt != null) {
             "Active on: $activeLabel at $activeTime"
@@ -742,8 +744,9 @@ class SyncService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(line1)
             .setContentText(baseText)
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$line1\n$line2\n$line3"))
-            .setSmallIcon(R.drawable.logo_1)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$line1\n$line3\n$line2"))
+            .setSmallIcon(R.drawable.logo)
+            .setColor(primaryLight.toArgb())
             .setContentIntent(pendingIntent)
             .addAction(
                 NotificationCompat.Action(

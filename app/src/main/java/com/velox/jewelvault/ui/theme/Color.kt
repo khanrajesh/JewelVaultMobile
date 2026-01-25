@@ -1,4 +1,6 @@
 package com.velox.jewelvault.ui.theme
+
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 
@@ -296,6 +298,15 @@ val LightGreen = Color(0xFF90EE90)
 val LightRed = Color(0xFFF08080)
 val Orange = Color(0xFFFFA500)
 
+val GoldBackground = Brush.horizontalGradient(
+    colors = listOf(
+        Color(0xFFC8A66F),
+        primaryLight, // your primary
+//        primaryLight, // your primary
+        Color(0xFFF8E8AD),
+        primaryLight,
+    )
+)
 
 
 
