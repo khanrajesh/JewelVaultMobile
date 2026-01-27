@@ -23,6 +23,7 @@ import com.velox.jewelvault.data.SubscriptionState
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.AppLogger
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.data.metalRates
@@ -719,6 +720,13 @@ fun dismissUpdateDialog() {
             } catch (e: Exception) {
                 _snackBarState.value = "Error resetting preferences: ${e.message}"
             }
+        }
+    }
+
+    fun shareLogs(context: Context) {
+        val shared = AppLogger.shareLogs(context)
+        if (!shared) {
+            _snackBarState.value = "No logs available to share"
         }
     }
 

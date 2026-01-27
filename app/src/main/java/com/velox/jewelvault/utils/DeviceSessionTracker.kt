@@ -33,16 +33,16 @@ class DeviceSessionTracker(
 
 
     override fun onStart(owner: LifecycleOwner) {
-        if (wasInBackground.getAndSet(false)) {
-            // Force restart flow from beginning
-            val i = Intent(app, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                putExtra("RESET_FLOW", true)
-            }
-            app.startActivity(i)
-//            updateDeviceActiveFlag(isActive = true)
-//             startHeartbeat() // enable if you really want periodic keepalive only in foreground
-        }
+//        if (wasInBackground.getAndSet(false)) {
+//            // Force restart flow from beginning
+//            val i = Intent(app, MainActivity::class.java).apply {
+//                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+//                putExtra("RESET_FLOW", true)
+//            }
+//            app.startActivity(i)
+////            updateDeviceActiveFlag(isActive = true)
+////             startHeartbeat() // enable if you really want periodic keepalive only in foreground
+//        }
     }
 
 

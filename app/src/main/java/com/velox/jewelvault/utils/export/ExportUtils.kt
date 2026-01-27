@@ -15,12 +15,15 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.velox.jewelvault.utils.ExportFormat
 import com.velox.jewelvault.utils.ioScope
+import com.velox.jewelvault.utils.logJvSync
 import com.velox.jewelvault.utils.mainScope
 import org.apache.poi.hssf.usermodel.HSSFWorkbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.BufferedWriter
 import java.io.IOException
 import java.io.OutputStreamWriter
+import android.content.ContentResolver
+import android.net.Uri
 
 
 fun enqueueExportWorker(
@@ -35,6 +38,7 @@ fun enqueueExportWorker(
     // Create notification channel for export operations
     createExportNotificationChannel(context)
     
+    logJvSync("enqueueExportWorker requested for $fileName, format: ${format.name}")
     mainScope {
         val flatRows = rows.flatten().toTypedArray()
         val inputData = workDataOf(
@@ -51,13 +55,16 @@ fun enqueueExportWorker(
         val workerManager = WorkManager.getInstance(context)
 
         workerManager.enqueue(request)
+        logJvSync("ExportWorker enqueued for $fileName")
         workerManager.getWorkInfoByIdLiveData(request.id).observe(lifecycleOwner) { workInfo ->
             if (workInfo?.state == WorkInfo.State.SUCCEEDED) {
                 val fileUri = workInfo.outputData.getString("fileUri")
                 onExportComplete?.invoke(fileUri)
+                logJvSync("ExportWorker completed successfully for $fileName")
                 Toast.makeText(context, "Export successful", Toast.LENGTH_SHORT).show()
             } else if (workInfo?.state == WorkInfo.State.FAILED) {
                 onExportComplete?.invoke(null)
+                logJvSync("ExportWorker failed for $fileName")
                 Toast.makeText(context, "Export failed", Toast.LENGTH_SHORT).show()
             }
         }
@@ -67,9 +74,10 @@ fun enqueueExportWorker(
 }
 
 private fun createExportNotificationChannel(context: Context) {
+    logJvSync("Creating export notification channel")
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
+       
         // Check if channel already exists
         if (notificationManager.getNotificationChannel("export_channel") == null) {
             val exportChannel = NotificationChannel(
@@ -81,6 +89,7 @@ private fun createExportNotificationChannel(context: Context) {
                 setShowBadge(false)
             }
             notificationManager.createNotificationChannel(exportChannel)
+            logJvSync("Export notification channel created")
         }
     }
 }
@@ -93,6 +102,7 @@ fun exportItemListAndGetUri(
     headers: List<String>,
     format: ExportFormat
 ): String? {
+    logJvSync("exportItemListAndGetUri starting for $fileName")
     return try {
         // Validate column sizes
         if (dataRows.any { it.size != headers.size }) {
@@ -115,6 +125,7 @@ fun exportItemListAndGetUri(
         }
 
         val resolver = context.contentResolver
+        deleteExistingExportFile(resolver, fileName, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/ItemExport")
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
             ?: throw IOException("Unable to create file in MediaStore")
 
@@ -154,8 +165,10 @@ fun exportItemListAndGetUri(
             }
         }
 
+        logJvSync("exportItemListAndGetUri succeeded for $fileName ($uri)")
         uri.toString()
     } catch (e: Exception) {
+        logJvSync("exportItemListAndGetUri failed for $fileName: ${e.message}")
         e.printStackTrace()
         null
     }
@@ -171,6 +184,7 @@ fun exportItemListInBackground(
     onFailure: (Throwable) -> Unit,
     onProgress: (() -> Unit)? = null
 ) {
+    logJvSync("exportItemListInBackground starting for $fileName")
     ioScope {
         try {
             // Validate column sizes
@@ -193,9 +207,10 @@ fun exportItemListInBackground(
                 )
             }
 
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: throw IOException("Unable to create file in MediaStore")
+        val resolver = context.contentResolver
+        deleteExistingExportFile(resolver, fileName, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/ItemExport")
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            ?: throw IOException("Unable to create file in MediaStore")
 
             resolver.openOutputStream(uri)?.use { outputStream ->
                 when (format) {
@@ -236,10 +251,32 @@ fun exportItemListInBackground(
                 }
             }
 
+            logJvSync("exportItemListInBackground succeeded for $fileName")
             mainScope { onSuccess() }
 
         } catch (e: Exception) {
+            logJvSync("exportItemListInBackground failed for $fileName: ${e.message}")
             mainScope { onFailure(e) }
+        }
+    }
+}
+
+private fun deleteExistingExportFile(resolver: ContentResolver, fileName: String, relativePath: String) {
+    val projection = arrayOf(MediaStore.MediaColumns._ID)
+    val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+    val selectionArgs = arrayOf(fileName, "$relativePath/")
+    resolver.query(
+        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+        projection,
+        selection,
+        selectionArgs,
+        null
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+            val existingUri = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
+            resolver.delete(existingUri, null, null)
+            logJvSync("Deleted existing export file: $existingUri")
         }
     }
 }

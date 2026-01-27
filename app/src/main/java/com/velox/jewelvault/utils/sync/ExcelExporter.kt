@@ -3,6 +3,8 @@ package com.velox.jewelvault.utils.sync
 import android.content.Context
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
+import com.velox.jewelvault.utils.sync.ExcelSchema
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.text.SimpleDateFormat
@@ -16,6 +18,8 @@ import android.net.Uri
 class ExcelExporter(private val context: Context) {
     
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    private val schemaVersion = ExcelSchema.CURRENT_SCHEMA_VERSION
+    private val recordedHeaders = mutableMapOf<String, List<String>>()
     
     /**
      * Export all entities to a single Excel file with multiple sheets
@@ -26,7 +30,9 @@ class ExcelExporter(private val context: Context) {
         context: Context,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<Unit>  {
+        recordedHeaders.clear()
         return try {
+            logJvSync("Excel export initiated for $outputUri")
             log("Starting Excel export to: $outputUri")
             val workbook = XSSFWorkbook()
             log("Created XSSFWorkbook successfully")
@@ -130,19 +136,45 @@ class ExcelExporter(private val context: Context) {
             exportUserAdditionalInfoEntity(database, workbook, headerStyle)
             log("✓ UserAdditionalInfoEntity export completed")
             
+            createMetadataSheet(workbook)
+            
             // Write workbook to output stream from content resolver
             context.contentResolver.openOutputStream(outputUri)?.use { outputStream ->
                 workbook.write(outputStream)
             } ?: throw Exception("Unable to open output stream for sync file")
             workbook.close()
             log("Excel export completed and file saved to: $outputUri")
+            logJvSync("Excel export succeeded for $outputUri")
             Result.success(Unit)
             
         } catch (e: Exception) {
             log("Excel export failed: ${e.message}")
+            logJvSync("Excel export failed for $outputUri: ${e.message}")
             Result.failure(e)
         }
     }
+
+    private fun createMetadataSheet(workbook: Workbook) {
+        val sheet = workbook.createSheet("Metadata")
+        val header = sheet.createRow(0)
+        header.createCell(0).setCellValue("key")
+        header.createCell(1).setCellValue("value")
+
+        val versionRow = sheet.createRow(1)
+        versionRow.createCell(0).setCellValue("schemaVersion")
+        versionRow.createCell(1).setCellValue(schemaVersion.toDouble())
+
+            val dateRow = sheet.createRow(2)
+            dateRow.createCell(0).setCellValue("exportedAt")
+            dateRow.createCell(1).setCellValue(dateFormat.format(Date()))
+            
+            var metadataRow = 3
+            recordedHeaders.forEach { (sheetName, headers) ->
+                val row = sheet.createRow(metadataRow++)
+                row.createCell(0).setCellValue("headers:$sheetName")
+                row.createCell(1).setCellValue(headers.joinToString("|"))
+            }
+        }
     
     private suspend fun exportStoreEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
         log("  → Creating StoreEntity sheet...")
@@ -157,6 +189,7 @@ class ExcelExporter(private val context: Context) {
             "storeId", "userId", "proprietor", "name", "email", "phone", "address",
             "registrationNo", "gstinNo", "panNo", "image", "invoiceNo", "upiId", "lastUpdated"
         )
+        recordSheetHeaders("StoreEntity", headers)
         log("  → Creating headers: ${headers.joinToString(", ")}")
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -184,6 +217,10 @@ class ExcelExporter(private val context: Context) {
         }
         log("  → StoreEntity export completed: ${stores.size} records")
     }
+
+    private fun recordSheetHeaders(sheetName: String, headers: List<String>) {
+        recordedHeaders[sheetName] = headers.toList()
+    }
     
     private suspend fun exportUserEntity(database: AppDatabase, workbook: Workbook, headerStyle: CellStyle) {
         log("  → Creating UsersEntity sheet...")
@@ -194,6 +231,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${users.size} users to export")
         
         val headers = listOf("id", "name", "email", "mobileNo", "token", "pin", "role", "lastUpdated")
+        recordSheetHeaders("UsersEntity", headers)
         log("  → Creating headers: ${headers.joinToString(", ")}")
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
@@ -224,6 +262,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${categories.size} categories to export")
         
         val headers = listOf("catId", "catName", "gsWt", "fnWt", "userId", "storeId")
+        recordSheetHeaders("CategoryEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -249,6 +288,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${subCategories.size} sub-categories to export")
         
         val headers = listOf("subCatId", "catId", "userId", "storeId", "catName", "subCatName", "quantity", "gsWt", "fnWt")
+        recordSheetHeaders("SubCategoryEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -279,6 +319,7 @@ class ExcelExporter(private val context: Context) {
         val headers = listOf(
             "itemId", "itemAddName", "catId", "userId", "storeId", "catName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "unit", "addDesKey", "addDesValue", "addDate", "modifiedDate", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
+        recordSheetHeaders("ItemEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -328,6 +369,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${customers.size} customers to export")
         
         val headers = listOf("mobileNo", "name", "address", "gstin_pan", "addDate", "lastModifiedDate", "totalItemBought", "totalAmount", "notes", "userId", "storeId")
+        recordSheetHeaders("CustomerEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -373,6 +415,7 @@ class ExcelExporter(private val context: Context) {
             "createdAt",
             "updatedAt"
         )
+        recordSheetHeaders("CustomerKhataBookPlanEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -402,6 +445,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${khataBooks.size} khata books to export")
         
         val headers = listOf("khataBookId", "customerMobile", "planName", "startDate", "endDate", "monthlyAmount", "totalMonths", "totalAmount", "status", "notes", "userId", "storeId")
+        recordSheetHeaders("CustomerKhataBookEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -433,6 +477,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${transactions.size} transactions to export")
         
         val headers = listOf("transactionId", "customerMobile", "transactionDate", "amount", "transactionType", "category", "description", "referenceNumber", "paymentMethod", "khataBookId", "monthNumber", "notes", "userId", "storeId")
+        recordSheetHeaders("CustomerTransactionEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -466,6 +511,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${orders.size} orders to export")
         
         val headers = listOf("orderId", "customerMobile", "storeId", "userId", "orderDate", "totalAmount", "totalTax", "totalCharge", "discount", "note")
+        recordSheetHeaders("OrderEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -497,6 +543,7 @@ class ExcelExporter(private val context: Context) {
         val headers = listOf(
             "orderItemId", "orderId", "orderDate", "itemId", "customerMobile", "catId", "catName", "itemAddName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "fnMetalPrice", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "addDesKey", "addDesValue", "price", "charge", "tax", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
+        recordSheetHeaders("OrderItemEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -561,6 +608,7 @@ class ExcelExporter(private val context: Context) {
             "exchangeItemId", "orderId", "orderDate", "customerMobile", "metalType", "purity", 
             "grossWeight", "fineWeight", "price", "isExchangedByMetal", "exchangeValue", "addDate"
         )
+        recordSheetHeaders("ExchangeItemEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -593,6 +641,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${firms.size} firms to export")
         
         val headers = listOf("firmId", "firmName", "firmMobileNumber", "gstNumber", "address")
+        recordSheetHeaders("FirmEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -617,6 +666,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${purchaseOrders.size} purchase orders to export")
         
         val headers = listOf("purchaseOrderId", "sellerId", "billNo", "billDate", "entryDate", "extraChargeDescription", "extraCharge", "totalFinalWeight", "totalFinalAmount", "notes", "cgstPercent", "sgstPercent", "igstPercent")
+        recordSheetHeaders("PurchaseOrderEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -649,6 +699,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${purchaseOrderItems.size} purchase order items to export")
         
         val headers = listOf("purchaseItemId", "purchaseOrderId", "catId", "catName", "subCatId", "subCatName", "gsWt", "purity", "ntWt", "fnWt", "fnRate", "wastagePercent")
+        recordSheetHeaders("PurchaseOrderItemEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -680,6 +731,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${metalExchanges.size} metal exchanges to export")
         
         val headers = listOf("exchangeId", "purchaseOrderId", "catId", "catName", "subCatId", "subCatName", "fnWeight")
+        recordSheetHeaders("MetalExchangeEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)
@@ -710,6 +762,7 @@ class ExcelExporter(private val context: Context) {
             "governmentIdNumber", "governmentIdType", "dateOfBirth", "bloodGroup", "isActive", 
             "createdAt", "updatedAt"
         )
+        recordSheetHeaders("UserAdditionalInfoEntity", headers)
         val headerRow = sheet.createRow(0)
         headers.forEachIndexed { index, header ->
             val cell = headerRow.createCell(index)

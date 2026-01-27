@@ -6,6 +6,7 @@ import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.utils.AppLogger
 import com.velox.jewelvault.utils.DeviceSessionTracker
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.EntryPoint
@@ -26,6 +27,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        AppLogger.init(this)
         // WorkManager will be initialized via workManagerConfiguration
         val entryPoint = EntryPointAccessors.fromApplication(
             this,

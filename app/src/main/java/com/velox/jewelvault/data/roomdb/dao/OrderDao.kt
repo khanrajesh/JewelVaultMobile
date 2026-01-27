@@ -38,6 +38,9 @@ interface OrderDao {
     @Query("SELECT * FROM `${TableNames.ORDER}` ORDER BY orderDate ASC")
     fun getAllOrdersAsc(): Flow<List<OrderEntity>>
 
+    @Query("SELECT COUNT(*) FROM `${TableNames.ORDER}` WHERE customerMobile = :mobileNo")
+    suspend fun getOrderCountForCustomer(mobileNo: String): Int
+
     @Query("""
     SELECT o.orderId, o.orderDate, c.name AS customerName, c.mobileNo, 
            o.totalAmount, o.totalTax, o.totalCharge

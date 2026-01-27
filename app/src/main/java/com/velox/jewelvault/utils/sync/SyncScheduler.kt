@@ -3,6 +3,7 @@ package com.velox.jewelvault.utils.sync
 import android.content.Context
 import androidx.work.*
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 
 /**
  * Backup frequency options
@@ -66,6 +67,7 @@ class SyncScheduler(private val context: Context) {
      * Schedule automatic sync based on frequency
      */
     fun scheduleAutomaticBackup(frequency: SyncFrequency) {
+        logJvSync("SyncScheduler scheduleAutomaticBackup called with $frequency")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
@@ -105,6 +107,7 @@ class SyncScheduler(private val context: Context) {
 //            )
         
         log("Automatic sync scheduled: $frequency")
+        logJvSync("Automatic sync scheduled: $frequency")
     }
     
     /**
@@ -115,6 +118,7 @@ class SyncScheduler(private val context: Context) {
             .cancelUniqueWork(BACKUP_WORK_NAME)
         
         log("Automatic sync cancelled")
+        logJvSync("Automatic sync cancelled")
     }
     
     /**
@@ -145,6 +149,7 @@ class SyncScheduler(private val context: Context) {
      * Trigger immediate sync
      */
     fun triggerImmediateBackup() {
+        logJvSync("SyncScheduler triggerImmediateBackup called")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
@@ -158,6 +163,7 @@ class SyncScheduler(private val context: Context) {
 //            .enqueue(immediateBackupRequest)
         
         log("Immediate sync triggered")
+        logJvSync("Immediate sync triggered")
     }
 }
 

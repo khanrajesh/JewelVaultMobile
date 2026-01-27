@@ -83,6 +83,7 @@ import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.CalculationUtils
+import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
@@ -433,6 +434,8 @@ fun ViewAddItemDialog(
     val takeNtWt = remember { (InputFieldState("${item.ntWt}")) }
     val takeFnWt = remember { (InputFieldState("${item.fnWt}")) }
 
+    val chargeTypeState = remember(item) { InputFieldState(item.crgType) }
+    val chargeRateState = remember(item) { InputFieldState("${item.crg}") }
     val othCrgDes = remember { (InputFieldState("${item.othCrgDes} ")) }
     val othCrg = remember { (InputFieldState("${item.othCrg}")) }
 
@@ -473,8 +476,8 @@ fun ViewAddItemDialog(
 
     // Calculate making charge
     val charge = CalculationUtils.makingCharge(
-        chargeType = item.crgType,
-        chargeRate = item.crg,
+        chargeType = chargeTypeState.text,
+        chargeRate = chargeRateState.text.toDoubleOrNull() ?: 0.0,
         basePrice = price,
         quantity = quantity,
         weight = ntWeight
@@ -504,6 +507,8 @@ fun ViewAddItemDialog(
                 fnMetalPrice = oneUnitPrice,
                 othCrgDes = othCrgDes.text,
                 othCrg = othCrg.text.toDoubleOrNull() ?: 0.0,
+                crgType = chargeTypeState.text,
+                crg = chargeRateState.text.toDoubleOrNull() ?: 0.0,
                 huid = takeHUID.text,
                 price = price,
                 chargeAmount = charge,
@@ -568,8 +573,8 @@ fun ViewAddItemDialog(
                     "Net Weight" to item.ntWt.toString(),
                     "Fine Weight" to item.fnWt.toString(),
                     "Purity" to item.purity,
-                    "Making Charge Type" to item.crgType,
-                    "Making Charges" to item.crg.toString(),
+                    "Making Charge Type" to chargeTypeState.text,
+                    "Making Charges" to chargeRateState.text,
                     "Other Charge Des" to item.othCrgDes,
                     "Other Charges" to item.othCrg.toString(),
                     "CGST" to item.cgst.toString(),
@@ -621,6 +626,28 @@ fun ViewAddItemDialog(
 
                     }
                     Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Adjust Making Charge",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    RowOrColumn {
+                        CusOutlinedTextField(
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            state = chargeTypeState,
+                            placeholderText = "Making Charge Type",
+                            dropdownItems = ChargeType.list(),
+                            maxLines = 1
+                        )
+                        WidthThenHeightSpacer(5.dp)
+                        CusOutlinedTextField(
+                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            state = chargeRateState,
+                            placeholderText = "Making Charge",
+                            keyboardType = KeyboardType.Number,
+                            maxLines = 1
+                        )
+                    }
                     RowOrColumn {
                         CusOutlinedTextField(
                             takeQuantity,

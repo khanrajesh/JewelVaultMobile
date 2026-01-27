@@ -222,6 +222,15 @@ fun SettingScreen() {
 
                 item {
                     SettingsActionItem(
+                        title = "Share Logs",
+                        subtitle = "Share all app logs",
+                        icon = Icons.TwoTone.Share,
+                        onClick = { baseViewModel.shareLogs(context) }
+                    )
+                }
+
+                item {
+                    SettingsActionItem(
                         title = "Reset App Preferences",
                         subtitle = "Reset all settings to default",
                         icon = Icons.TwoTone.Refresh,

@@ -3,6 +3,7 @@ package com.velox.jewelvault.utils.sync
 import android.net.Uri
 import com.google.firebase.storage.FirebaseStorage
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.util.*
@@ -22,6 +23,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      */
     suspend fun uploadBackupFile(backupFile: File, userMobile: String, storeId: String): Result<String> {
         log("FirebaseBackupManager: Starting upload for user: $userMobile, store: $storeId, file: ${backupFile.name}")
+        logJvSync("FirebaseBackupManager upload started for ${backupFile.name}")
         return try {
             // Delete previous sync files for this user
             cleanupPreviousBackups(userMobile, storeId)
@@ -39,10 +41,12 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             
             log("Sync uploaded successfully: ${downloadUrl}")
             log("FirebaseBackupManager: Upload completed successfully")
+            logJvSync("FirebaseBackupManager upload succeeded: $downloadUrl")
             Result.success(downloadUrl.toString())
             
         } catch (e: Exception) {
             log("FirebaseBackupManager: Upload failed: ${e.message}")
+            logJvSync("FirebaseBackupManager upload failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -52,6 +56,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      */
     suspend fun downloadLatestBackup(userMobile: String, storeId: String): Result<File> {
         log("FirebaseBackupManager: Starting download for user: $userMobile, store: $storeId")
+        logJvSync("FirebaseBackupManager download started for user $userMobile")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
@@ -79,10 +84,12 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             
             log("Sync downloaded successfully: ${tempFile.absolutePath}")
             log("FirebaseBackupManager: Download completed successfully")
+            logJvSync("FirebaseBackupManager download succeeded: ${tempFile.absolutePath}")
             Result.success(tempFile)
             
         } catch (e: Exception) {
             log("FirebaseBackupManager: Download failed: ${e.message}")
+            logJvSync("FirebaseBackupManager download failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -91,6 +98,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Get list of available sync files for a user
      */
     suspend fun getBackupList(userMobile: String, storeId: String): Result<List<BackupInfo>> {
+        logJvSync("FirebaseBackupManager getBackupList started for $userMobile")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
@@ -122,11 +130,13 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             
             // Sort by upload date (newest first)
             val sortedList = backupInfoList.sortedByDescending { it.uploadDate }
+            logJvSync("FirebaseBackupManager getBackupList found ${sortedList.size} items for $userMobile")
             
             Result.success(sortedList)
             
         } catch (e: Exception) {
             log("Failed to get sync list: ${e.message}")
+            logJvSync("FirebaseBackupManager getBackupList failed for $userMobile: ${e.message}")
             Result.failure(e)
         }
     }
@@ -135,6 +145,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Clean up old sync files (keep only the specified number of recent syncs)
      */
     suspend fun cleanupOldBackups(userMobile: String, storeId: String, keepCount: Int): Result<Int> {
+        logJvSync("FirebaseBackupManager cleanupOldBackups started for $userMobile keepCount=$keepCount")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
@@ -163,10 +174,12 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             }
             
             log("Cleanup completed. Deleted $deletedCount old sync files.")
+            logJvSync("FirebaseBackupManager cleanupOldBackups deleted $deletedCount files")
             Result.success(deletedCount)
             
         } catch (e: Exception) {
             log("Failed to cleanup old syncs: ${e.message}")
+            logJvSync("FirebaseBackupManager cleanupOldBackups failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -176,6 +189,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      */
     private suspend fun cleanupPreviousBackups(userMobile: String, storeId: String) {
         try {
+            logJvSync("FirebaseBackupManager cleanupPreviousBackups started for $userMobile")
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
@@ -188,13 +202,16 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
                 try {
                     item.delete().await()
                     log("Deleted previous sync file: ${item.name}")
+                    logJvSync("Deleted previous sync file: ${item.name}")
                 } catch (e: Exception) {
                     log("Failed to delete previous sync file ${item.name}: ${e.message}")
+                    logJvSync("Failed to delete previous sync file ${item.name}: ${e.message}")
                 }
             }
             
         } catch (e: Exception) {
             log("Failed to cleanup previous syncs: ${e.message}")
+            logJvSync("FirebaseBackupManager cleanupPreviousBackups failed: ${e.message}")
         }
     }
     
@@ -202,6 +219,7 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Delete a specific sync file
      */
     suspend fun deleteBackup(userMobile: String, storeId: String, fileName: String): Result<Unit> {
+        logJvSync("FirebaseBackupManager deleteBackup requested: $fileName for $userMobile")
         return try {
             val backupRef = storage.reference
                 .child(BACKUP_FOLDER)
@@ -212,10 +230,12 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
             backupRef.delete().await()
             
             log("Sync file deleted successfully: $fileName")
+            logJvSync("FirebaseBackupManager deleteBackup succeeded: $fileName")
             Result.success(Unit)
             
         } catch (e: Exception) {
             log("Failed to delete sync file: ${e.message}")
+            logJvSync("FirebaseBackupManager deleteBackup failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -224,17 +244,21 @@ class FirebaseBackupManager(private val storage: FirebaseStorage) {
      * Check if sync exists for a user
      */
     suspend fun hasBackup(userMobile: String, storeId: String): Boolean {
+        logJvSync("FirebaseBackupManager hasBackup check started for $userMobile")
         return try {
             val userBackupRef = storage.reference
                 .child(BACKUP_FOLDER)
                 .child(userMobile)
                 .child(storeId)
-            
+             
             val listResult = userBackupRef.listAll().await()
-            listResult.items.isNotEmpty()
+            val exists = listResult.items.isNotEmpty()
+            logJvSync("FirebaseBackupManager hasBackup result for $userMobile: $exists")
+            exists
             
         } catch (e: Exception) {
             log("Failed to check sync existence: ${e.message}")
+            logJvSync("FirebaseBackupManager hasBackup failed: ${e.message}")
             false
         }
     }

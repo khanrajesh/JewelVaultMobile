@@ -11,6 +11,9 @@ import com.velox.jewelvault.data.roomdb.entity.purchase.*
 import com.velox.jewelvault.data.roomdb.entity.users.UserAdditionalInfoEntity
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
+import com.velox.jewelvault.utils.sync.ExcelSchema
+import com.velox.jewelvault.utils.logJvSync
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
@@ -27,6 +30,13 @@ class ExcelImporter(
 ) {
     
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+    private val dataFormatter = DataFormatter(Locale.getDefault())
+    
+    private data class SchemaMetadata(
+        val schemaVersion: Int,
+        val exportedAt: String?,
+        val headers: Map<String, List<String>>
+    )
     
     // --- Constants for column indexes ---
     private object UserCols { const val ID = 0; const val NAME = 1; const val EMAIL = 2; const val MOBILENO = 3; const val TOKEN = 4; const val PIN = 5; const val ROLE = 6; const val LASTUPDATED = 7 }
@@ -58,82 +68,89 @@ class ExcelImporter(
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<ImportSummary> {
         return try {
+            logJvSync("Excel import started for ${inputFile.name}")
             onProgress("Reading Excel file...", 5)
             
-            val workbook = XSSFWorkbook(FileInputStream(inputFile))
-            val summary = ImportSummary()
-            
-            // Import each entity from its sheet (order matters due to foreign key constraints)
-            onProgress("Importing users...", 10)
-            importUsersEntity(workbook, currentUserId, restoreMode, summary)
+            FileInputStream(inputFile).use { inputStream ->
+                XSSFWorkbook(inputStream).use { workbook ->
+                    val metadata = readSchemaMetadata(workbook)
+                    logJvSync("Excel import started for ${inputFile.name} (schema v${metadata.schemaVersion})")
+                    val summary = ImportSummary()
 
-            onProgress("Importing user additional info...", 15)
-            importUserAdditionalInfoEntity(workbook, currentUserId, restoreMode, summary)
-            
-            onProgress("Importing stores...", 20)
-            importStoreEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing categories...", 25)
-            importCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing subcategories...", 30)
-            importSubCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing items...", 35)
-            importItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing customers...", 40)
-            importCustomerEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+                    // Import each entity from its sheet (order matters due to foreign key constraints)
+                    onProgress("Importing users...", 10)
+                    importUsersEntity(workbook, currentUserId, restoreMode, summary)
 
-            onProgress("Importing khata book plans...", 45)
-            importCustomerKhataBookPlanEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing khata books...", 50)
-            importCustomerKhataBookEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing transactions...", 55)
-            importCustomerTransactionEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing orders...", 60)
-            importOrderEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing order items...", 65)
-            importOrderItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing exchange items...", 70)
-            importExchangeItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
-            
-            onProgress("Importing firms...", 75)
-            importFirmEntity(workbook, restoreMode, summary)
-            
-            onProgress("Importing purchase orders...", 80)
-            importPurchaseOrderEntity(workbook, restoreMode, summary)
-            
-            onProgress("Importing purchase order items...", 85)
-            importPurchaseOrderItemEntity(workbook, restoreMode, summary)
-            
-            onProgress("Importing metal exchanges...", 90)
-            importMetalExchangeEntity(workbook, restoreMode, summary)
-            
-            workbook.close()
-            
+                    onProgress("Importing user additional info...", 15)
+                    importUserAdditionalInfoEntity(workbook, currentUserId, restoreMode, summary)
+
+                    onProgress("Importing stores...", 20)
+                    importStoreEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing categories...", 25)
+                    importCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing subcategories...", 30)
+                    importSubCategoryEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing items...", 35)
+                    importItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing customers...", 40)
+                    importCustomerEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing khata book plans...", 45)
+                    importCustomerKhataBookPlanEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing khata books...", 50)
+                    importCustomerKhataBookEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing transactions...", 55)
+                    importCustomerTransactionEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing orders...", 60)
+                    importOrderEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing order items...", 65)
+                    importOrderItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing exchange items...", 70)
+                    importExchangeItemEntity(workbook, currentUserId, currentStoreId, restoreMode, summary)
+
+                    onProgress("Importing firms...", 75)
+                    importFirmEntity(workbook, restoreMode, summary)
+
+                    onProgress("Importing purchase orders...", 80)
+                    importPurchaseOrderEntity(workbook, restoreMode, summary)
+
+                    onProgress("Importing purchase order items...", 85)
+                    importPurchaseOrderItemEntity(workbook, restoreMode, summary)
+
+                    onProgress("Importing metal exchanges...", 90)
+                    importMetalExchangeEntity(workbook, restoreMode, summary)
+
             log("Excel import completed successfully: $summary")
+            logJvSync("Excel import succeeded for ${inputFile.name}")
             Result.success(summary)
+        }
+            }
             
         } catch (e: Exception) {
             log("Excel import failed: ${e.message}")
+            logJvSync("Excel import failed for ${inputFile.name}: ${e.message}")
             Result.failure(e)
         }
     }
     
     private suspend fun importUsersEntity(workbook: Workbook, currentUserId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("UsersEntity") ?: return
+        val sheet = requireSheet(workbook, "UsersEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingUsers = database.userDao().getAllUsers().associateBy { it.mobileNo }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val mobileNo = getCellValueAsString(row.getCell(UserCols.MOBILENO))
+                val mobileNo = getCellValueAsString(cell(row, headerMap, "mobileNo", UserCols.MOBILENO))
                 val existingUser = existingUsers[mobileNo]
                 
                 when (restoreMode) {
@@ -141,14 +158,14 @@ class ExcelImporter(
                         if (existingUser == null) {
                             // Add new user
                             val user = UsersEntity(
-                                userId = getCellValueAsString(row.getCell(UserCols.ID)),
-                                name = getCellValueAsString(row.getCell(UserCols.NAME)),
-                                email = getCellValueAsString(row.getCell(UserCols.EMAIL)),
+                                userId = getCellValueAsString(cell(row, headerMap, "id", UserCols.ID)),
+                                name = getCellValueAsString(cell(row, headerMap, "name", UserCols.NAME)),
+                                email = getCellValueAsString(cell(row, headerMap, "email", UserCols.EMAIL)),
                                 mobileNo = mobileNo,
-                                token = getCellValueAsString(row.getCell(UserCols.TOKEN)),
-                                pin = getCellValueAsString(row.getCell(UserCols.PIN)),
-                                role = getCellValueAsString(row.getCell(UserCols.ROLE)),
-                                lastUpdated = getCellValueAsLong(row.getCell(UserCols.LASTUPDATED))
+                                token = getCellValueAsString(cell(row, headerMap, "token", UserCols.TOKEN)),
+                                pin = getCellValueAsString(cell(row, headerMap, "pin", UserCols.PIN)),
+                                role = getCellValueAsString(cell(row, headerMap, "role", UserCols.ROLE)),
+                                lastUpdated = getCellValueAsLong(cell(row, headerMap, "lastUpdated", UserCols.LASTUPDATED))
                             )
                             database.userDao().insertUser(user)
                             summary.usersAdded++
@@ -161,14 +178,14 @@ class ExcelImporter(
                         // Replace all users except current admin
                         if (mobileNo != currentUserId) {
                             val user = UsersEntity(
-                                userId = getCellValueAsString(row.getCell(UserCols.ID)),
-                                name = getCellValueAsString(row.getCell(UserCols.NAME)),
-                                email = getCellValueAsString(row.getCell(UserCols.EMAIL)),
+                                userId = getCellValueAsString(cell(row, headerMap, "id", UserCols.ID)),
+                                name = getCellValueAsString(cell(row, headerMap, "name", UserCols.NAME)),
+                                email = getCellValueAsString(cell(row, headerMap, "email", UserCols.EMAIL)),
                                 mobileNo = mobileNo,
-                                token = getCellValueAsString(row.getCell(UserCols.TOKEN)),
-                                pin = getCellValueAsString(row.getCell(UserCols.PIN)),
-                                role = getCellValueAsString(row.getCell(UserCols.ROLE)),
-                                lastUpdated = getCellValueAsLong(row.getCell(UserCols.LASTUPDATED))
+                                token = getCellValueAsString(cell(row, headerMap, "token", UserCols.TOKEN)),
+                                pin = getCellValueAsString(cell(row, headerMap, "pin", UserCols.PIN)),
+                                role = getCellValueAsString(cell(row, headerMap, "role", UserCols.ROLE)),
+                                lastUpdated = getCellValueAsLong(cell(row, headerMap, "lastUpdated", UserCols.LASTUPDATED))
                             )
                             database.userDao().insertUser(user)
                             summary.usersAdded++
@@ -190,7 +207,8 @@ class ExcelImporter(
         restoreMode: RestoreMode,
         summary: ImportSummary
     ) {
-        val sheet = workbook.getSheet("UserAdditionalInfoEntity") ?: return
+        val sheet = requireSheet(workbook, "UserAdditionalInfoEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingInfos = database.userAdditionalInfoDao()
             .getAllUserAdditionalInfos()
             .associateBy { it.userId }
@@ -198,7 +216,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val userId = getCellValueAsString(row.getCell(UserAdditionalInfoCols.USERID))
+                val userId = getCellValueAsString(cell(row, headerMap, "userId", UserAdditionalInfoCols.USERID))
                 if (userId.isBlank()) {
                     summary.userAdditionalInfoFailed++
                     continue
@@ -206,29 +224,29 @@ class ExcelImporter(
                 val existingInfo = existingInfos[userId]
 
                 val createdAtValue =
-                    parseDateString(getCellValueAsString(row.getCell(UserAdditionalInfoCols.CREATEDAT))).time
+                    parseDateString(getCellValueAsString(cell(row, headerMap, "createdAt", UserAdditionalInfoCols.CREATEDAT))).time
                 val updatedAtValue =
-                    parseDateString(getCellValueAsString(row.getCell(UserAdditionalInfoCols.UPDATEDAT))).time
+                    parseDateString(getCellValueAsString(cell(row, headerMap, "updatedAt", UserAdditionalInfoCols.UPDATEDAT))).time
 
                 val userInfo = UserAdditionalInfoEntity(
                     userId = userId,
-                    aadhaarNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.AADHAAR))
+                    aadhaarNumber = getCellValueAsString(cell(row, headerMap, "aadhaarNumber", UserAdditionalInfoCols.AADHAAR))
                         .takeIf { it.isNotBlank() },
-                    address = getCellValueAsString(row.getCell(UserAdditionalInfoCols.ADDRESS))
+                    address = getCellValueAsString(cell(row, headerMap, "address", UserAdditionalInfoCols.ADDRESS))
                         .takeIf { it.isNotBlank() },
-                    emergencyContactPerson = getCellValueAsString(row.getCell(UserAdditionalInfoCols.EMERGENCYCONTACTPERSON))
+                    emergencyContactPerson = getCellValueAsString(cell(row, headerMap, "emergencyContactPerson", UserAdditionalInfoCols.EMERGENCYCONTACTPERSON))
                         .takeIf { it.isNotBlank() },
-                    emergencyContactNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.EMERGENCYCONTACTNUMBER))
+                    emergencyContactNumber = getCellValueAsString(cell(row, headerMap, "emergencyContactNumber", UserAdditionalInfoCols.EMERGENCYCONTACTNUMBER))
                         .takeIf { it.isNotBlank() },
-                    governmentIdNumber = getCellValueAsString(row.getCell(UserAdditionalInfoCols.GOVERNMENTIDNUMBER))
+                    governmentIdNumber = getCellValueAsString(cell(row, headerMap, "governmentIdNumber", UserAdditionalInfoCols.GOVERNMENTIDNUMBER))
                         .takeIf { it.isNotBlank() },
-                    governmentIdType = getCellValueAsString(row.getCell(UserAdditionalInfoCols.GOVERNMENTIDTYPE))
+                    governmentIdType = getCellValueAsString(cell(row, headerMap, "governmentIdType", UserAdditionalInfoCols.GOVERNMENTIDTYPE))
                         .takeIf { it.isNotBlank() },
-                    dateOfBirth = getCellValueAsString(row.getCell(UserAdditionalInfoCols.DATEOFBIRTH))
+                    dateOfBirth = getCellValueAsString(cell(row, headerMap, "dateOfBirth", UserAdditionalInfoCols.DATEOFBIRTH))
                         .takeIf { it.isNotBlank() },
-                    bloodGroup = getCellValueAsString(row.getCell(UserAdditionalInfoCols.BLOODGROUP))
+                    bloodGroup = getCellValueAsString(cell(row, headerMap, "bloodGroup", UserAdditionalInfoCols.BLOODGROUP))
                         .takeIf { it.isNotBlank() },
-                    isActive = getCellValueAsBoolean(row.getCell(UserAdditionalInfoCols.ISACTIVE)),
+                    isActive = getCellValueAsBoolean(cell(row, headerMap, "isActive", UserAdditionalInfoCols.ISACTIVE)),
                     createdAt = createdAtValue,
                     updatedAt = updatedAtValue
                 )
@@ -259,14 +277,15 @@ class ExcelImporter(
     }
     
     private suspend fun importStoreEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("StoreEntity") ?: return
+        val sheet = requireSheet(workbook, "StoreEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingStores = database.storeDao().getAllStores().associateBy { it.storeId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val originalStoreId = getCellValueAsString(row.getCell(StoreCols.STOREID))
-                val originalUserId = getCellValueAsString(row.getCell(StoreCols.USERID))
+                val originalStoreId = getCellValueAsString(cell(row, headerMap, "storeId", StoreCols.STOREID))
+                val originalUserId = getCellValueAsString(cell(row, headerMap, "userId", StoreCols.USERID))
                 
                 // For MERGE mode, we'll use the original store ID but map it to current user
                 // For REPLACE mode, we'll replace all stores except current
@@ -280,18 +299,18 @@ class ExcelImporter(
                             val store = StoreEntity(
                                 storeId = storeId,
                                 userId = currentUserId, // Use current user ID
-                                proprietor = getCellValueAsString(row.getCell(StoreCols.PROPRIETOR)),
-                                name = getCellValueAsString(row.getCell(StoreCols.NAME)),
-                                email = getCellValueAsString(row.getCell(StoreCols.EMAIL)),
-                                phone = getCellValueAsString(row.getCell(StoreCols.PHONE)),
-                                address = getCellValueAsString(row.getCell(StoreCols.ADDRESS)),
-                                registrationNo = getCellValueAsString(row.getCell(StoreCols.REGNO)),
-                                gstinNo = getCellValueAsString(row.getCell(StoreCols.GSTIN)),
-                                panNo = getCellValueAsString(row.getCell(StoreCols.PAN)),
-                                image = getCellValueAsString(row.getCell(StoreCols.IMAGE)),
-                                invoiceNo = getCellValueAsInt(row.getCell(StoreCols.INVOICENO)),
-                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID)),
-                                lastUpdated = getCellValueAsLong(row.getCell(StoreCols.LASTUPDATED))
+                                proprietor = getCellValueAsString(cell(row, headerMap, "proprietor", StoreCols.PROPRIETOR)),
+                                name = getCellValueAsString(cell(row, headerMap, "name", StoreCols.NAME)),
+                                email = getCellValueAsString(cell(row, headerMap, "email", StoreCols.EMAIL)),
+                                phone = getCellValueAsString(cell(row, headerMap, "phone", StoreCols.PHONE)),
+                                address = getCellValueAsString(cell(row, headerMap, "address", StoreCols.ADDRESS)),
+                                registrationNo = getCellValueAsString(cell(row, headerMap, "registrationNo", StoreCols.REGNO)),
+                                gstinNo = getCellValueAsString(cell(row, headerMap, "gstinNo", StoreCols.GSTIN)),
+                                panNo = getCellValueAsString(cell(row, headerMap, "panNo", StoreCols.PAN)),
+                                image = getCellValueAsString(cell(row, headerMap, "image", StoreCols.IMAGE)),
+                                invoiceNo = getCellValueAsInt(cell(row, headerMap, "invoiceNo", StoreCols.INVOICENO)),
+                                upiId = getCellValueAsString(cell(row, headerMap, "upiId", StoreCols.UPIID)),
+                                lastUpdated = getCellValueAsLong(cell(row, headerMap, "lastUpdated", StoreCols.LASTUPDATED))
                             )
                             database.storeDao().insertStore(store)
                             summary.storesAdded++
@@ -306,18 +325,18 @@ class ExcelImporter(
                             val store = StoreEntity(
                                 storeId = storeId,
                                 userId = currentUserId,
-                                proprietor = getCellValueAsString(row.getCell(StoreCols.PROPRIETOR)),
-                                name = getCellValueAsString(row.getCell(StoreCols.NAME)),
-                                email = getCellValueAsString(row.getCell(StoreCols.EMAIL)),
-                                phone = getCellValueAsString(row.getCell(StoreCols.PHONE)),
-                                address = getCellValueAsString(row.getCell(StoreCols.ADDRESS)),
-                                registrationNo = getCellValueAsString(row.getCell(StoreCols.REGNO)),
-                                gstinNo = getCellValueAsString(row.getCell(StoreCols.GSTIN)),
-                                panNo = getCellValueAsString(row.getCell(StoreCols.PAN)),
-                                image = getCellValueAsString(row.getCell(StoreCols.IMAGE)),
-                                invoiceNo = getCellValueAsInt(row.getCell(StoreCols.INVOICENO)),
-                                upiId = getCellValueAsString(row.getCell(StoreCols.UPIID)),
-                                lastUpdated = getCellValueAsLong(row.getCell(StoreCols.LASTUPDATED))
+                                proprietor = getCellValueAsString(cell(row, headerMap, "proprietor", StoreCols.PROPRIETOR)),
+                                name = getCellValueAsString(cell(row, headerMap, "name", StoreCols.NAME)),
+                                email = getCellValueAsString(cell(row, headerMap, "email", StoreCols.EMAIL)),
+                                phone = getCellValueAsString(cell(row, headerMap, "phone", StoreCols.PHONE)),
+                                address = getCellValueAsString(cell(row, headerMap, "address", StoreCols.ADDRESS)),
+                                registrationNo = getCellValueAsString(cell(row, headerMap, "registrationNo", StoreCols.REGNO)),
+                                gstinNo = getCellValueAsString(cell(row, headerMap, "gstinNo", StoreCols.GSTIN)),
+                                panNo = getCellValueAsString(cell(row, headerMap, "panNo", StoreCols.PAN)),
+                                image = getCellValueAsString(cell(row, headerMap, "image", StoreCols.IMAGE)),
+                                invoiceNo = getCellValueAsInt(cell(row, headerMap, "invoiceNo", StoreCols.INVOICENO)),
+                                upiId = getCellValueAsString(cell(row, headerMap, "upiId", StoreCols.UPIID)),
+                                lastUpdated = getCellValueAsLong(cell(row, headerMap, "lastUpdated", StoreCols.LASTUPDATED))
                             )
                             database.storeDao().insertStore(store)
                             summary.storesAdded++
@@ -334,15 +353,16 @@ class ExcelImporter(
     }
     
     private suspend fun importCategoryEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("CategoryEntity") ?: return
+        val sheet = requireSheet(workbook, "CategoryEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingCategories = database.categoryDao().getAllCategories().associateBy { "${it.userId}_${it.storeId}_${it.catName}" }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val catName = getCellValueAsString(row.getCell(CategoryCols.CATNAME))
-                val originalUserId = getCellValueAsString(row.getCell(CategoryCols.USERID))
-                val originalStoreId = getCellValueAsString(row.getCell(CategoryCols.STOREID))
+                val catName = getCellValueAsString(cell(row, headerMap, "catName", CategoryCols.CATNAME))
+                val originalUserId = getCellValueAsString(cell(row, headerMap, "userId", CategoryCols.USERID))
+                val originalStoreId = getCellValueAsString(cell(row, headerMap, "storeId", CategoryCols.STOREID))
                 
                 // For MERGE mode, check if category exists with current user/store IDs
                 // For REPLACE mode, always import
@@ -353,10 +373,10 @@ class ExcelImporter(
                     RestoreMode.MERGE -> {
                         if (existingCategory == null) {
                             val category = CategoryEntity(
-                                catId = getCellValueAsString(row.getCell(CategoryCols.CATID)),
+                                catId = getCellValueAsString(cell(row, headerMap, "catId", CategoryCols.CATID)),
                                 catName = catName,
-                                gsWt = getCellValueAsDouble(row.getCell(CategoryCols.GSWt)),
-                                fnWt = getCellValueAsDouble(row.getCell(CategoryCols.FNWt)),
+                                gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", CategoryCols.GSWt)),
+                                fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", CategoryCols.FNWt)),
                                 userId = currentUserId,
                                 storeId = currentStoreId
                             )
@@ -368,10 +388,10 @@ class ExcelImporter(
                     }
                     RestoreMode.REPLACE -> {
                         val category = CategoryEntity(
-                            catId = getCellValueAsString(row.getCell(CategoryCols.CATID)),
+                            catId = getCellValueAsString(cell(row, headerMap, "catId", CategoryCols.CATID)),
                             catName = catName,
-                            gsWt = getCellValueAsDouble(row.getCell(CategoryCols.GSWt)),
-                            fnWt = getCellValueAsDouble(row.getCell(CategoryCols.FNWt)),
+                            gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", CategoryCols.GSWt)),
+                            fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", CategoryCols.FNWt)),
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
@@ -387,16 +407,17 @@ class ExcelImporter(
     }
     
     private suspend fun importSubCategoryEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("SubCategoryEntity") ?: return
+        val sheet = requireSheet(workbook, "SubCategoryEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingSubCategories = database.subCategoryDao().getAllSubCategories().associateBy { "${it.catId}_${it.userId}_${it.storeId}_${it.subCatName}" }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val originalCatId = getCellValueAsString(row.getCell(SubCategoryCols.CATID))
-                val originalUserId = getCellValueAsString(row.getCell(SubCategoryCols.USERID))
-                val originalStoreId = getCellValueAsString(row.getCell(SubCategoryCols.STOREID))
-                val subCatName = getCellValueAsString(row.getCell(SubCategoryCols.SUBCATNAME))
+                val originalCatId = getCellValueAsString(cell(row, headerMap, "catId", SubCategoryCols.CATID))
+                val originalUserId = getCellValueAsString(cell(row, headerMap, "userId", SubCategoryCols.USERID))
+                val originalStoreId = getCellValueAsString(cell(row, headerMap, "storeId", SubCategoryCols.STOREID))
+                val subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", SubCategoryCols.SUBCATNAME))
                 
                 // For MERGE mode, check if subcategory exists with current user/store IDs
                 // For REPLACE mode, always import
@@ -407,15 +428,15 @@ class ExcelImporter(
                     RestoreMode.MERGE -> {
                         if (existingSubCategory == null) {
                             val subCategory = SubCategoryEntity(
-                                subCatId = getCellValueAsString(row.getCell(SubCategoryCols.SUBCATID)),
+                                subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", SubCategoryCols.SUBCATID)),
                                 catId = originalCatId,
                                 userId = currentUserId,
                                 storeId = currentStoreId,
-                                catName = getCellValueAsString(row.getCell(SubCategoryCols.CATNAME)),
+                                catName = getCellValueAsString(cell(row, headerMap, "catName", SubCategoryCols.CATNAME)),
                                 subCatName = subCatName,
-                                quantity = getCellValueAsInt(row.getCell(SubCategoryCols.QUANTITY)),
-                                gsWt = getCellValueAsDouble(row.getCell(SubCategoryCols.GSWt)),
-                                fnWt = getCellValueAsDouble(row.getCell(SubCategoryCols.FNWt))
+                                quantity = getCellValueAsInt(cell(row, headerMap, "quantity", SubCategoryCols.QUANTITY)),
+                                gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", SubCategoryCols.GSWt)),
+                                fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", SubCategoryCols.FNWt))
                             )
                             database.subCategoryDao().insertSubCategory(subCategory)
                             summary.subCategoriesAdded++
@@ -425,15 +446,15 @@ class ExcelImporter(
                     }
                     RestoreMode.REPLACE -> {
                         val subCategory = SubCategoryEntity(
-                            subCatId = getCellValueAsString(row.getCell(SubCategoryCols.SUBCATID)),
+                            subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", SubCategoryCols.SUBCATID)),
                             catId = originalCatId,
                             userId = currentUserId,
                             storeId = currentStoreId,
-                            catName = getCellValueAsString(row.getCell(SubCategoryCols.CATNAME)),
+                            catName = getCellValueAsString(cell(row, headerMap, "catName", SubCategoryCols.CATNAME)),
                             subCatName = subCatName,
-                            quantity = getCellValueAsInt(row.getCell(SubCategoryCols.QUANTITY)),
-                            gsWt = getCellValueAsDouble(row.getCell(SubCategoryCols.GSWt)),
-                            fnWt = getCellValueAsDouble(row.getCell(SubCategoryCols.FNWt))
+                            quantity = getCellValueAsInt(cell(row, headerMap, "quantity", SubCategoryCols.QUANTITY)),
+                            gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", SubCategoryCols.GSWt)),
+                            fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", SubCategoryCols.FNWt))
                         )
                         database.subCategoryDao().insertSubCategory(subCategory)
                         summary.subCategoriesAdded++
@@ -447,15 +468,16 @@ class ExcelImporter(
     }
     
     private suspend fun importItemEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("ItemEntity") ?: return
+        val sheet = requireSheet(workbook, "ItemEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingItems = database.itemDao().getAllItems().associateBy { "${it.userId}_${it.storeId}_${it.itemAddName}" }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val originalUserId = getCellValueAsString(row.getCell(ItemCols.USERID))
-                val originalStoreId = getCellValueAsString(row.getCell(ItemCols.STOREID))
-                val itemAddName = getCellValueAsString(row.getCell(ItemCols.ITEMADDNAME))
+                val originalUserId = getCellValueAsString(cell(row, headerMap, "userId", ItemCols.USERID))
+                val originalStoreId = getCellValueAsString(cell(row, headerMap, "storeId", ItemCols.STOREID))
+                val itemAddName = getCellValueAsString(cell(row, headerMap, "itemAddName", ItemCols.ITEMADDNAME))
                 val key = "${currentUserId}_${currentStoreId}_${itemAddName}"
                 val existingItem = existingItems[key]
                 
@@ -463,36 +485,36 @@ class ExcelImporter(
                     RestoreMode.MERGE -> {
                         if (existingItem == null) {
                             val item = ItemEntity(
-                                itemId = getCellValueAsString(row.getCell(ItemCols.ITEMID)),
+                                itemId = getCellValueAsString(cell(row, headerMap, "itemId", ItemCols.ITEMID)),
                                 itemAddName = itemAddName,
-                                catId = getCellValueAsString(row.getCell(ItemCols.CATID)),
+                                catId = getCellValueAsString(cell(row, headerMap, "catId", ItemCols.CATID)),
                                 userId = currentUserId,
                                 storeId = currentStoreId,
-                                catName = getCellValueAsString(row.getCell(ItemCols.CATNAME)),
-                                subCatId = getCellValueAsString(row.getCell(ItemCols.SUBCATID)),
-                                subCatName = getCellValueAsString(row.getCell(ItemCols.SUBCATNAME)),
-                                entryType = getCellValueAsString(row.getCell(ItemCols.ENTRYTYPE)),
-                                quantity = getCellValueAsInt(row.getCell(ItemCols.QUANTITY)),
-                                gsWt = getCellValueAsDouble(row.getCell(ItemCols.GSWt)),
-                                ntWt = getCellValueAsDouble(row.getCell(ItemCols.NTWt)),
-                                fnWt = getCellValueAsDouble(row.getCell(ItemCols.FNWt)),
-                                purity = getCellValueAsString(row.getCell(ItemCols.PURITY)),
-                                crgType = getCellValueAsString(row.getCell(ItemCols.CRGTYPE)),
-                                crg = getCellValueAsDouble(row.getCell(ItemCols.CRG)),
-                                othCrgDes = getCellValueAsString(row.getCell(ItemCols.OTHCRGDES)),
-                                othCrg = getCellValueAsDouble(row.getCell(ItemCols.OTHCRG)),
-                                cgst = getCellValueAsDouble(row.getCell(ItemCols.CGST)),
-                                sgst = getCellValueAsDouble(row.getCell(ItemCols.SGST)),
-                                igst = getCellValueAsDouble(row.getCell(ItemCols.IGST)),
-                                huid = getCellValueAsString(row.getCell(ItemCols.HUID)),
-                                unit = getCellValueAsString(row.getCell(ItemCols.UNIT)),
-                                addDesKey = getCellValueAsString(row.getCell(ItemCols.ADDDESKEY)),
-                                addDesValue = getCellValueAsString(row.getCell(ItemCols.ADDDESVALUE)),
-                                addDate = parseDateString(getCellValueAsString(row.getCell(ItemCols.ADDDATE))),
-                                modifiedDate = parseDateString(getCellValueAsString(row.getCell(ItemCols.MODIFIEDDATE))),
-                                sellerFirmId = getCellValueAsString(row.getCell(ItemCols.SELLERFIRMID)),
-                                purchaseOrderId = getCellValueAsString(row.getCell(ItemCols.PURCHASEORDERID)),
-                                purchaseItemId = getCellValueAsString(row.getCell(ItemCols.PURCHASEITEMID))
+                                catName = getCellValueAsString(cell(row, headerMap, "catName", ItemCols.CATNAME)),
+                                subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", ItemCols.SUBCATID)),
+                                subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", ItemCols.SUBCATNAME)),
+                                entryType = getCellValueAsString(cell(row, headerMap, "entryType", ItemCols.ENTRYTYPE)),
+                                quantity = getCellValueAsInt(cell(row, headerMap, "quantity", ItemCols.QUANTITY)),
+                                gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", ItemCols.GSWt)),
+                                ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", ItemCols.NTWt)),
+                                fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", ItemCols.FNWt)),
+                                purity = getCellValueAsString(cell(row, headerMap, "purity", ItemCols.PURITY)),
+                                crgType = getCellValueAsString(cell(row, headerMap, "crgType", ItemCols.CRGTYPE)),
+                                crg = getCellValueAsDouble(cell(row, headerMap, "crg", ItemCols.CRG)),
+                                othCrgDes = getCellValueAsString(cell(row, headerMap, "othCrgDes", ItemCols.OTHCRGDES)),
+                                othCrg = getCellValueAsDouble(cell(row, headerMap, "othCrg", ItemCols.OTHCRG)),
+                                cgst = getCellValueAsDouble(cell(row, headerMap, "cgst", ItemCols.CGST)),
+                                sgst = getCellValueAsDouble(cell(row, headerMap, "sgst", ItemCols.SGST)),
+                                igst = getCellValueAsDouble(cell(row, headerMap, "igst", ItemCols.IGST)),
+                                huid = getCellValueAsString(cell(row, headerMap, "huid", ItemCols.HUID)),
+                                unit = getCellValueAsString(cell(row, headerMap, "unit", ItemCols.UNIT)),
+                                addDesKey = getCellValueAsString(cell(row, headerMap, "addDesKey", ItemCols.ADDDESKEY)),
+                                addDesValue = getCellValueAsString(cell(row, headerMap, "addDesValue", ItemCols.ADDDESVALUE)),
+                                addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", ItemCols.ADDDATE))),
+                                modifiedDate = parseDateString(getCellValueAsString(cell(row, headerMap, "modifiedDate", ItemCols.MODIFIEDDATE))),
+                                sellerFirmId = getCellValueAsString(cell(row, headerMap, "sellerFirmId", ItemCols.SELLERFIRMID)),
+                                purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", ItemCols.PURCHASEORDERID)),
+                                purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", ItemCols.PURCHASEITEMID))
                             )
                             database.itemDao().insertItem(item)
                             summary.itemsAdded++
@@ -502,36 +524,36 @@ class ExcelImporter(
                     }
                     RestoreMode.REPLACE -> {
                         val item = ItemEntity(
-                            itemId = getCellValueAsString(row.getCell(ItemCols.ITEMID)),
+                            itemId = getCellValueAsString(cell(row, headerMap, "itemId", ItemCols.ITEMID)),
                             itemAddName = itemAddName,
-                            catId = getCellValueAsString(row.getCell(ItemCols.CATID)),
+                            catId = getCellValueAsString(cell(row, headerMap, "catId", ItemCols.CATID)),
                             userId = currentUserId,
                             storeId = currentStoreId,
-                            catName = getCellValueAsString(row.getCell(ItemCols.CATNAME)),
-                            subCatId = getCellValueAsString(row.getCell(ItemCols.SUBCATID)),
-                            subCatName = getCellValueAsString(row.getCell(ItemCols.SUBCATNAME)),
-                            entryType = getCellValueAsString(row.getCell(ItemCols.ENTRYTYPE)),
-                            quantity = getCellValueAsInt(row.getCell(ItemCols.QUANTITY)),
-                            gsWt = getCellValueAsDouble(row.getCell(ItemCols.GSWt)),
-                            ntWt = getCellValueAsDouble(row.getCell(ItemCols.NTWt)),
-                            fnWt = getCellValueAsDouble(row.getCell(ItemCols.FNWt)),
-                            purity = getCellValueAsString(row.getCell(ItemCols.PURITY)),
-                            crgType = getCellValueAsString(row.getCell(ItemCols.CRGTYPE)),
-                            crg = getCellValueAsDouble(row.getCell(ItemCols.CRG)),
-                            othCrgDes = getCellValueAsString(row.getCell(ItemCols.OTHCRGDES)),
-                            othCrg = getCellValueAsDouble(row.getCell(ItemCols.OTHCRG)),
-                            cgst = getCellValueAsDouble(row.getCell(ItemCols.CGST)),
-                            sgst = getCellValueAsDouble(row.getCell(ItemCols.SGST)),
-                            igst = getCellValueAsDouble(row.getCell(ItemCols.IGST)),
-                            huid = getCellValueAsString(row.getCell(ItemCols.HUID)),
-                            unit = getCellValueAsString(row.getCell(ItemCols.UNIT)),
-                            addDesKey = getCellValueAsString(row.getCell(ItemCols.ADDDESKEY)),
-                            addDesValue = getCellValueAsString(row.getCell(ItemCols.ADDDESVALUE)),
-                            addDate = parseDateString(getCellValueAsString(row.getCell(ItemCols.ADDDATE))),
-                            modifiedDate = parseDateString(getCellValueAsString(row.getCell(ItemCols.MODIFIEDDATE))),
-                            sellerFirmId = getCellValueAsString(row.getCell(ItemCols.SELLERFIRMID)),
-                            purchaseOrderId = getCellValueAsString(row.getCell(ItemCols.PURCHASEORDERID)),
-                            purchaseItemId = getCellValueAsString(row.getCell(ItemCols.PURCHASEITEMID))
+                            catName = getCellValueAsString(cell(row, headerMap, "catName", ItemCols.CATNAME)),
+                            subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", ItemCols.SUBCATID)),
+                            subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", ItemCols.SUBCATNAME)),
+                            entryType = getCellValueAsString(cell(row, headerMap, "entryType", ItemCols.ENTRYTYPE)),
+                            quantity = getCellValueAsInt(cell(row, headerMap, "quantity", ItemCols.QUANTITY)),
+                            gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", ItemCols.GSWt)),
+                            ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", ItemCols.NTWt)),
+                            fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", ItemCols.FNWt)),
+                            purity = getCellValueAsString(cell(row, headerMap, "purity", ItemCols.PURITY)),
+                            crgType = getCellValueAsString(cell(row, headerMap, "crgType", ItemCols.CRGTYPE)),
+                            crg = getCellValueAsDouble(cell(row, headerMap, "crg", ItemCols.CRG)),
+                            othCrgDes = getCellValueAsString(cell(row, headerMap, "othCrgDes", ItemCols.OTHCRGDES)),
+                            othCrg = getCellValueAsDouble(cell(row, headerMap, "othCrg", ItemCols.OTHCRG)),
+                            cgst = getCellValueAsDouble(cell(row, headerMap, "cgst", ItemCols.CGST)),
+                            sgst = getCellValueAsDouble(cell(row, headerMap, "sgst", ItemCols.SGST)),
+                            igst = getCellValueAsDouble(cell(row, headerMap, "igst", ItemCols.IGST)),
+                            huid = getCellValueAsString(cell(row, headerMap, "huid", ItemCols.HUID)),
+                            unit = getCellValueAsString(cell(row, headerMap, "unit", ItemCols.UNIT)),
+                            addDesKey = getCellValueAsString(cell(row, headerMap, "addDesKey", ItemCols.ADDDESKEY)),
+                            addDesValue = getCellValueAsString(cell(row, headerMap, "addDesValue", ItemCols.ADDDESVALUE)),
+                            addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", ItemCols.ADDDATE))),
+                            modifiedDate = parseDateString(getCellValueAsString(cell(row, headerMap, "modifiedDate", ItemCols.MODIFIEDDATE))),
+                            sellerFirmId = getCellValueAsString(cell(row, headerMap, "sellerFirmId", ItemCols.SELLERFIRMID)),
+                            purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", ItemCols.PURCHASEORDERID)),
+                            purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", ItemCols.PURCHASEITEMID))
                         )
                         database.itemDao().insertItem(item)
                         summary.itemsAdded++
@@ -545,7 +567,8 @@ class ExcelImporter(
     }
     
     private suspend fun importCustomerEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("CustomerEntity") ?: return
+        val sheet = requireSheet(workbook, "CustomerEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingCustomers = database.customerDao().getAllCustomersList()
             .filter { it.userId == currentUserId && it.storeId == currentStoreId }
             .associateBy { it.mobileNo }
@@ -553,7 +576,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val mobileNo = getCellValueAsString(row.getCell(CustomerCols.MOBILENO))
+                val mobileNo = getCellValueAsString(cell(row, headerMap, "mobileNo", CustomerCols.MOBILENO))
                 val existingCustomer = existingCustomers[mobileNo]
                 
                 when (restoreMode) {
@@ -561,14 +584,14 @@ class ExcelImporter(
                         if (existingCustomer == null) {
                             val customer = CustomerEntity(
                                 mobileNo = mobileNo,
-                                name = getCellValueAsString(row.getCell(CustomerCols.NAME)),
-                                address = getCellValueAsString(row.getCell(CustomerCols.ADDRESS)),
-                                gstin_pan = getCellValueAsString(row.getCell(CustomerCols.GSTINPAN)),
-                                addDate = parseDateString(getCellValueAsString(row.getCell(CustomerCols.ADDDATE))),
-                                lastModifiedDate = parseDateString(getCellValueAsString(row.getCell(CustomerCols.LASTMODIFIED))),
-                                totalItemBought = getCellValueAsInt(row.getCell(CustomerCols.TOTALITEMBOUGHT)),
-                                totalAmount = getCellValueAsDouble(row.getCell(CustomerCols.TOTALAMOUNT)),
-                                notes = getCellValueAsString(row.getCell(CustomerCols.NOTES)),
+                                name = getCellValueAsString(cell(row, headerMap, "name", CustomerCols.NAME)),
+                                address = getCellValueAsString(cell(row, headerMap, "address", CustomerCols.ADDRESS)),
+                                gstin_pan = getCellValueAsString(cell(row, headerMap, "gstin_pan", CustomerCols.GSTINPAN)),
+                                addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", CustomerCols.ADDDATE))),
+                                lastModifiedDate = parseDateString(getCellValueAsString(cell(row, headerMap, "lastModifiedDate", CustomerCols.LASTMODIFIED))),
+                                totalItemBought = getCellValueAsInt(cell(row, headerMap, "totalItemBought", CustomerCols.TOTALITEMBOUGHT)),
+                                totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", CustomerCols.TOTALAMOUNT)),
+                                notes = getCellValueAsString(cell(row, headerMap, "notes", CustomerCols.NOTES)),
                                 userId = currentUserId,
                                 storeId = currentStoreId
                             )
@@ -581,14 +604,14 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val customer = CustomerEntity(
                             mobileNo = mobileNo,
-                            name = getCellValueAsString(row.getCell(CustomerCols.NAME)),
-                            address = getCellValueAsString(row.getCell(CustomerCols.ADDRESS)),
-                            gstin_pan = getCellValueAsString(row.getCell(CustomerCols.GSTINPAN)),
-                            addDate = parseDateString(getCellValueAsString(row.getCell(CustomerCols.ADDDATE))),
-                            lastModifiedDate = parseDateString(getCellValueAsString(row.getCell(CustomerCols.LASTMODIFIED))),
-                            totalItemBought = getCellValueAsInt(row.getCell(CustomerCols.TOTALITEMBOUGHT)),
-                            totalAmount = getCellValueAsDouble(row.getCell(CustomerCols.TOTALAMOUNT)),
-                            notes = getCellValueAsString(row.getCell(CustomerCols.NOTES)),
+                            name = getCellValueAsString(cell(row, headerMap, "name", CustomerCols.NAME)),
+                            address = getCellValueAsString(cell(row, headerMap, "address", CustomerCols.ADDRESS)),
+                            gstin_pan = getCellValueAsString(cell(row, headerMap, "gstin_pan", CustomerCols.GSTINPAN)),
+                            addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", CustomerCols.ADDDATE))),
+                            lastModifiedDate = parseDateString(getCellValueAsString(cell(row, headerMap, "lastModifiedDate", CustomerCols.LASTMODIFIED))),
+                            totalItemBought = getCellValueAsInt(cell(row, headerMap, "totalItemBought", CustomerCols.TOTALITEMBOUGHT)),
+                            totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", CustomerCols.TOTALAMOUNT)),
+                            notes = getCellValueAsString(cell(row, headerMap, "notes", CustomerCols.NOTES)),
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
@@ -610,7 +633,8 @@ class ExcelImporter(
         restoreMode: RestoreMode,
         summary: ImportSummary
     ) {
-        val sheet = workbook.getSheet("CustomerKhataBookPlanEntity") ?: return
+        val sheet = requireSheet(workbook, "CustomerKhataBookPlanEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingPlans = database.customerKhataBookPlanDao()
             .getPlansByUserAndStore(currentUserId, currentStoreId)
             .associateBy { it.planId }
@@ -618,7 +642,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val planId = getCellValueAsString(row.getCell(KhataBookPlanCols.PLANID))
+                val planId = getCellValueAsString(cell(row, headerMap, "planId", KhataBookPlanCols.PLANID))
                 if (planId.isBlank()) {
                     summary.khataBookPlansFailed++
                     continue
@@ -626,17 +650,17 @@ class ExcelImporter(
                 val existingPlan = existingPlans[planId]
 
                 val createdAtValue =
-                    parseDateString(getCellValueAsString(row.getCell(KhataBookPlanCols.CREATEDAT))).time
+                    parseDateString(getCellValueAsString(cell(row, headerMap, "createdAt", KhataBookPlanCols.CREATEDAT))).time
                 val updatedAtValue =
-                    parseDateString(getCellValueAsString(row.getCell(KhataBookPlanCols.UPDATEDAT))).time
+                    parseDateString(getCellValueAsString(cell(row, headerMap, "updatedAt", KhataBookPlanCols.UPDATEDAT))).time
 
                 val plan = CustomerKhataBookPlanEntity(
                     planId = planId,
-                    name = getCellValueAsString(row.getCell(KhataBookPlanCols.NAME)),
-                    payMonths = getCellValueAsInt(row.getCell(KhataBookPlanCols.PAYMONTHS)),
-                    benefitMonths = getCellValueAsInt(row.getCell(KhataBookPlanCols.BENEFITMONTHS)),
-                    description = getCellValueAsString(row.getCell(KhataBookPlanCols.DESCRIPTION)),
-                    benefitPercentage = getCellValueAsDouble(row.getCell(KhataBookPlanCols.BENEFITPERCENTAGE)),
+                    name = getCellValueAsString(cell(row, headerMap, "name", KhataBookPlanCols.NAME)),
+                    payMonths = getCellValueAsInt(cell(row, headerMap, "payMonths", KhataBookPlanCols.PAYMONTHS)),
+                    benefitMonths = getCellValueAsInt(cell(row, headerMap, "benefitMonths", KhataBookPlanCols.BENEFITMONTHS)),
+                    description = getCellValueAsString(cell(row, headerMap, "description", KhataBookPlanCols.DESCRIPTION)),
+                    benefitPercentage = getCellValueAsDouble(cell(row, headerMap, "benefitPercentage", KhataBookPlanCols.BENEFITPERCENTAGE)),
                     userId = currentUserId,
                     storeId = currentStoreId,
                     createdAt = createdAtValue,
@@ -665,7 +689,8 @@ class ExcelImporter(
     }
     
     private suspend fun importCustomerKhataBookEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("CustomerKhataBookEntity") ?: return
+        val sheet = requireSheet(workbook, "CustomerKhataBookEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingKhataBooks = database.customerKhataBookDao().getAllKhataBooksList()
             .filter { it.userId == currentUserId && it.storeId == currentStoreId }
             .associateBy { it.khataBookId }
@@ -673,7 +698,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val khataBookId = getCellValueAsString(row.getCell(KhataBookCols.KHATABOOKID))
+                val khataBookId = getCellValueAsString(cell(row, headerMap, "khataBookId", KhataBookCols.KHATABOOKID))
                 val existingKhataBook = existingKhataBooks[khataBookId]
                 
                 when (restoreMode) {
@@ -681,15 +706,15 @@ class ExcelImporter(
                         if (existingKhataBook == null) {
                             val khataBook = CustomerKhataBookEntity(
                                 khataBookId = khataBookId,
-                                customerMobile = getCellValueAsString(row.getCell(KhataBookCols.CUSTOMERMOBILE)),
-                                planName = getCellValueAsString(row.getCell(KhataBookCols.PLANNAME)),
-                                startDate = parseDateString(getCellValueAsString(row.getCell(KhataBookCols.STARTDATE))),
-                                endDate = parseDateString(getCellValueAsString(row.getCell(KhataBookCols.ENDDATE))),
-                                monthlyAmount = getCellValueAsDouble(row.getCell(KhataBookCols.MONTHLYAMOUNT)),
-                                totalMonths = getCellValueAsInt(row.getCell(KhataBookCols.TOTALMONTHS)),
-                                totalAmount = getCellValueAsDouble(row.getCell(KhataBookCols.TOTALAMOUNT)),
-                                status = getCellValueAsString(row.getCell(KhataBookCols.STATUS)),
-                                notes = getCellValueAsString(row.getCell(KhataBookCols.NOTES)),
+                                customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", KhataBookCols.CUSTOMERMOBILE)),
+                                planName = getCellValueAsString(cell(row, headerMap, "planName", KhataBookCols.PLANNAME)),
+                                startDate = parseDateString(getCellValueAsString(cell(row, headerMap, "startDate", KhataBookCols.STARTDATE))),
+                                endDate = parseDateString(getCellValueAsString(cell(row, headerMap, "endDate", KhataBookCols.ENDDATE))),
+                                monthlyAmount = getCellValueAsDouble(cell(row, headerMap, "monthlyAmount", KhataBookCols.MONTHLYAMOUNT)),
+                                totalMonths = getCellValueAsInt(cell(row, headerMap, "totalMonths", KhataBookCols.TOTALMONTHS)),
+                                totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", KhataBookCols.TOTALAMOUNT)),
+                                status = getCellValueAsString(cell(row, headerMap, "status", KhataBookCols.STATUS)),
+                                notes = getCellValueAsString(cell(row, headerMap, "notes", KhataBookCols.NOTES)),
                                 userId = currentUserId,
                                 storeId = currentStoreId
                             )
@@ -702,15 +727,15 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val khataBook = CustomerKhataBookEntity(
                             khataBookId = khataBookId,
-                            customerMobile = getCellValueAsString(row.getCell(KhataBookCols.CUSTOMERMOBILE)),
-                            planName = getCellValueAsString(row.getCell(KhataBookCols.PLANNAME)),
-                            startDate = parseDateString(getCellValueAsString(row.getCell(KhataBookCols.STARTDATE))),
-                            endDate = parseDateString(getCellValueAsString(row.getCell(KhataBookCols.ENDDATE))),
-                            monthlyAmount = getCellValueAsDouble(row.getCell(KhataBookCols.MONTHLYAMOUNT)),
-                            totalMonths = getCellValueAsInt(row.getCell(KhataBookCols.TOTALMONTHS)),
-                            totalAmount = getCellValueAsDouble(row.getCell(KhataBookCols.TOTALAMOUNT)),
-                            status = getCellValueAsString(row.getCell(KhataBookCols.STATUS)),
-                            notes = getCellValueAsString(row.getCell(KhataBookCols.NOTES)),
+                            customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", KhataBookCols.CUSTOMERMOBILE)),
+                            planName = getCellValueAsString(cell(row, headerMap, "planName", KhataBookCols.PLANNAME)),
+                            startDate = parseDateString(getCellValueAsString(cell(row, headerMap, "startDate", KhataBookCols.STARTDATE))),
+                            endDate = parseDateString(getCellValueAsString(cell(row, headerMap, "endDate", KhataBookCols.ENDDATE))),
+                            monthlyAmount = getCellValueAsDouble(cell(row, headerMap, "monthlyAmount", KhataBookCols.MONTHLYAMOUNT)),
+                            totalMonths = getCellValueAsInt(cell(row, headerMap, "totalMonths", KhataBookCols.TOTALMONTHS)),
+                            totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", KhataBookCols.TOTALAMOUNT)),
+                            status = getCellValueAsString(cell(row, headerMap, "status", KhataBookCols.STATUS)),
+                            notes = getCellValueAsString(cell(row, headerMap, "notes", KhataBookCols.NOTES)),
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
@@ -726,7 +751,8 @@ class ExcelImporter(
     }
     
     private suspend fun importCustomerTransactionEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("CustomerTransactionEntity") ?: return
+        val sheet = requireSheet(workbook, "CustomerTransactionEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingTransactions = database.customerTransactionDao().getAllTransactions()
             .filter { it.userId == currentUserId && it.storeId == currentStoreId }
             .associateBy { it.transactionId }
@@ -734,7 +760,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val transactionId = getCellValueAsString(row.getCell(TransactionCols.TRANSACTIONID))
+                val transactionId = getCellValueAsString(cell(row, headerMap, "transactionId", TransactionCols.TRANSACTIONID))
                 val existingTransaction = existingTransactions[transactionId]
                 
                 when (restoreMode) {
@@ -742,17 +768,17 @@ class ExcelImporter(
                         if (existingTransaction == null) {
                             val transaction = CustomerTransactionEntity(
                                 transactionId = transactionId,
-                                customerMobile = getCellValueAsString(row.getCell(TransactionCols.CUSTOMERMOBILE)),
-                                transactionDate = parseDateString(getCellValueAsString(row.getCell(TransactionCols.TRANSACTIONDATE))),
-                                amount = getCellValueAsDouble(row.getCell(TransactionCols.AMOUNT)),
-                                transactionType = getCellValueAsString(row.getCell(TransactionCols.TRANSACTIONTYPE)),
-                                category = getCellValueAsString(row.getCell(TransactionCols.CATEGORY)),
-                                description = getCellValueAsString(row.getCell(TransactionCols.DESCRIPTION)),
-                                referenceNumber = getCellValueAsString(row.getCell(TransactionCols.REFERENCENUMBER)),
-                                paymentMethod = getCellValueAsString(row.getCell(TransactionCols.PAYMENTMETHOD)),
-                                khataBookId = getCellValueAsString(row.getCell(TransactionCols.KHATABOOKID)).takeIf { it.isNotEmpty() },
-                                monthNumber = getCellValueAsInt(row.getCell(TransactionCols.MONTHNUMBER)).takeIf { it > 0 },
-                                notes = getCellValueAsString(row.getCell(TransactionCols.NOTES)),
+                                customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", TransactionCols.CUSTOMERMOBILE)),
+                                transactionDate = parseDateString(getCellValueAsString(cell(row, headerMap, "transactionDate", TransactionCols.TRANSACTIONDATE))),
+                                amount = getCellValueAsDouble(cell(row, headerMap, "amount", TransactionCols.AMOUNT)),
+                                transactionType = getCellValueAsString(cell(row, headerMap, "transactionType", TransactionCols.TRANSACTIONTYPE)),
+                                category = getCellValueAsString(cell(row, headerMap, "category", TransactionCols.CATEGORY)),
+                                description = getCellValueAsString(cell(row, headerMap, "description", TransactionCols.DESCRIPTION)),
+                                referenceNumber = getCellValueAsString(cell(row, headerMap, "referenceNumber", TransactionCols.REFERENCENUMBER)),
+                                paymentMethod = getCellValueAsString(cell(row, headerMap, "paymentMethod", TransactionCols.PAYMENTMETHOD)),
+                                khataBookId = getCellValueAsString(cell(row, headerMap, "khataBookId", TransactionCols.KHATABOOKID)).takeIf { it.isNotEmpty() },
+                                monthNumber = getCellValueAsInt(cell(row, headerMap, "monthNumber", TransactionCols.MONTHNUMBER)).takeIf { it > 0 },
+                                notes = getCellValueAsString(cell(row, headerMap, "notes", TransactionCols.NOTES)),
                                 userId = currentUserId,
                                 storeId = currentStoreId
                             )
@@ -765,17 +791,17 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val transaction = CustomerTransactionEntity(
                             transactionId = transactionId,
-                            customerMobile = getCellValueAsString(row.getCell(TransactionCols.CUSTOMERMOBILE)),
-                            transactionDate = parseDateString(getCellValueAsString(row.getCell(TransactionCols.TRANSACTIONDATE))),
-                            amount = getCellValueAsDouble(row.getCell(TransactionCols.AMOUNT)),
-                            transactionType = getCellValueAsString(row.getCell(TransactionCols.TRANSACTIONTYPE)),
-                            category = getCellValueAsString(row.getCell(TransactionCols.CATEGORY)),
-                            description = getCellValueAsString(row.getCell(TransactionCols.DESCRIPTION)),
-                            referenceNumber = getCellValueAsString(row.getCell(TransactionCols.REFERENCENUMBER)),
-                            paymentMethod = getCellValueAsString(row.getCell(TransactionCols.PAYMENTMETHOD)),
-                                                            khataBookId = getCellValueAsString(row.getCell(TransactionCols.KHATABOOKID)).takeIf { it.isNotEmpty() },
-                            monthNumber = getCellValueAsInt(row.getCell(TransactionCols.MONTHNUMBER)).takeIf { it > 0 },
-                            notes = getCellValueAsString(row.getCell(TransactionCols.NOTES)),
+                            customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", TransactionCols.CUSTOMERMOBILE)),
+                            transactionDate = parseDateString(getCellValueAsString(cell(row, headerMap, "transactionDate", TransactionCols.TRANSACTIONDATE))),
+                            amount = getCellValueAsDouble(cell(row, headerMap, "amount", TransactionCols.AMOUNT)),
+                            transactionType = getCellValueAsString(cell(row, headerMap, "transactionType", TransactionCols.TRANSACTIONTYPE)),
+                            category = getCellValueAsString(cell(row, headerMap, "category", TransactionCols.CATEGORY)),
+                            description = getCellValueAsString(cell(row, headerMap, "description", TransactionCols.DESCRIPTION)),
+                            referenceNumber = getCellValueAsString(cell(row, headerMap, "referenceNumber", TransactionCols.REFERENCENUMBER)),
+                            paymentMethod = getCellValueAsString(cell(row, headerMap, "paymentMethod", TransactionCols.PAYMENTMETHOD)),
+                            khataBookId = getCellValueAsString(cell(row, headerMap, "khataBookId", TransactionCols.KHATABOOKID)).takeIf { it.isNotEmpty() },
+                            monthNumber = getCellValueAsInt(cell(row, headerMap, "monthNumber", TransactionCols.MONTHNUMBER)).takeIf { it > 0 },
+                            notes = getCellValueAsString(cell(row, headerMap, "notes", TransactionCols.NOTES)),
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
@@ -791,7 +817,8 @@ class ExcelImporter(
     }
     
     private suspend fun importOrderEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("OrderEntity") ?: return
+        val sheet = requireSheet(workbook, "OrderEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingOrders = database.orderDao().getAllOrders()
             .filter { it.userId == currentUserId && it.storeId == currentStoreId }
             .associateBy { it.orderId }
@@ -799,7 +826,7 @@ class ExcelImporter(
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val orderId = getCellValueAsString(row.getCell(OrderCols.ORDERID))
+                val orderId = getCellValueAsString(cell(row, headerMap, "orderId", OrderCols.ORDERID))
                 val existingOrder = existingOrders[orderId]
                 
                 when (restoreMode) {
@@ -807,15 +834,15 @@ class ExcelImporter(
                         if (existingOrder == null) {
                             val order = OrderEntity(
                                 orderId = orderId,
-                                customerMobile = getCellValueAsString(row.getCell(OrderCols.CUSTOMERMOBILE)),
+                                customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderCols.CUSTOMERMOBILE)),
                                 storeId = currentStoreId,
                                 userId = currentUserId,
-                                orderDate = parseDateString(getCellValueAsString(row.getCell(OrderCols.ORDERDATE))),
-                                totalAmount = getCellValueAsDouble(row.getCell(OrderCols.TOTALAMOUNT)),
-                                totalTax = getCellValueAsDouble(row.getCell(OrderCols.TOTALTAX)),
-                                totalCharge = getCellValueAsDouble(row.getCell(OrderCols.TOTALCHARGE)),
-                                discount = getCellValueAsDouble(row.getCell(OrderCols.DISCOUNT)),
-                                note = getCellValueAsString(row.getCell(OrderCols.NOTE))
+                                orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderCols.ORDERDATE))),
+                                totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", OrderCols.TOTALAMOUNT)),
+                                totalTax = getCellValueAsDouble(cell(row, headerMap, "totalTax", OrderCols.TOTALTAX)),
+                                totalCharge = getCellValueAsDouble(cell(row, headerMap, "totalCharge", OrderCols.TOTALCHARGE)),
+                                discount = getCellValueAsDouble(cell(row, headerMap, "discount", OrderCols.DISCOUNT)),
+                                note = getCellValueAsString(cell(row, headerMap, "note", OrderCols.NOTE))
                             )
                             database.orderDao().insertOrder(order)
                             summary.ordersAdded++
@@ -826,15 +853,15 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val order = OrderEntity(
                             orderId = orderId,
-                            customerMobile = getCellValueAsString(row.getCell(OrderCols.CUSTOMERMOBILE)),
+                            customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderCols.CUSTOMERMOBILE)),
                             storeId = currentStoreId,
                             userId = currentUserId,
-                            orderDate = parseDateString(getCellValueAsString(row.getCell(OrderCols.ORDERDATE))),
-                            totalAmount = getCellValueAsDouble(row.getCell(OrderCols.TOTALAMOUNT)),
-                            totalTax = getCellValueAsDouble(row.getCell(OrderCols.TOTALTAX)),
-                            totalCharge = getCellValueAsDouble(row.getCell(OrderCols.TOTALCHARGE)),
-                            discount = getCellValueAsDouble(row.getCell(OrderCols.DISCOUNT)),
-                            note = getCellValueAsString(row.getCell(OrderCols.NOTE))
+                            orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderCols.ORDERDATE))),
+                            totalAmount = getCellValueAsDouble(cell(row, headerMap, "totalAmount", OrderCols.TOTALAMOUNT)),
+                            totalTax = getCellValueAsDouble(cell(row, headerMap, "totalTax", OrderCols.TOTALTAX)),
+                            totalCharge = getCellValueAsDouble(cell(row, headerMap, "totalCharge", OrderCols.TOTALCHARGE)),
+                            discount = getCellValueAsDouble(cell(row, headerMap, "discount", OrderCols.DISCOUNT)),
+                            note = getCellValueAsString(cell(row, headerMap, "note", OrderCols.NOTE))
                         )
                         database.orderDao().insertOrder(order)
                         summary.ordersAdded++
@@ -848,13 +875,14 @@ class ExcelImporter(
     }
     
     private suspend fun importOrderItemEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("OrderItemEntity") ?: return
+        val sheet = requireSheet(workbook, "OrderItemEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingOrderItems = database.orderDao().getAllOrderItems().associateBy { it.orderItemId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val orderItemId = getCellValueAsString(row.getCell(OrderItemCols.ORDERITEMID))
+                val orderItemId = getCellValueAsString(cell(row, headerMap, "orderItemId", OrderItemCols.ORDERITEMID))
                 val existingOrderItem = existingOrderItems[orderItemId]
                 
                 when (restoreMode) {
@@ -862,38 +890,38 @@ class ExcelImporter(
                         if (existingOrderItem == null) {
                             val orderItem = OrderItemEntity(
                                 orderItemId = orderItemId,
-                                orderId = getCellValueAsString(row.getCell(OrderItemCols.ORDERID)),
-                                orderDate = parseDateString(getCellValueAsString(row.getCell(OrderItemCols.ORDERDATE))),
-                                itemId = getCellValueAsString(row.getCell(OrderItemCols.ITEMID)),
-                                customerMobile = getCellValueAsString(row.getCell(OrderItemCols.CUSTOMERMOBILE)),
-                                catId = getCellValueAsString(row.getCell(OrderItemCols.CATID)),
-                                catName = getCellValueAsString(row.getCell(OrderItemCols.CATNAME)),
-                                itemAddName = getCellValueAsString(row.getCell(OrderItemCols.ITEMADDNAME)),
-                                subCatId = getCellValueAsString(row.getCell(OrderItemCols.SUBCATID)),
-                                subCatName = getCellValueAsString(row.getCell(OrderItemCols.SUBCATNAME)),
-                                entryType = getCellValueAsString(row.getCell(OrderItemCols.ENTRYTYPE)),
-                                quantity = getCellValueAsInt(row.getCell(OrderItemCols.QUANTITY)),
-                                gsWt = getCellValueAsDouble(row.getCell(OrderItemCols.GSWt)),
-                                ntWt = getCellValueAsDouble(row.getCell(OrderItemCols.NTWt)),
-                                fnWt = getCellValueAsDouble(row.getCell(OrderItemCols.FNWt)),
-                                fnMetalPrice = getCellValueAsDouble(row.getCell(OrderItemCols.FNMETALPRICE)),
-                                purity = getCellValueAsString(row.getCell(OrderItemCols.PURITY)),
-                                crgType = getCellValueAsString(row.getCell(OrderItemCols.CRGTYPE)),
-                                crg = getCellValueAsDouble(row.getCell(OrderItemCols.CRG)),
-                                othCrgDes = getCellValueAsString(row.getCell(OrderItemCols.OTHCRGDES)),
-                                othCrg = getCellValueAsDouble(row.getCell(OrderItemCols.OTHCRG)),
-                                cgst = getCellValueAsDouble(row.getCell(OrderItemCols.CGST)),
-                                sgst = getCellValueAsDouble(row.getCell(OrderItemCols.SGST)),
-                                igst = getCellValueAsDouble(row.getCell(OrderItemCols.IGST)),
-                                huid = getCellValueAsString(row.getCell(OrderItemCols.HUID)),
-                                addDesKey = getCellValueAsString(row.getCell(OrderItemCols.ADDDESKEY)),
-                                addDesValue = getCellValueAsString(row.getCell(OrderItemCols.ADDDESVALUE)),
-                                price = getCellValueAsDouble(row.getCell(OrderItemCols.PRICE)),
-                                charge = getCellValueAsDouble(row.getCell(OrderItemCols.CHARGE)),
-                                tax = getCellValueAsDouble(row.getCell(OrderItemCols.TAX)),
-                                sellerFirmId = getCellValueAsString(row.getCell(OrderItemCols.SELLERFIRMID)),
-                                purchaseOrderId = getCellValueAsString(row.getCell(OrderItemCols.PURCHASEORDERID)),
-                                purchaseItemId = getCellValueAsString(row.getCell(OrderItemCols.PURCHASEITEMID))
+                                orderId = getCellValueAsString(cell(row, headerMap, "orderId", OrderItemCols.ORDERID)),
+                                orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderItemCols.ORDERDATE))),
+                                itemId = getCellValueAsString(cell(row, headerMap, "itemId", OrderItemCols.ITEMID)),
+                                customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderItemCols.CUSTOMERMOBILE)),
+                                catId = getCellValueAsString(cell(row, headerMap, "catId", OrderItemCols.CATID)),
+                                catName = getCellValueAsString(cell(row, headerMap, "catName", OrderItemCols.CATNAME)),
+                                itemAddName = getCellValueAsString(cell(row, headerMap, "itemAddName", OrderItemCols.ITEMADDNAME)),
+                                subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", OrderItemCols.SUBCATID)),
+                                subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", OrderItemCols.SUBCATNAME)),
+                                entryType = getCellValueAsString(cell(row, headerMap, "entryType", OrderItemCols.ENTRYTYPE)),
+                                quantity = getCellValueAsInt(cell(row, headerMap, "quantity", OrderItemCols.QUANTITY)),
+                                gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", OrderItemCols.GSWt)),
+                                ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", OrderItemCols.NTWt)),
+                                fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", OrderItemCols.FNWt)),
+                                fnMetalPrice = getCellValueAsDouble(cell(row, headerMap, "fnMetalPrice", OrderItemCols.FNMETALPRICE)),
+                                purity = getCellValueAsString(cell(row, headerMap, "purity", OrderItemCols.PURITY)),
+                                crgType = getCellValueAsString(cell(row, headerMap, "crgType", OrderItemCols.CRGTYPE)),
+                                crg = getCellValueAsDouble(cell(row, headerMap, "crg", OrderItemCols.CRG)),
+                                othCrgDes = getCellValueAsString(cell(row, headerMap, "othCrgDes", OrderItemCols.OTHCRGDES)),
+                                othCrg = getCellValueAsDouble(cell(row, headerMap, "othCrg", OrderItemCols.OTHCRG)),
+                                cgst = getCellValueAsDouble(cell(row, headerMap, "cgst", OrderItemCols.CGST)),
+                                sgst = getCellValueAsDouble(cell(row, headerMap, "sgst", OrderItemCols.SGST)),
+                                igst = getCellValueAsDouble(cell(row, headerMap, "igst", OrderItemCols.IGST)),
+                                huid = getCellValueAsString(cell(row, headerMap, "huid", OrderItemCols.HUID)),
+                                addDesKey = getCellValueAsString(cell(row, headerMap, "addDesKey", OrderItemCols.ADDDESKEY)),
+                                addDesValue = getCellValueAsString(cell(row, headerMap, "addDesValue", OrderItemCols.ADDDESVALUE)),
+                                price = getCellValueAsDouble(cell(row, headerMap, "price", OrderItemCols.PRICE)),
+                                charge = getCellValueAsDouble(cell(row, headerMap, "charge", OrderItemCols.CHARGE)),
+                                tax = getCellValueAsDouble(cell(row, headerMap, "tax", OrderItemCols.TAX)),
+                                sellerFirmId = getCellValueAsString(cell(row, headerMap, "sellerFirmId", OrderItemCols.SELLERFIRMID)),
+                                purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", OrderItemCols.PURCHASEORDERID)),
+                                purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", OrderItemCols.PURCHASEITEMID))
                             )
                             database.orderDao().insertOrderItem(orderItem)
                             summary.orderItemsAdded++
@@ -904,38 +932,38 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val orderItem = OrderItemEntity(
                             orderItemId = orderItemId,
-                            orderId = getCellValueAsString(row.getCell(OrderItemCols.ORDERID)),
-                            orderDate = parseDateString(getCellValueAsString(row.getCell(OrderItemCols.ORDERDATE))),
-                            itemId = getCellValueAsString(row.getCell(OrderItemCols.ITEMID)),
-                            customerMobile = getCellValueAsString(row.getCell(OrderItemCols.CUSTOMERMOBILE)),
-                            catId = getCellValueAsString(row.getCell(OrderItemCols.CATID)),
-                            catName = getCellValueAsString(row.getCell(OrderItemCols.CATNAME)),
-                            itemAddName = getCellValueAsString(row.getCell(OrderItemCols.ITEMADDNAME)),
-                            subCatId = getCellValueAsString(row.getCell(OrderItemCols.SUBCATID)),
-                            subCatName = getCellValueAsString(row.getCell(OrderItemCols.SUBCATNAME)),
-                            entryType = getCellValueAsString(row.getCell(OrderItemCols.ENTRYTYPE)),
-                            quantity = getCellValueAsInt(row.getCell(OrderItemCols.QUANTITY)),
-                            gsWt = getCellValueAsDouble(row.getCell(OrderItemCols.GSWt)),
-                            ntWt = getCellValueAsDouble(row.getCell(OrderItemCols.NTWt)),
-                            fnWt = getCellValueAsDouble(row.getCell(OrderItemCols.FNWt)),
-                            fnMetalPrice = getCellValueAsDouble(row.getCell(OrderItemCols.FNMETALPRICE)),
-                            purity = getCellValueAsString(row.getCell(OrderItemCols.PURITY)),
-                            crgType = getCellValueAsString(row.getCell(OrderItemCols.CRGTYPE)),
-                            crg = getCellValueAsDouble(row.getCell(OrderItemCols.CRG)),
-                            othCrgDes = getCellValueAsString(row.getCell(OrderItemCols.OTHCRGDES)),
-                            othCrg = getCellValueAsDouble(row.getCell(OrderItemCols.OTHCRG)),
-                            cgst = getCellValueAsDouble(row.getCell(OrderItemCols.CGST)),
-                            sgst = getCellValueAsDouble(row.getCell(OrderItemCols.SGST)),
-                            igst = getCellValueAsDouble(row.getCell(OrderItemCols.IGST)),
-                            huid = getCellValueAsString(row.getCell(OrderItemCols.HUID)),
-                            addDesKey = getCellValueAsString(row.getCell(OrderItemCols.ADDDESKEY)),
-                            addDesValue = getCellValueAsString(row.getCell(OrderItemCols.ADDDESVALUE)),
-                            price = getCellValueAsDouble(row.getCell(OrderItemCols.PRICE)),
-                            charge = getCellValueAsDouble(row.getCell(OrderItemCols.CHARGE)),
-                            tax = getCellValueAsDouble(row.getCell(OrderItemCols.TAX)),
-                            sellerFirmId = getCellValueAsString(row.getCell(OrderItemCols.SELLERFIRMID)),
-                            purchaseOrderId = getCellValueAsString(row.getCell(OrderItemCols.PURCHASEORDERID)),
-                            purchaseItemId = getCellValueAsString(row.getCell(OrderItemCols.PURCHASEITEMID))
+                            orderId = getCellValueAsString(cell(row, headerMap, "orderId", OrderItemCols.ORDERID)),
+                            orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderItemCols.ORDERDATE))),
+                            itemId = getCellValueAsString(cell(row, headerMap, "itemId", OrderItemCols.ITEMID)),
+                            customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderItemCols.CUSTOMERMOBILE)),
+                            catId = getCellValueAsString(cell(row, headerMap, "catId", OrderItemCols.CATID)),
+                            catName = getCellValueAsString(cell(row, headerMap, "catName", OrderItemCols.CATNAME)),
+                            itemAddName = getCellValueAsString(cell(row, headerMap, "itemAddName", OrderItemCols.ITEMADDNAME)),
+                            subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", OrderItemCols.SUBCATID)),
+                            subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", OrderItemCols.SUBCATNAME)),
+                            entryType = getCellValueAsString(cell(row, headerMap, "entryType", OrderItemCols.ENTRYTYPE)),
+                            quantity = getCellValueAsInt(cell(row, headerMap, "quantity", OrderItemCols.QUANTITY)),
+                            gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", OrderItemCols.GSWt)),
+                            ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", OrderItemCols.NTWt)),
+                            fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", OrderItemCols.FNWt)),
+                            fnMetalPrice = getCellValueAsDouble(cell(row, headerMap, "fnMetalPrice", OrderItemCols.FNMETALPRICE)),
+                            purity = getCellValueAsString(cell(row, headerMap, "purity", OrderItemCols.PURITY)),
+                            crgType = getCellValueAsString(cell(row, headerMap, "crgType", OrderItemCols.CRGTYPE)),
+                            crg = getCellValueAsDouble(cell(row, headerMap, "crg", OrderItemCols.CRG)),
+                            othCrgDes = getCellValueAsString(cell(row, headerMap, "othCrgDes", OrderItemCols.OTHCRGDES)),
+                            othCrg = getCellValueAsDouble(cell(row, headerMap, "othCrg", OrderItemCols.OTHCRG)),
+                            cgst = getCellValueAsDouble(cell(row, headerMap, "cgst", OrderItemCols.CGST)),
+                            sgst = getCellValueAsDouble(cell(row, headerMap, "sgst", OrderItemCols.SGST)),
+                            igst = getCellValueAsDouble(cell(row, headerMap, "igst", OrderItemCols.IGST)),
+                            huid = getCellValueAsString(cell(row, headerMap, "huid", OrderItemCols.HUID)),
+                            addDesKey = getCellValueAsString(cell(row, headerMap, "addDesKey", OrderItemCols.ADDDESKEY)),
+                            addDesValue = getCellValueAsString(cell(row, headerMap, "addDesValue", OrderItemCols.ADDDESVALUE)),
+                            price = getCellValueAsDouble(cell(row, headerMap, "price", OrderItemCols.PRICE)),
+                            charge = getCellValueAsDouble(cell(row, headerMap, "charge", OrderItemCols.CHARGE)),
+                            tax = getCellValueAsDouble(cell(row, headerMap, "tax", OrderItemCols.TAX)),
+                            sellerFirmId = getCellValueAsString(cell(row, headerMap, "sellerFirmId", OrderItemCols.SELLERFIRMID)),
+                            purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", OrderItemCols.PURCHASEORDERID)),
+                            purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", OrderItemCols.PURCHASEITEMID))
                         )
                         database.orderDao().insertOrderItem(orderItem)
                         summary.orderItemsAdded++
@@ -949,13 +977,14 @@ class ExcelImporter(
     }
     
     private suspend fun importExchangeItemEntity(workbook: Workbook, currentUserId: String, currentStoreId: String, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("ExchangeItemEntity") ?: return
+        val sheet = requireSheet(workbook, "ExchangeItemEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingExchangeItems = database.orderDao().getAllExchangeItems().associateBy { it.exchangeItemId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val exchangeItemId = getCellValueAsString(row.getCell(ExchangeItemCols.EXCHANGEITEMID))
+                val exchangeItemId = getCellValueAsString(cell(row, headerMap, "exchangeItemId", ExchangeItemCols.EXCHANGEITEMID))
                 val existingExchangeItem = existingExchangeItems[exchangeItemId]
                 
                 when (restoreMode) {
@@ -963,17 +992,17 @@ class ExcelImporter(
                         if (existingExchangeItem == null) {
                             val exchangeItem = ExchangeItemEntity(
                                 exchangeItemId = exchangeItemId,
-                                orderId = getCellValueAsString(row.getCell(ExchangeItemCols.ORDERID)),
-                                orderDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ORDERDATE))),
-                                customerMobile = getCellValueAsString(row.getCell(ExchangeItemCols.CUSTOMERMOBILE)),
-                                metalType = getCellValueAsString(row.getCell(ExchangeItemCols.METALTYPE)),
-                                purity = getCellValueAsString(row.getCell(ExchangeItemCols.PURITY)),
-                                grossWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.GROSSWEIGHT)),
-                                fineWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.FINEWEIGHT)),
-                                price = getCellValueAsDouble(row.getCell(ExchangeItemCols.PRICE)),
-                                isExchangedByMetal = getCellValueAsBoolean(row.getCell(ExchangeItemCols.ISEXCHANGEDBYMETAL)),
-                                exchangeValue = getCellValueAsDouble(row.getCell(ExchangeItemCols.EXCHANGEVALUE)),
-                                addDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ADDDATE)))
+                                orderId = getCellValueAsString(cell(row, headerMap, "orderId", ExchangeItemCols.ORDERID)),
+                                orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", ExchangeItemCols.ORDERDATE))),
+                                customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", ExchangeItemCols.CUSTOMERMOBILE)),
+                                metalType = getCellValueAsString(cell(row, headerMap, "metalType", ExchangeItemCols.METALTYPE)),
+                                purity = getCellValueAsString(cell(row, headerMap, "purity", ExchangeItemCols.PURITY)),
+                                grossWeight = getCellValueAsDouble(cell(row, headerMap, "grossWeight", ExchangeItemCols.GROSSWEIGHT)),
+                                fineWeight = getCellValueAsDouble(cell(row, headerMap, "fineWeight", ExchangeItemCols.FINEWEIGHT)),
+                                price = getCellValueAsDouble(cell(row, headerMap, "price", ExchangeItemCols.PRICE)),
+                                isExchangedByMetal = getCellValueAsBoolean(cell(row, headerMap, "isExchangedByMetal", ExchangeItemCols.ISEXCHANGEDBYMETAL)),
+                                exchangeValue = getCellValueAsDouble(cell(row, headerMap, "exchangeValue", ExchangeItemCols.EXCHANGEVALUE)),
+                                addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", ExchangeItemCols.ADDDATE)))
                             )
                             database.orderDao().insertExchangeItem(exchangeItem)
                             summary.exchangeItemsAdded++
@@ -984,17 +1013,17 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val exchangeItem = ExchangeItemEntity(
                             exchangeItemId = exchangeItemId,
-                            orderId = getCellValueAsString(row.getCell(ExchangeItemCols.ORDERID)),
-                            orderDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ORDERDATE))),
-                            customerMobile = getCellValueAsString(row.getCell(ExchangeItemCols.CUSTOMERMOBILE)),
-                            metalType = getCellValueAsString(row.getCell(ExchangeItemCols.METALTYPE)),
-                            purity = getCellValueAsString(row.getCell(ExchangeItemCols.PURITY)),
-                            grossWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.GROSSWEIGHT)),
-                            fineWeight = getCellValueAsDouble(row.getCell(ExchangeItemCols.FINEWEIGHT)),
-                            price = getCellValueAsDouble(row.getCell(ExchangeItemCols.PRICE)),
-                            isExchangedByMetal = getCellValueAsBoolean(row.getCell(ExchangeItemCols.ISEXCHANGEDBYMETAL)),
-                            exchangeValue = getCellValueAsDouble(row.getCell(ExchangeItemCols.EXCHANGEVALUE)),
-                            addDate = parseDateString(getCellValueAsString(row.getCell(ExchangeItemCols.ADDDATE)))
+                            orderId = getCellValueAsString(cell(row, headerMap, "orderId", ExchangeItemCols.ORDERID)),
+                            orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", ExchangeItemCols.ORDERDATE))),
+                            customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", ExchangeItemCols.CUSTOMERMOBILE)),
+                            metalType = getCellValueAsString(cell(row, headerMap, "metalType", ExchangeItemCols.METALTYPE)),
+                            purity = getCellValueAsString(cell(row, headerMap, "purity", ExchangeItemCols.PURITY)),
+                            grossWeight = getCellValueAsDouble(cell(row, headerMap, "grossWeight", ExchangeItemCols.GROSSWEIGHT)),
+                            fineWeight = getCellValueAsDouble(cell(row, headerMap, "fineWeight", ExchangeItemCols.FINEWEIGHT)),
+                            price = getCellValueAsDouble(cell(row, headerMap, "price", ExchangeItemCols.PRICE)),
+                            isExchangedByMetal = getCellValueAsBoolean(cell(row, headerMap, "isExchangedByMetal", ExchangeItemCols.ISEXCHANGEDBYMETAL)),
+                            exchangeValue = getCellValueAsDouble(cell(row, headerMap, "exchangeValue", ExchangeItemCols.EXCHANGEVALUE)),
+                            addDate = parseDateString(getCellValueAsString(cell(row, headerMap, "addDate", ExchangeItemCols.ADDDATE)))
                         )
                         database.orderDao().insertExchangeItem(exchangeItem)
                         summary.exchangeItemsAdded++
@@ -1008,24 +1037,25 @@ class ExcelImporter(
     }
     
     private suspend fun importFirmEntity(workbook: Workbook, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("FirmEntity") ?: return
+        val sheet = requireSheet(workbook, "FirmEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingFirms = database.purchaseDao().getAllFirms().associateBy { it.firmName }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val firmName = getCellValueAsString(row.getCell(FirmCols.FIRMNAME))
+                val firmName = getCellValueAsString(cell(row, headerMap, "firmName", FirmCols.FIRMNAME))
                 val existingFirm = existingFirms[firmName]
                 
                 when (restoreMode) {
                     RestoreMode.MERGE -> {
                         if (existingFirm == null) {
                             val firm = FirmEntity(
-                                firmId = getCellValueAsString(row.getCell(FirmCols.FIRMID)),
+                                firmId = getCellValueAsString(cell(row, headerMap, "firmId", FirmCols.FIRMID)),
                                 firmName = firmName,
-                                firmMobileNumber = getCellValueAsString(row.getCell(FirmCols.FIRMMOBILENUMBER)),
-                                gstNumber = getCellValueAsString(row.getCell(FirmCols.GSTNUMBER)),
-                                address = getCellValueAsString(row.getCell(FirmCols.ADDRESS))
+                                firmMobileNumber = getCellValueAsString(cell(row, headerMap, "firmMobileNumber", FirmCols.FIRMMOBILENUMBER)),
+                                gstNumber = getCellValueAsString(cell(row, headerMap, "gstNumber", FirmCols.GSTNUMBER)),
+                                address = getCellValueAsString(cell(row, headerMap, "address", FirmCols.ADDRESS))
                             )
                             database.purchaseDao().insertFirm(firm)
                             summary.firmsAdded++
@@ -1035,11 +1065,11 @@ class ExcelImporter(
                     }
                     RestoreMode.REPLACE -> {
                         val firm = FirmEntity(
-                            firmId = getCellValueAsString(row.getCell(FirmCols.FIRMID)),
+                            firmId = getCellValueAsString(cell(row, headerMap, "firmId", FirmCols.FIRMID)),
                             firmName = firmName,
-                            firmMobileNumber = getCellValueAsString(row.getCell(FirmCols.FIRMMOBILENUMBER)),
-                            gstNumber = getCellValueAsString(row.getCell(FirmCols.GSTNUMBER)),
-                            address = getCellValueAsString(row.getCell(FirmCols.ADDRESS))
+                            firmMobileNumber = getCellValueAsString(cell(row, headerMap, "firmMobileNumber", FirmCols.FIRMMOBILENUMBER)),
+                            gstNumber = getCellValueAsString(cell(row, headerMap, "gstNumber", FirmCols.GSTNUMBER)),
+                            address = getCellValueAsString(cell(row, headerMap, "address", FirmCols.ADDRESS))
                         )
                         database.purchaseDao().insertFirm(firm)
                         summary.firmsAdded++
@@ -1053,13 +1083,14 @@ class ExcelImporter(
     }
     
     private suspend fun importPurchaseOrderEntity(workbook: Workbook, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("PurchaseOrderEntity") ?: return
+        val sheet = requireSheet(workbook, "PurchaseOrderEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingPurchaseOrders = database.purchaseDao().getAllPurchaseOrders().associateBy { it.purchaseOrderId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val purchaseOrderId = getCellValueAsString(row.getCell(PurchaseOrderCols.PURCHASEORDERID))
+                val purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", PurchaseOrderCols.PURCHASEORDERID))
                 val existingPurchaseOrder = existingPurchaseOrders[purchaseOrderId]
                 
                 when (restoreMode) {
@@ -1067,18 +1098,18 @@ class ExcelImporter(
                         if (existingPurchaseOrder == null) {
                             val purchaseOrder = PurchaseOrderEntity(
                                 purchaseOrderId = purchaseOrderId,
-                                sellerId = getCellValueAsString(row.getCell(PurchaseOrderCols.SELLERID)),
-                                billNo = getCellValueAsString(row.getCell(PurchaseOrderCols.BILLNO)),
-                                billDate = getCellValueAsString(row.getCell(PurchaseOrderCols.BILLDATE)),
-                                entryDate = getCellValueAsString(row.getCell(PurchaseOrderCols.ENTRYDATE)),
-                                extraChargeDescription = getCellValueAsString(row.getCell(PurchaseOrderCols.EXTRACHARGEDESCRIPTION)),
-                                extraCharge = getCellValueAsDouble(row.getCell(PurchaseOrderCols.EXTRACHARGE)),
-                                totalFinalWeight = getCellValueAsDouble(row.getCell(PurchaseOrderCols.TOTALFINALWEIGHT)),
-                                totalFinalAmount = getCellValueAsDouble(row.getCell(PurchaseOrderCols.TOTALFINALAMOUNT)),
-                                notes = getCellValueAsString(row.getCell(PurchaseOrderCols.NOTES)),
-                                cgstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.CGSTPERCENT)),
-                                sgstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.SGSTPERCENT)),
-                                igstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.IGSTPERCENT))
+                                sellerId = getCellValueAsString(cell(row, headerMap, "sellerId", PurchaseOrderCols.SELLERID)),
+                                billNo = getCellValueAsString(cell(row, headerMap, "billNo", PurchaseOrderCols.BILLNO)),
+                                billDate = getCellValueAsString(cell(row, headerMap, "billDate", PurchaseOrderCols.BILLDATE)),
+                                entryDate = getCellValueAsString(cell(row, headerMap, "entryDate", PurchaseOrderCols.ENTRYDATE)),
+                                extraChargeDescription = getCellValueAsString(cell(row, headerMap, "extraChargeDescription", PurchaseOrderCols.EXTRACHARGEDESCRIPTION)),
+                                extraCharge = getCellValueAsDouble(cell(row, headerMap, "extraCharge", PurchaseOrderCols.EXTRACHARGE)),
+                                totalFinalWeight = getCellValueAsDouble(cell(row, headerMap, "totalFinalWeight", PurchaseOrderCols.TOTALFINALWEIGHT)),
+                                totalFinalAmount = getCellValueAsDouble(cell(row, headerMap, "totalFinalAmount", PurchaseOrderCols.TOTALFINALAMOUNT)),
+                                notes = getCellValueAsString(cell(row, headerMap, "notes", PurchaseOrderCols.NOTES)),
+                                cgstPercent = getCellValueAsDouble(cell(row, headerMap, "cgstPercent", PurchaseOrderCols.CGSTPERCENT)),
+                                sgstPercent = getCellValueAsDouble(cell(row, headerMap, "sgstPercent", PurchaseOrderCols.SGSTPERCENT)),
+                                igstPercent = getCellValueAsDouble(cell(row, headerMap, "igstPercent", PurchaseOrderCols.IGSTPERCENT))
                             )
                             database.purchaseDao().insertPurchaseOrder(purchaseOrder)
                             summary.purchaseOrdersAdded++
@@ -1089,18 +1120,18 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val purchaseOrder = PurchaseOrderEntity(
                             purchaseOrderId = purchaseOrderId,
-                            sellerId = getCellValueAsString(row.getCell(PurchaseOrderCols.SELLERID)),
-                            billNo = getCellValueAsString(row.getCell(PurchaseOrderCols.BILLNO)),
-                            billDate = getCellValueAsString(row.getCell(PurchaseOrderCols.BILLDATE)),
-                            entryDate = getCellValueAsString(row.getCell(PurchaseOrderCols.ENTRYDATE)),
-                            extraChargeDescription = getCellValueAsString(row.getCell(PurchaseOrderCols.EXTRACHARGEDESCRIPTION)),
-                            extraCharge = getCellValueAsDouble(row.getCell(PurchaseOrderCols.EXTRACHARGE)),
-                            totalFinalWeight = getCellValueAsDouble(row.getCell(PurchaseOrderCols.TOTALFINALWEIGHT)),
-                            totalFinalAmount = getCellValueAsDouble(row.getCell(PurchaseOrderCols.TOTALFINALAMOUNT)),
-                            notes = getCellValueAsString(row.getCell(PurchaseOrderCols.NOTES)),
-                            cgstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.CGSTPERCENT)),
-                            sgstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.SGSTPERCENT)),
-                            igstPercent = getCellValueAsDouble(row.getCell(PurchaseOrderCols.IGSTPERCENT))
+                            sellerId = getCellValueAsString(cell(row, headerMap, "sellerId", PurchaseOrderCols.SELLERID)),
+                            billNo = getCellValueAsString(cell(row, headerMap, "billNo", PurchaseOrderCols.BILLNO)),
+                            billDate = getCellValueAsString(cell(row, headerMap, "billDate", PurchaseOrderCols.BILLDATE)),
+                            entryDate = getCellValueAsString(cell(row, headerMap, "entryDate", PurchaseOrderCols.ENTRYDATE)),
+                            extraChargeDescription = getCellValueAsString(cell(row, headerMap, "extraChargeDescription", PurchaseOrderCols.EXTRACHARGEDESCRIPTION)),
+                            extraCharge = getCellValueAsDouble(cell(row, headerMap, "extraCharge", PurchaseOrderCols.EXTRACHARGE)),
+                            totalFinalWeight = getCellValueAsDouble(cell(row, headerMap, "totalFinalWeight", PurchaseOrderCols.TOTALFINALWEIGHT)),
+                            totalFinalAmount = getCellValueAsDouble(cell(row, headerMap, "totalFinalAmount", PurchaseOrderCols.TOTALFINALAMOUNT)),
+                            notes = getCellValueAsString(cell(row, headerMap, "notes", PurchaseOrderCols.NOTES)),
+                            cgstPercent = getCellValueAsDouble(cell(row, headerMap, "cgstPercent", PurchaseOrderCols.CGSTPERCENT)),
+                            sgstPercent = getCellValueAsDouble(cell(row, headerMap, "sgstPercent", PurchaseOrderCols.SGSTPERCENT)),
+                            igstPercent = getCellValueAsDouble(cell(row, headerMap, "igstPercent", PurchaseOrderCols.IGSTPERCENT))
                         )
                         database.purchaseDao().insertPurchaseOrder(purchaseOrder)
                         summary.purchaseOrdersAdded++
@@ -1114,13 +1145,14 @@ class ExcelImporter(
     }
     
     private suspend fun importPurchaseOrderItemEntity(workbook: Workbook, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("PurchaseOrderItemEntity") ?: return
+        val sheet = requireSheet(workbook, "PurchaseOrderItemEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingPurchaseOrderItems = database.purchaseDao().getAllPurchaseOrderItems().associateBy { it.purchaseItemId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val purchaseItemId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.PURCHASEITEMID))
+                val purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", PurchaseOrderItemCols.PURCHASEITEMID))
                 val existingPurchaseOrderItem = existingPurchaseOrderItems[purchaseItemId]
                 
                 when (restoreMode) {
@@ -1128,17 +1160,17 @@ class ExcelImporter(
                         if (existingPurchaseOrderItem == null) {
                             val purchaseOrderItem = PurchaseOrderItemEntity(
                                 purchaseItemId = purchaseItemId,
-                                purchaseOrderId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.PURCHASEORDERID)),
-                                catId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.CATID)),
-                                catName = getCellValueAsString(row.getCell(PurchaseOrderItemCols.CATNAME)),
-                                subCatId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.SUBCATID)),
-                                subCatName = getCellValueAsString(row.getCell(PurchaseOrderItemCols.SUBCATNAME)),
-                                gsWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.GSWt)),
-                                purity = getCellValueAsString(row.getCell(PurchaseOrderItemCols.PURITY)),
-                                ntWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.NTWt)),
-                                fnWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.FNWt)),
-                                fnRate = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.FNRATE)),
-                                wastagePercent = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.WASTAGEPERCENT))
+                                purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", PurchaseOrderItemCols.PURCHASEORDERID)),
+                                catId = getCellValueAsString(cell(row, headerMap, "catId", PurchaseOrderItemCols.CATID)),
+                                catName = getCellValueAsString(cell(row, headerMap, "catName", PurchaseOrderItemCols.CATNAME)),
+                                subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", PurchaseOrderItemCols.SUBCATID)),
+                                subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", PurchaseOrderItemCols.SUBCATNAME)),
+                                gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", PurchaseOrderItemCols.GSWt)),
+                                purity = getCellValueAsString(cell(row, headerMap, "purity", PurchaseOrderItemCols.PURITY)),
+                                ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", PurchaseOrderItemCols.NTWt)),
+                                fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", PurchaseOrderItemCols.FNWt)),
+                                fnRate = getCellValueAsDouble(cell(row, headerMap, "fnRate", PurchaseOrderItemCols.FNRATE)),
+                                wastagePercent = getCellValueAsDouble(cell(row, headerMap, "wastagePercent", PurchaseOrderItemCols.WASTAGEPERCENT))
                             )
                             database.purchaseDao().insertPurchaseOrderItem(purchaseOrderItem)
                             summary.purchaseOrderItemsAdded++
@@ -1149,17 +1181,17 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val purchaseOrderItem = PurchaseOrderItemEntity(
                             purchaseItemId = purchaseItemId,
-                            purchaseOrderId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.PURCHASEORDERID)),
-                            catId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.CATID)),
-                            catName = getCellValueAsString(row.getCell(PurchaseOrderItemCols.CATNAME)),
-                            subCatId = getCellValueAsString(row.getCell(PurchaseOrderItemCols.SUBCATID)),
-                            subCatName = getCellValueAsString(row.getCell(PurchaseOrderItemCols.SUBCATNAME)),
-                            gsWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.GSWt)),
-                            purity = getCellValueAsString(row.getCell(PurchaseOrderItemCols.PURITY)),
-                            ntWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.NTWt)),
-                            fnWt = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.FNWt)),
-                            fnRate = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.FNRATE)),
-                            wastagePercent = getCellValueAsDouble(row.getCell(PurchaseOrderItemCols.WASTAGEPERCENT))
+                            purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", PurchaseOrderItemCols.PURCHASEORDERID)),
+                            catId = getCellValueAsString(cell(row, headerMap, "catId", PurchaseOrderItemCols.CATID)),
+                            catName = getCellValueAsString(cell(row, headerMap, "catName", PurchaseOrderItemCols.CATNAME)),
+                            subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", PurchaseOrderItemCols.SUBCATID)),
+                            subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", PurchaseOrderItemCols.SUBCATNAME)),
+                            gsWt = getCellValueAsDouble(cell(row, headerMap, "gsWt", PurchaseOrderItemCols.GSWt)),
+                            purity = getCellValueAsString(cell(row, headerMap, "purity", PurchaseOrderItemCols.PURITY)),
+                            ntWt = getCellValueAsDouble(cell(row, headerMap, "ntWt", PurchaseOrderItemCols.NTWt)),
+                            fnWt = getCellValueAsDouble(cell(row, headerMap, "fnWt", PurchaseOrderItemCols.FNWt)),
+                            fnRate = getCellValueAsDouble(cell(row, headerMap, "fnRate", PurchaseOrderItemCols.FNRATE)),
+                            wastagePercent = getCellValueAsDouble(cell(row, headerMap, "wastagePercent", PurchaseOrderItemCols.WASTAGEPERCENT))
                         )
                         database.purchaseDao().insertPurchaseOrderItem(purchaseOrderItem)
                         summary.purchaseOrderItemsAdded++
@@ -1173,13 +1205,14 @@ class ExcelImporter(
     }
     
     private suspend fun importMetalExchangeEntity(workbook: Workbook, restoreMode: RestoreMode, summary: ImportSummary) {
-        val sheet = workbook.getSheet("MetalExchangeEntity") ?: return
+        val sheet = requireSheet(workbook, "MetalExchangeEntity", summary) ?: return
+        val headerMap = buildHeaderMap(sheet)
         val existingMetalExchanges = database.purchaseDao().getAllMetalExchanges().associateBy { it.exchangeId }
         
         for (rowIndex in 1..sheet.lastRowNum) {
             val row = sheet.getRow(rowIndex) ?: continue
             try {
-                val exchangeId = getCellValueAsString(row.getCell(MetalExchangeCols.EXCHANGEID))
+                val exchangeId = getCellValueAsString(cell(row, headerMap, "exchangeId", MetalExchangeCols.EXCHANGEID))
                 val existingMetalExchange = existingMetalExchanges[exchangeId]
                 
                 when (restoreMode) {
@@ -1187,12 +1220,12 @@ class ExcelImporter(
                         if (existingMetalExchange == null) {
                             val metalExchange = MetalExchangeEntity(
                                 exchangeId = exchangeId,
-                                purchaseOrderId = getCellValueAsString(row.getCell(MetalExchangeCols.PURCHASEORDERID)),
-                                catId = getCellValueAsString(row.getCell(MetalExchangeCols.CATID)),
-                                catName = getCellValueAsString(row.getCell(MetalExchangeCols.CATNAME)),
-                                subCatId = getCellValueAsString(row.getCell(MetalExchangeCols.SUBCATID)),
-                                subCatName = getCellValueAsString(row.getCell(MetalExchangeCols.SUBCATNAME)),
-                                fnWeight = getCellValueAsDouble(row.getCell(MetalExchangeCols.FNWEIGHT))
+                                purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", MetalExchangeCols.PURCHASEORDERID)),
+                                catId = getCellValueAsString(cell(row, headerMap, "catId", MetalExchangeCols.CATID)),
+                                catName = getCellValueAsString(cell(row, headerMap, "catName", MetalExchangeCols.CATNAME)),
+                                subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", MetalExchangeCols.SUBCATID)),
+                                subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", MetalExchangeCols.SUBCATNAME)),
+                                fnWeight = getCellValueAsDouble(cell(row, headerMap, "fnWeight", MetalExchangeCols.FNWEIGHT))
                             )
                             database.purchaseDao().insertMetalExchange(metalExchange)
                             summary.metalExchangesAdded++
@@ -1203,12 +1236,12 @@ class ExcelImporter(
                     RestoreMode.REPLACE -> {
                         val metalExchange = MetalExchangeEntity(
                             exchangeId = exchangeId,
-                            purchaseOrderId = getCellValueAsString(row.getCell(MetalExchangeCols.PURCHASEORDERID)),
-                            catId = getCellValueAsString(row.getCell(MetalExchangeCols.CATID)),
-                            catName = getCellValueAsString(row.getCell(MetalExchangeCols.CATNAME)),
-                            subCatId = getCellValueAsString(row.getCell(MetalExchangeCols.SUBCATID)),
-                            subCatName = getCellValueAsString(row.getCell(MetalExchangeCols.SUBCATNAME)),
-                            fnWeight = getCellValueAsDouble(row.getCell(MetalExchangeCols.FNWEIGHT))
+                            purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", MetalExchangeCols.PURCHASEORDERID)),
+                            catId = getCellValueAsString(cell(row, headerMap, "catId", MetalExchangeCols.CATID)),
+                            catName = getCellValueAsString(cell(row, headerMap, "catName", MetalExchangeCols.CATNAME)),
+                            subCatId = getCellValueAsString(cell(row, headerMap, "subCatId", MetalExchangeCols.SUBCATID)),
+                            subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", MetalExchangeCols.SUBCATNAME)),
+                            fnWeight = getCellValueAsDouble(cell(row, headerMap, "fnWeight", MetalExchangeCols.FNWEIGHT))
                         )
                         database.purchaseDao().insertMetalExchange(metalExchange)
                         summary.metalExchangesAdded++
@@ -1222,47 +1255,151 @@ class ExcelImporter(
     }
     
     // Helper functions for cell value extraction
-    private fun getCellValueAsString(cell: Cell?): String {
-        return when (cell?.cellType) {
-            CellType.STRING -> cell.stringCellValue
-            CellType.NUMERIC -> cell.numericCellValue.toString()
-            CellType.BOOLEAN -> cell.booleanCellValue.toString()
-            else -> ""
+    private fun buildHeaderMap(sheet: Sheet): Map<String, Int> {
+        val headerRow = sheet.getRow(0) ?: return emptyMap()
+        val headerMap = mutableMapOf<String, Int>()
+        for (index in 0 until headerRow.lastCellNum) {
+            val name = getCellValueAsString(headerRow.getCell(index)).trim().lowercase(Locale.US)
+            if (name.isNotEmpty()) {
+                headerMap[name] = index
+            }
         }
+        return headerMap
     }
-    
-    private fun getCellValueAsInt(cell: Cell?): Int {
-        return when (cell?.cellType) {
-            CellType.NUMERIC -> cell.numericCellValue.toInt()
-            CellType.STRING -> cell.stringCellValue.toIntOrNull() ?: 0
-            else -> 0
+
+    private fun readSchemaMetadata(workbook: Workbook): SchemaMetadata {
+        val sheet = workbook.getSheet("Metadata") ?: run {
+            logJvSync("ExcelImporter: Metadata sheet missing - assuming schema v${ExcelSchema.earliestKnownVersion}")
+            return SchemaMetadata(
+                schemaVersion = ExcelSchema.earliestKnownVersion,
+                exportedAt = null,
+                headers = emptyMap()
+            )
         }
+
+        var schemaVersion = ExcelSchema.earliestKnownVersion
+        var exportedAt: String? = null
+        val headers = mutableMapOf<String, List<String>>()
+
+        for (rowIndex in 1..sheet.lastRowNum) {
+            val row = sheet.getRow(rowIndex) ?: continue
+            val key = getCellValueAsString(row.getCell(0)).trim()
+            val value = getCellValueAsString(row.getCell(1))
+
+            when {
+                key.equals("schemaVersion", true) -> schemaVersion = value.toIntOrNull() ?: schemaVersion
+                key.equals("exportedAt", true) -> exportedAt = value
+                key.startsWith("headers:", true) -> {
+                    val sheetName = key.substringAfter("headers:").trim()
+                    if (sheetName.isNotEmpty()) {
+                        headers[sheetName] = if (value.isBlank()) emptyList()
+                        else value.split("|").map { it.trim() }.filter { it.isNotEmpty() }
+                    }
+                }
+            }
+        }
+
+        logJvSync("ExcelImporter: Metadata loaded (schema v$schemaVersion, exportedAt=${exportedAt ?: "unknown"})")
+        return SchemaMetadata(schemaVersion, exportedAt, headers)
     }
-    
-    private fun getCellValueAsDouble(cell: Cell?): Double {
-        return when (cell?.cellType) {
-            CellType.NUMERIC -> cell.numericCellValue
-            CellType.STRING -> cell.stringCellValue.toDoubleOrNull() ?: 0.0
-            else -> 0.0
+
+    private fun determineRequiredHeaders(metadata: SchemaMetadata): Map<String, List<String>> {
+        val targetVersion = ExcelSchema.requiredHeadersByVersion.keys
+            .filter { it <= metadata.schemaVersion }
+            .maxOrNull()
+            ?: ExcelSchema.CURRENT_SCHEMA_VERSION
+
+        val baseHeaders = ExcelSchema.requiredHeadersByVersion[targetVersion]
+            ?: ExcelSchema.requiredHeadersByVersion[ExcelSchema.CURRENT_SCHEMA_VERSION]
+            ?: emptyMap()
+
+        val normalizedRecorded = metadata.headers.mapValues { (_, values) ->
+            values.map { it.trim().lowercase(Locale.US) }
+        }
+
+        val combined = baseHeaders.toMutableMap()
+        normalizedRecorded.keys.forEach { sheetName ->
+            if (!combined.containsKey(sheetName)) {
+                combined[sheetName] = metadata.headers[sheetName]?.map { it.trim() } ?: emptyList()
+            }
+        }
+
+        return combined.mapValues { (sheetName, headers) ->
+            val recorded = normalizedRecorded[sheetName]?.toSet() ?: emptySet()
+            if (recorded.isEmpty()) {
+                headers
+            } else {
+                headers.filter { header ->
+                    recorded.contains(header.trim().lowercase(Locale.US))
+                }
+            }
         }
     }
 
-    private fun getCellValueAsLong(cell: Cell?): Long {
+    private fun requireSheet(workbook: Workbook, sheetName: String, summary: ImportSummary): Sheet? {
+        val sheet = workbook.getSheet(sheetName)
+        if (sheet == null) {
+            if (!summary.missingSheets.contains(sheetName)) {
+                summary.missingSheets.add(sheetName)
+            }
+            logJvSync("ExcelImporter: Sheet '$sheetName' missing in legacy import; skipping (schema support preserved).")
+        }
+        return sheet
+    }
+
+    private fun cell(row: Row, headerMap: Map<String, Int>, headerName: String, fallbackIndex: Int): Cell? {
+        val idx = headerMap[headerName.lowercase(Locale.US)]
+        if (idx != null) {
+            return row.getCell(idx)
+        }
+        if (headerMap.isEmpty()) {
+            return row.getCell(fallbackIndex)
+        }
+        return null
+    }
+
+    private fun getCellValueAsString(cell: Cell?, defaultValue: String = ""): String {
+        if (cell == null) return defaultValue
+        val value = dataFormatter.formatCellValue(cell).trim()
+        return if (value.isBlank()) defaultValue else value
+    }
+    
+    private fun getCellValueAsInt(cell: Cell?, defaultValue: Int = 0): Int {
         return when (cell?.cellType) {
-            CellType.NUMERIC -> cell.numericCellValue.toLong()
-            CellType.STRING -> cell.stringCellValue.toLongOrNull() ?: 0L
-            CellType.BOOLEAN -> if (cell.booleanCellValue) 1L else 0L
-            else -> 0L
+            CellType.NUMERIC -> cell.numericCellValue.toInt()
+            CellType.STRING -> normalizeNumberString(cell.stringCellValue).toIntOrNull() ?: defaultValue
+            else -> normalizeNumberString(getCellValueAsString(cell)).toIntOrNull() ?: defaultValue
         }
     }
     
-    private fun getCellValueAsBoolean(cell: Cell?): Boolean {
+    private fun getCellValueAsDouble(cell: Cell?, defaultValue: Double = 0.0): Double {
+        return when (cell?.cellType) {
+            CellType.NUMERIC -> cell.numericCellValue
+            CellType.STRING -> normalizeNumberString(cell.stringCellValue).toDoubleOrNull() ?: defaultValue
+            else -> normalizeNumberString(getCellValueAsString(cell)).toDoubleOrNull() ?: defaultValue
+        }
+    }
+    
+    private fun getCellValueAsLong(cell: Cell?, defaultValue: Long = 0L): Long {
+        return when (cell?.cellType) {
+            CellType.NUMERIC -> cell.numericCellValue.toLong()
+            CellType.STRING -> normalizeNumberString(cell.stringCellValue).toLongOrNull() ?: defaultValue
+            CellType.BOOLEAN -> if (cell.booleanCellValue) 1L else 0L
+            else -> normalizeNumberString(getCellValueAsString(cell)).toLongOrNull() ?: defaultValue
+        }
+    }
+    
+    private fun getCellValueAsBoolean(cell: Cell?, defaultValue: Boolean = false): Boolean {
         return when (cell?.cellType) {
             CellType.BOOLEAN -> cell.booleanCellValue
-            CellType.STRING -> cell.stringCellValue.toBoolean()
+            CellType.STRING -> cell.stringCellValue.toBooleanStrictOrNull() ?: defaultValue
             CellType.NUMERIC -> cell.numericCellValue != 0.0
-            else -> false
+            else -> defaultValue
         }
+    }
+
+    private fun normalizeNumberString(value: String): String {
+        return value.replace(",", "").trim()
     }
     
     private fun parseDateString(dateString: String): java.sql.Timestamp {
@@ -1279,310 +1416,86 @@ class ExcelImporter(
      */
     suspend fun validateExcelStructure(inputFile: File): Result<Unit> {
         return try {
-            val workbook = XSSFWorkbook(FileInputStream(inputFile))
-
-            val expectedHeaders = mapOf(
-                "UsersEntity" to listOf(
-                    "id",
-                    "name",
-                    "email",
-                    "mobileNo",
-                    "token",
-                    "pin",
-                    "role"
-                ),
-                "UserAdditionalInfoEntity" to listOf(
-                    "userId",
-                    "aadhaarNumber",
-                    "address",
-                    "emergencyContactPerson",
-                    "emergencyContactNumber",
-                    "governmentIdNumber",
-                    "governmentIdType",
-                    "dateOfBirth",
-                    "bloodGroup",
-                    "isActive",
-                    "createdAt",
-                    "updatedAt"
-                ),
-                "StoreEntity" to listOf(
-                    "storeId",
-                    "userId",
-                    "proprietor",
-                    "name",
-                    "email",
-                    "phone",
-                    "address",
-                    "registrationNo",
-                    "gstinNo",
-                    "panNo",
-                    "image",
-                    "invoiceNo",
-                    "upiId"
-                ),
-                "CategoryEntity" to listOf(
-                    "catId",
-                    "catName",
-                    "gsWt",
-                    "fnWt",
-                    "userId",
-                    "storeId"
-                ),
-                "SubCategoryEntity" to listOf(
-                    "subCatId",
-                    "catId",
-                    "userId",
-                    "storeId",
-                    "catName",
-                    "subCatName",
-                    "quantity",
-                    "gsWt",
-                    "fnWt"
-                ),
-                "ItemEntity" to listOf(
-                    "itemId",
-                    "itemAddName",
-                    "catId",
-                    "userId",
-                    "storeId",
-                    "catName",
-                    "subCatId",
-                    "subCatName",
-                    "entryType",
-                    "quantity",
-                    "gsWt",
-                    "ntWt",
-                    "fnWt",
-                    "purity",
-                    "crgType",
-                    "crg",
-                    "othCrgDes",
-                    "othCrg",
-                    "cgst",
-                    "sgst",
-                    "igst",
-                    "huid",
-                    "unit",
-                    "addDesKey",
-                    "addDesValue",
-                    "addDate",
-                    "modifiedDate",
-                    "sellerFirmId",
-                    "purchaseOrderId",
-                    "purchaseItemId"
-                ),
-                "CustomerEntity" to listOf(
-                    "mobileNo",
-                    "name",
-                    "address",
-                    "gstin_pan",
-                    "addDate",
-                    "lastModifiedDate",
-                    "totalItemBought",
-                    "totalAmount",
-                    "notes",
-                    "userId",
-                    "storeId"
-                ),
-                "CustomerKhataBookPlanEntity" to listOf(
-                    "planId",
-                    "name",
-                    "payMonths",
-                    "benefitMonths",
-                    "description",
-                    "benefitPercentage",
-                    "userId",
-                    "storeId",
-                    "createdAt",
-                    "updatedAt"
-                ),
-                "CustomerKhataBookEntity" to listOf(
-                    "khataBookId",
-                    "customerMobile",
-                    "planName",
-                    "startDate",
-                    "endDate",
-                    "monthlyAmount",
-                    "totalMonths",
-                    "totalAmount",
-                    "status",
-                    "notes",
-                    "userId",
-                    "storeId"
-                ),
-                "CustomerTransactionEntity" to listOf(
-                    "transactionId",
-                    "customerMobile",
-                    "transactionDate",
-                    "amount",
-                    "transactionType",
-                    "category",
-                    "description",
-                    "referenceNumber",
-                    "paymentMethod",
-                    "khataBookId",
-                    "monthNumber",
-                    "notes",
-                    "userId",
-                    "storeId"
-                ),
-                "OrderEntity" to listOf(
-                    "orderId",
-                    "customerMobile",
-                    "storeId",
-                    "userId",
-                    "orderDate",
-                    "totalAmount",
-                    "totalTax",
-                    "totalCharge",
-                    "discount",
-                    "note"
-                ),
-                "OrderItemEntity" to listOf(
-                    "orderItemId",
-                    "orderId",
-                    "orderDate",
-                    "itemId",
-                    "customerMobile",
-                    "catId",
-                    "catName",
-                    "itemAddName",
-                    "subCatId",
-                    "subCatName",
-                    "entryType",
-                    "quantity",
-                    "gsWt",
-                    "ntWt",
-                    "fnWt",
-                    "fnMetalPrice",
-                    "purity",
-                    "crgType",
-                    "crg",
-                    "othCrgDes",
-                    "othCrg",
-                    "cgst",
-                    "sgst",
-                    "igst",
-                    "huid",
-                    "addDesKey",
-                    "addDesValue",
-                    "price",
-                    "charge",
-                    "tax",
-                    "sellerFirmId",
-                    "purchaseOrderId",
-                    "purchaseItemId"
-                ),
-                "ExchangeItemEntity" to listOf(
-                    "exchangeItemId",
-                    "orderId",
-                    "orderDate",
-                    "customerMobile",
-                    "metalType",
-                    "purity",
-                    "grossWeight",
-                    "fineWeight",
-                    "price",
-                    "isExchangedByMetal",
-                    "exchangeValue",
-                    "addDate"
-                ),
-                "FirmEntity" to listOf(
-                    "firmId",
-                    "firmName",
-                    "firmMobileNumber",
-                    "gstNumber",
-                    "address"
-                ),
-                "PurchaseOrderEntity" to listOf(
-                    "purchaseOrderId",
-                    "sellerId",
-                    "billNo",
-                    "billDate",
-                    "entryDate",
-                    "extraChargeDescription",
-                    "extraCharge",
-                    "totalFinalWeight",
-                    "totalFinalAmount",
-                    "notes",
-                    "cgstPercent",
-                    "sgstPercent",
-                    "igstPercent"
-                ),
-                "PurchaseOrderItemEntity" to listOf(
-                    "purchaseItemId",
-                    "purchaseOrderId",
-                    "catId",
-                    "catName",
-                    "subCatId",
-                    "subCatName",
-                    "gsWt",
-                    "purity",
-                    "ntWt",
-                    "fnWt",
-                    "fnRate",
-                    "wastagePercent"
-                ),
-                "MetalExchangeEntity" to listOf(
-                    "exchangeId",
-                    "purchaseOrderId",
-                    "catId",
-                    "catName",
-                    "subCatId",
-                    "subCatName",
-                    "fnWeight"
-                )
-            )
-
+            logJvSync("Excel validation started for ${inputFile.name}")
             val errors = mutableListOf<String>()
-            val requiredSheets = expectedHeaders.keys
-
-            val existingSheets = mutableListOf<String>()
-            for (i in 0 until workbook.numberOfSheets) {
-                existingSheets.add(workbook.getSheetName(i))
-            }
-
-            val missingSheets = requiredSheets.filter { !existingSheets.contains(it) }
-            if (missingSheets.isNotEmpty()) {
-                errors.add("Missing sheets: ${missingSheets.joinToString(", ")}")
-            }
-
-            for ((sheetName, headers) in expectedHeaders) {
-                val sheet = workbook.getSheet(sheetName) ?: continue
-                if (sheet.lastRowNum < 0) {
-                    errors.add("Sheet '$sheetName' is empty or corrupted")
-                    continue
-                }
-
-                val headerRow = sheet.getRow(0)
-                if (headerRow == null) {
-                    errors.add("Sheet '$sheetName' is missing the header row")
-                    continue
-                }
-
-                val actualHeaders = headers.indices.map { index ->
-                    getCellValueAsString(headerRow.getCell(index)).trim()
-                }
-                val mismatchedHeaders = headers.filterIndexed { index, expected ->
-                    actualHeaders.getOrNull(index)?.equals(expected, ignoreCase = true) != true
-                }
-                if (mismatchedHeaders.isNotEmpty()) {
-                    errors.add(
-                        "Sheet '$sheetName' missing or mismatched columns: ${mismatchedHeaders.joinToString(", ")}"
+            FileInputStream(inputFile).use { inputStream ->
+                XSSFWorkbook(inputStream).use { workbook ->
+                    val metadata = readSchemaMetadata(workbook)
+                    val requiredHeaders = determineRequiredHeaders(metadata)
+                    val latestHeaders = ExcelSchema.requiredHeadersByVersion[ExcelSchema.CURRENT_SCHEMA_VERSION] ?: emptyMap()
+                    val optionalHeaders = mapOf(
+                        "UsersEntity" to listOf("lastUpdated"),
+                        "StoreEntity" to listOf("lastUpdated")
                     )
+
+                    val existingSheets = mutableListOf<String>()
+                    for (i in 0 until workbook.numberOfSheets) {
+                        existingSheets.add(workbook.getSheetName(i))
+                    }
+
+                    val missingSheets = requiredHeaders.keys.filter { !existingSheets.contains(it) }
+                    if (missingSheets.isNotEmpty()) {
+                        logJvSync("Missing sheets (allowed for backward compatibility): ${missingSheets.joinToString(", ")}")
+                    }
+
+                    for ((sheetName, headers) in requiredHeaders) {
+                        val sheet = workbook.getSheet(sheetName) ?: continue
+                        if (sheet.lastRowNum < 0) {
+                            errors.add("Sheet '$sheetName' is empty or corrupted")
+                            continue
+                        }
+
+                        val headerRow = sheet.getRow(0)
+                        if (headerRow == null) {
+                            errors.add("Sheet '$sheetName' is missing the header row")
+                            continue
+                        }
+
+                        val headerMap = buildHeaderMap(sheet)
+                        val missingRequired = headers.filter { header ->
+                            !headerMap.containsKey(header.lowercase(Locale.US))
+                        }
+                        if (missingRequired.isNotEmpty()) {
+                            val message = "Sheet '$sheetName' missing required columns: ${missingRequired.joinToString(", ")}"
+                            if (metadata.schemaVersion < ExcelSchema.CURRENT_SCHEMA_VERSION) {
+                                logJvSync("$message (schema v${metadata.schemaVersion})")
+                            } else {
+                                errors.add(message)
+                            }
+                        }
+
+                        val optional = optionalHeaders[sheetName] ?: emptyList()
+                        val missingOptional = optional.filter { header ->
+                            !headerMap.containsKey(header.lowercase(Locale.US))
+                        }
+                        if (missingOptional.isNotEmpty()) {
+                            logJvSync("Sheet '$sheetName' missing optional columns: ${missingOptional.joinToString(", ")}")
+                        }
+
+                        val latest = latestHeaders[sheetName] ?: emptyList()
+                        if (metadata.schemaVersion < ExcelSchema.CURRENT_SCHEMA_VERSION) {
+                            val recorded = metadata.headers[sheetName]?.map { it.trim().lowercase(Locale.US) } ?: emptyList()
+                            val missingNewColumns = latest.filter { header ->
+                                header.lowercase(Locale.US) !in recorded
+                            }
+                            if (missingNewColumns.isNotEmpty()) {
+                                logJvSync("Sheet '$sheetName' missing new schema columns (${missingNewColumns.joinToString(", ")}) for schema v${metadata.schemaVersion}")
+                            }
+                        }
+                    }
                 }
             }
-
-            workbook.close()
 
             if (errors.isNotEmpty()) {
                 return Result.failure(Exception(errors.joinToString("\n")))
             }
 
+            logJvSync("Excel validation succeeded for ${inputFile.name}")
             Result.success(Unit)
 
         } catch (e: Exception) {
             log("Excel structure validation failed: ${e.message}")
+            logJvSync("Excel validation failed for ${inputFile.name}: ${e.message}")
             Result.failure(e)
         }
     }
@@ -1650,10 +1563,11 @@ data class ImportSummary(
     var exchangeItemsFailed: Int = 0,
     var userAdditionalInfoAdded: Int = 0,
     var userAdditionalInfoSkipped: Int = 0,
-    var userAdditionalInfoFailed: Int = 0
+    var userAdditionalInfoFailed: Int = 0,
+    var missingSheets: MutableList<String> = mutableListOf()
 ) {
     override fun toString(): String {
-        return "Import Summary: " +
+        return ("Import Summary: " +
                 "Users($usersAdded added, $usersSkipped skipped, $usersFailed failed), " +
                 "Stores($storesAdded added, $storesSkipped skipped, $storesFailed failed), " +
                 "Categories($categoriesAdded added, $categoriesSkipped skipped, $categoriesFailed failed), " +
@@ -1670,6 +1584,7 @@ data class ImportSummary(
                 "KhataBooks($khataBooksAdded added, $khataBooksSkipped skipped, $khataBooksFailed failed), " +
                 "Transactions($transactionsAdded added, $transactionsSkipped skipped, $transactionsFailed failed), " +
                 "ExchangeItems($exchangeItemsAdded added, $exchangeItemsSkipped skipped, $exchangeItemsFailed failed), " +
-                "UserAdditionalInfo($userAdditionalInfoAdded added, $userAdditionalInfoSkipped skipped, $userAdditionalInfoFailed failed)"
+                "UserAdditionalInfo($userAdditionalInfoAdded added, $userAdditionalInfoSkipped skipped, $userAdditionalInfoFailed failed)") +
+                if (missingSheets.isNotEmpty()) " MissingSheets(${missingSheets.joinToString(", ")})" else ""
     }
 }

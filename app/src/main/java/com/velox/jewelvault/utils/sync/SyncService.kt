@@ -17,6 +17,7 @@ import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.ui.theme.primaryLight
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.delay
@@ -98,6 +99,7 @@ class SyncService : Service() {
             val intent = Intent(context, SyncService::class.java).apply {
                 action = ACTION_BACKUP
             }
+            logJvSync("SyncService startBackup requested")
             context.startForegroundService(intent)
         }
 
@@ -105,6 +107,7 @@ class SyncService : Service() {
             val intent = Intent(context, SyncService::class.java).apply {
                 action = ACTION_START_MONITOR
             }
+            logJvSync("SyncService startMonitoring requested")
             context.startForegroundService(intent)
         }
 
@@ -112,6 +115,7 @@ class SyncService : Service() {
             val intent = Intent(context, SyncService::class.java).apply {
                 action = ACTION_STOP_MONITOR
             }
+            logJvSync("SyncService stopMonitoring requested")
             context.startService(intent)
         }
         
@@ -132,6 +136,7 @@ class SyncService : Service() {
             restoreMode: RestoreMode = RestoreMode.MERGE
         ) {
             log("SyncService: startRestoreWithSource called for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+            logJvSync("SyncService startRestoreWithSource requested for $userMobile via $restoreSource")
             val intent = Intent(context, SyncService::class.java).apply {
                 action = "START_RESTORE_WITH_SOURCE"
                 putExtra("userMobile", userMobile)
@@ -155,10 +160,12 @@ class SyncService : Service() {
         }
         when (intent.action) {
             ACTION_BACKUP -> {
+                logJvSync("SyncService received ACTION_BACKUP")
                 ensureForeground()
                 performBackup()
             }
             ACTION_RESTORE -> {
+                logJvSync("SyncService received ACTION_RESTORE")
                 val userMobile = intent.getStringExtra("userMobile") ?: ""
                 val restoreModeStr = intent.getStringExtra("restoreMode") ?: RestoreMode.MERGE.name
                 val restoreMode = RestoreMode.valueOf(restoreModeStr)
@@ -166,6 +173,7 @@ class SyncService : Service() {
                 performRestore(userMobile, restoreMode)
             }
             "START_RESTORE_WITH_SOURCE" -> {
+                logJvSync("SyncService received START_RESTORE_WITH_SOURCE")
                 val userMobile = intent.getStringExtra("userMobile") ?: ""
                 val restoreSourceStr = intent.getStringExtra("restoreSource") ?: RestoreSource.FIREBASE.name
                 val restoreSource = RestoreSource.valueOf(restoreSourceStr)
@@ -178,12 +186,15 @@ class SyncService : Service() {
                 performRestoreWithSource(userMobile, restoreSource, localFileUri, restoreMode)
             }
             ACTION_START_MONITOR -> {
+                logJvSync("SyncService received ACTION_START_MONITOR")
                 startMonitoringInternal()
             }
             ACTION_STOP_MONITOR -> {
+                logJvSync("SyncService received ACTION_STOP_MONITOR")
                 stopMonitoringInternal()
             }
             ACTION_REFRESH_METAL_RATES -> {
+                logJvSync("SyncService received ACTION_REFRESH_METAL_RATES")
                 serviceScope.launch {
                     refreshMetalRates()
                     updateMonitorNotification()
@@ -208,6 +219,7 @@ class SyncService : Service() {
     
     private fun performBackup() {
         log("SyncService: performBackup started")
+        logJvSync("SyncService performBackup initiated")
         if (syncInProgress) {
             log("SyncService: performBackup skipped - sync already in progress")
             return
@@ -232,6 +244,7 @@ class SyncService : Service() {
                             log("SyncService: Error sending completion update: ${e.message}")
                         }
                     }
+                    logJvSync("SyncService performBackup succeeded")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     showCompletionNotification("Sync failed: $error", false)
@@ -244,10 +257,12 @@ class SyncService : Service() {
                             log("SyncService: Error sending completion update: ${e.message}")
                         }
                     }
+                    logJvSync("SyncService performBackup reported failure: $error")
                 }
                 
             } catch (e: Exception) {
                 log("Backup service error: ${e.message}")
+                logJvSync("SyncService performBackup exception: ${e.message}")
                 showCompletionNotification("Sync failed: ${e.message}", false)
                     sendBroadcast(Intent("com.velox.jewelvault.BACKUP_COMPLETED").apply {
                         putExtra("success", false)
@@ -255,6 +270,7 @@ class SyncService : Service() {
                     })
             } finally {
                 log("SyncService: performBackup finished")
+                logJvSync("SyncService performBackup finished")
                 // Add a delay to ensure completion notification is visible
                 delay(2000) // 2 seconds delay
                 clearSyncProgress()
@@ -269,6 +285,7 @@ class SyncService : Service() {
     
     private fun performRestore(userMobile: String, restoreMode: RestoreMode) {
         log("SyncService: performRestore started for user: $userMobile with mode: $restoreMode")
+        logJvSync("SyncService performRestore initiated for $userMobile (mode=$restoreMode)")
         if (syncInProgress) {
             log("SyncService: performRestore skipped - sync already in progress")
             return
@@ -294,6 +311,7 @@ class SyncService : Service() {
                         putExtra("summary", summary.toString())
                         putExtra("restoreMode", restoreMode.name)
                     })
+                    logJvSync("SyncService performRestore succeeded for $userMobile")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     showCompletionNotification("Restore failed: $error", false)
@@ -301,10 +319,12 @@ class SyncService : Service() {
                         putExtra("success", false)
                         putExtra("message", "Restore failed: $error")
                     })
+                    logJvSync("SyncService performRestore reported failure for $userMobile: $error")
                 }
                 
             } catch (e: Exception) {
                 log("Restore service error: ${e.message}")
+                logJvSync("SyncService performRestore exception: ${e.message}")
                 showCompletionNotification("Restore failed: ${e.message}", false)
                     sendBroadcast(Intent("com.velox.jewelvault.RESTORE_COMPLETED").apply {
                         putExtra("success", false)
@@ -320,6 +340,7 @@ class SyncService : Service() {
                 } else {
                     updateMonitorNotification()
                 }
+                logJvSync("SyncService performRestore finished for $userMobile")
             }
         }
     }
@@ -334,6 +355,7 @@ class SyncService : Service() {
         restoreMode: RestoreMode
     ) {
         log("SyncService: performRestoreWithSource started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+        logJvSync("SyncService performRestoreWithSource initiated for $userMobile via $restoreSource (mode=$restoreMode)")
         if (syncInProgress) {
             log("SyncService: performRestoreWithSource skipped - sync already in progress")
             return
@@ -376,6 +398,7 @@ class SyncService : Service() {
                         putExtra("restoreMode", restoreMode.name)
                         putExtra("restoreSource", restoreSource.name)
                     })
+                    logJvSync("SyncService performRestoreWithSource succeeded for $userMobile via $restoreSource")
                 } else {
                     val error = result.exceptionOrNull()?.message ?: "Unknown error"
                     showCompletionNotification("Restore failed: $error", false)
@@ -395,10 +418,12 @@ class SyncService : Service() {
                         putExtra("message", "Restore failed: $error")
                         putExtra("restoreSource", restoreSource.name)
                     })
+                    logJvSync("SyncService performRestoreWithSource reported failure for $userMobile via $restoreSource: $error")
                 }
                 
             } catch (e: Exception) {
                 log("Restore service error: ${e.message}")
+                logJvSync("SyncService performRestoreWithSource exception for $userMobile: ${e.message}")
                 showCompletionNotification("Restore failed: ${e.message}", false)
                 
                 // Send completion update via SharedFlow (same as sync)
@@ -426,11 +451,13 @@ class SyncService : Service() {
                 } else {
                     updateMonitorNotification()
                 }
+                logJvSync("SyncService performRestoreWithSource finished for $userMobile via $restoreSource")
             }
         }
     }
     
     private fun createNotificationChannel() {
+        logJvSync("SyncService: Creating notification channel: $CHANNEL_ID (API ${Build.VERSION.SDK_INT})")
         log("SyncService: Creating notification channel: $CHANNEL_ID")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -445,13 +472,16 @@ class SyncService : Service() {
             val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
             log("SyncService: Notification channel created successfully")
+            logJvSync("SyncService: Notification channel created ($CHANNEL_ID)")
         } else {
             log("SyncService: Notification channel not needed for API level < 26")
+            logJvSync("SyncService: Notification channel creation skipped for API level < 26")
         }
     }
     
     private fun createNotification(message: String, progress: Int): Notification {
         log("SyncService: Creating notification with message: '$message', progress: $progress")
+        logJvSync("SyncService: Building notification (progress=$progress) with message: $message")
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
@@ -474,6 +504,7 @@ class SyncService : Service() {
             }
         
         log("SyncService: Notification created successfully")
+        logJvSync("SyncService: Notification built successfully (progress=$progress)")
         return notification
     }
 
@@ -488,6 +519,7 @@ class SyncService : Service() {
     
     private fun updateNotification(message: String, progress: Int) {
         log("SyncService: Updating notification with message: '$message', progress: $progress")
+        logJvSync("SyncService: Updating notification (progress=$progress) - $message")
         setSyncProgress(message, progress)
         val notification = if (monitorActive) {
             buildMonitorNotification()
@@ -497,6 +529,7 @@ class SyncService : Service() {
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
         log("SyncService: Notification updated successfully")
+        logJvSync("SyncService: Notification update sent (progress=$progress)")
         
         // Send progress update via SharedFlow
         CoroutineScope(Dispatchers.Main).launch {
@@ -511,6 +544,7 @@ class SyncService : Service() {
     
     private fun updateRestoreNotification(message: String, progress: Int) {
         log("SyncService: Updating restore notification with message: '$message', progress: $progress")
+        logJvSync("SyncService: Updating restore notification (progress=$progress) - $message")
         setSyncProgress(message, progress)
         val notification = if (monitorActive) {
             buildMonitorNotification()
@@ -520,6 +554,7 @@ class SyncService : Service() {
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
         log("SyncService: Restore notification updated successfully")
+        logJvSync("SyncService: Restore notification update applied (progress=$progress)")
         
         // Send progress update via SharedFlow (same as sync)
         CoroutineScope(Dispatchers.Main).launch {
@@ -537,12 +572,14 @@ class SyncService : Service() {
             putExtra("progress", progress)
         }
         log("SyncService: Sending RESTORE_PROGRESS broadcast - message: '$message', progress: $progress")
+        logJvSync("SyncService: RESTORE_PROGRESS broadcast triggered (progress=$progress)")
         sendBroadcast(broadcastIntent)
         log("SyncService: RESTORE_PROGRESS broadcast sent successfully")
     }
     
     private fun showCompletionNotification(message: String, isSuccess: Boolean) {
         log("SyncService: Showing completion notification - success: $isSuccess, message: '$message'")
+        logJvSync("SyncService: Completion notification shown (success=$isSuccess)")
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,
@@ -569,6 +606,7 @@ class SyncService : Service() {
     }
 
     private fun startMonitoringInternal() {
+        logJvSync("SyncService: startMonitoringInternal called")
         if (monitorActive) {
             updateMonitorNotification()
             return
@@ -580,6 +618,7 @@ class SyncService : Service() {
     }
 
     private fun stopMonitoringInternal() {
+        logJvSync("SyncService: stopMonitoringInternal called")
         monitorActive = false
         monitorJob?.cancel()
         metalRatesJob?.cancel()
@@ -590,6 +629,7 @@ class SyncService : Service() {
     }
 
     private fun startMonitorJobs() {
+        logJvSync("SyncService: startMonitorJobs hooking background observers")
         if (monitorJob?.isActive == true) return
         monitorJob = serviceScope.launch {
             loadCachedSyncInfo()
@@ -633,6 +673,7 @@ class SyncService : Service() {
                         val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
                         val adminMobile = dataStoreManager.getAdminInfo().third.first()
                         if (storeId.isNotBlank() && adminMobile.isNotBlank()) {
+                            logJvSync("SyncService: Auto sync triggered for store $storeId")
                             performBackup()
                         }
                     }
@@ -642,6 +683,7 @@ class SyncService : Service() {
     }
 
     private suspend fun refreshMetalRates() {
+        logJvSync("SyncService: refreshMetalRates called")
         try {
             val loading = mutableStateOf(false)
             val rates = metalRates(loading, applicationContext, dataStoreManager, metalRatesRepository)
@@ -658,14 +700,17 @@ class SyncService : Service() {
             gold24kRate = gold ?: goldFallback ?: 0.0
             silverKgRate = silver ?: silverFallback ?: 0.0
             updateMonitorNotification()
+            logJvSync("SyncService: Metal rates refreshed (gold=$gold24kRate silver=$silverKgRate)")
         } catch (_: Exception) {
             gold24kRate = dataStoreManager.getValue(DataStoreManager.METAL_GOLD_24K).first() ?: 0.0
             silverKgRate = dataStoreManager.getValue(DataStoreManager.METAL_SILVER_KG).first() ?: 0.0
             updateMonitorNotification()
+            logJvSync("SyncService: Metal rate refresh fallback used (gold=$gold24kRate silver=$silverKgRate)")
         }
     }
 
     private suspend fun refreshActiveDeviceInfo() {
+        logJvSync("SyncService: refreshActiveDeviceInfo started")
         try {
             val adminMobile = dataStoreManager.getAdminInfo().third.first()
             if (adminMobile.isBlank()) return
@@ -699,12 +744,15 @@ class SyncService : Service() {
                 dataStoreManager.setValue(DataStoreManager.ACTIVE_DEVICE_AT, 0L)
             }
             updateMonitorNotification()
+            logJvSync("SyncService: Active device info updated (label=$activeDeviceLabel at=${activeDeviceAt ?: "null"})")
         } catch (_: Exception) {
             // Keep last known values.
+            logJvSync("SyncService: refreshActiveDeviceInfo failed, keeping cached values")
         }
     }
 
     private fun updateMonitorNotification() {
+        logJvSync("SyncService: updateMonitorNotification called (monitorActive=$monitorActive)")
         if (!monitorActive) return
         val notification = buildMonitorNotification()
         NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, notification)
@@ -727,11 +775,11 @@ class SyncService : Service() {
         val gold = gold24kRate ?: 0.0
         val silver = silverKgRate ?: 0.0
         val lastSyncTime = formatTime(lastSyncAt)
-        val lastSyncDeviceLabel = lastSyncDevice ?: "Unknown"
-        val activeLabel = activeDeviceLabel ?: "None"
+        val lastSyncDeviceLabel = lastSyncDevice ?: "No Active Device"
+        val activeLabel = activeDeviceLabel ?: "No Active Device"
         val activeTime = formatTime(activeDeviceAt)
 
-        val line1 = "Gold: ₹${formatNumber(gold)} | Silver: ₹${formatNumber(silver)}"
+        val line1 = "Gold 24k, 1g: ₹${formatNumber(gold)} | Silver 1kg: ₹${formatNumber(silver)}"
         val line2 = "Last sync: $lastSyncTime | Device: $lastSyncDeviceLabel"
         val line3 = if (activeDeviceAt != null) {
             "Active on: $activeLabel at $activeTime"
@@ -772,6 +820,7 @@ class SyncService : Service() {
     }
 
     private suspend fun loadCachedSyncInfo() {
+        logJvSync("SyncService: loadCachedSyncInfo fetching previous sync metadata")
         lastSyncAt = dataStoreManager.getValue(DataStoreManager.LAST_SYNC_AT).first()
         lastSyncDevice = dataStoreManager.getValue(DataStoreManager.LAST_SYNC_DEVICE).first()
             ?.takeIf { it.isNotBlank() }
@@ -779,6 +828,7 @@ class SyncService : Service() {
             ?.takeIf { it.isNotBlank() }
         activeDeviceAt = dataStoreManager.getValue(DataStoreManager.ACTIVE_DEVICE_AT).first()
             ?.takeIf { it > 0L }
+        logJvSync("SyncService: Cached sync info loaded (lastSyncAt=$lastSyncAt device=$activeDeviceLabel)")
     }
 
     private fun setSyncProgress(message: String, progress: Int) {
@@ -809,6 +859,7 @@ class SyncService : Service() {
     }
 
     private suspend fun saveLastSyncInfo() {
+        logJvSync("SyncService: saveLastSyncInfo storing sync timestamp")
         val now = System.currentTimeMillis()
         val deviceLabel = buildDeviceLabel(Build.MANUFACTURER, Build.MODEL)
         dataStoreManager.setValue(DataStoreManager.LAST_SYNC_AT, now)
@@ -816,6 +867,7 @@ class SyncService : Service() {
         lastSyncAt = now
         lastSyncDevice = deviceLabel
         updateMonitorNotification()
+        logJvSync("SyncService: Last sync info updated (lastSyncAt=$lastSyncAt device=$lastSyncDevice)")
     }
 
     private fun buildDeviceLabel(manufacturer: String?, model: String?): String {

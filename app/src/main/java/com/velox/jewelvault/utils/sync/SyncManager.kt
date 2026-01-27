@@ -7,6 +7,7 @@ import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 import kotlinx.coroutines.flow.first
 import java.io.File
 import java.util.Date
@@ -62,6 +63,7 @@ class SyncManager(
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<String> {
         log("SyncManager: Sync process started (${if (useGoogleSheets) "Google Sheets" else "Excel"})")
+        logJvSync("performBackup initiated (useGoogleSheets=$useGoogleSheets)")
         return try {
             onProgress("Starting sync process...", 0)
             
@@ -84,6 +86,7 @@ class SyncManager(
                 onProgress("Google Sheets sync completed!", 100)
                 val sheetsUrl = sheetsResult.getOrNull() ?: ""
                 log("Google Sheets sync completed successfully: $sheetsUrl")
+                logJvSync("performBackup completed via Google Sheets: $sheetsUrl")
                 Result.success("Google Sheets sync completed! Access at: $sheetsUrl")
                 
             } else {
@@ -134,11 +137,13 @@ class SyncManager(
                 val downloadUrl = uploadResult.getOrNull() ?: ""
                 log("Sync completed successfully. Download URL: $downloadUrl")
                 log("SyncManager: Sync file saved to Downloads/JewelVault/Sync/ - User can find it in their Downloads folder")
+                logJvSync("performBackup completed via Excel: Upload URL $downloadUrl")
                 Result.success("Sync completed! File saved to Downloads/JewelVault/Sync/ and uploaded to cloud.")
             }
             
         } catch (e: Exception) {
             log("SyncManager: Sync process failed: ${e.message}")
+            logJvSync("performBackup failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -149,6 +154,7 @@ class SyncManager(
     suspend fun performLocalExport(
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<Uri> {
+        logJvSync("performLocalExport initiated")
         return try {
             onProgress("Starting local export...", 0)
             val userId = dataStoreManager.getAdminInfo().first.first()
@@ -170,9 +176,11 @@ class SyncManager(
             }
 
             onProgress("Export completed successfully!", 100)
+            logJvSync("performLocalExport succeeded: $exportUri")
             Result.success(exportUri)
         } catch (e: Exception) {
             log("SyncManager: Local export failed: ${e.message}")
+            logJvSync("performLocalExport failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -185,6 +193,7 @@ class SyncManager(
         restoreMode: RestoreMode = RestoreMode.MERGE,
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<RestoreResult> {
+        logJvSync("performLocalImport started for ${localFileUri.path ?: localFileUri}")
         return try {
             onProgress("Validating local file...", 10)
             val validationResult = validateExcelFile(localFileUri)
@@ -217,6 +226,7 @@ class SyncManager(
 
             onProgress("Import completed successfully!", 100)
             val summary = importResult.getOrNull()!!
+            logJvSync("performLocalImport succeeded for ${localFileUri.path ?: localFileUri}")
             Result.success(
                 RestoreResult(
                     success = true,
@@ -227,6 +237,7 @@ class SyncManager(
             )
         } catch (e: Exception) {
             log("SyncManager: Local import failed: ${e.message}")
+            logJvSync("performLocalImport failed: ${e.message}")
             Result.failure(e)
         }
     }
@@ -240,6 +251,7 @@ class SyncManager(
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<RestoreResult> {
         log("SyncManager: Restore process started for user: $userMobile with mode: $restoreMode")
+        logJvSync("performRestore initiated for $userMobile (mode=$restoreMode)")
         return try {
             onProgress("Starting restore process...", 0)
             
@@ -302,10 +314,12 @@ class SyncManager(
             )
             
             log("Restore completed successfully: $summary")
+            logJvSync("performRestore succeeded for $userMobile with summary: $summary")
             Result.success(result)
             
         } catch (e: Exception) {
             log("SyncManager: Restore process failed: ${e.message}")
+            logJvSync("performRestore failed for $userMobile: ${e.message}")
             Result.failure(e)
         }
     }
@@ -333,30 +347,125 @@ class SyncManager(
     }
     
     private fun createBackupFile(): Uri {
-        val fileName = FIXED_SYNC_FILE_NAME
+        val baseFileName = FIXED_SYNC_FILE_NAME
         
-        log("SyncManager: Creating sync file: $fileName")
-        
+        log("SyncManager: Creating sync file: $baseFileName")
+        logJvSync("SyncManager: createBackupFile generating base filename $baseFileName")
+
+        val resolver = context.contentResolver
+        val relativePath = Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Sync"
+
+        val existingUri = findExistingDownload(resolver, baseFileName, relativePath)
+        if (existingUri != null) {
+            logJvSync("SyncManager: Existing sync file detected at $existingUri; cleaning up before inserting new one")
+        }
+        purgeExistingDownloads(resolver, baseFileName, relativePath)
+        deleteLocalSyncFile(relativePath, baseFileName)
+
+        val uri = insertDownload(resolver, baseFileName, relativePath)
+            ?: run {
+                val fallbackName = "backup_${System.currentTimeMillis()}.xlsx"
+                insertDownload(resolver, fallbackName, relativePath)
+                    ?: throw Exception("Unable to create sync file in MediaStore")
+            }
+
+        log("SyncManager: Sync file created successfully at: $uri")
+        log("SyncManager: File will be saved to: Downloads/JewelVault/Sync/$baseFileName")
+        logJvSync("SyncManager: createBackupFile success (uri=$uri) for user/base $baseFileName")
+
+        return uri
+    }
+
+    private fun insertDownload(
+        resolver: android.content.ContentResolver,
+        fileName: String,
+        relativePath: String
+    ): Uri? {
+        logJvSync("SyncManager: insertDownload called for file $fileName at $relativePath")
         val contentValues = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, fileName)
             put(MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/JewelVault/Sync")
+            put(MediaStore.Downloads.RELATIVE_PATH, relativePath)
         }
-        
-        val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-            ?: throw Exception("Unable to create sync file in MediaStore")
-        
-        log("SyncManager: Sync file created successfully at: $uri")
-        log("SyncManager: File will be saved to: Downloads/JewelVault/Sync/$fileName")
-        
-        return uri
+        return try {
+            resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+        } catch (e: Exception) {
+            log("SyncManager: insertDownload failed: ${e.message}")
+            logJvSync("SyncManager: insertDownload exception for $fileName - ${e.message}")
+            null
+        }
+    }
+
+    private fun findExistingDownload(
+        resolver: android.content.ContentResolver,
+        fileName: String,
+        relativePath: String
+    ): Uri? {
+        logJvSync("SyncManager: findExistingDownload checking for $fileName under $relativePath")
+        val projection = arrayOf(MediaStore.MediaColumns._ID)
+        val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(fileName, "$relativePath/")
+        resolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                logJvSync("SyncManager: Existing download found with id $id for $fileName")
+                return Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
+            }
+        }
+        return null
+    }
+
+    private fun purgeExistingDownloads(
+        resolver: android.content.ContentResolver,
+        fileName: String,
+        relativePath: String
+    ) {
+        val projection = arrayOf(MediaStore.MediaColumns._ID)
+        val selection = "${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(fileName, "$relativePath/")
+        resolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                val existing = Uri.withAppendedPath(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id.toString())
+                resolver.delete(existing, null, null)
+                logJvSync("SyncManager: purgeExistingDownloads deleted $existing")
+            }
+        }
+    }
+
+    private fun deleteLocalSyncFile(relativePath: String, fileName: String) {
+        try {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val trimmed = relativePath.removePrefix("${Environment.DIRECTORY_DOWNLOADS}/")
+            val targetFolder = File(downloadsDir, trimmed)
+            if (targetFolder.exists()) {
+                val targetFile = File(targetFolder, fileName)
+                if (targetFile.exists() && targetFile.delete()) {
+                    logJvSync("SyncManager: deleteLocalSyncFile removed stale file ${targetFile.absolutePath}")
+                }
+            }
+        } catch (e: Exception) {
+            logJvSync("SyncManager: deleteLocalSyncFile failed - ${e.message}")
+        }
     }
 
     /**
      * Check if Firebase sync exists for user
      */
     suspend fun checkFirebaseBackupExists(userMobile: String): Result<Boolean> {
+        logJvSync("checkFirebaseBackupExists started for $userMobile")
         return try {
             val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
             if (storeId.isBlank()) {
@@ -365,12 +474,15 @@ class SyncManager(
             val backupList = firebaseBackupManager.getBackupList(userMobile, storeId)
             if (backupList.isSuccess) {
                 val backups = backupList.getOrNull() ?: emptyList()
+                logJvSync("checkFirebaseBackupExists result for $userMobile: ${backups.isNotEmpty()}")
                 Result.success(backups.isNotEmpty())
             } else {
+                logJvSync("checkFirebaseBackupExists failed to list backups for $userMobile")
                 Result.success(false)
             }
         } catch (e: Exception) {
             log("SyncManager: Error checking Firebase sync: ${e.message}")
+            logJvSync("checkFirebaseBackupExists exception for $userMobile: ${e.message}")
             Result.failure(e)
         }
     }
@@ -380,30 +492,29 @@ class SyncManager(
      */
     suspend fun validateExcelFile(fileUri: Uri): FileValidationResult {
         return try {
-            val inputStream = context.contentResolver.openInputStream(fileUri)
-            if (inputStream == null) {
-                return FileValidationResult(false, "Cannot open file. Please check file permissions.")
-            }
-
-            // Check file extension
             val fileName = getFileNameFromUri(fileUri)
+            logJvSync("SyncManager: validateExcelFile checking $fileName")
             if (!fileName.lowercase().endsWith(".xlsx")) {
                 return FileValidationResult(false, "Invalid file format. Please select an Excel (.xlsx) file.")
             }
 
-            // Create temporary file for validation
+            val inputStream = context.contentResolver.openInputStream(fileUri)
+                ?: return FileValidationResult(false, "Cannot open file. Please check file permissions.")
+
             val tempFile = File.createTempFile("validation", ".xlsx")
-            tempFile.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
+            inputStream.use { input ->
+                tempFile.outputStream().use { outputStream ->
+                    input.copyTo(outputStream)
+                }
             }
 
-            // Validate Excel structure
             val validationResult = excelImporter.validateExcelStructure(tempFile)
-            
             if (validationResult.isSuccess) {
+                logJvSync("SyncManager: validateExcelFile succeeded for $fileName")
                 FileValidationResult(true, "File is valid and ready for import.", tempFile)
             } else {
                 tempFile.delete()
+                logJvSync("SyncManager: validateExcelFile failed for $fileName – ${validationResult.exceptionOrNull()?.message}")
                 FileValidationResult(
                     false,
                     validationResult.exceptionOrNull()?.message ?: "Invalid Excel structure."
@@ -412,6 +523,7 @@ class SyncManager(
 
         } catch (e: Exception) {
             log("SyncManager: File validation failed: ${e.message}")
+            logJvSync("SyncManager: validateExcelFile exception for ${fileUri.path ?: fileUri} – ${e.message}")
             FileValidationResult(false, "File validation failed: ${e.message}")
         }
     }
@@ -455,6 +567,7 @@ class SyncManager(
         onProgress: (String, Int) -> Unit = { _, _ -> }
     ): Result<RestoreResult> {
         log("SyncManager: Restore process started for user: $userMobile with source: $restoreSource, mode: $restoreMode")
+        logJvSync("performRestoreWithSource initiated for $userMobile via $restoreSource (mode=$restoreMode)")
         return try {
             onProgress("Starting restore process...", 0)
             
@@ -544,10 +657,12 @@ class SyncManager(
             )
             
             log("Restore completed successfully: $summary")
+            logJvSync("performRestoreWithSource succeeded for $userMobile via $restoreSource: $summary")
             Result.success(result)
             
         } catch (e: Exception) {
             log("SyncManager: Restore process failed: ${e.message}")
+            logJvSync("performRestoreWithSource failed for $userMobile: ${e.message}")
             Result.failure(e)
         }
     }

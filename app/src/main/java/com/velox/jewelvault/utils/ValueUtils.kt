@@ -97,10 +97,18 @@ fun LocalDateTime.toCustomFormatDate(): String {
 inline fun <reified T> T.log(message: String) {
     val tag = T::class.java.simpleName
     Log.d(tag, message)
+    AppLogger.log(tag, message)
 }
 
 fun log(message: String, tag: String = "Log") {
     Log.d(tag, message)
+    AppLogger.log(tag, message)
+}
+
+const val JVSYNC_LOG_TAG = "JVSYNC"
+
+fun logJvSync(message: String) {
+    log("$JVSYNC_LOG_TAG | $message", tag = JVSYNC_LOG_TAG)
 }
 
 fun Double.roundTo3Decimal(): Double {
