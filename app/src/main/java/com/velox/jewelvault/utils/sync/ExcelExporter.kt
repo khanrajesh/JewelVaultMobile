@@ -317,7 +317,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${items.size} items to export")
         
         val headers = listOf(
-            "itemId", "itemAddName", "catId", "userId", "storeId", "catName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "unit", "addDesKey", "addDesValue", "addDate", "modifiedDate", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
+            "itemId", "itemAddName", "catId", "userId", "storeId", "catName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "purity", "crgType", "crg", "othCompDes", "othCompCrg", "cgst", "sgst", "igst", "huid", "unit", "addDesKey", "addDesValue", "addDate", "modifiedDate", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
         recordSheetHeaders("ItemEntity", headers)
         val headerRow = sheet.createRow(0)
@@ -541,7 +541,7 @@ class ExcelExporter(private val context: Context) {
         log("  → Found ${orderItems.size} order items to export")
         
         val headers = listOf(
-            "orderItemId", "orderId", "orderDate", "itemId", "customerMobile", "catId", "catName", "itemAddName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "fnMetalPrice", "purity", "crgType", "crg", "othCrgDes", "othCrg", "cgst", "sgst", "igst", "huid", "addDesKey", "addDesValue", "price", "charge", "tax", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
+            "orderItemId", "orderId", "orderDate", "itemId", "customerMobile", "catId", "catName", "itemAddName", "subCatId", "subCatName", "entryType", "quantity", "gsWt", "ntWt", "fnWt", "fnMetalPrice", "purity", "crgType", "crg", "othCompDes", "othCompCrg", "cgst", "sgst", "igst", "huid", "addDesKey", "addDesValue", "price", "charge", "taxPercentage", "sellerFirmId", "purchaseOrderId", "purchaseItemId"
         )
         recordSheetHeaders("OrderItemEntity", headers)
         val headerRow = sheet.createRow(0)

@@ -25,9 +25,9 @@ data class ImportedItemRow(
     var mcChr: Double?, // Required field - will be validated as non-null
     var othChr: String?,
     var chr: Double?,
-    var cgst: Double?, // At least one tax field required
-    var sgst: Double?, // At least one tax field required
-    var igst: Double?, // At least one tax field required
+    var cgst: Double?, // At least one taxPercentage field required
+    var sgst: Double?, // At least one taxPercentage field required
+    var igst: Double?, // At least one taxPercentage field required
     var huid: String?,
     var addDate: String?,
     var addDesKey: String?,
