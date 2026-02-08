@@ -21,6 +21,7 @@ data class QrItemPayload(
 )
 
 private const val QR_PAYLOAD_PREFIX = ""
+private const val QR_PAYLOAD_PREFIX_V1 = "JV1|"
 
 /**
  * Serialize to versioned CSV. Empty/unknown values become blank segments to keep positions stable.
@@ -50,17 +51,20 @@ fun QrItemPayload.toCsvString(): String {
  * Attempt to parse a QR payload. Returns null for unknown formats or validation failures.
  */
 fun parseQrItemPayload(raw: String): QrItemPayload? {
-    if (!raw.startsWith(QR_PAYLOAD_PREFIX)) return null
-    val body = raw.removePrefix(QR_PAYLOAD_PREFIX)
+    val body = when {
+        raw.startsWith(QR_PAYLOAD_PREFIX_V1) -> raw.removePrefix(QR_PAYLOAD_PREFIX_V1)
+        raw.startsWith(QR_PAYLOAD_PREFIX) -> raw.removePrefix(QR_PAYLOAD_PREFIX)
+        else -> raw
+    }
     val tokens = body.split(',')
-    if (tokens.size < 9) return null // mandatory positions missing
+    if (tokens.isEmpty()) return null
 
     fun parseDouble(token: String): Double? =
         token.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
 
     return try {
         QrItemPayload(
-            id = tokens[0].trim(),
+            id = tokens.getOrNull(0)?.trim().orEmpty(),
             catName = tokens.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() },
             subCatName = tokens.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() },
             gs = parseDouble(tokens.getOrNull(3) ?: ""),

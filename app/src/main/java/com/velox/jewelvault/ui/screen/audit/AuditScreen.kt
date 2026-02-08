@@ -21,6 +21,7 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.baseBackground1
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.parseQrItemPayload
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -398,7 +399,9 @@ private fun EmbeddedCameraView(
 
                                     // Process the first detected barcode
                                     barcodeResults.firstOrNull()?.let { result ->
-                                        onCodeScanned(result.second)
+                                        val rawValue = result.second.trim()
+                                        val normalizedId = parseQrItemPayload(rawValue)?.id ?: rawValue
+                                        onCodeScanned(normalizedId)
                                     }
                                 }
                                 .addOnCompleteListener {

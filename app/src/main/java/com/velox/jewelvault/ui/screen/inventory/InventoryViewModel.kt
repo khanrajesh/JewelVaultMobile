@@ -15,6 +15,9 @@ import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderEntity
 import com.velox.jewelvault.data.roomdb.entity.purchase.PurchaseOrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.utils.InputValidator
+import com.velox.jewelvault.utils.ChargeType
+import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.generateId
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
@@ -46,6 +49,31 @@ data class InventorySummary(
     val totalCategories: Int = 0,
     val totalSubCategories: Int = 0,
     val recentItemsAdded: Int = 0
+)
+
+enum class ScanRowStatus { READY, WARNING, ERROR }
+
+data class ScannedQrItemDraft(
+    val id: InputFieldState,
+    val name: InputFieldState,
+    val catName: InputFieldState,
+    val subCatName: InputFieldState,
+    val entryType: InputFieldState,
+    val quantity: InputFieldState,
+    val gs: InputFieldState,
+    val nt: InputFieldState,
+    val fn: InputFieldState,
+    val purity: InputFieldState,
+    val mcType: InputFieldState,
+    val mc: InputFieldState,
+    val warnings: MutableState<List<String>> = mutableStateOf(emptyList()),
+    val errors: MutableState<List<String>> = mutableStateOf(emptyList()),
+    val status: MutableState<ScanRowStatus> = mutableStateOf(ScanRowStatus.WARNING),
+    val duplicateInDb: MutableState<Boolean> = mutableStateOf(false),
+    val duplicateInList: MutableState<Boolean> = mutableStateOf(false),
+    val lastCheckedId: MutableState<String?> = mutableStateOf(null),
+    val mappedCatId: MutableState<String?> = mutableStateOf(null),
+    val mappedSubCatId: MutableState<String?> = mutableStateOf(null),
 )
 
 @HiltViewModel
@@ -81,6 +109,9 @@ class InventoryViewModel @Inject constructor(
 
     // Inventory summary statistics
     val inventorySummary = mutableStateOf(InventorySummary())
+
+    // Scan & Add drafts
+    val scannedItems: SnapshotStateList<ScannedQrItemDraft> = mutableStateListOf()
 
     // Filter states
     val addToName = InputFieldState()
@@ -816,6 +847,319 @@ class InventoryViewModel @Inject constructor(
             purity.text = payload.purity ?: purity.text
             chargeType.text = payload.mcType ?: chargeType.text
             charge.text = payload.mc?.to3FString() ?: charge.text
+        }
+    }
+
+    fun addScannedItemFromQr(payload: com.velox.jewelvault.utils.QrItemPayload) {
+        val draft = ScannedQrItemDraft(
+            id = InputFieldState(payload.id),
+            name = InputFieldState(payload.id),
+            catName = InputFieldState(payload.catName ?: ""),
+            subCatName = InputFieldState(payload.subCatName ?: ""),
+            entryType = InputFieldState(EntryType.Piece.type),
+            quantity = InputFieldState("1"),
+            gs = InputFieldState(payload.gs?.to3FString() ?: ""),
+            nt = InputFieldState(payload.nt?.to3FString() ?: ""),
+            fn = InputFieldState(payload.fn?.to3FString() ?: ""),
+            purity = InputFieldState(payload.purity ?: ""),
+            mcType = InputFieldState(payload.mcType ?: ""),
+            mc = InputFieldState(payload.mc?.to3FString() ?: "")
+        )
+        autoMapCategoryAndSubCategory(draft, updateNames = true)
+        scannedItems.add(0, draft)
+        updateDuplicateListFlags()
+        validateScannedItem(draft)
+        checkDuplicateInDb(draft)
+    }
+
+    fun removeScannedItem(draft: ScannedQrItemDraft) {
+        scannedItems.remove(draft)
+        updateDuplicateListFlags()
+    }
+
+    fun clearScannedItems() {
+        scannedItems.clear()
+    }
+
+    fun onScannedItemChanged(draft: ScannedQrItemDraft, checkDb: Boolean = false) {
+        autoMapCategoryAndSubCategory(draft, updateNames = false)
+        updateDuplicateListFlags()
+        validateScannedItem(draft)
+        if (checkDb) {
+            checkDuplicateInDb(draft)
+        }
+    }
+
+    fun addValidScannedItems() {
+        viewModelScope.launch {
+            val toAdd = scannedItems.filter { it.status.value == ScanRowStatus.READY }
+            if (toAdd.isEmpty()) {
+                _snackBarState.value = "No valid scanned items to add"
+                return@launch
+            }
+
+            var success = 0
+            var failed = 0
+            val toRemove = mutableListOf<ScannedQrItemDraft>()
+            val userId = admin.first.first()
+            val storeId = store.first.first()
+
+            for (draft in toAdd) {
+                val resolved = resolveCategoryForDraft(draft)
+                if (resolved == null) {
+                    failed++
+                    draft.errors.value = listOf("Category/Subcategory not mapped")
+                    draft.status.value = ScanRowStatus.ERROR
+                    continue
+                }
+                val (cat, sub) = resolved
+                val item = buildItemEntityFromDraft(draft, userId, storeId, cat, sub)
+                val result = insertItemAndUpdateWeights(item)
+                if (result.isSuccess) {
+                    success++
+                    toRemove.add(draft)
+                } else {
+                    failed++
+                    val message = result.exceptionOrNull()?.message ?: "Failed to add item"
+                    draft.errors.value = listOf(message)
+                    draft.status.value = ScanRowStatus.ERROR
+                }
+            }
+
+            if (toRemove.isNotEmpty()) {
+                scannedItems.removeAll(toRemove)
+                refreshAndFilterItems()
+            }
+
+            val summary = buildString {
+                append("Added $success item(s)")
+                if (failed > 0) append(", $failed failed")
+            }
+            _snackBarState.value = summary
+        }
+    }
+
+    private fun buildItemEntityFromDraft(
+        draft: ScannedQrItemDraft,
+        userId: String,
+        storeId: String,
+        cat: CatSubCatDto,
+        sub: SubCategoryEntity
+    ): ItemEntity {
+        val qty = draft.quantity.text.toIntOrNull() ?: 1
+        return ItemEntity(
+            itemId = draft.id.text.trim(),
+            itemAddName = InputValidator.sanitizeText(draft.name.text.ifBlank { draft.id.text }),
+            userId = userId,
+            storeId = storeId,
+            catId = cat.catId,
+            subCatId = sub.subCatId,
+            catName = cat.catName,
+            subCatName = sub.subCatName,
+            entryType = InputValidator.sanitizeText(draft.entryType.text),
+            quantity = qty,
+            gsWt = draft.gs.text.toDoubleOrNull() ?: 0.0,
+            ntWt = draft.nt.text.toDoubleOrNull() ?: 0.0,
+            fnWt = draft.fn.text.toDoubleOrNull() ?: 0.0,
+            purity = InputValidator.sanitizeText(draft.purity.text),
+            crgType = InputValidator.sanitizeText(draft.mcType.text),
+            crg = draft.mc.text.toDoubleOrNull() ?: 0.0,
+            othCrgDes = "",
+            othCrg = 0.0,
+            cgst = 0.0,
+            sgst = 0.0,
+            igst = 0.0,
+            huid = "",
+            addDesKey = "",
+            addDesValue = "",
+            addDate = Timestamp(System.currentTimeMillis()),
+            modifiedDate = Timestamp(System.currentTimeMillis()),
+            sellerFirmId = storeId,
+            purchaseOrderId = storeId,
+            purchaseItemId = storeId
+        )
+    }
+
+    private suspend fun insertItemAndUpdateWeights(item: ItemEntity): Result<Unit> {
+        return try {
+            withIo {
+                val newItemId = appDatabase.itemDao().insert(item)
+                if (newItemId == -1L) {
+                    return@withIo Result.failure(Exception("Failed to insert item"))
+                }
+
+                val subCategory = appDatabase.subCategoryDao().getSubCategoryById(item.subCatId)
+                    ?: return@withIo Result.failure(Exception("Sub Category not found"))
+
+                val subCatGsWt = (subCategory.gsWt + item.gsWt).roundTo3Decimal()
+                val subCatFnWt = (subCategory.fnWt + item.fnWt).roundTo3Decimal()
+                val subCatQty = subCategory.quantity + item.quantity
+
+                val upSub = appDatabase.subCategoryDao().updateWeightsAndQuantity(
+                    subCatId = item.subCatId,
+                    gsWt = subCatGsWt,
+                    fnWt = subCatFnWt,
+                    quantity = subCatQty
+                )
+                if (upSub == -1) {
+                    return@withIo Result.failure(Exception("Failed to update Sub Category Weight"))
+                }
+
+                val catEntity = appDatabase.categoryDao().getCategoryById(item.catId)
+                    ?: return@withIo Result.failure(Exception("Category not found"))
+                val catGsWt = (catEntity.gsWt + item.gsWt).roundTo3Decimal()
+                val catFnWt = (catEntity.fnWt + item.fnWt).roundTo3Decimal()
+                val upCat = appDatabase.categoryDao().updateWeights(
+                    catId = item.catId,
+                    gsWt = catGsWt,
+                    fnWt = catFnWt
+                )
+                if (upCat == -1) {
+                    return@withIo Result.failure(Exception("Failed to update Category Weight"))
+                }
+
+                Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun resolveCategoryForDraft(draft: ScannedQrItemDraft): Pair<CatSubCatDto, SubCategoryEntity>? {
+        val cat = catSubCatDto.firstOrNull { it.catId == draft.mappedCatId.value }
+            ?: catSubCatDto.firstOrNull { it.catName.equals(draft.catName.text.trim(), true) }
+        val sub = cat?.subCategoryList?.firstOrNull { it.subCatId == draft.mappedSubCatId.value }
+            ?: cat?.subCategoryList?.firstOrNull { it.subCatName.equals(draft.subCatName.text.trim(), true) }
+        return if (cat != null && sub != null) cat to sub else null
+    }
+
+    private fun autoMapCategoryAndSubCategory(draft: ScannedQrItemDraft, updateNames: Boolean) {
+        val catMatch = resolveCategoryByName(draft.catName.text)
+        draft.mappedCatId.value = catMatch?.catId
+        if (updateNames && catMatch != null && !draft.catName.text.equals(catMatch.catName, true)) {
+            draft.catName.text = catMatch.catName
+        }
+
+        val subMatch = resolveSubCategoryByName(catMatch, draft.subCatName.text)
+        draft.mappedSubCatId.value = subMatch?.subCatId
+        if (updateNames && subMatch != null && !draft.subCatName.text.equals(subMatch.subCatName, true)) {
+            draft.subCatName.text = subMatch.subCatName
+        }
+    }
+
+    private fun resolveCategoryByName(name: String): CatSubCatDto? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return null
+        val exact = catSubCatDto.firstOrNull { it.catName.equals(trimmed, true) }
+        if (exact != null) return exact
+        val contains = catSubCatDto.firstOrNull {
+            it.catName.contains(trimmed, true) || trimmed.contains(it.catName, true)
+        }
+        if (contains != null) return contains
+        return catSubCatDto.maxByOrNull { calculateSimilarity(trimmed, it.catName) }
+            ?.takeIf { calculateSimilarity(trimmed, it.catName) >= 0.7 }
+    }
+
+    private fun resolveSubCategoryByName(cat: CatSubCatDto?, name: String): SubCategoryEntity? {
+        val trimmed = name.trim()
+        if (cat == null || trimmed.isEmpty()) return null
+        val exact = cat.subCategoryList.firstOrNull { it.subCatName.equals(trimmed, true) }
+        if (exact != null) return exact
+        val contains = cat.subCategoryList.firstOrNull {
+            it.subCatName.contains(trimmed, true) || trimmed.contains(it.subCatName, true)
+        }
+        if (contains != null) return contains
+        return cat.subCategoryList.maxByOrNull { calculateSimilarity(trimmed, it.subCatName) }
+            ?.takeIf { calculateSimilarity(trimmed, it.subCatName) >= 0.7 }
+    }
+
+    private fun calculateSimilarity(str1: String, str2: String): Double {
+        val set1 = str1.lowercase().toSet()
+        val set2 = str2.lowercase().toSet()
+        val intersection = set1.intersect(set2).size
+        val union = set1.union(set2).size
+        return if (union > 0) intersection.toDouble() / union else 0.0
+    }
+
+    private fun updateDuplicateListFlags() {
+        val counts = scannedItems
+            .map { it.id.text.trim() }
+            .filter { it.isNotEmpty() }
+            .groupingBy { it }
+            .eachCount()
+        scannedItems.forEach { draft ->
+            val id = draft.id.text.trim()
+            draft.duplicateInList.value = id.isNotEmpty() && (counts[id] ?: 0) > 1
+        }
+    }
+
+    private fun checkDuplicateInDb(draft: ScannedQrItemDraft) {
+        val id = draft.id.text.trim()
+        if (id.isBlank()) {
+            draft.duplicateInDb.value = false
+            validateScannedItem(draft)
+            return
+        }
+        if (draft.lastCheckedId.value == id) return
+        draft.lastCheckedId.value = id
+        ioLaunch {
+            val existing = appDatabase.itemDao().getItemById(id)
+            mainScope {
+                draft.duplicateInDb.value = existing != null
+                validateScannedItem(draft)
+            }
+        }
+    }
+
+    private fun validateScannedItem(draft: ScannedQrItemDraft) {
+        val errors = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
+
+        val id = draft.id.text.trim()
+        if (id.isEmpty()) errors.add("Item ID is required")
+        if (draft.duplicateInList.value) errors.add("Duplicate ID in scan list")
+        if (draft.duplicateInDb.value) warnings.add("Item ID already exists")
+
+        val hasCategories = catSubCatDto.isNotEmpty()
+        if (!hasCategories) {
+            warnings.add("Categories not loaded yet")
+        }
+
+        if (draft.mappedCatId.value == null) errors.add("Category not mapped")
+        if (draft.mappedSubCatId.value == null) errors.add("Subcategory not mapped")
+
+        fun invalidNumber(text: String): Boolean = text.isNotBlank() && text.toDoubleOrNull() == null
+        if (invalidNumber(draft.gs.text)) errors.add("Invalid Gross Weight")
+        if (invalidNumber(draft.nt.text)) errors.add("Invalid Net Weight")
+        if (invalidNumber(draft.fn.text)) errors.add("Invalid Fine Weight")
+        if (invalidNumber(draft.mc.text)) errors.add("Invalid Making Charge")
+
+        val qty = draft.quantity.text.trim()
+        if (qty.isNotBlank() && qty.toIntOrNull() == null) errors.add("Invalid Quantity")
+
+        val entryType = draft.entryType.text.trim()
+        if (entryType.isNotBlank() && !EntryType.list().contains(entryType)) {
+            errors.add("Invalid Entry Type")
+        } else if (entryType.isBlank()) {
+            warnings.add("Entry type missing")
+        }
+
+        val mcType = draft.mcType.text.trim()
+        if (mcType.isNotBlank() && !ChargeType.list().contains(mcType)) {
+            errors.add("Invalid MC Type")
+        }
+
+        if (draft.purity.text.trim().isEmpty()) warnings.add("Purity missing")
+        if (draft.gs.text.isBlank() && draft.nt.text.isBlank() && draft.fn.text.isBlank()) {
+            warnings.add("Weights missing")
+        }
+
+        draft.errors.value = errors
+        draft.warnings.value = warnings
+        draft.status.value = when {
+            errors.isNotEmpty() -> ScanRowStatus.ERROR
+            warnings.isNotEmpty() -> ScanRowStatus.WARNING
+            else -> ScanRowStatus.READY
         }
     }
 
