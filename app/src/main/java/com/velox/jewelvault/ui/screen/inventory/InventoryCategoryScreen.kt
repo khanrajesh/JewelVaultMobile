@@ -49,6 +49,10 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground6
+import com.velox.jewelvault.ui.components.baseBackground10
+import com.velox.jewelvault.ui.components.baseBackground11
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.isLandscape
@@ -105,7 +109,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(top = 5.dp, start = 5.dp)
     ) {
         LazyVerticalGrid(
@@ -136,9 +140,7 @@ fun LandscapeInventoryScreen(inventoryViewModel: InventoryViewModel) {
                     }
                     .padding(end = 5.dp, bottom = 5.dp)
                     .height(height.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)
-                    )
+                    .baseBackground6()
                     .padding(10.dp)) {
                     // Inventory Summary Section
                     Column(
@@ -748,7 +750,7 @@ fun CategoryItem(
         }
         .padding(end = 5.dp, bottom = 5.dp)
         .height(height.dp)
-        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+        .baseBackground6()
         .padding(10.dp), contentAlignment = Alignment.TopEnd) {
 
         Column(Modifier) {
@@ -790,7 +792,7 @@ fun CategoryItem(
                 .offset(y = 40.dp)
                 .wrapContentHeight()
                 .wrapContentWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+                .baseBackground11()
                 .padding(8.dp)
         ) {
             Column {
@@ -831,7 +833,7 @@ fun SubCategoryItem(
             )
             .padding(3.dp)
             .wrapContentHeight()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+            .baseBackground10()
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

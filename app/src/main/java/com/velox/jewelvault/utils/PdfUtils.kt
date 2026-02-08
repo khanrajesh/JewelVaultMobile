@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -36,17 +37,17 @@ import androidx.core.graphics.createBitmap
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.ui.components.PaymentInfo
+import com.velox.jewelvault.ui.components.baseBackground8
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
-import com.velox.jewelvault.utils.to3FString
-import com.velox.jewelvault.utils.CalculationUtils
 
 // PdfUtils.kt
 
@@ -96,7 +97,7 @@ fun PdfRendererPreview(uri: Uri, modifier: Modifier = Modifier, highQuality: Boo
             modifier = modifier
                 .fillMaxWidth()
                 .aspectRatio(595f / 421f) // Keep original aspect ratio
-                .background(MaterialTheme.colorScheme.surface)
+                .baseBackground8()
         ) {
             Image(
                 bitmap = bmp.asImageBitmap(),
@@ -362,7 +363,7 @@ fun createDraftInvoiceData(
     }
 
     // Calculate totals using CalculationUtils
-    val summary = CalculationUtils.summaryTotals(items)
+    val summary = CalculationUtils.summaryTotals(items, exchangeItemList = SnapshotStateList<ExchangeItemDto>(), 0.0)
     val subTotalAmount = summary.totalPriceBeforeTax
     val totalTaxAmount = summary.totalTax
     val itemGrandTotalAmount = summary.grandTotal
@@ -392,7 +393,7 @@ fun createDraftInvoiceData(
     val paidAmount = paymentInfo.value?.paidAmount ?: itemGrandTotalAmount
     val outstandingAmount = paymentInfo.value?.outstandingAmount ?: 0.0
 
-
+    //todo
     val netAmountPayable = itemGrandTotalAmount- (discount.toDoubleOrNull() ?:0.0)+(cardCharges.toDoubleOrNull() ?:0.0)-(oldExchange.toDoubleOrNull() ?:0.0)
 
     val currentLoginUserName = dataStoreManager.getCurrentLoginUser().let {
@@ -864,7 +865,7 @@ fun generateInvoicePdf(
         val goldWeight = goldItems.sumOf { it.grossWeightGms.toDoubleOrNull() ?: 0.0}
         val goldTotalVal = goldItems.sumOf { it.totalAmount.toDoubleOrNull() ?: 0.0} //todo mistake
         val goldTotMc = goldItems.sumOf { it.makingAmount.toDoubleOrNull() ?: 0.0 }
-        val goldTotalAmount = CalculationUtils.totalPrice(goldTotalVal, goldTotMc, 0.0)
+        val goldTotalAmount = goldTotalVal+ goldTotMc
 
         // Display gold data
         val goldData = listOf(
@@ -911,7 +912,7 @@ fun generateInvoicePdf(
         val silverWeight = silverItems.sumOf { it.grossWeightGms.toDoubleOrNull() ?: 0.0}
         val silverTotalVal = silverItems.sumOf { it.totalAmount.toDoubleOrNull() ?: 0.0} //todo mistake
         val silverTotMc = silverItems.sumOf { it.makingAmount.toDoubleOrNull() ?: 0.0 }
-        val silverTotalAmount = CalculationUtils.totalPrice(silverTotalVal, silverTotMc, 0.0)
+        val silverTotalAmount =silverTotalVal+ silverTotMc
 
         // Display silver data
         val silverData = listOf(
@@ -1043,11 +1044,11 @@ fun generateInvoicePdf(
 
         val amountPairs = listOf(
             "SUB TOTAL" to "₹ ${data.paymentSummary.subTotal}",
-            "${data.paymentSummary.gstLabel}" to "₹ ${data.paymentSummary.gstAmount}",
-            "Discount" to "₹ ${data.paymentSummary.discount}",
-            "Card Charges" to "₹ ${data.paymentSummary.cardCharges}",
-            "Total Amt." to "₹ ${data.paymentSummary.totalAmountBeforeOldExchange}",
             "Old Exchange" to "₹ ${data.paymentSummary.oldExchange}",
+            "Discount" to "₹ ${data.paymentSummary.discount}",
+            "${data.paymentSummary.gstLabel}" to "₹ ${data.paymentSummary.gstAmount}",
+            "Total Amt." to "₹ ${data.paymentSummary.totalAmountBeforeOldExchange}",
+            "Card Charges" to "₹ ${data.paymentSummary.cardCharges}",
             "R. Off" to "₹ ${data.paymentSummary.roundOff}",
             "Net Amount" to "₹ ${data.paymentSummary.netAmountPayable}"
         )

@@ -20,4 +20,5 @@ data class StoreEntity (
     val image:String,
     val invoiceNo:Int=0,
     val upiId:String="",
+    val lastUpdated: Long = 0L
 )

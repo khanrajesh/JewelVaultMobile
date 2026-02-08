@@ -1,7 +1,9 @@
 package com.velox.jewelvault.ui.screen.inventory
 
 import android.content.Context
+import android.content.ContentUris
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -930,20 +932,23 @@ class ImportItemsViewModel @Inject constructor(
                     listOf("Platinum", "Bangle", "Platinum Bangle", EntryType.Piece.type, "1", "12.0", "11.5", "gm", Purity.P1000.label, "", ChargeType.Piece.type, "1500", "", "", "0.0", "0.0", "18.0", "", "", "", "", "")
                 )
                 
-                // Generate filename with timestamp
+                // Generate filename (fixed, we overwrite if it already exists)
                 val fileName = "Item_Import_Template.xlsx"
+                val relativePath = android.os.Environment.DIRECTORY_DOWNLOADS + "/JewelVault/ImportTemplates"
                 
                 // Create content values for MediaStore
                 val contentValues = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
                     put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    put(
-                        android.provider.MediaStore.Downloads.RELATIVE_PATH,
-                        android.os.Environment.DIRECTORY_DOWNLOADS + "/JewelVault/ImportTemplates"
-                    )
+                    put(android.provider.MediaStore.Downloads.RELATIVE_PATH, relativePath)
                 }
                 
                 val resolver = context.contentResolver
+                // Delete existing file with same name/path to avoid UNIQUE constraint errors
+                deleteExistingDownload(resolver, fileName, relativePath)
+                if (!relativePath.endsWith("/")) {
+                    deleteExistingDownload(resolver, fileName, "$relativePath/")
+                }
                 val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                     ?: throw Exception("Unable to create file in MediaStore")
                 
@@ -1002,8 +1007,10 @@ class ImportItemsViewModel @Inject constructor(
                 _snackBarState.value = "Example Excel template created successfully in Downloads/JewelVault/ImportTemplates!"
                 
             } catch (e: Exception) {
-                log("Error creating example Excel: ${e.message}")
-                _snackBarState.value = "Error creating example Excel: ${e.message}"
+                val errorText = e.message ?: e.javaClass.simpleName
+                log("Error creating example Excel: $errorText")
+                Log.e("ImportItemsViewModel", "Error creating example Excel", e)
+                _snackBarState.value = "Error creating example Excel: $errorText"
             } finally {
                 isLoading.value = false
                 importProgressText.value = ""
@@ -1137,6 +1144,27 @@ class ImportItemsViewModel @Inject constructor(
             } finally {
                 isLoading.value = false
                 importProgressText.value = ""
+            }
+        }
+    }
+
+    private fun deleteExistingDownload(
+        resolver: android.content.ContentResolver,
+        displayName: String,
+        relativePath: String
+    ) {
+        val collection = android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(android.provider.MediaStore.Downloads._ID)
+        val selection =
+            "${android.provider.MediaStore.Downloads.DISPLAY_NAME}=? AND ${android.provider.MediaStore.Downloads.RELATIVE_PATH}=?"
+        val selectionArgs = arrayOf(displayName, relativePath)
+
+        resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Downloads._ID)
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val uri = ContentUris.withAppendedId(collection, id)
+                resolver.delete(uri, null, null)
             }
         }
     }

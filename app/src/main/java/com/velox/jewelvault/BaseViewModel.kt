@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -17,24 +18,34 @@ import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.FeatureDefaults
+import com.velox.jewelvault.data.FeatureListState
+import com.velox.jewelvault.data.SubscriptionState
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.utils.AppUpdateManager
+import com.velox.jewelvault.utils.AppLogger
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
+import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.utils.SecurityUtils
-import com.velox.jewelvault.utils.backup.BackupManager
-import com.velox.jewelvault.utils.backup.BackupService
+import com.velox.jewelvault.utils.sync.SyncManager
+import com.velox.jewelvault.utils.sync.SyncService
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.core.content.ContextCompat
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -53,10 +64,11 @@ class BaseViewModel @Inject constructor(
     private val _appDatabase: AppDatabase,
     private val _remoteConfigManager: RemoteConfigManager,
     private val _appUpdateManager: AppUpdateManager,
-    private val _backupManager: BackupManager,
+    private val _syncManager: SyncManager,
     private val _auth: FirebaseAuth,
     private val _Internal_bluetoothManager: BleManager,
-    private val _repository: RepositoryImpl
+    private val _repository: RepositoryImpl,
+    private val _firestore: FirebaseFirestore
     ) : ViewModel() {
 
     private val metalRatesMutex = Mutex()
@@ -79,11 +91,19 @@ class BaseViewModel @Inject constructor(
     // Update management
     val remoteConfigManager = _remoteConfigManager
     val appUpdateManager = _appUpdateManager
-    val backupManager = _backupManager
+    val syncManager = _syncManager
     val updateInfo = mutableStateOf<UpdateInfo?>(null)
     val showUpdateDialog = mutableStateOf(false)
     val showForceUpdateDialog = mutableStateOf(false)
     val updateCheckLoading = mutableStateOf(false)
+
+    private val featureSyncInProgress = mutableStateOf(false)
+
+    val featureList: StateFlow<FeatureListState> = _dataStoreManager.getFeatureListFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FeatureListState())
+
+    val subscription: StateFlow<SubscriptionState> = _dataStoreManager.getSubscriptionFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SubscriptionState())
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
@@ -115,6 +135,166 @@ class BaseViewModel @Inject constructor(
 
     init {
         loadSettings()
+    }
+
+    fun refreshFeaturesAndSubscription(force: Boolean = false) {
+        if (featureSyncInProgress.value) return
+        featureSyncInProgress.value = true
+        viewModelScope.launch {
+            try {
+                val adminMobile = resolveAdminMobile()
+                if (adminMobile.isBlank()) {
+                    ensureFeatureDefaults()
+                    ensureSubscriptionDefaults()
+                    return@launch
+                }
+                syncFeatureList(adminMobile, force)
+                syncSubscription(adminMobile, force)
+            } catch (e: Exception) {
+                log("Feature/subscription sync failed: ${e.message}")
+                ensureFeatureDefaults()
+                ensureSubscriptionDefaults()
+            } finally {
+                featureSyncInProgress.value = false
+            }
+        }
+    }
+
+    private suspend fun resolveAdminMobile(): String {
+        val adminUser = _appDatabase.userDao().getAdminUser()
+        if (!adminUser?.mobileNo.isNullOrBlank()) return adminUser?.mobileNo ?: ""
+        val adminFromPrefs = _dataStoreManager.getAdminInfo().third.first()
+        if (adminFromPrefs.isNotBlank()) return adminFromPrefs
+        return _dataStoreManager.getCurrentLoginUser().mobileNo
+    }
+
+    private suspend fun syncFeatureList(adminMobile: String, force: Boolean) {
+        val localState = _dataStoreManager.getFeatureList()
+        val result = FirebaseUtils.getFeatureList(_firestore, adminMobile)
+        val remoteData = result.getOrNull()
+
+        if (result.isSuccess && remoteData != null) {
+            val remoteState = parseFeatureList(remoteData)
+            val shouldUpdate = force ||
+                remoteState.lastUpdated > localState.lastUpdated ||
+                localState.lastUpdated == 0L ||
+                localState.features.isEmpty()
+            if (shouldUpdate) {
+                _dataStoreManager.saveFeatureList(remoteState)
+            }
+            return
+        }
+
+        if (localState.features.isEmpty() || localState.lastUpdated == 0L) {
+            val defaults = FeatureListState(
+                features = FeatureDefaults.defaultFeatureMap(),
+                lastUpdated = System.currentTimeMillis()
+            )
+            _dataStoreManager.saveFeatureList(defaults)
+            if (adminMobile.isNotBlank()) {
+                FirebaseUtils.saveFeatureList(_firestore, adminMobile, featureStateToMap(defaults))
+            }
+        }
+    }
+
+    private suspend fun syncSubscription(adminMobile: String, force: Boolean) {
+        val localState = _dataStoreManager.getSubscription()
+        val result = FirebaseUtils.getSubscription(_firestore, adminMobile)
+        val remoteData = result.getOrNull()
+
+        if (result.isSuccess && remoteData != null) {
+            val remoteState = parseSubscription(remoteData)
+            val shouldUpdate = force ||
+                remoteState.lastUpdated > localState.lastUpdated ||
+                localState.lastUpdated == 0L ||
+                localState.plan.isBlank()
+            if (shouldUpdate) {
+                _dataStoreManager.saveSubscription(remoteState)
+            }
+            return
+        }
+
+        if (localState.plan.isBlank() || localState.lastUpdated == 0L) {
+            val defaults = SubscriptionState(
+                plan = "trial-pro",
+                isActive = true,
+                startAt = System.currentTimeMillis(),
+                endAt = System.currentTimeMillis() + java.util.concurrent.TimeUnit.DAYS.toMillis(30),
+                lastUpdated = System.currentTimeMillis()
+            )
+            _dataStoreManager.saveSubscription(defaults)
+            if (adminMobile.isNotBlank()) {
+                FirebaseUtils.saveSubscription(_firestore, adminMobile, subscriptionStateToMap(defaults))
+            }
+        }
+    }
+
+    private fun parseFeatureList(data: Map<String, Any>): FeatureListState {
+        val lastUpdated = (data["lastUpdated"] as? Number)?.toLong()
+            ?: (data["last_update"] as? Number)?.toLong()
+            ?: 0L
+        val features = data
+            .filterKeys { it != "lastUpdated" && it != "last_update" }
+            .mapNotNull { (key, value) ->
+                when (value) {
+                    is Boolean -> key to value
+                    else -> null
+                }
+            }
+            .toMap()
+        return FeatureListState(features = features, lastUpdated = lastUpdated)
+    }
+
+    private fun featureStateToMap(state: FeatureListState): Map<String, Any> {
+        val map = state.features.mapValues { it.value as Any }.toMutableMap()
+        map["lastUpdated"] = state.lastUpdated
+        return map
+    }
+
+    private fun parseSubscription(data: Map<String, Any>): SubscriptionState {
+        val lastUpdated = (data["lastUpdated"] as? Number)?.toLong()
+            ?: (data["last_update"] as? Number)?.toLong()
+            ?: 0L
+        return SubscriptionState(
+            plan = data["plan"] as? String ?: "",
+            isActive = data["isActive"] as? Boolean ?: false,
+            startAt = (data["startAt"] as? Number)?.toLong() ?: 0L,
+            endAt = (data["endAt"] as? Number)?.toLong() ?: 0L,
+            lastUpdated = lastUpdated
+        )
+    }
+
+    private fun subscriptionStateToMap(state: SubscriptionState): Map<String, Any> {
+        return mapOf(
+            "plan" to state.plan,
+            "isActive" to state.isActive,
+            "startAt" to state.startAt,
+            "endAt" to state.endAt,
+            "lastUpdated" to state.lastUpdated
+        )
+    }
+
+    private suspend fun ensureFeatureDefaults() {
+        val localState = _dataStoreManager.getFeatureList()
+        if (localState.features.isNotEmpty() && localState.lastUpdated > 0L) return
+        val defaults = FeatureListState(
+            features = FeatureDefaults.defaultFeatureMap(),
+            lastUpdated = System.currentTimeMillis()
+        )
+        _dataStoreManager.saveFeatureList(defaults)
+    }
+
+    private suspend fun ensureSubscriptionDefaults() {
+        val localState = _dataStoreManager.getSubscription()
+        if (localState.plan.isNotBlank() && localState.lastUpdated > 0L) return
+        val defaults = SubscriptionState(
+            plan = "trial-pro",
+            isActive = true,
+            startAt = System.currentTimeMillis(),
+            endAt = System.currentTimeMillis() + java.util.concurrent.TimeUnit.DAYS.toMillis(30),
+            lastUpdated = System.currentTimeMillis()
+        )
+        _dataStoreManager.saveSubscription(defaults)
     }
 
     suspend fun refreshMetalRates(context: Context) {
@@ -342,13 +522,13 @@ class BaseViewModel @Inject constructor(
         if (info != null) {
             try {
                 if (!hasBackupPermission(context)) {
-                    snackBarState = "Storage permission required to backup before updating"
+                    snackBarState = "Storage permission required to sync before updating"
                     return
                 }
-                BackupService.startBackup(context)
-                snackBarState = "Backup started before redirecting to update"
+                SyncService.startBackup(context)
+                snackBarState = "Sync started before redirecting to update"
             } catch (e: Exception) {
-                snackBarState = "Backup failed to start: ${e.message}"
+                snackBarState = "Sync failed to start: ${e.message}"
                 return
             }
             log("📱 Opening Play Store with update info: $info")
@@ -680,9 +860,7 @@ fun dismissUpdateDialog() {
         ) == PackageManager.PERMISSION_GRANTED
         val hasMedia =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || listOf(
-                android.Manifest.permission.READ_MEDIA_IMAGES,
-                android.Manifest.permission.READ_MEDIA_VIDEO,
-                android.Manifest.permission.READ_MEDIA_AUDIO
+                android.Manifest.permission.READ_MEDIA_IMAGES
             ).any { perm ->
                 ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
             }
@@ -707,6 +885,13 @@ fun dismissUpdateDialog() {
             } catch (e: Exception) {
                 _snackBarState.value = "Error resetting preferences: ${e.message}"
             }
+        }
+    }
+
+    fun shareLogs(context: Context) {
+        val shared = AppLogger.shareLogs(context)
+        if (!shared) {
+            _snackBarState.value = "No logs available to share"
         }
     }
 

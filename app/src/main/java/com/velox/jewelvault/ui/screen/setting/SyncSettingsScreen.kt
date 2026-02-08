@@ -24,14 +24,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
-import com.velox.jewelvault.utils.backup.*
+import com.velox.jewelvault.utils.sync.*
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.ui.components.RestoreSourceDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
+import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.utils.permissions.getBackupRestorePermissions
 
 /**
- * Screen for backup and restore settings
+ * Screen for sync and restore settings
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +45,7 @@ fun BackupSettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val backupPermissions = remember { getBackupRestorePermissions() }
     var showLocalImportDialog by remember { mutableStateOf(false) }
-    viewModel.currentScreenHeadingState.value= "Backup & Restore"
+    viewModel.currentScreenHeadingState.value= "Sync & Restore"
     BackHandler {
         subNavController.navigate(SubScreens.Setting.route) {
             popUpTo(SubScreens.Setting.route) {
@@ -51,15 +54,16 @@ fun BackupSettingsScreen(
         }
     }
     
-    // Permission requester for backup/restore operations
+    // Permission requester for sync/restore operations
     PermissionRequester(
-        permissions = backupPermissions
-    ) {}
+        permissions = backupPermissions,
+        onAllPermissionsGranted = {}
+    )
     
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(
@@ -99,7 +103,7 @@ fun BackupSettingsScreen(
                                 ) {
                                     Icon(Icons.TwoTone.CloudUpload, contentDescription = null)
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Backup Now")
+                                    Text("Sync Now")
                                 }
                                 
                                 OutlinedButton(
@@ -143,7 +147,7 @@ fun BackupSettingsScreen(
                     }
                 }
                 
-                // Automatic Backup Section
+                // Automatic Sync Section
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth()
@@ -152,7 +156,7 @@ fun BackupSettingsScreen(
                             modifier = Modifier.padding(16.dp)
                         ) {
                             Text(
-                                text = "Automatic Backup",
+                                text = "Automatic Sync",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -160,7 +164,7 @@ fun BackupSettingsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             
                             Text(
-                                text = "Schedule automatic backups to keep your data safe",
+                                text = "Schedule automatic syncs to keep your data aligned",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -174,10 +178,10 @@ fun BackupSettingsScreen(
                                 onExpandedChange = { expanded = !expanded }
                             ) {
                                 OutlinedTextField(
-                                    value = uiState.backupFrequency.name.lowercase().replaceFirstChar { it.uppercase() },
+                                    value = uiState.syncFrequency.displayName,
                                     onValueChange = { },
                                     readOnly = true,
-                                    label = { Text("Backup Frequency") },
+                                    label = { Text("Sync Frequency") },
                                     trailingIcon = {
                                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                     },
@@ -190,10 +194,10 @@ fun BackupSettingsScreen(
                                     expanded = expanded,
                                     onDismissRequest = { expanded = false }
                                 ) {
-                                    BackupFrequency.entries.forEach { frequency ->
+                                    SyncFrequency.entries.forEach { frequency ->
                                         DropdownMenuItem(
                                             text = { 
-                                                Text(frequency.name.lowercase().replaceFirstChar { it.uppercase() })
+                                                Text(frequency.displayName)
                                             },
                                             onClick = {
                                                 viewModel.setBackupFrequency(frequency)
@@ -207,7 +211,7 @@ fun BackupSettingsScreen(
                     }
                 }
                 
-                // Backup Status Section
+                // Sync Status Section
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth()
@@ -216,7 +220,7 @@ fun BackupSettingsScreen(
                             modifier = Modifier.padding(16.dp)
                         ) {
                             Text(
-                                text = "Backup Status",
+                                text = "Sync Status",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -261,9 +265,9 @@ fun BackupSettingsScreen(
                                     Column {
                                         Text(
                                             text = if (uiState.lastBackupDate.isNotEmpty()) 
-                                                "Last backup: ${uiState.lastBackupDate}"
+                                                "Last sync: ${uiState.lastBackupDate}"
                                             else 
-                                                "No backup yet",
+                                                "No sync yet",
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                         if (uiState.statusMessage.isNotEmpty()) {
@@ -301,7 +305,7 @@ fun BackupSettingsScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "About Backup",
+                                    text = "About Sync",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -310,13 +314,13 @@ fun BackupSettingsScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             
                             Text(
-                                text = "• Backup includes all your data: items, customers, orders, transactions\n" +
-                                        "• Data is stored securely in cloud storage\n" +
-                                        "• Only you can access your backup data\n" +
-                                        "• Smart restore with merge/replace options\n" +
-                                        "• Merge mode: Add new data safely\n" +
-                                        "• Replace mode: Complete data replacement\n" +
-                                        "• Keep your app updated for best compatibility",
+                                text = "- Sync includes all your data: items, customers, orders, transactions\n" +
+                                        "- Data is stored securely in cloud storage\n" +
+                                        "- Only you can access your synced data\n" +
+                                        "- Smart restore with merge/replace options\n" +
+                                        "- Merge mode: Add new data safely\n" +
+                                        "- Replace mode: Complete data replacement\n" +
+                                        "- Keep your app updated for best compatibility",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -327,7 +331,7 @@ fun BackupSettingsScreen(
         }
     }
     
-    // Show backup dialog
+    // Show sync dialog
     if (uiState.showBackupDialog) {
         EnhancedBackupDialog(
             onDismiss = { viewModel.hideBackupDialog() },
@@ -414,7 +418,7 @@ private fun EnhancedBackupDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Backup & Restore",
+                        text = "Sync & Restore",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -464,7 +468,7 @@ private fun EnhancedBackupDialog(
                         ) {
                             Icon(Icons.TwoTone.CloudUpload, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Create Backup")
+                            Text("Sync Now")
                         }
                         OutlinedButton(
                             onClick = { /* Refresh backup list */ },
@@ -477,7 +481,7 @@ private fun EnhancedBackupDialog(
                     }
                     HorizontalDivider()
                     Text(
-                        text = "Available Backups",
+                        text = "Available Sync Points",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -502,12 +506,12 @@ private fun EnhancedBackupDialog(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "No backups found",
+                                    text = "No sync data found",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Create your first backup to get started",
+                                    text = "Create your first sync to get started",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -632,9 +636,15 @@ private fun RestoreModeDialog(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                var pendingMode by remember { mutableStateOf<RestoreMode?>(null) }
+                var termsAccepted by remember { mutableStateOf(false) }
+                var confirmError by remember { mutableStateOf(false) }
+
                 Text(
                     text = "Choose Restore Mode",
                     style = MaterialTheme.typography.titleLarge,
@@ -646,95 +656,128 @@ private fun RestoreModeDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
-                // Merge Mode Option
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.TwoTone.Add,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Merge (Recommended)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "• Add new data from backup\n" +
-                                    "• Keep existing data unchanged\n" +
-                                    "• Safe for admin users with existing data\n" +
-                                    "• No data loss",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                if (pendingMode != null) {
+                    val infoLines = when (pendingMode) {
+                        RestoreMode.MERGE -> listOf(
+                            "Adds data from the sync file into this device.",
+                            "Keeps your existing local data as-is.",
+                            "If the same ID already exists, it is skipped.",
+                            "Deletes from other devices are NOT removed here.",
+                            "Duplicates are possible if IDs differ.",
+                            "Recommended when you already have data."
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { onRestoreSelected(RestoreMode.MERGE) },
-                            modifier = Modifier.fillMaxWidth()
+                        RestoreMode.REPLACE -> listOf(
+                            "Imports all rows from the sync file.",
+                            "Existing local data may be overwritten where IDs match.",
+                            "Local-only data may remain (no delete tracking).",
+                            "Deletes from other devices are NOT removed here.",
+                            "Data loss or duplicates are possible.",
+                            "Use only if you are sure about the file."
+                        )
+                        else -> emptyList()
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (pendingMode == RestoreMode.REPLACE)
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .heightIn(max = 200.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            Text("Use Merge Mode")
+                            infoLines.forEach { line ->
+                                Text(
+                                    text = "• $line",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
-                }
-                
-                // Replace Mode Option
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.TwoTone.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Replace (Advanced)",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = termsAccepted,
+                            onCheckedChange = {
+                                termsAccepted = it
+                                if (it) confirmError = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "• Replace all data with backup\n" +
-                                    "• Current data will be overwritten\n" +
-                                    "• Only current user/store preserved\n" +
-                                    "• Use with caution",
+                            text = "I understand the risks. I am responsible for any data loss.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { onRestoreSelected(RestoreMode.REPLACE) },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("Use Replace Mode")
-                        }
+                    }
+
+                    val pendingModeLabel = pendingMode?.name?.lowercase() ?: "this mode"
+                    Text(
+                        text = "After checking the box, tap $pendingModeLabel again to confirm.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (confirmError) {
+                        Text(
+                            text = "Please accept the conditions to continue.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = {
+                            if (pendingMode != RestoreMode.MERGE) {
+                                pendingMode = RestoreMode.MERGE
+                                termsAccepted = false
+                                confirmError = false
+                                return@Button
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@Button
+                            }
+                            onRestoreSelected(RestoreMode.MERGE)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Merge")
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (pendingMode != RestoreMode.REPLACE) {
+                                pendingMode = RestoreMode.REPLACE
+                                termsAccepted = false
+                                confirmError = false
+                                return@OutlinedButton
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@OutlinedButton
+                            }
+                            onRestoreSelected(RestoreMode.REPLACE)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Replace")
                     }
                 }
                 
@@ -769,12 +812,14 @@ private fun LocalImportDialog(
     onDismiss: () -> Unit
 ) {
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-    var selectedMode by remember { mutableStateOf(RestoreMode.MERGE) }
+    var pendingMode by remember { mutableStateOf<RestoreMode?>(null) }
+    var termsAccepted by remember { mutableStateOf(false) }
+    var confirmError by remember { mutableStateOf(false) }
     var fileValidationResult by remember { mutableStateOf<FileValidationResult?>(null) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+    ) { uri ->
         if (uri != null) {
             selectedFileUri = uri
             validateLocalFile(uri) { result ->
@@ -820,7 +865,7 @@ private fun LocalImportDialog(
                     Text("Select Excel File (.xlsx)")
                 }
 
-                selectedFileUri?.let { uri ->
+                selectedFileUri.let { uri ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -833,7 +878,7 @@ private fun LocalImportDialog(
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
-                                text = uri.lastPathSegment ?: "Unknown file",
+                                text = uri?.lastPathSegment ?: "Unknown file",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -882,64 +927,161 @@ private fun LocalImportDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Import Mode:",
+                    text = "Choose Import Mode:",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        RadioButton(
-                            selected = selectedMode == RestoreMode.MERGE,
-                            onClick = { selectedMode = RestoreMode.MERGE }
+                if (pendingMode != null) {
+                    val infoLines = when (pendingMode) {
+                        RestoreMode.MERGE -> listOf(
+                            "Adds data from the file into this device.",
+                            "Keeps your existing local data as-is.",
+                            "If the same ID already exists, it is skipped.",
+                            "Deletes from other devices are NOT removed here.",
+                            "Duplicates are possible if IDs differ.",
+                            "Recommended when you already have data."
                         )
+                        RestoreMode.REPLACE -> listOf(
+                            "Imports all rows from the file.",
+                            "Existing local data may be overwritten where IDs match.",
+                            "Local-only data may remain (no delete tracking).",
+                            "Deletes from other devices are NOT removed here.",
+                            "Data loss or duplicates are possible.",
+                            "Use only if you are sure about the file."
+                        )
+                        else -> emptyList()
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (pendingMode == RestoreMode.REPLACE)
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .padding(12.dp)
+                                .heightIn(max = 200.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            infoLines.forEach { line ->
+                                Text(
+                                    text = "• $line",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = termsAccepted,
+                            onCheckedChange = {
+                                termsAccepted = it
+                                if (it) confirmError = false
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Merge",
-                            style = MaterialTheme.typography.bodySmall
+                            text = "I understand the risks. I am responsible for any data loss.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        RadioButton(
-                            selected = selectedMode == RestoreMode.REPLACE,
-                            onClick = { selectedMode = RestoreMode.REPLACE }
-                        )
+                    val pendingModeLabel = pendingMode?.name?.lowercase() ?: "this mode"
+                    Text(
+                        text = "After checking the box, tap $pendingModeLabel again to confirm.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (confirmError) {
                         Text(
-                            text = "Replace",
-                            style = MaterialTheme.typography.bodySmall
+                            text = "Please accept the conditions to continue.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+                RowOrColumn(
+                    rowModifier = Modifier.fillMaxWidth(),
+                    columnModifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                ) { isLandscapeLayout ->
+                    val buttonModifier = if (isLandscapeLayout) {
+                        Modifier.weight(1f)
+                    } else {
+                        Modifier.fillMaxWidth()
+                    }
+
                     TextButton(
                         onClick = onDismiss,
                         enabled = !isLoading,
-                        modifier = Modifier.weight(1f)
+                        modifier = buttonModifier
                     ) {
                         Text("Cancel")
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    WidthThenHeightSpacer(12.dp)
                     Button(
                         onClick = {
+                            if (pendingMode != RestoreMode.MERGE) {
+                                pendingMode = RestoreMode.MERGE
+                                termsAccepted = false
+                                confirmError = false
+                                return@Button
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@Button
+                            }
                             val fileUri = selectedFileUri
                             if (fileUri != null) {
-                                onImport(fileUri, selectedMode)
+                                onImport(fileUri, RestoreMode.MERGE)
                             }
                         },
                         enabled = !isLoading && selectedFileUri != null && fileValidationResult?.isValid == true,
-                        modifier = Modifier.weight(1f)
+                        modifier = buttonModifier
                     ) {
-                        Text("Start Import")
+                        Text("Merge")
+                    }
+                    WidthThenHeightSpacer(12.dp)
+                    OutlinedButton(
+                        onClick = {
+                            if (pendingMode != RestoreMode.REPLACE) {
+                                pendingMode = RestoreMode.REPLACE
+                                termsAccepted = false
+                                confirmError = false
+                                return@OutlinedButton
+                            }
+                            if (!termsAccepted) {
+                                confirmError = true
+                                return@OutlinedButton
+                            }
+                            val fileUri = selectedFileUri
+                            if (fileUri != null) {
+                                onImport(fileUri, RestoreMode.REPLACE)
+                            }
+                        },
+                        enabled = !isLoading && selectedFileUri != null && fileValidationResult?.isValid == true,
+                        modifier = buttonModifier,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Replace")
                     }
                 }
             }
         }
     }
 }
+
+

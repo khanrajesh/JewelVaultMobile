@@ -9,7 +9,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.velox.jewelvault.R
 import com.velox.jewelvault.utils.ExportFormat
-import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.Flow
@@ -22,12 +22,12 @@ class ExportWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-       log("ExportWorker: Export started")
         val fileName = inputData.getString("fileName") ?: return Result.failure()
         val headers = inputData.getStringArray("headers")?.toList() ?: return Result.failure()
         val rawData = inputData.getStringArray("rows")?.toList() ?: return Result.failure()
         val formatName = inputData.getString("format") ?: ExportFormat.XLS.name
         val format = ExportFormat.valueOf(formatName)
+        logJvSync("ExportWorker export started for file: $fileName, format: $formatName")
 
         // Convert flat list into List<List<String>> by chunking it using header size
         val rows: List<List<String>> = rawData.chunked(headers.size)
@@ -63,12 +63,14 @@ class ExportWorker @AssistedInject constructor(
             )
 
             // Return success with file URI in output data
+            logJvSync("ExportWorker export succeeded for file: $fileName")
             Result.success(workDataOf("fileUri" to fileUri))
         } catch (e: Exception) {
+            logJvSync("ExportWorker export failed: ${e.message}")
             e.printStackTrace()
             Result.failure()
         } finally {
-            log("ExportWorker: Export finished")
+            logJvSync("ExportWorker export finished for file: $fileName")
         }
     }
 

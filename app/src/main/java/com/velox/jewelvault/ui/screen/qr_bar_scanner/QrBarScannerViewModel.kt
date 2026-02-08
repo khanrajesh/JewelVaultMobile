@@ -44,11 +44,10 @@ class QrBarScannerViewModel @Inject constructor(
     ): String = withIo  {
         val existing = selectedItemList.find { it.first == id }?.second
         if (existing != null) {
-            val existingTotal = CalculationUtils.totalPrice(
-                existing.price, 
-                existing.chargeAmount, 
-                existing.othCrg, 
-                existing.tax
+            val existingTotal = (
+                existing.price+
+                existing.chargeAmount+
+                existing.compCrg
             )
             return@withIo "Id: $id\nWt: ${existing.gsWt.to3FString()} (${existing.fnWt.to3FString()})\n(${existing.purity}) P: $${existingTotal.to3FString()}"
         }
@@ -60,7 +59,7 @@ class QrBarScannerViewModel @Inject constructor(
         val oneUnitPrice = CalculationUtils.metalUnitPrice(item.catName, metalRates.toList())
         if (oneUnitPrice == null) return@withIo "Id: $id\nPlease load metal price"
 
-        val price = CalculationUtils.basePrice(item.fnWt, oneUnitPrice)
+        val price = CalculationUtils.baseMetalPrice(item.fnWt, oneUnitPrice)
         val charge = CalculationUtils.makingCharge(
             chargeType = item.crgType,
             chargeRate = item.crg,
@@ -68,17 +67,17 @@ class QrBarScannerViewModel @Inject constructor(
             quantity = item.quantity,
             weight = item.ntWt
         )
-        val tax = CalculationUtils.calculateTax(
+        val tax = CalculationUtils.calculateTaxPerItem(
             basePrice = price,
-            charge = charge+item.othCrg,
+            charge = charge+item.compCrg,
             cgstRate = item.cgst,
             sgstRate = item.sgst,
             igstRate = item.igst
         )
-        val updatedItem = item.copy(price = price, chargeAmount = charge, tax = tax)
+        val updatedItem = item.copy(price = price, chargeAmount = charge)
         selectedItemList.add(id to updatedItem)
 
-        val total = CalculationUtils.totalPrice(price, charge, 0.0, tax)
+        val total = (price+ charge+ item.compCrg+ tax)
         return@withIo "Id: $id\nWt: ${item.gsWt.to3FString()} (${item.fnWt.to3FString()})\n(${item.purity}) P: $${total.to3FString()}"
     }
 
@@ -103,8 +102,8 @@ class QrBarScannerViewModel @Inject constructor(
                 purity       = item.purity,
                 crgType      = item.crgType,
                 crg          = item.crg,
-                othCrgDes    = item.othCrgDes,
-                othCrg       = item.othCrg,
+                compDes    = item.othCrgDes,
+                compCrg       = item.othCrg,
                 cgst         = item.cgst,
                 sgst         = item.sgst,
                 igst         = item.igst,

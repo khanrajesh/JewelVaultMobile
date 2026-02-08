@@ -47,6 +47,7 @@ fun QrBarScannerPage(
         val previewView = remember { PreviewView(context) }
 
         var barcodeResults by remember { mutableStateOf(listOf<Pair<RectF, String>>()) }
+        val lastEmitted = remember { mutableStateOf<String?>(null) }
         val previewSize = remember { mutableStateOf(Size.Zero) }
         fun scaleRectToPreview(rect: Rect, imageWidth: Int, imageHeight: Int, previewWidth: Int, previewHeight: Int): RectF {
             val scaleX = previewWidth.toFloat() / imageWidth
@@ -105,10 +106,14 @@ fun QrBarScannerPage(
                                         }
                                         barcodeResults = scaled
 
-                                        if (scanAndClose){
-                                            barcodeResults.firstOrNull()?.let {res->
+                                        // Emit the first barcode value when it changes
+                                        barcodeResults.firstOrNull()?.let { res ->
+                                            if (lastEmitted.value != res.second) {
+                                                lastEmitted.value = res.second
                                                 onCodeScanned(res.second)
-                                                showPage.value = false
+                                                if (scanAndClose) {
+                                                    showPage.value = false
+                                                }
                                             }
                                         }
                                     }

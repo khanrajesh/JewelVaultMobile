@@ -1,18 +1,21 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
 import androidx.work.*
 import com.velox.jewelvault.utils.log
-import java.util.concurrent.TimeUnit
+import com.velox.jewelvault.utils.logJvSync
 
 /**
  * Backup frequency options
  */
-enum class BackupFrequency {
+enum class SyncFrequency {
 
     DAILY,
     WEEKLY,
     MONTHLY,
+    MINUTES_2,
+    MINUTES_5,
+    MINUTES_10,
     DISABLED;
     
     val displayName: String
@@ -20,23 +23,40 @@ enum class BackupFrequency {
             DAILY -> "Daily"
             WEEKLY -> "Weekly"
             MONTHLY -> "Monthly"
+            MINUTES_2 -> "Every 2 minutes"
+            MINUTES_5 -> "Every 5 minutes"
+            MINUTES_10 -> "Every 10 minutes"
             DISABLED -> "Never"
         }
     
     val description: String
         get() = when (this) {
-            DISABLED -> "No automatic backups"
-            DAILY -> "Backup every day at midnight"
-            WEEKLY -> "Backup every Sunday at midnight"
-            MONTHLY -> "Backup on the 1st of every month"
+            DISABLED -> "No automatic syncs"
+            DAILY -> "Sync every day at midnight"
+            WEEKLY -> "Sync every Sunday at midnight"
+            MONTHLY -> "Sync on the 1st of every month"
+            MINUTES_2 -> "Sync every 2 minutes (testing)"
+            MINUTES_5 -> "Sync every 5 minutes (testing)"
+            MINUTES_10 -> "Sync every 10 minutes (testing)"
 
+        }
+
+    val intervalMinutes: Int
+        get() = when (this) {
+            DAILY -> 24 * 60
+            WEEKLY -> 7 * 24 * 60
+            MONTHLY -> 30 * 24 * 60
+            MINUTES_2 -> 2
+            MINUTES_5 -> 5
+            MINUTES_10 -> 10
+            DISABLED -> 0
         }
 }
 
 /**
- * Handles scheduling of automatic backups using WorkManager
+ * Handles scheduling of automatic syncs using WorkManager
  */
-class BackupScheduler(private val context: Context) {
+class SyncScheduler(private val context: Context) {
     
     companion object {
         private const val BACKUP_WORK_NAME = "automatic_backup_work"
@@ -44,34 +64,35 @@ class BackupScheduler(private val context: Context) {
     }
     
     /**
-     * Schedule automatic backup based on frequency
+     * Schedule automatic sync based on frequency
      */
-    fun scheduleAutomaticBackup(frequency: BackupFrequency) {
+    fun scheduleAutomaticBackup(frequency: SyncFrequency) {
+        logJvSync("SyncScheduler scheduleAutomaticBackup called with $frequency")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
             .build()
         
 //        val backupRequest = when (frequency) {
-//            BackupFrequency.DAILY -> {
+//            SyncFrequency.DAILY -> {
 //                PeriodicWorkRequestBuilder<BackupWorker>(1, TimeUnit.DAYS)
 //                    .setConstraints(constraints)
 //                    .addTag(BACKUP_WORK_TAG)
 //                    .build()
 //            }
-//            BackupFrequency.WEEKLY -> {
+//            SyncFrequency.WEEKLY -> {
 //                PeriodicWorkRequestBuilder<BackupWorker>(7, TimeUnit.DAYS)
 //                    .setConstraints(constraints)
 //                    .addTag(BACKUP_WORK_TAG)
 //                    .build()
 //            }
-//            BackupFrequency.MONTHLY -> {
+//            SyncFrequency.MONTHLY -> {
 //                PeriodicWorkRequestBuilder<BackupWorker>(30, TimeUnit.DAYS)
 //                    .setConstraints(constraints)
 //                    .addTag(BACKUP_WORK_TAG)
 //                    .build()
 //            }
-//            BackupFrequency.DISABLED -> {
+//            SyncFrequency.DISABLED -> {
 //                cancelAutomaticBackup()
 //                return
 //            }
@@ -85,21 +106,23 @@ class BackupScheduler(private val context: Context) {
 //                backupRequest
 //            )
         
-        log("Automatic backup scheduled: $frequency")
+        log("Automatic sync scheduled: $frequency")
+        logJvSync("Automatic sync scheduled: $frequency")
     }
     
     /**
-     * Cancel automatic backup
+     * Cancel automatic sync
      */
     fun cancelAutomaticBackup() {
         WorkManager.getInstance(context)
             .cancelUniqueWork(BACKUP_WORK_NAME)
         
-        log("Automatic backup cancelled")
+        log("Automatic sync cancelled")
+        logJvSync("Automatic sync cancelled")
     }
     
     /**
-     * Check if automatic backup is scheduled
+     * Check if automatic sync is scheduled
      */
     suspend fun isAutomaticBackupScheduled(): Boolean {
         val workInfos = WorkManager.getInstance(context)
@@ -112,7 +135,7 @@ class BackupScheduler(private val context: Context) {
     }
     
     /**
-     * Get the status of the last backup work
+     * Get the status of the last sync work
      */
     suspend fun getLastBackupStatus(): WorkInfo.State? {
         val workInfos = WorkManager.getInstance(context)
@@ -123,9 +146,10 @@ class BackupScheduler(private val context: Context) {
     }
     
     /**
-     * Trigger immediate backup
+     * Trigger immediate sync
      */
     fun triggerImmediateBackup() {
+        logJvSync("SyncScheduler triggerImmediateBackup called")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
@@ -138,7 +162,8 @@ class BackupScheduler(private val context: Context) {
 //        WorkManager.getInstance(context)
 //            .enqueue(immediateBackupRequest)
         
-        log("Immediate backup triggered")
+        log("Immediate sync triggered")
+        logJvSync("Immediate sync triggered")
     }
 }
 

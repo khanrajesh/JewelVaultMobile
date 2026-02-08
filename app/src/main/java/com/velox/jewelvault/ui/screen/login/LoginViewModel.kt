@@ -2,16 +2,21 @@ package com.velox.jewelvault.ui.screen.login
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.os.Build
+import java.util.Locale
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.firebase.RemoteConfigManager
@@ -60,6 +65,7 @@ class LoginViewModel @Inject constructor(
     val firebaseUser = mutableStateOf<FirebaseUser?>(null)
 
     val otpVerificationId = mutableStateOf<String?>(null)
+    val activeDeviceBlock = mutableStateOf<DeviceSessionInfo?>(null)
 
     // Biometric authentication state
     val isBiometricAvailable = mutableStateOf(false)
@@ -396,8 +402,12 @@ class LoginViewModel @Inject constructor(
                 _loadingState.value = false
             } else {
                 _loadingState.value = false
-                val message = task.exception?.message ?: "OTP verification failed"
-                log("LOGIN: OTP verification failed -> ${task.exception?.message}")
+                val exception = task.exception
+                val message = when (exception) {
+                    is FirebaseAuthInvalidCredentialsException -> "Invalid OTP"
+                    else -> "OTP verification failed. Please try again."
+                }
+                log("LOGIN: OTP verification failed -> ${exception?.message}")
                 _snackBarState.value = message
                 onFailure(message)
             }
@@ -453,7 +463,8 @@ class LoginViewModel @Inject constructor(
                                 log("LOGIN: updating existing local admin user for $phone")
                                 // User exists with same phone, update the existing user
                                 val updatedUser = existingUser.copy(
-                                    pin = hashedPin
+                                    pin = hashedPin,
+                                    lastUpdated = System.currentTimeMillis()
                                 )
                                 val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                                 if (updateResult > 0) {
@@ -471,7 +482,8 @@ class LoginViewModel @Inject constructor(
                                     name = phone,
                                     mobileNo = phone,
                                     pin = hashedPin,
-                                    role = "admin"
+                                    role = "admin",
+                                    lastUpdated = System.currentTimeMillis()
                                 )
                                 val insertResult = _appDatabase.userDao().insertUser(newUser)
                                 if (insertResult != -1L) {
@@ -518,6 +530,7 @@ class LoginViewModel @Inject constructor(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
+        activeDeviceBlock.value = null
         // Validate inputs
         if (!InputValidator.isValidPhoneNumber(phone)) {
             log("LOGIN: invalid phone format -> $phone")
@@ -620,33 +633,66 @@ class LoginViewModel @Inject constructor(
                     log("LOGIN: Firestore user document exists for $phone")
                     val storedPin = document.getString("pin")
                     if (storedPin != null && SecurityUtils.verifyPin(pin, storedPin)) {
-                        ioScope {
-                            val result = _appDatabase.userDao().getUserByMobile(phone)
-                            if (result != null) {
-                                try {
-                                    log("LOGIN: admin PIN verified, saving admin info and session for $phone")
+                        checkDeviceSessionAndRegister(
+                            adminMobile = phone,
+                            onAllowed = {
+                                ioScope {
+                                    val result = _appDatabase.userDao().getUserByMobile(phone)
+                                    if (result != null) {
+                                        try {
+                                            log("LOGIN: admin PIN verified, saving admin info and session for $phone")
 
-                                    _dataStoreManager.saveAdminInfo(
-                                        phone, result.userId, phone
-                                    )
-                                    _dataStoreManager.saveCurrentLoginUser(result)
+                                            _dataStoreManager.saveAdminInfo(
+                                                phone, result.userId, phone
+                                            )
+                                            _dataStoreManager.saveCurrentLoginUser(result)
 
-                                    _sessionManager.startSession(result.userId)
+                                            _sessionManager.startSession(result.userId)
 
-                                    log("LOGIN: admin login success for $phone")
-                                    onSuccess()
-                                    _loadingState.value = false
-                                } catch (e: Exception) {
-                                    _loadingState.value = false
-                                    log("LOGIN: admin save/session error -> ${e.message}")
-                                    onFailure("Unable to store the user data")
+                                            log("LOGIN: admin login success for $phone")
+                                            onSuccess()
+                                            _loadingState.value = false
+                                        } catch (e: Exception) {
+                                            _loadingState.value = false
+                                            log("LOGIN: admin save/session error -> ${e.message}")
+                                            onFailure("Unable to store the user data")
+                                        }
+                                    } else {
+                                        _loadingState.value = false
+                                        log("LOGIN: admin user not found locally for $phone")
+                                        onFailure("User not found, please sign up first")
+                                    }
                                 }
-                            } else {
+                            },
+                            onBlocked = { info ->
+                                activeDeviceBlock.value = info
                                 _loadingState.value = false
-                                log("LOGIN: admin user not found locally for $phone")
-                                onFailure("User not found, please sign up first")
+                            },
+                            onError = {
+                                ioScope {
+                                    val result = _appDatabase.userDao().getUserByMobile(phone)
+                                    if (result != null) {
+                                        try {
+                                            log("LOGIN: device check failed, proceeding with login for $phone")
+                                            _dataStoreManager.saveAdminInfo(
+                                                phone, result.userId, phone
+                                            )
+                                            _dataStoreManager.saveCurrentLoginUser(result)
+                                            _sessionManager.startSession(result.userId)
+                                            onSuccess()
+                                        } catch (e: Exception) {
+                                            _loadingState.value = false
+                                            log("LOGIN: admin save/session error -> ${e.message}")
+                                            onFailure("Unable to store the user data")
+                                        }
+                                    } else {
+                                        _loadingState.value = false
+                                        log("LOGIN: admin user not found locally for $phone")
+                                        onFailure("User not found, please sign up first")
+                                    }
+                                }
                             }
-                        }
+                        )
                     } else {
                         _loadingState.value = false
                         log("LOGIN: admin invalid PIN for $phone")
@@ -670,6 +716,7 @@ class LoginViewModel @Inject constructor(
         ioLaunch {
             try {
                 log("LOGIN: logout called")
+                updateDeviceActiveFlag(isActive = false)
                 _sessionManager.endSession()
                 _auth.signOut()
                 firebaseUser.value = null
@@ -735,7 +782,8 @@ class LoginViewModel @Inject constructor(
                             log("LOGIN: updating local PIN for $phone")
                             // User exists with same phone, update the PIN
                             val updatedUser = existingUser.copy(
-                                pin = hashedPin
+                                pin = hashedPin,
+                                lastUpdated = System.currentTimeMillis()
                             )
                             val updateResult = _appDatabase.userDao().updateUser(updatedUser)
                             if (updateResult > 0) {
@@ -753,7 +801,8 @@ class LoginViewModel @Inject constructor(
                                 name = phone,
                                 mobileNo = phone,
                                 pin = hashedPin,
-                                role = "admin"
+                                role = "admin",
+                                lastUpdated = System.currentTimeMillis()
                             )
                             val insertResult = _appDatabase.userDao().insertUser(newUser)
                             if (insertResult != -1L) {
@@ -793,6 +842,111 @@ class LoginViewModel @Inject constructor(
         otpSentTo.value = null
         firebaseUser.value = null
         stopTimer()
+    }
+
+    fun clearActiveDeviceBlock() {
+        activeDeviceBlock.value = null
+    }
+
+    data class DeviceSessionInfo(
+        val deviceId: String,
+        val manufacturer: String,
+        val model: String,
+        val lastLoginAt: Long
+    )
+
+    private fun buildDeviceId(adminMobile: String): String {
+        val manufacturer = Build.MANUFACTURER.ifBlank { "unknown" }
+        val model = Build.MODEL.ifBlank { "unknown" }
+        val raw = "${manufacturer}_${model}_${adminMobile}"
+        return raw.lowercase(Locale.getDefault()).replace(Regex("[^a-z0-9]+"), "_").trim('_')
+    }
+
+    private fun checkDeviceSessionAndRegister(
+        adminMobile: String,
+        onAllowed: () -> Unit,
+        onBlocked: (DeviceSessionInfo) -> Unit,
+        onError: () -> Unit
+    ) {
+        val timeoutMs = TimeUnit.MINUTES.toMillis(5)
+        val now = System.currentTimeMillis()
+        val deviceId = buildDeviceId(adminMobile)
+        val devicesRef = _fireStore.collection("users")
+            .document(adminMobile)
+            .collection("devices")
+
+        devicesRef.get(Source.SERVER).addOnSuccessListener { snapshot ->
+            val activeDocs = mutableListOf<com.google.firebase.firestore.DocumentSnapshot>()
+            var activeOther: DeviceSessionInfo? = null
+
+            snapshot.documents.forEach { doc ->
+                val isActive = doc.getBoolean("isActive") == true
+                if (!isActive || doc.id == deviceId) return@forEach
+
+                val lastSeenAt = doc.getLong("lastSeenAt") ?: doc.getLong("lastLoginAt") ?: 0L
+                val isExpired = lastSeenAt > 0 && now - lastSeenAt > timeoutMs
+
+                activeDocs.add(doc)
+
+                if (!isExpired && activeOther == null) {
+                    activeOther = DeviceSessionInfo(
+                        deviceId = doc.id,
+                        manufacturer = doc.getString("manufacturer") ?: "Unknown",
+                        model = doc.getString("model") ?: "Unknown",
+                        lastLoginAt = doc.getLong("lastLoginAt") ?: 0L
+                    )
+                }
+            }
+
+            if (activeOther != null) {
+                onBlocked(activeOther!!)
+                return@addOnSuccessListener
+            }
+
+            val payload = mapOf(
+                "deviceId" to deviceId,
+                "manufacturer" to Build.MANUFACTURER,
+                "model" to Build.MODEL,
+                "isActive" to true,
+                "lastLoginAt" to System.currentTimeMillis(),
+                "lastSeenAt" to System.currentTimeMillis()
+            )
+
+            _fireStore.runBatch { batch ->
+                activeDocs.forEach { doc ->
+                    batch.update(doc.reference, "isActive", false)
+                }
+                batch.set(devicesRef.document(deviceId), payload, SetOptions.merge())
+            }.addOnSuccessListener {
+                onAllowed()
+            }.addOnFailureListener {
+                log("LOGIN: device register failed -> ${it.message}")
+                onError()
+            }
+        }.addOnFailureListener {
+            log("LOGIN: device check failed -> ${it.message}")
+            onError()
+        }
+    }
+
+    private fun updateDeviceActiveFlag(isActive: Boolean) {
+        ioScope {
+            try {
+                val adminMobile = _dataStoreManager.getAdminInfo().third.first()
+                if (adminMobile.isBlank()) return@ioScope
+                val deviceId = buildDeviceId(adminMobile)
+                val devicesRef = _fireStore.collection("users")
+                    .document(adminMobile)
+                    .collection("devices")
+                val payload = mapOf(
+                    "isActive" to isActive,
+                    "lastSeenAt" to System.currentTimeMillis()
+                )
+                devicesRef.document(deviceId).set(payload, SetOptions.merge())
+            } catch (e: Exception) {
+                log("LOGIN: failed to update device active flag -> ${e.message}")
+            }
+        }
     }
 
     // Timer functions

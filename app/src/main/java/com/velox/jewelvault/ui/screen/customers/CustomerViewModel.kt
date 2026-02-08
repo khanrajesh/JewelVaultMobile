@@ -145,6 +145,8 @@ class CustomerViewModel @Inject constructor(
     val selectedCustomerKhataBooks = mutableStateListOf<CustomerKhataBookEntity>()
     val selectedCustomerCompletedKhataBooks = mutableStateListOf<CustomerKhataBookEntity>()
 
+    val customerEditPermissions = mutableStateOf<CustomerEditPermissions?>(null)
+
     // Force recomposition when transactions are updated
     val transactionsUpdated = mutableStateOf(0)
 
@@ -636,12 +638,131 @@ class CustomerViewModel @Inject constructor(
 
                 // Load transaction history
                 loadTransactionHistory(customerMobile)
+                refreshCustomerEditPermissions(customerMobile)
 
             } catch (e: Exception) {
                 log("Failed to load customer details: ${e.message}")
                 _snackBarState.value = "Failed to load customer details: ${e.message}"
             } finally {
                 isLoadingCustomerDetails.value = false
+            }
+        }
+    }
+
+    fun refreshCustomerEditPermissions(customerMobile: String) {
+        viewModelScope.launch {
+            try {
+                val outstandingBalance =
+                    appDatabase.customerTransactionDao().getCustomerOutstandingBalance(customerMobile)
+                val orderCount = appDatabase.orderDao().getOrderCountForCustomer(customerMobile)
+                val khataBooks =
+                    appDatabase.customerKhataBookDao().getCustomerKhataBooks(customerMobile).first()
+                val khataBookCount = khataBooks.size
+                val canDelete = outstandingBalance <= 0.0 && orderCount == 0 && khataBookCount == 0
+                customerEditPermissions.value = CustomerEditPermissions(
+                    canDelete = canDelete,
+                    canEditMobile = canDelete,
+                    outstandingBalance = outstandingBalance,
+                    orderCount = orderCount,
+                    khataBookCount = khataBookCount
+                )
+            } catch (e: Exception) {
+                log("Failed to refresh customer edit permissions: ${e.message}")
+                customerEditPermissions.value = null
+            }
+        }
+    }
+
+    fun deleteCustomer(customerMobile: String) {
+        ioLaunch {
+            try {
+                val permissions = customerEditPermissions.value
+                if (permissions?.canDelete != true) {
+                    _snackBarState.value = "Customer cannot be deleted while orders, khata books, or outstanding balance exist"
+                    return@ioLaunch
+                }
+
+                val customer = appDatabase.customerDao().getCustomerByMobile(customerMobile)
+                if (customer == null) {
+                    _snackBarState.value = "Customer not found"
+                    return@ioLaunch
+                }
+
+                appDatabase.customerDao().deleteCustomer(customer)
+                _snackBarState.value = "Customer deleted successfully"
+                customerEditPermissions.value = null
+                clearSelectedCustomerData()
+                loadCustomerData()
+            } catch (e: Exception) {
+                log("Failed to delete customer: ${e.message}")
+                _snackBarState.value = "Failed to delete customer: ${e.message}"
+            }
+        }
+    }
+
+    fun updateCustomerProfile(
+        customerMobile: String,
+        newName: String,
+        newAddress: String,
+        requestedMobile: String,
+        gstinPan: String
+    ) {
+        ioLaunch {
+            try {
+                val sanitizedName = InputValidator.sanitizeText(newName)
+                if (sanitizedName.isBlank() || sanitizedName.length < 2) {
+                    _snackBarState.value = "Customer name must be at least 2 characters"
+                    return@ioLaunch
+                }
+
+                val sanitizedAddress = InputValidator.sanitizeText(newAddress)
+                if (sanitizedAddress.isBlank() || sanitizedAddress.length < 6) {
+                    _snackBarState.value = "Address must be at least 6 characters"
+                    return@ioLaunch
+                }
+                val sanitizedGstinPan = gstinPan.trim().uppercase()
+                if (sanitizedGstinPan.isNotBlank() &&
+                    !InputValidator.isValidGSTIN(sanitizedGstinPan) &&
+                    !InputValidator.isValidPAN(sanitizedGstinPan)
+                ) {
+                    _snackBarState.value = "Enter a valid GSTIN or PAN"
+                    return@ioLaunch
+                }
+
+                val customer = appDatabase.customerDao().getCustomerByMobile(customerMobile)
+                if (customer == null) {
+                    _snackBarState.value = "Customer not found"
+                    return@ioLaunch
+                }
+
+                var finalMobile = customer.mobileNo
+                val mobileDigits = requestedMobile.filter(Char::isDigit)
+                val permissions = customerEditPermissions.value
+                if (permissions?.canEditMobile == true && mobileDigits.length == 10 && mobileDigits.matches(Regex("^[6-9][0-9]{9}$"))) {
+                    finalMobile = mobileDigits
+                }
+
+                val finalGstinPan = sanitizedGstinPan.takeIf { it.isNotBlank() }
+                val updatedCustomer = customer.copy(
+                    name = sanitizedName,
+                    address = sanitizedAddress.takeIf { it.isNotBlank() },
+                    mobileNo = finalMobile,
+                    gstin_pan = finalGstinPan,
+                    lastModifiedDate = Timestamp(System.currentTimeMillis())
+                )
+
+                val result = appDatabase.customerDao().updateCustomer(updatedCustomer)
+                if (result > 0) {
+                    _snackBarState.value = "Customer details updated"
+                    loadCustomerDetails(finalMobile)
+                    loadCustomerData()
+                    refreshCustomerEditPermissions(finalMobile)
+                } else {
+                    _snackBarState.value = "Failed to update customer"
+                }
+            } catch (e: Exception) {
+                log("Failed to update customer: ${e.message}")
+                _snackBarState.value = "Failed to update customer: ${e.message}"
             }
         }
     }
@@ -1190,4 +1311,12 @@ class CustomerViewModel @Inject constructor(
             }
         }
     }
-} 
+
+    data class CustomerEditPermissions(
+        val canDelete: Boolean,
+        val canEditMobile: Boolean,
+        val outstandingBalance: Double,
+        val orderCount: Int,
+        val khataBookCount: Int
+    )
+}

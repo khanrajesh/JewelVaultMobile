@@ -117,7 +117,20 @@ class LabelPrintGenerator(private val context: Context) {
             "QR_CODE" -> addTsplQRElement(commands, element, properties, data, xDots, yDots, widthDots, heightDots)
             "BARCODE" -> addTsplBarcodeElement(commands, element, properties, data, xDots, yDots, widthDots, heightDots)
             "LINE" -> addTsplLineElement(commands, element, properties, xDots, yDots, widthDots, heightDots)
+            "DOT" -> addTsplDotElement(commands, xDots, yDots, widthDots, heightDots)
         }
+    }
+
+    private fun addTsplDotElement(
+        commands: TsplCommandBuilder,
+        xDots: Int,
+        yDots: Int,
+        widthDots: Int,
+        heightDots: Int
+    ) {
+        val w = widthDots.coerceAtLeast(2)
+        val h = heightDots.coerceAtLeast(2)
+        commands.append("BAR $xDots,$yDots,$w,$h\r\n")
     }
     
     private fun addTsplTextElement(
@@ -468,6 +481,11 @@ class LabelPrintGenerator(private val context: Context) {
                 val height = (element.height * 8).roundToInt().coerceAtLeast(24)
                 commands.append("BARCODE $barcodeType $xDots $yDots 0 2 4 $height $barcodeData\r\n")
             }
+            "DOT" -> {
+                val w = (element.width * 8).roundToInt().coerceAtLeast(2)
+                val h = (element.height * 8).roundToInt().coerceAtLeast(2)
+                commands.append("BOX $xDots $yDots ${xDots + w} ${yDots + h} 2\r\n")
+            }
             "LINE" -> {
                 val thicknessDots = 2
                 val isHorizontal = element.width >= element.height
@@ -616,8 +634,8 @@ class LabelPrintGenerator(private val context: Context) {
                         "unit" -> item?.unit ?: staticValue
                         "crgType" -> item?.crgType ?: staticValue
                         "crg" -> item?.crg?.toString() ?: staticValue
-                        "othCrgDes" -> item?.othCrgDes ?: staticValue
-                        "othCrg" -> item?.othCrg?.toString() ?: staticValue
+                        "compDes" -> item?.othCrgDes ?: staticValue
+                        "compCrg" -> item?.othCrg?.toString() ?: staticValue
                         "cgst" -> item?.cgst?.toString() ?: staticValue
                         "sgst" -> item?.sgst?.toString() ?: staticValue
                         "igst" -> item?.igst?.toString() ?: staticValue

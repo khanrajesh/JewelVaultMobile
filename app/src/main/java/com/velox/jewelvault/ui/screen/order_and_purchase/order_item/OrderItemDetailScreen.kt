@@ -62,6 +62,8 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.PdfRendererPreview
@@ -71,13 +73,13 @@ import com.velox.jewelvault.utils.mainScope
 import com.velox.jewelvault.utils.sharePdf
 import com.velox.jewelvault.utils.to3FString
 
-@Composable
+/*@Composable
 @VaultPreview
 fun OrderItemDetailScreenPreview() {
     val viewModel = hiltViewModel<OrderItemViewModel>()
     val orderId = "2"
     OrderItemDetailScreen(viewModel, orderId)
-}
+}*/
 
 @Composable
 fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
@@ -102,7 +104,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(top = 5.dp, start = 5.dp)
     ) {
         Column(
@@ -216,10 +218,10 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                 val boxModifier =
                     if (it) Modifier
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.surface)
+                        .baseBackground8()
                         .zIndex(1f)
                     else Modifier
-                        .background(MaterialTheme.colorScheme.surface)
+                        .baseBackground8()
                         .zIndex(1f)
                 Box(
                     modifier = boxModifier
@@ -252,7 +254,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                     translationX = offsetX,
                                     translationY = offsetY
                                 )
-                                .background(MaterialTheme.colorScheme.surface),
+                                .baseBackground8(),
                             highQuality = true
                         )
 

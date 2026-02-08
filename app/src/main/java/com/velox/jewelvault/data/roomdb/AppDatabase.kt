@@ -70,7 +70,7 @@ import com.velox.jewelvault.data.roomdb.entity.label.LabelElementEntity
         LabelTemplateEntity::class,
         LabelElementEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

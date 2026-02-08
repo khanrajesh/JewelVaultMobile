@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.ui.components.baseBackground0
 
 @Composable
 fun ManagePrintersScreen(
@@ -65,7 +66,7 @@ fun ManagePrintersScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(16.dp),
         verticalArrangement = Arrangement.Top
     ) {

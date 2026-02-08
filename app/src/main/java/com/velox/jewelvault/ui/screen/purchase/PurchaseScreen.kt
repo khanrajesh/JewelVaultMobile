@@ -57,6 +57,9 @@ import com.velox.jewelvault.data.roomdb.dto.PurchaseMetalRateDto
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground8
+import com.velox.jewelvault.ui.components.baseBackground2
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
@@ -133,20 +136,18 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .baseBackground8()
     ) {
         Column(
             Modifier
                 .fillMaxSize()
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                )
+                .baseBackground1()
                 .padding(5.dp)
         ) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
@@ -259,7 +260,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
             modifier
                 .fillMaxWidth()
                 .height(60.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .baseBackground2()
                 .padding(5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -296,7 +297,7 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
         Column(
             modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .baseBackground2()
                 .padding(5.dp),
         ) {
 
@@ -343,7 +344,7 @@ fun FirmDetails(viewModel: PurchaseViewModel, purchaseItemScrollState: MutableSt
         Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(5.dp)
     ) {
         Text("Firm Details")
@@ -591,7 +592,7 @@ fun PurchaseItemDetails(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(5.dp)
     ) {
         PurchaseItemListComponent(viewModel.purchaseItemList)

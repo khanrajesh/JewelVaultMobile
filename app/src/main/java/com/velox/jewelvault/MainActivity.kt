@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -215,14 +216,15 @@ class MainActivity : FragmentActivity() {
                                     .wrapContentHeight()
                                     .padding(10.dp)
                                     .background(
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
                                         RoundedCornerShape(12.dp)
                                     )
                                     .padding(16.dp),
                                 text = baseViewModel.snackBarState,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.surfaceBright,
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
 
                             )
                         }

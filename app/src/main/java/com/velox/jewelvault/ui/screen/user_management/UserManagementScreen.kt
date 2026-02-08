@@ -54,6 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground1
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.isLandscape
 
@@ -81,7 +83,7 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp), verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header with action buttons
@@ -201,9 +203,7 @@ fun UserCard(
         modifier = modifier
             .fillMaxWidth()
             .height(140.dp)
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-            )
+            .baseBackground1()
             .padding(4.dp)
             .clickable { onCardClick() }) {
         Column(

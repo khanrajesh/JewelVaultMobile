@@ -39,7 +39,7 @@
         android:name=".BaseApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
+        android:fullBackupContent="@xml/sync_rules"
         android:icon="@drawable/logo_1"
         android:label="@string/app_name"
         android:roundIcon="@drawable/logo_1"
@@ -85,7 +85,7 @@
 
         <!-- Backup Service -->
         <service
-            android:name=".utils.backup.BackupService"
+            android:name=".utils.sync.SyncService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />

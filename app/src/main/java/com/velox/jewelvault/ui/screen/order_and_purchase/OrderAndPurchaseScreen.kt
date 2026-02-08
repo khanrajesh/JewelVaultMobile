@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.components.TextListView
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
@@ -57,9 +58,7 @@ fun OrderAndPurchaseScreen(viewModel: OrderAndReportViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp)
-            )
+            .baseBackground0()
             .padding(5.dp)
     ) {
         TabRow(modifier = Modifier, selectedTabIndex = viewModel.selectedTabIndex) {
@@ -234,7 +233,7 @@ private fun OrderDetail(
             "₹${item.totalCharge.to3FString()} ",
             "₹${item.totalTax.to3FString()} ",
             "₹${
-                CalculationUtils.totalPrice(item.totalAmount, item.totalCharge, 0.0, item.totalTax)
+               (item.totalAmount+ item.totalCharge+ 0.0+ item.totalTax)
                     .to3FString()
             }"
         )

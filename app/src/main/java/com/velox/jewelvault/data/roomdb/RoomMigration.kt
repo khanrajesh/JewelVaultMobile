@@ -446,4 +446,18 @@ object RoomMigration {
             )
         }
     }
+
+    val MIGRATION_14_15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            try {
+                db.execSQL("ALTER TABLE store ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT 0")
+            } catch (e: Exception) {
+            }
+
+            try {
+                db.execSQL("ALTER TABLE users ADD COLUMN lastUpdated INTEGER NOT NULL DEFAULT 0")
+            } catch (e: Exception) {
+            }
+        }
+    }
 }

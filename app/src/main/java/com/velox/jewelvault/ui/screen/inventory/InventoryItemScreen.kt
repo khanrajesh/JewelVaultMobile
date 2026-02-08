@@ -63,6 +63,9 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground2
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
@@ -179,10 +182,7 @@ fun LandscapeInventoryItemScreen(
     LocalSubNavController.current
     LaunchedEffect(true) {
         delay(200)
-        inventoryViewModel.categoryFilter.text = catName
-        inventoryViewModel.subCategoryFilter.text = subCatName
-        inventoryViewModel.startDateFilter.text = ""
-        inventoryViewModel.endDateFilter.text = ""
+        inventoryViewModel.setCategoryOverrides(catId, catName, subCatId, subCatName)
 
         // Call filterItems() which is async
         inventoryViewModel.filterItems()
@@ -196,7 +196,7 @@ fun LandscapeInventoryItemScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -301,7 +301,6 @@ private fun PrintInfoDialog(
         }
         var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
         val logoUri = remember { FileManager.getLogoFileUri(context) }
-        var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
         LaunchedEffect(qrBitmap) {
             if (qrBitmap != null) {
                 try {
@@ -316,17 +315,7 @@ private fun PrintInfoDialog(
                 qrUri = null
             }
         }
-        LaunchedEffect(logoUri) {
-            if (logoUri != null) {
-                try {
-                    context.contentResolver.openInputStream(logoUri)?.use { ins ->
-                        logoBitmap = BitmapFactory.decodeStream(ins)
-                    }
-                } catch (_: Exception) {
-                    logoBitmap = null
-                }
-            } else logoBitmap = null
-        }
+
         AlertDialog(
             onDismissRequest = { showDialog.value = false },
             title = { Text("Item Details") },
@@ -348,21 +337,6 @@ private fun PrintInfoDialog(
                                 Image(
                                     bitmap = qrBitmap.asImageBitmap(),
                                     contentDescription = "QR",
-                                    modifier = Modifier
-                                        .width(80.dp)
-                                        .height(80.dp)
-                                )
-                            }
-                        }
-
-                        if (logoBitmap != null) {
-                            Column {
-                                Spacer(Modifier.height(8.dp))
-                                Text("Store Logo:")
-                                Spacer(Modifier.height(4.dp))
-                                Image(
-                                    bitmap = logoBitmap!!.asImageBitmap(),
-                                    contentDescription = "Logo",
                                     modifier = Modifier
                                         .width(80.dp)
                                         .height(80.dp)
@@ -420,32 +394,32 @@ private fun PrintInfoDialog(
                     }
                     Spacer(Modifier.width(8.dp))
 
-                    Column {
-                        TextButton(onClick = {
-                            if (selectedItem.value != null) {
-                                PrintUtils.generateItemExcelAndPrint(
-                                    context, selectedItem.value!!
-                                ) {
-                                    showDialog.value = false
-                                }
-                            }
-                        }) {
-                            Text("Print", color = MaterialTheme.colorScheme.primary)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = {
-                            if (selectedItem.value != null) {
-                                managePrintersViewModel.printItemLabel(
-                                    selectedItem.value!!, context, qrUri, logoUri
-                                )
-                                showDialog.value = false
-                            }
-                        }) {
-                            Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
-                        }
+//                    Column {
+//                        TextButton(onClick = {
+//                            if (selectedItem.value != null) {
+//                                PrintUtils.generateItemExcelAndPrint(
+//                                    context, selectedItem.value!!
+//                                ) {
+//                                    showDialog.value = false
+//                                }
+//                            }
+//                        }) {
+//                            Text("Print", color = MaterialTheme.colorScheme.primary)
+//                        }
+//                        Spacer(Modifier.height(8.dp))
+//                        TextButton(onClick = {
+//                            if (selectedItem.value != null) {
+//                                managePrintersViewModel.printItemLabel(
+//                                    selectedItem.value!!, context, qrUri, logoUri
+//                                )
+//                                showDialog.value = false
+//                            }
+//                        }) {
+//                            Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
+//                        }
 
-                    }
-                    Spacer(Modifier.width(8.dp))
+//                    }
+//                    Spacer(Modifier.width(8.dp))
                     TextButton(onClick = {
                         if (selectedItem.value != null) {
                             managePrintersViewModel.printItemWithDefaultTemplate(
@@ -484,7 +458,7 @@ private fun AddItemSection(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                .baseBackground1()
                 .padding(5.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -497,7 +471,7 @@ private fun AddItemSection(
 
             Column(
                 Modifier
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .baseBackground2()
                     .padding(5.dp)
             ) {
                 RowOrColumn(
@@ -840,14 +814,14 @@ private fun AddItemSection(
                 CusOutlinedTextField(
                     modifier = if(it) Modifier.weight(1f) else Modifier,
                     state = viewModel.otherChargeDes,
-                    placeholderText = "Oth Charge Description",
+                    placeholderText = "Jewel Component Description",
                 )
                 WidthThenHeightSpacer(5.dp)
 
                 CusOutlinedTextField(
                     modifier = if(it) Modifier.weight(1f) else Modifier,
                     state = viewModel.othCharge,
-                    placeholderText = "Oth Charge",
+                    placeholderText = "Jewel Component Price (With TAX)",
                     keyboardType = KeyboardType.Number,
                 )
             }

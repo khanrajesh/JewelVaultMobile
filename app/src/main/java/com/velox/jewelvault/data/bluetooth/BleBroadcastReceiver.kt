@@ -146,7 +146,6 @@ class BleBroadcastReceiver(context: Context, private val manager: BleManager) :
 
     }
 
-
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     private fun handleBleStateChange(intent: Intent) {
 

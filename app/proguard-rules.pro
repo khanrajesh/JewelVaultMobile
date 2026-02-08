@@ -85,6 +85,10 @@
 # Keep Apache POI classes
 -keep class org.apache.poi.** { *; }
 -keep class org.apache.xmlbeans.** { *; }
+-keep class org.openxmlformats.schemas.** { *; }
+-keep class org.apache.poi.schemas.** { *; }
+-keep class schemaorg_apache_xmlbeans.** { *; }
+-keep class org.apache.xmlbeans.impl.schema.** { *; }
 
 # Keep iText PDF classes
 -keep class com.itextpdf.** { *; }

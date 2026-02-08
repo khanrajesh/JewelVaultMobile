@@ -65,6 +65,7 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.PrintUtils
@@ -125,6 +126,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     val selectedItem = remember { mutableStateOf<ItemEntity?>(null) }
 
     LaunchedEffect(true) {
+        viewModel.clearCategoryOverrides()
         viewModel.categoryFilter.clear()
         viewModel.subCategoryFilter.clear()
         viewModel.getCategoryAndSubCategoryDetails()
@@ -135,9 +137,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp)
-            )
+            .baseBackground0()
             .padding(8.dp)
 
     ) {
@@ -244,11 +244,10 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             placeholderText = "Category",
                             dropdownItems = viewModel.catSubCatDto.map { it.catName },
                             onDropdownItemSelected = { selected ->
-                                viewModel.categoryFilter.text = selected
-                                val selectedCat =
-                                    viewModel.catSubCatDto.find { it.catName == selected }
+                                val selectedCat = viewModel.catSubCatDto.find { it.catName == selected }
                                 subCategories.clear()
                                 selectedCat?.subCategoryList?.let { subCategories.addAll(it) }
+                                selectedCat?.let { viewModel.setCategoryOverride(it.catId, it.catName) }
                                 viewModel.subCategoryFilter.text = ""
                             })
                         WidthThenHeightSpacer()
@@ -258,7 +257,16 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             placeholderText = "Sub Category",
                             dropdownItems = subCategories.map { it.subCatName },
                             onDropdownItemSelected = { selected ->
-                                viewModel.subCategoryFilter.text = selected
+                                val selectedSubCat =
+                                    subCategories.find { it.subCatName == selected }
+                                if (selectedSubCat != null) {
+                                    viewModel.setSubCategoryOverride(
+                                        selectedSubCat.subCatId,
+                                        selectedSubCat.subCatName
+                                    )
+                                } else {
+                                    viewModel.subCategoryFilter.text = selected
+                                }
                             })
                         WidthThenHeightSpacer()
                         CusOutlinedTextField(

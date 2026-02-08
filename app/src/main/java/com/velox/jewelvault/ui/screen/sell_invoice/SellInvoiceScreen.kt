@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -81,8 +80,13 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground2
+import com.velox.jewelvault.ui.components.baseBackground3
+import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.CalculationUtils
+import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
@@ -194,14 +198,14 @@ fun SellInvoiceContent(
         Column(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .baseBackground8()
                 .padding(5.dp)
         ) {
 
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { metalRateRefresh() }) {
@@ -228,19 +232,15 @@ fun SellInvoiceContent(
 
             if (isLandscapeMode) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     LazyColumn(
                         modifier = Modifier
                             .weight(2.5f)
                             .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                            )
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .baseBackground1()
+                            .padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item { CustomerDetails(viewModel) }
                         item { AddItemSection(showQrBarScanner, viewModel, itemId) }
@@ -248,8 +248,7 @@ fun SellInvoiceContent(
                             ItemSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 250.dp, max = 600.dp),
-                                viewModel = viewModel
+                                    .heightIn(min = 250.dp, max = 600.dp), viewModel = viewModel
                             )
                         }
                     }
@@ -257,32 +256,24 @@ fun SellInvoiceContent(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                            )
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .baseBackground1()
+                            .padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item { DetailSection(Modifier.fillMaxWidth(), viewModel) }
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .bounceClick {
-                                        if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
-                                            navHost.navigate(Screens.SellPreview.route)
-                                        } else {
-                                            viewModel.snackBarState.value =
-                                                "Please ensure to add customer and items details"
-                                        }
-
+                            Box(modifier = Modifier
+                                .bounceClick {
+                                    if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                        navHost.navigate(Screens.SellPreview.route)
+                                    } else {
+                                        viewModel.snackBarState.value =
+                                            "Please ensure to add customer and items details"
                                     }
-                                    .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                                    )
-                                    .padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+
+                                }
+                                .fillMaxWidth()
+                                .baseBackground3()
+                                .padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
                                 Text("Proceed", textAlign = TextAlign.Center)
                             }
                         }
@@ -290,18 +281,14 @@ fun SellInvoiceContent(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     item {
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .baseBackground1()
                                 .padding(8.dp)
                         ) {
                             CustomerDetails(viewModel)
@@ -315,17 +302,13 @@ fun SellInvoiceContent(
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .baseBackground1()
                                 .padding(8.dp)
                         ) {
                             ItemSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 250.dp, max = 600.dp),
-                                viewModel = viewModel
+                                    .heightIn(min = 250.dp, max = 600.dp), viewModel = viewModel
                             )
                         }
                     }
@@ -333,10 +316,7 @@ fun SellInvoiceContent(
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                )
+                                .baseBackground1()
                                 .padding(8.dp)
                         ) {
 
@@ -344,24 +324,19 @@ fun SellInvoiceContent(
 
                             Spacer(Modifier.height(12.dp))
 
-                            Box(
-                                modifier = Modifier
-                                    .bounceClick {
-                                        if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
-                                            navHost.navigate(Screens.SellPreview.route)
-                                        } else {
-                                            viewModel.snackBarState.value =
-                                                "Please ensure to add customer and items details"
-                                        }
-
+                            Box(modifier = Modifier
+                                .bounceClick {
+                                    if (viewModel.customerMobile.text.isNotEmpty() && viewModel.selectedItemList.isNotEmpty()) {
+                                        navHost.navigate(Screens.SellPreview.route)
+                                    } else {
+                                        viewModel.snackBarState.value =
+                                            "Please ensure to add customer and items details"
                                     }
-                                    .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                                    )
-                                    .padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+
+                                }
+                                .fillMaxWidth()
+                                .baseBackground3()
+                                .padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
                                 Text("Proceed", textAlign = TextAlign.Center)
                             }
                         }
@@ -433,8 +408,10 @@ fun ViewAddItemDialog(
     val takeNtWt = remember { (InputFieldState("${item.ntWt}")) }
     val takeFnWt = remember { (InputFieldState("${item.fnWt}")) }
 
-    val othCrgDes = remember { (InputFieldState("${item.othCrgDes} ")) }
-    val othCrg = remember { (InputFieldState("${item.othCrg}")) }
+    val chargeTypeState = remember(item) { InputFieldState(item.crgType) }
+    val chargeRateState = remember(item) { InputFieldState("${item.crg}") }
+    val compDes = remember { (InputFieldState("${item.compDes} ")) }
+    val compCrg = remember { (InputFieldState("${item.compCrg}")) }
 
     val isSingleItem = item.quantity == 1
     val isEditing = viewModel.selectedItemList.contains(item)
@@ -469,21 +446,21 @@ fun ViewAddItemDialog(
     val quantity = takeQuantity.text.toIntOrNull() ?: 0
 
     // Calculate base price
-    val price = CalculationUtils.basePrice(fineWeight, oneUnitPrice)
+    val price = CalculationUtils.baseMetalPrice(fineWeight, oneUnitPrice)
 
     // Calculate making charge
     val charge = CalculationUtils.makingCharge(
-        chargeType = item.crgType,
-        chargeRate = item.crg,
+        chargeType = chargeTypeState.text,
+        chargeRate = chargeRateState.text.toDoubleOrNull() ?: 0.0,
         basePrice = price,
         quantity = quantity,
         weight = ntWeight
     )
 
     // Calculate tax
-    val tax = CalculationUtils.calculateTax(
+    val tax = CalculationUtils.calculateTaxPerItem(
         basePrice = price,
-        charge = charge + item.othCrg,
+        charge = charge,
         cgstRate = item.cgst,
         sgstRate = item.sgst,
         igstRate = item.igst
@@ -502,12 +479,13 @@ fun ViewAddItemDialog(
                 ntWt = takeNtWt.text.toDoubleOrNull() ?: 0.0,
                 fnWt = takeFnWt.text.toDoubleOrNull() ?: 0.0,
                 fnMetalPrice = oneUnitPrice,
-                othCrgDes = othCrgDes.text,
-                othCrg = othCrg.text.toDoubleOrNull() ?: 0.0,
+                compDes = compDes.text,
+                compCrg = compCrg.text.toDoubleOrNull() ?: 0.0,
+                crgType = chargeTypeState.text,
+                crg = chargeRateState.text.toDoubleOrNull() ?: 0.0,
                 huid = takeHUID.text,
                 price = price,
                 chargeAmount = charge,
-                tax = tax,
             )
 
             if (isEditing) {
@@ -568,10 +546,10 @@ fun ViewAddItemDialog(
                     "Net Weight" to item.ntWt.toString(),
                     "Fine Weight" to item.fnWt.toString(),
                     "Purity" to item.purity,
-                    "Making Charge Type" to item.crgType,
-                    "Making Charges" to item.crg.toString(),
-                    "Other Charge Des" to item.othCrgDes,
-                    "Other Charges" to item.othCrg.toString(),
+                    "M.C Type" to chargeTypeState.text,
+                    "M.C" to chargeRateState.text,
+                    "Component Des" to item.compDes,
+                    "Component Charges" to item.compCrg.toString(),
                     "CGST" to item.cgst.toString(),
                     "SGST" to item.sgst.toString(),
                     "IGST" to item.igst.toString(),
@@ -602,43 +580,63 @@ fun ViewAddItemDialog(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    RowOrColumn() {
+                    RowOrColumn {
                         CusOutlinedTextField(
-                            othCrgDes,
-                            placeholderText = "O.Charge Des",
-                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            compDes,
+                            placeholderText = "O.Jeweler Component",
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
                         WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
-                            othCrg,
-                            placeholderText = "Other Charge",
-                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            compCrg,
+                            placeholderText = "O.Jeweler Component Price (with tax)",
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
                             keyboardType = KeyboardType.Number
                         )
 
                     }
                     Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Adjust Making Charge", style = MaterialTheme.typography.labelLarge
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    RowOrColumn {
+                        CusOutlinedTextField(
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
+                            state = chargeTypeState,
+                            placeholderText = "M.C Type",
+                            dropdownItems = ChargeType.list(),
+                            maxLines = 1
+                        )
+                        WidthThenHeightSpacer(5.dp)
+                        CusOutlinedTextField(
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
+                            state = chargeRateState,
+                            placeholderText = "M.C",
+                            keyboardType = KeyboardType.Number,
+                            maxLines = 1
+                        )
+                    }
                     RowOrColumn {
                         CusOutlinedTextField(
                             takeQuantity,
                             placeholderText = "Take Qty",
-                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             maxLines = 1,
                             keyboardType = KeyboardType.Number,
                             onTextChange = {
                                 takeNtWt.clear()
                                 takeGsWt.clear()
                                 takeFnWt.clear()
-                            }
-                        )
+                            })
                         WidthThenHeightSpacer(5.dp)
                         CusOutlinedTextField(
                             takeHUID,
                             placeholderText = "HUID",
-                            modifier = if(it) Modifier.weight(1f) else Modifier,
+                            modifier = if (it) Modifier.weight(1f) else Modifier,
                             maxLines = 3,
                             keyboardType = KeyboardType.Text
                         )
@@ -651,7 +649,7 @@ fun ViewAddItemDialog(
                             CusOutlinedTextField(
                                 takeGsWt,
                                 placeholderText = "Take Gs Wt",
-                                modifier =if(it) Modifier.weight(1f) else Modifier,
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
@@ -659,7 +657,7 @@ fun ViewAddItemDialog(
                             CusOutlinedTextField(
                                 takeNtWt,
                                 placeholderText = "Take Nt Wt",
-                                modifier = if(it) Modifier.weight(1f) else Modifier,
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number,
                                 onTextChange = {
@@ -670,7 +668,7 @@ fun ViewAddItemDialog(
                                         } else {
                                             val multiplier =
                                                 Purity.fromLabel(item.purity)?.multiplier ?: 1.0
-                                                Purity.fromLabel(item.purity)?.multiplier ?: 1.0
+                                            Purity.fromLabel(item.purity)?.multiplier ?: 1.0
                                             takeFnWt.text = (ntWtValue * multiplier).to3FString()
                                         }
                                     }
@@ -681,7 +679,7 @@ fun ViewAddItemDialog(
                             CusOutlinedTextField(
                                 takeFnWt,
                                 placeholderText = "Take Fn Wt",
-                                modifier = if(it) Modifier.weight(1f) else Modifier,
+                                modifier = if (it) Modifier.weight(1f) else Modifier,
                                 maxLines = 1,
                                 keyboardType = KeyboardType.Number
                             )
@@ -695,19 +693,23 @@ fun ViewAddItemDialog(
                         Text(
                             "Price: ${price.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = if(it) Modifier.weight(1f) else Modifier
+                            modifier = if (it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Charge: ${charge.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = if(it) Modifier.weight(1f) else Modifier
+                            modifier = if (it) Modifier.weight(1f) else Modifier
                         )
                         Text(
                             "Tax: ${tax.to3FString()}",
                             textAlign = TextAlign.Center,
-                            modifier = if(it) Modifier.weight(1f) else Modifier
+                            modifier = if (it) Modifier.weight(1f) else Modifier
                         )
-
+                        Text(
+                            "Component: ${compCrg.text.toDoubleOrNull() ?: 0.0.to3FString()}",
+                            textAlign = TextAlign.Center,
+                            modifier = if (it) Modifier.weight(1f) else Modifier
+                        )
                     }
                 }
 
@@ -760,23 +762,22 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 textAlign = TextAlign.Start
             )
             Text(
-                "M.Amt", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End
+                "Metal Price", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End
             )
             if (viewModel.showSeparateCharges.value) {
                 Text(
-                    "Charge",
+                    "M.C",
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.End
                 )
                 Text(
-                    "O.Crg",
+                    "Component Price",
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.End
                 )
             }
-            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End)
             Text(
                 "Total",
                 modifier = Modifier.weight(1.5f),
@@ -786,8 +787,7 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             viewModel.selectedItemList.forEach { item ->
                 Row(
@@ -819,23 +819,16 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                             textAlign = TextAlign.End
                         )
                         Text(
-                            item.othCrg.to3FString(),
+                            item.compCrg.to3FString(),
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp,
                             textAlign = TextAlign.End
                         )
                     }
 
-                    Text(
-                        item.tax.to3FString(),
-                        modifier = Modifier.weight(1f),
-                        fontSize = 10.sp,
-                        textAlign = TextAlign.End
-                    )
 
-                    val itemTotals = CalculationUtils.totalPrice(
-                        item.price, item.chargeAmount, item.othCrg, item.tax
-                    )
+                    val itemTotals = item.price+ item.chargeAmount+ item.compCrg
+
                     Text(
                         itemTotals.to3FString(),
                         modifier = Modifier.weight(1.5f),
@@ -856,11 +849,10 @@ fun DetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 @Composable
 fun SummarySection(viewModel: InvoiceViewModel) {
     // Use CalculationUtils for summary calculations
-    val summary = CalculationUtils.summaryTotals(viewModel.selectedItemList)
+    val summary = CalculationUtils.summaryTotals(viewModel.selectedItemList,viewModel.exchangeItemList,0.0)
     val totalExchangeValue = viewModel.getTotalExchangeValue()
-    val netPayableAmount = viewModel.getNetPayableAmount()
 
-    Column(Modifier.padding(16.dp)) {
+    Column(Modifier) {
         Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)
 
         // Display metal summaries
@@ -882,47 +874,8 @@ fun SummarySection(viewModel: InvoiceViewModel) {
 
         Spacer(Modifier.height(5.dp))
         HorizontalDivider(thickness = 1.dp)
-
-        // Display financial totals using CalculationUtils
-        Spacer(Modifier.height(5.dp))
-        Row(Modifier.fillMaxWidth()) {
-            Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text(
-                "₹${summary.totalPriceBeforeTax.to3FString()}",
-                modifier = Modifier.weight(1f),
-                fontSize = 10.sp,
-                textAlign = TextAlign.End
-            )
-        }
-        Row(Modifier.fillMaxWidth()) {
-            Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
-            Text(
-                "₹${summary.totalTax.to3FString()}",
-                modifier = Modifier.weight(1f),
-                fontSize = 10.sp,
-                textAlign = TextAlign.End
-            )
-        }
-        Row(Modifier.fillMaxWidth()) {
-            Text(
-                "Grand Total (after tax)",
-                modifier = Modifier.weight(1.5f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                "₹${summary.grandTotal.to3FString()}",
-                modifier = Modifier.weight(1f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.End
-            )
-        }
-
         // Show exchange items if any
         if (viewModel.exchangeItemList.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(thickness = 1.dp)
             Spacer(modifier = Modifier.height(5.dp))
 
             Text(
@@ -979,28 +932,44 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                     textAlign = TextAlign.End
                 )
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider(thickness = 1.dp)
         }
 
-        // Net payable amount
-        if (viewModel.exchangeItemList.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider(thickness = 2.dp)
-            Spacer(Modifier.height(5.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    "Net Payable Amount",
-                    modifier = Modifier.weight(1.5f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "₹${netPayableAmount.to3FString()}",
-                    modifier = Modifier.weight(1f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End
-                )
-            }
+        // Display financial totals using CalculationUtils
+        Spacer(Modifier.height(5.dp))
+        Row(Modifier.fillMaxWidth()) {
+            Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text(
+                "₹${summary.totalPriceBeforeTax.to3FString()}",
+                modifier = Modifier.weight(1f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
+            Text(
+                "₹${summary.totalTax.to3FString()}",
+                modifier = Modifier.weight(1f),
+                fontSize = 10.sp,
+                textAlign = TextAlign.End
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text(
+                "Grand Total (after tax)",
+                modifier = Modifier.weight(1.5f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                "₹${summary.grandTotal.to3FString()}",
+                modifier = Modifier.weight(1f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.End
+            )
         }
     }
 }
@@ -1024,7 +993,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
         Column(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .baseBackground2()
                 .padding(5.dp)
         ) {
             // Prepare header list
@@ -1036,7 +1005,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 "Gs/Nt.Wt",
                 "Fn.Wt",
                 "Metal",
-                "Chr",
+                "Chr/unit",
                 "M.Chr",
                 "Tax",
             )
@@ -1044,9 +1013,8 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
             // Prepare items data
             val itemsData = viewModel.selectedItemList.mapIndexed { index, item ->
                 // Use CalculationUtils for price and charge calculations
-                val oneUnitPrice =
-                    CalculationUtils.metalUnitPrice(item.catName, baseViewModel.metalRates) ?: 0.0
-                val price = CalculationUtils.basePrice(item.fnWt ?: 0.0, oneUnitPrice)
+                val oneUnitPrice = CalculationUtils.metalUnitPrice(item.catName, baseViewModel.metalRates) ?: 0.0
+                val price = CalculationUtils.baseMetalPrice(item.fnWt ?: 0.0, oneUnitPrice)
 
                 val charge = CalculationUtils.makingCharge(
                     chargeType = item.crgType,
@@ -1066,7 +1034,7 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                     "${item.catName} (${item.purity})",
                     "${item.crg} ${item.crgType}",
-                    "${char}\n+ ${item.othCrg}",
+                    "${char}\n+ ${item.compCrg}",
                     "${(item.cgst ?: 0.0) + (item.sgst ?: 0.0) + (item.igst ?: 0.0)} %",
                 )
             }
@@ -1176,7 +1144,7 @@ private fun AddItemSection(
         Modifier
             .height(50.dp)
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(3.dp)
     ) {
         Box(
@@ -1201,35 +1169,35 @@ private fun AddItemSection(
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
                 )
-                .padding(3.dp).align(Alignment.CenterVertically),
+                .padding(3.dp)
+                .align(Alignment.CenterVertically),
 
-        ) {
+            ) {
             Icon(Icons.TwoTone.CameraAlt, null, modifier = Modifier
                 .bounceClick {
                     showQrBarScanner.value = !showQrBarScanner.value
                 }
                 .fillMaxHeight()
                 .aspectRatio(1f)
-                .background(
-                    MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                )
+                .baseBackground3()
                 .padding(5.dp))
             Spacer(Modifier.width(5.dp))
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(100.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                    ),
+                    .baseBackground2(),
                 contentAlignment = Alignment.Center // this centers the text vertically and horizontally
             ) {
                 BasicTextField(
-                    value = itemId.value, onValueChange = {
+                    value = itemId.value,
+                    onValueChange = {
                         itemId.value = it
-                    }, keyboardOptions = KeyboardOptions(
+                    },
+                    keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
-                    ), keyboardActions = KeyboardActions(onDone = {
+                    ),
+                    keyboardActions = KeyboardActions(onDone = {
                         if (itemId.value.isNotEmpty()) {
                             viewModel.getItemById(itemId.value, onFailure = {}, onSuccess = {
                                 viewModel.showAddItemDialog.value = true
@@ -1237,18 +1205,20 @@ private fun AddItemSection(
                             itemId.value = ""
                         }
                         focusManager.clearFocus()
-                    }), textStyle = TextStyle(
+                    }),
+                    textStyle = TextStyle(
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                        color =MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                     ),
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), // optional inner padding
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp), // optional inner padding
                     decorationBox = { innerTextField ->
                         Box(contentAlignment = Alignment.Center) {
                             if (itemId.value.isEmpty()) {
                                 Text(
-                                    text = "Item Id",
-                                    style = TextStyle(
+                                    text = "Item Id", style = TextStyle(
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
@@ -1257,8 +1227,7 @@ private fun AddItemSection(
                             }
                             innerTextField()
                         }
-                    }
-                )
+                    })
             }
             Spacer(Modifier.width(5.dp))
             Box(modifier = Modifier
@@ -1274,9 +1243,7 @@ private fun AddItemSection(
                     focusManager.clearFocus()
                 }
                 .fillMaxHeight()
-                .background(
-                    MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                ), contentAlignment = Alignment.Center) {
+                .baseBackground3(), contentAlignment = Alignment.Center) {
                 Row {
                     Spacer(Modifier.width(5.dp))
                     Icon(
@@ -1297,7 +1264,7 @@ fun CustomerDetails(viewModel: InvoiceViewModel) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(5.dp)
     ) {
         Text("Customer Details")

@@ -25,10 +25,10 @@ android {
 
     defaultConfig {
         applicationId = "com.velox.jewelvault"
-        minSdk = 29
+        minSdk = 30
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.0.19-test"
+        versionCode = 23
+        versionName = "0.0.23-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.androidx.material)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.lottie.compose)
     implementation(libs.androidx.junit.ktx)
     implementation(libs.androidx.room.testing.android)
     testImplementation(libs.junit)
@@ -148,7 +149,11 @@ dependencies {
     
     // Apache POI for Excel processing
     implementation (libs.poi)
-    implementation (libs.poi.ooxml)
+    implementation (libs.poi.ooxml) {
+        // Exclude lite schemas to avoid duplicate classes (we use full schemas below)
+        exclude(group = "org.apache.poi", module = "poi-ooxml-lite")
+    }
+    implementation (libs.poi.ooxml.full)
     implementation (libs.poi.scratchpad)
 
     // Optional for Android compatibility
@@ -172,6 +177,7 @@ dependencies {
 
     implementation (libs.exp4j)
     implementation (libs.androidx.lifecycle.extensions)
+    implementation (libs.play.services.location)
 
     //room
     implementation (libs.androidx.room.runtime)

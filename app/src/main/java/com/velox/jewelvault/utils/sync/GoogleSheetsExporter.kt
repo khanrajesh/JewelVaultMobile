@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.content.Context
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -9,6 +9,7 @@ import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.api.services.sheets.v4.model.*
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.logJvSync
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -31,6 +32,7 @@ class GoogleSheetsExporter(private val context: Context) {
         return withContext(Dispatchers.IO) {
             try {
                 log("Starting Google Sheets export")
+                logJvSync("GoogleSheetsExporter export started")
                 
                 // Initialize Google Sheets service
                 val sheetsService = initializeSheetsService()
@@ -38,7 +40,7 @@ class GoogleSheetsExporter(private val context: Context) {
                 // Create a new spreadsheet
                 val spreadsheet = Spreadsheet().apply {
                     properties = SpreadsheetProperties().apply {
-                        title = "JewelVault_Backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                        title = "JewelVault_Sync_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
                     }
                 }
                 
@@ -53,10 +55,12 @@ class GoogleSheetsExporter(private val context: Context) {
                 
                 val spreadsheetUrl = "https://docs.google.com/spreadsheets/d/$spreadsheetId"
                 log("Google Sheets export completed successfully: $spreadsheetUrl")
+                logJvSync("GoogleSheetsExporter export succeeded: $spreadsheetUrl")
                 Result.success(spreadsheetUrl)
                 
             } catch (e: Exception) {
                 log("Google Sheets export failed: ${e.message}")
+                logJvSync("GoogleSheetsExporter export failed: ${e.message}")
                 Result.failure(e)
             }
         }
@@ -96,5 +100,6 @@ class GoogleSheetsExporter(private val context: Context) {
             .execute()
             
         log("Created test sheet successfully")
+        logJvSync("GoogleSheetsExporter test sheet updated for spreadsheetId: $spreadsheetId")
     }
 } 

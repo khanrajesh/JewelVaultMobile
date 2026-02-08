@@ -1,7 +1,6 @@
 package com.velox.jewelvault.ui.screen.sell_invoice
 
 import android.content.Context
-
 import android.net.Uri
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -11,27 +10,30 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.AppDatabase
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
+import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.roomdb.entity.customer.CustomerEntity
+import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderEntity
 import com.velox.jewelvault.data.roomdb.entity.order.OrderItemEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.PaymentInfo
-import com.velox.jewelvault.data.DataStoreManager
-import com.velox.jewelvault.data.roomdb.entity.customer.CustomerTransactionEntity
-import com.velox.jewelvault.data.MetalRate
-import com.velox.jewelvault.data.roomdb.entity.StoreEntity
+import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.createDraftInvoiceData
 import com.velox.jewelvault.utils.generateId
+import com.velox.jewelvault.utils.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.roundTo3Decimal
+import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.withIo
-import com.velox.jewelvault.utils.CalculationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -40,9 +42,6 @@ import kotlinx.coroutines.launch
 import java.sql.Timestamp
 import javax.inject.Inject
 import javax.inject.Named
-import com.velox.jewelvault.utils.createDraftInvoiceData
-import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
-import com.velox.jewelvault.utils.to3FString
 
 @HiltViewModel
 class InvoiceViewModel @Inject constructor(
@@ -144,8 +143,8 @@ class InvoiceViewModel @Inject constructor(
                         purity = item.purity,
                         crgType = item.crgType,
                         crg = item.crg,
-                        othCrgDes = item.othCrgDes,
-                        othCrg = item.othCrg,
+                        compDes = item.othCrgDes,
+                        compCrg = item.othCrg,
                         cgst = item.cgst,
                         sgst = item.sgst,
                         igst = item.igst,
@@ -204,13 +203,16 @@ class InvoiceViewModel @Inject constructor(
     //endregion
 
     fun getTotalOrderAmount(): Double {
-        val summary = CalculationUtils.summaryTotals(selectedItemList.toList())
+        val summary = CalculationUtils.summaryTotals(
+            selectedItemList.toList(),
+            exchangeItemList,
+            discount.text.toDoubleOrNull() ?: 0.0
+        )
         return summary.grandTotal
     }
 
     fun completeOrder(
-        invoiceNo: String,
-        onSuccess: () -> Unit, onFailure: (String) -> Unit
+        invoiceNo: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
     ) {
         ioLaunch {
             try {
@@ -233,7 +235,11 @@ class InvoiceViewModel @Inject constructor(
                 }
 
                 // Calculate totals using CalculationUtils
-                val summary = CalculationUtils.summaryTotals(selectedItemList.toList())
+                val summary = CalculationUtils.summaryTotals(
+                    selectedItemList.toList(),
+                    exchangeItemList,
+                    discount.text.toDoubleOrNull()?:0.0
+                )
                 val totalAmount = summary.totalBasePrice
                 val totalTax = summary.totalTax
                 val totalCharge = summary.totalMakingCharges
@@ -302,7 +308,7 @@ class InvoiceViewModel @Inject constructor(
                                     removeItemSafely(onSuccess = {
                                         //7. generate the pdf
                                         generateInvoice(
-                                            invoiceNo=invoiceNo,
+                                            invoiceNo = invoiceNo,
                                             storeId,
                                             cus,
                                             onSuccess = onSuccess,
@@ -379,21 +385,26 @@ class InvoiceViewModel @Inject constructor(
                                 purity = it.purity,
                                 crgType = it.crgType,
                                 crg = it.crg,
-                                othCrgDes = it.othCrgDes,
-                                othCrg = it.othCrg,
+                                othCrgDes = it.compDes,
+                                othCrg = it.compCrg,
                                 cgst = it.cgst,
                                 sgst = it.sgst,
                                 igst = it.igst,
                                 huid = it.huid,
                                 price = it.price,
                                 charge = it.chargeAmount,
-                                tax = it.tax,
+                                tax = CalculationUtils.calculateTaxPerItem(
+                                    it.price,
+                                    it.crg,
+                                    it.cgst,
+                                    it.sgst,
+                                    it.igst
+                                ),
                                 addDesKey = it.addDesKey,
                                 addDesValue = it.addDesValue,
                                 sellerFirmId = it.sellerFirmId,
                                 purchaseOrderId = it.purchaseOrderId,
                                 purchaseItemId = it.purchaseItemId
-
                             )
                         }
                         val res = appDatabase.orderDao().insertItems(orderItems)
@@ -432,7 +443,7 @@ class InvoiceViewModel @Inject constructor(
             try {
                 var successCount = 0
                 var failureCount = 0
-                
+
                 selectedItemList.forEach { item ->
                     try {
                         val itemId = item.itemId
@@ -464,7 +475,7 @@ class InvoiceViewModel @Inject constructor(
                         } else {
                             appDatabase.itemDao().deleteById(itemId, catId, subCatId)
                         }
-                        
+
                         if (result > 0) {
                             try {
                                 val subCategory =
@@ -519,7 +530,7 @@ class InvoiceViewModel @Inject constructor(
                         failureCount++
                     }
                 }
-                
+
                 // Call callbacks based on results
                 if (successCount > 0 && failureCount == 0) {
                     onSuccess()
@@ -528,7 +539,7 @@ class InvoiceViewModel @Inject constructor(
                 } else {
                     onFailure("Failed to remove all items")
                 }
-                
+
             } catch (e: Exception) {
                 onFailure("Error removing the item safely DB, error: ${e.message}")
                 this@InvoiceViewModel.log("Error removing the item safely DB, error: ${e.message}")
@@ -539,20 +550,23 @@ class InvoiceViewModel @Inject constructor(
 
     private fun generateInvoice(
         invoiceNo: String,
-        storeId: String, cus: CustomerEntity, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        storeId: String,
+        cus: CustomerEntity,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
     ) {
         ioLaunch {
             try {
                 val store = appDatabase.storeDao().getStoreById(storeId)
                 if (store != null && customerSign.value != null && ownerSign.value != null) {
 
-                   val oldExchange = exchangeItemList.sumOf { it.exchangeValue }
+                    val oldExchange = exchangeItemList.sumOf { it.exchangeValue }
 
                     // Create DraftInvoiceData object
                     val invoiceData = createDraftInvoiceData(
                         store = store,
                         customer = cus,
-                        items =selectedItemList,
+                        items = selectedItemList,
                         metalRates = metalRates,
                         paymentInfo = paymentInfo,
                         appDatabase = appDatabase,
@@ -560,18 +574,16 @@ class InvoiceViewModel @Inject constructor(
                         ownerSign = ownerSign,
                         gstLabel = "GST @3 ",
                         discount = discount.text,
-                        cardCharges= "0.00",
+                        cardCharges = "0.00",
                         oldExchange = oldExchange.to3FString(),
                         roundOff = "0.00",
                         dataStoreManager = _dataStoreManager,
-                        invoiceNo =invoiceNo
+                        invoiceNo = invoiceNo
                     )
 
 
                     generateInvoicePdf(
-                        context = context,
-                        data = invoiceData,
-                        scale = 2f
+                        context = context, data = invoiceData, scale = 2f
                     ) { file ->
                         generatedPdfFile = file
                         onSuccess()
@@ -632,13 +644,20 @@ class InvoiceViewModel @Inject constructor(
         // Prefill draft GST defaults once
         ioLaunch {
             try {
-                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
-                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
-                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                val defCgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first()
+                        ?: "1.5"
+                val defSgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first()
+                        ?: "1.5"
+                val defIgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first()
+                        ?: "0.0"
                 draftDialogCgst.text = defCgst
                 draftDialogSgst.text = defSgst
                 draftDialogIgst.text = defIgst
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -664,8 +683,8 @@ class InvoiceViewModel @Inject constructor(
                 purity = "916",
                 crgType = "Percentage",
                 crg = 500.0,
-                othCrgDes = "Stone",
-                othCrg = 100.0,
+                compDes = "Stone",
+                compCrg = 100.0,
                 cgst = 150.0,
                 sgst = 150.0,
                 igst = 0.0,
@@ -674,13 +693,11 @@ class InvoiceViewModel @Inject constructor(
                 huid = "H123456789",
                 price = 30000.0,
                 chargeAmount = 600.0,
-                tax = 300.0,
-                addDate = java.sql.Timestamp(System.currentTimeMillis()),
+                addDate = Timestamp(System.currentTimeMillis()),
                 sellerFirmId = "0",
                 purchaseOrderId = "0",
                 purchaseItemId = "0"
-            ),
-            ItemSelectedModel(
+            ), ItemSelectedModel(
                 itemId = generateId(),
                 itemAddName = "Silver Necklace",
                 catId = "2",
@@ -698,8 +715,8 @@ class InvoiceViewModel @Inject constructor(
                 purity = "925",
                 crgType = "Fixed",
                 crg = 200.0,
-                othCrgDes = "Pendant",
-                othCrg = 150.0,
+                compDes = "Pendant",
+                compCrg = 150.0,
                 cgst = 75.0,
                 sgst = 75.0,
                 igst = 0.0,
@@ -708,13 +725,11 @@ class InvoiceViewModel @Inject constructor(
                 huid = "H987654321",
                 price = 9000.0,
                 chargeAmount = 350.0,
-                tax = 150.0,
-                addDate = java.sql.Timestamp(System.currentTimeMillis()),
+                addDate = Timestamp(System.currentTimeMillis()),
                 sellerFirmId = "0",
                 purchaseOrderId = "0",
                 purchaseItemId = "0"
-            ),
-            ItemSelectedModel(
+            ), ItemSelectedModel(
                 itemId = generateId(),
                 itemAddName = "Platinum Earrings",
                 catId = "3",
@@ -732,8 +747,8 @@ class InvoiceViewModel @Inject constructor(
                 purity = "950",
                 crgType = "Percentage",
                 crg = 300.0,
-                othCrgDes = "Diamond",
-                othCrg = 500.0,
+                compDes = "Diamond",
+                compCrg = 500.0,
                 cgst = 175.0,
                 sgst = 175.0,
                 igst = 0.0,
@@ -742,13 +757,11 @@ class InvoiceViewModel @Inject constructor(
                 huid = "H456789123",
                 price = 12000.0,
                 chargeAmount = 800.0,
-                tax = 350.0,
-                addDate = java.sql.Timestamp(System.currentTimeMillis()),
+                addDate = Timestamp(System.currentTimeMillis()),
                 sellerFirmId = "0",
                 purchaseOrderId = "0",
                 purchaseItemId = "0"
-            ),
-            ItemSelectedModel(
+            ), ItemSelectedModel(
                 itemId = generateId(),
                 itemAddName = "Diamond Bracelet",
                 catId = "4",
@@ -766,8 +779,8 @@ class InvoiceViewModel @Inject constructor(
                 purity = "750",
                 crgType = "Fixed",
                 crg = 400.0,
-                othCrgDes = "Diamond",
-                othCrg = 800.0,
+                compDes = "Diamond",
+                compCrg = 800.0,
                 cgst = 225.0,
                 sgst = 225.0,
                 igst = 0.0,
@@ -776,8 +789,7 @@ class InvoiceViewModel @Inject constructor(
                 huid = "H789123456",
                 price = 18000.0,
                 chargeAmount = 1200.0,
-                tax = 450.0,
-                addDate = java.sql.Timestamp(System.currentTimeMillis()),
+                addDate = Timestamp(System.currentTimeMillis()),
                 sellerFirmId = "0",
                 purchaseOrderId = "0",
                 purchaseItemId = "0"
@@ -848,7 +860,7 @@ class InvoiceViewModel @Inject constructor(
         val basePrice = netWt * 6000 // Assuming 6000 per gram as base rate
         val totalCharges = chargeAmt + otherChargeAmt
         val totalTaxes = cgstAmt + sgstAmt + igstAmt
-        val finalPrice = CalculationUtils.totalPrice(basePrice, totalCharges, totalTaxes)
+        val finalPrice = basePrice + totalCharges + totalTaxes
 
         val newItem = ItemSelectedModel(
             itemId = "DB_${selectedItemList.size + 1}",
@@ -868,8 +880,8 @@ class InvoiceViewModel @Inject constructor(
             purity = InputValidator.sanitizeText(draftDialogPurity.text),
             crgType = InputValidator.sanitizeText(draftDialogChargeType.text),
             crg = draftDialogCharge.text.toDoubleOrNull() ?: 0.0,
-            othCrgDes = InputValidator.sanitizeText(draftDialogOtherChargeDescription.text),
-            othCrg = draftDialogOtherCharge.text.toDoubleOrNull() ?: 0.0,
+            compDes = InputValidator.sanitizeText(draftDialogOtherChargeDescription.text),
+            compCrg = draftDialogOtherCharge.text.toDoubleOrNull() ?: 0.0,
             cgst = draftDialogCgst.text.toDoubleOrNull() ?: 0.0,
             sgst = draftDialogSgst.text.toDoubleOrNull() ?: 0.0,
             igst = draftDialogIgst.text.toDoubleOrNull() ?: 0.0,
@@ -878,8 +890,7 @@ class InvoiceViewModel @Inject constructor(
             huid = draftDialogHuid.text.trim().uppercase(),
             price = finalPrice,
             chargeAmount = totalCharges,
-            tax = totalTaxes,
-            addDate = java.sql.Timestamp(System.currentTimeMillis()),
+            addDate = Timestamp(System.currentTimeMillis()),
             sellerFirmId = "0",
             purchaseOrderId = "0",
             purchaseItemId = "0"
@@ -888,7 +899,8 @@ class InvoiceViewModel @Inject constructor(
         // If we are editing an existing item, replace it; otherwise add new
         val editingIndex = draftEditingItemIndex.value
         if (editingIndex != null && editingIndex in selectedItemList.indices) {
-            selectedItemList[editingIndex] = newItem.copy(itemId = selectedItemList[editingIndex].itemId)
+            selectedItemList[editingIndex] =
+                newItem.copy(itemId = selectedItemList[editingIndex].itemId)
             snackBarState.value = "Item updated successfully"
         } else {
             selectedItemList.add(newItem)
@@ -910,7 +922,7 @@ class InvoiceViewModel @Inject constructor(
     fun draftRemoveEditingItem() {
         val index = draftEditingItemIndex.value
         if (index != null && index in selectedItemList.indices) {
-            val toRemove = selectedItemList[index]
+            selectedItemList[index]
             selectedItemList.removeAt(index)
             calculateTotals()
             snackBarState.value = "Item removed"
@@ -934,8 +946,8 @@ class InvoiceViewModel @Inject constructor(
             draftDialogPurity.text = item.purity
             draftDialogChargeType.text = item.crgType
             draftDialogCharge.text = item.crg.toString()
-            draftDialogOtherChargeDescription.text = item.othCrgDes ?: ""
-            draftDialogOtherCharge.text = item.othCrg.toString()
+            draftDialogOtherChargeDescription.text = item.compDes ?: ""
+            draftDialogOtherCharge.text = item.compCrg.toString()
             draftDialogCgst.text = (item.cgst ?: 0.0).toString()
             draftDialogSgst.text = (item.sgst ?: 0.0).toString()
             draftDialogIgst.text = (item.igst ?: 0.0).toString()
@@ -970,9 +982,15 @@ class InvoiceViewModel @Inject constructor(
         // Reset to default GST values on clear
         ioLaunch {
             try {
-                val defCgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first() ?: "1.5"
-                val defSgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first() ?: "1.5"
-                val defIgst = _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first() ?: "0.0"
+                val defCgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_CGST, "1.5").first()
+                        ?: "1.5"
+                val defSgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_SGST, "1.5").first()
+                        ?: "1.5"
+                val defIgst =
+                    _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first()
+                        ?: "0.0"
                 draftDialogCgst.text = defCgst
                 draftDialogSgst.text = defSgst
                 draftDialogIgst.text = defIgst
@@ -1006,7 +1024,9 @@ class InvoiceViewModel @Inject constructor(
     }
 
 
-    fun draftCompleteOrder(context: Context, invoiceNo: String,onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+    fun draftCompleteOrder(
+        context: Context, invoiceNo: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
+    ) {
         ioLaunch {
             try {
                 if (selectedItemList.isNotEmpty()) {
@@ -1041,7 +1061,7 @@ class InvoiceViewModel @Inject constructor(
                     val invoiceData = createDraftInvoiceData(
                         store = store,
                         customer = customer,
-                        items =selectedItemList,
+                        items = selectedItemList,
                         metalRates = metalRates,
                         paymentInfo = paymentInfo,
                         appDatabase = appDatabase,
@@ -1049,7 +1069,7 @@ class InvoiceViewModel @Inject constructor(
                         ownerSign = ownerSign,
                         gstLabel = "GST @3 ",
                         discount = discount.text,
-                        cardCharges= "0.00",
+                        cardCharges = "0.00",
                         oldExchange = "0.00",
                         roundOff = "0.00",
                         dataStoreManager = _dataStoreManager,
@@ -1057,9 +1077,7 @@ class InvoiceViewModel @Inject constructor(
                     )
 
                     generateInvoicePdf(
-                        context = context,
-                        data = invoiceData,
-                        scale = 2f
+                        context = context, data = invoiceData, scale = 2f
                     ) { file ->
                         generatedPdfFile = file
                         onSuccess()
@@ -1087,12 +1105,10 @@ class InvoiceViewModel @Inject constructor(
         return exchangeItemList.sumOf { it.exchangeValue }
     }
 
-    fun getNetPayableAmount(): Double {
-        val orderTotal = getTotalOrderAmount()
-        val manualDiscount = discount.text.toDoubleOrNull() ?: 0.0
-        val exchangeValue = getTotalExchangeValue()
-        return orderTotal - manualDiscount - exchangeValue
-    }
+//    fun getNetPayableAmount(): Double {
+//        val orderTotal = getTotalOrderAmount()
+//        return orderTotal
+//    }
 
     fun clearExchangeItems() {
         exchangeItemList.clear()

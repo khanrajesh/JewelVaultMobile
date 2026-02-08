@@ -25,6 +25,7 @@ import androidx.compose.material.icons.twotone.Add
 import androidx.compose.material.icons.twotone.Check
 import androidx.compose.material.icons.twotone.CheckCircle
 import androidx.compose.material.icons.twotone.Delete
+import androidx.compose.material.icons.twotone.Edit
 import androidx.compose.material.icons.twotone.History
 import androidx.compose.material.icons.twotone.Payment
 import androidx.compose.material.icons.twotone.Receipt
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +72,8 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground7
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.TransactionUtils
@@ -146,6 +150,17 @@ fun CustomerDetailScreen(
     var selectedKhataBookForCompletion by remember { mutableStateOf<CustomerKhataBookEntity?>(null) }
     var selectedTransactionForDeletion by remember { mutableStateOf<CustomerTransactionEntity?>(null) }
     var selectedTransactionHistoryItem by remember { mutableStateOf<List<String>?>(null) }
+    var showEditDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var editName by rememberSaveable { mutableStateOf("") }
+    var editAddress by rememberSaveable { mutableStateOf("") }
+    var editMobile by rememberSaveable { mutableStateOf("") }
+    var editGstin by rememberSaveable { mutableStateOf("") }
+    val editNameField = remember { InputFieldState() }
+    val editAddressField = remember { InputFieldState() }
+    val editGstinField = remember { InputFieldState() }
+    val editMobileField = remember { InputFieldState() }
+    val subNavController = LocalSubNavController.current
 
     LaunchedEffect(customerMobile) {
         viewModel.loadCustomerDetails(customerMobile)
@@ -168,9 +183,30 @@ fun CustomerDetailScreen(
     if (!isLoadingDetails)  {
 
         viewModel.currentScreenHeadingState.value = "${customer?.name} (${customer?.mobileNo})"
+        LaunchedEffect(customer?.mobileNo) {
+            customer?.let { customerEntity ->
+                editName = customerEntity.name
+                editAddress = customerEntity.address ?: ""
+                editMobile = customerEntity.mobileNo
+                editGstin = customerEntity.gstin_pan ?: ""
+                viewModel.refreshCustomerEditPermissions(customerEntity.mobileNo)
+            }
+        }
+        val permissions by viewModel.customerEditPermissions
+        val canEditMobile = permissions?.canEditMobile == true
+        val mobileLockHint = if (!canEditMobile) {
+            "Mobile number locked until outstanding balance, khata books, or orders are cleared."
+        } else null
+
+        LaunchedEffect(editName, editAddress, editGstin, editMobile) {
+            editNameField.text = editName
+            editAddressField.text = editAddress
+            editGstinField.text = editGstin
+            editMobileField.text = editMobile
+        }
         Box (  modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)){
             LazyColumn(
                 modifier = Modifier
@@ -182,7 +218,8 @@ fun CustomerDetailScreen(
                 item {
                     CompactCustomerInfoCard(
                         customer = customer,
-                        activeKhataBooks = viewModel.selectedCustomerKhataBooks
+                        activeKhataBooks = viewModel.selectedCustomerKhataBooks,
+                        onEditClick = { if (customer != null) showEditDialog = true }
                     )
                 }
 
@@ -257,6 +294,143 @@ fun CustomerDetailScreen(
                 }
             }
         }
+
+        customer?.let { customerEntity ->
+            if (showEditDialog) {
+                AlertDialog(
+                    onDismissRequest = { showEditDialog = false },
+                    title = { Text("Edit Customer") },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CusOutlinedTextField(
+                                state = editNameField,
+                                onTextChange = {
+                                    editName = it
+                                    editNameField.textChange(it)
+                                },
+                                placeholderText = "Customer Name"
+                            )
+
+                            CusOutlinedTextField(
+                                state = editAddressField,
+                                onTextChange = {
+                                    editAddress = it
+                                    editAddressField.textChange(it)
+                                },
+                                placeholderText = "Address"
+                            )
+
+                            CusOutlinedTextField(
+                                state = editGstinField,
+                                onTextChange = {
+                                    val upper = it.uppercase()
+                                    editGstin = upper
+                                    editGstinField.textChange(upper)
+                                },
+                                placeholderText = "GSTIN / PAN"
+                            )
+
+                            CusOutlinedTextField(
+                                state = editMobileField,
+                                onTextChange = {},
+                                placeholderText = "Mobile Number",
+                                keyboardType = KeyboardType.Phone,
+                                enabled = false,
+                                readOnly = true,
+                                supportingText = mobileLockHint?.let {
+                                    {
+                                        Text(
+                                            it,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
+                            )
+
+                            if (permissions?.canDelete == true) {
+                                TextButton(
+                                    onClick = {
+                                        showDeleteDialog = true
+                                        showEditDialog = false
+                                    }
+                                ) {
+                                    Text("Delete customer")
+                                }
+                            } else {
+                                Text(
+                                    text = buildString {
+                                        permissions?.let { perms ->
+                                            when {
+                                                perms.orderCount > 0 -> append("Customer has ${perms.orderCount} order(s)")
+                                                perms.khataBookCount > 0 -> append("Customer has ${perms.khataBookCount} khata book(s)")
+                                                perms.outstandingBalance > 0.0 -> append("Outstanding ₹${perms.outstandingBalance.to1FString()}")
+                                                else -> append("Delete eligibility pending...")
+                                            }
+                                        } ?: append("Checking delete eligibility...")
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.updateCustomerProfile(
+                                    customerEntity.mobileNo,
+                                    editName,
+                                    editAddress,
+                                    editMobile,
+                                    editGstin.trim().uppercase()
+                                )
+                                showEditDialog = false
+                            },
+                            enabled = editName.isNotBlank() && editAddress.isNotBlank()
+                        ) {
+                            Text("Save changes")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEditDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showDeleteDialog = false
+                        showEditDialog = false
+                    },
+                    title = { Text("Delete Customer") },
+                    text = {
+                        Text("This will permanently remove the customer record. Are you sure?")
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.deleteCustomer(customerEntity.mobileNo)
+                            showDeleteDialog = false
+                            subNavController.popBackStack()
+                        }) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        }
+
     }
 
     // Consolidated Dialog Management
@@ -413,7 +587,8 @@ fun CustomerDetailScreen(
 @Composable
 fun CompactCustomerInfoCard(
     customer: CustomerEntity?,
-    activeKhataBooks: List<CustomerKhataBookEntity> = emptyList()
+    activeKhataBooks: List<CustomerKhataBookEntity> = emptyList(),
+    onEditClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -429,11 +604,7 @@ fun CompactCustomerInfoCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
-                        )
-                    ),
+                    .baseBackground7(),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(
@@ -458,7 +629,22 @@ fun CompactCustomerInfoCard(
                     Spacer(modifier = Modifier.weight(1f))
                     // Status chip
                     if (customer != null) {
-                        StatusChip(isActive = activeKhataBooks.isNotEmpty())
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            StatusChip(isActive = activeKhataBooks.isNotEmpty())
+                            IconButton(
+                                onClick = onEditClick,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.TwoTone.Edit,
+                                    contentDescription = "Edit customer",
+                                    tint = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }

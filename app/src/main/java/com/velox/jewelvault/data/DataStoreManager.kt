@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
-import com.velox.jewelvault.utils.ioScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -38,6 +40,7 @@ class DataStoreManager @Inject constructor(
 
         // Security Settings
         val SESSION_TIMEOUT_MINUTES = intPreferencesKey("session_timeout_minutes")
+        val SESSION_TOKEN_KEY = stringPreferencesKey("session_token")
         val AUTO_LOGOUT_INACTIVITY = booleanPreferencesKey("auto_logout_inactivity")
         val BIOMETRIC_AUTH = booleanPreferencesKey("biometric_auth")
         val SAVED_PHONE_NUMBER = stringPreferencesKey("saved_phone_number")
@@ -76,6 +79,11 @@ class DataStoreManager @Inject constructor(
 
         // Backup Settings
         val BACKUP_FREQUENCY = stringPreferencesKey("backup_frequency")
+        val SYNC_INTERVAL_MINUTES = intPreferencesKey("sync_interval_minutes")
+        val LAST_SYNC_AT = longPreferencesKey("last_sync_at")
+        val LAST_SYNC_DEVICE = stringPreferencesKey("last_sync_device")
+        val ACTIVE_DEVICE_LABEL = stringPreferencesKey("active_device_label")
+        val ACTIVE_DEVICE_AT = longPreferencesKey("active_device_at")
 
 
         private val CL_USER_NAME_KEY = stringPreferencesKey("cl_user_name")
@@ -89,7 +97,14 @@ class DataStoreManager @Inject constructor(
         val METAL_FETCH_DATE = stringPreferencesKey("metal_fetch_date")
         val METAL_GOLD_24K = doublePreferencesKey("metal_gold_24k")
         val METAL_SILVER_KG = doublePreferencesKey("metal_silver_kg")
+
+        val FEATURE_LIST_JSON = stringPreferencesKey("feature_list_json")
+        val FEATURE_LIST_UPDATED = longPreferencesKey("feature_list_updated")
+        val SUBSCRIPTION_JSON = stringPreferencesKey("subscription_json")
+        val SUBSCRIPTION_UPDATED = longPreferencesKey("subscription_updated")
     }
+
+    private val gson = Gson()
 
     suspend fun saveAdminInfo(userName: String, userId: String, mobileNo: String) {
         setValue(ADMIN_USER_NAME_KEY, userName)
@@ -155,7 +170,7 @@ class DataStoreManager @Inject constructor(
 //        dataStore.data.map { prefs -> prefs[SELECTED_STORE_NAME] ?: "Merchant" }
 
 
-    val backupFrequency: Flow<String> =
+    val syncFrequency: Flow<String> =
         dataStore.data.map { prefs -> prefs[BACKUP_FREQUENCY] ?: "WEEKLY" }
 
     suspend fun <T> setValue(key: Preferences.Key<T>, value: T) {
@@ -222,6 +237,95 @@ class DataStoreManager @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    suspend fun saveFeatureList(featureList: FeatureListState) {
+        try {
+            val json = gson.toJson(featureList)
+            setValue(FEATURE_LIST_JSON, json)
+            setValue(FEATURE_LIST_UPDATED, featureList.lastUpdated)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun getFeature(key: String): Boolean {
+        return try {
+            val featureList = getFeatureList()
+            featureList.features[key] ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getFeatureLastUpdated(): Long {
+        return getValue(FEATURE_LIST_UPDATED, 0L).first() ?: 0L
+    }
+
+    fun getFeatureListFlow(): Flow<FeatureListState> = dataStore.data.map { prefs ->
+        val json = prefs[FEATURE_LIST_JSON] ?: ""
+        if (json.isBlank()) {
+            FeatureListState()
+        } else {
+            try {
+                val type = object : TypeToken<FeatureListState>() {}.type
+                gson.fromJson(json, type) ?: FeatureListState()
+            } catch (e: Exception) {
+                FeatureListState()
+            }
+        }
+    }
+
+    suspend fun getFeatureList(): FeatureListState {
+        return try {
+            val json = getValue(FEATURE_LIST_JSON, "").first() ?: ""
+            if (json.isBlank()) {
+                FeatureListState()
+            } else {
+                val type = object : TypeToken<FeatureListState>() {}.type
+                gson.fromJson(json, type) ?: FeatureListState()
+            }
+        } catch (e: Exception) {
+            FeatureListState()
+        }
+    }
+
+    suspend fun saveSubscription(subscription: SubscriptionState) {
+        try {
+            val json = gson.toJson(subscription)
+            setValue(SUBSCRIPTION_JSON, json)
+            setValue(SUBSCRIPTION_UPDATED, subscription.lastUpdated)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getSubscriptionFlow(): Flow<SubscriptionState> = dataStore.data.map { prefs ->
+        val json = prefs[SUBSCRIPTION_JSON] ?: ""
+        if (json.isBlank()) {
+            SubscriptionState()
+        } else {
+            try {
+                val type = object : TypeToken<SubscriptionState>() {}.type
+                gson.fromJson(json, type) ?: SubscriptionState()
+            } catch (e: Exception) {
+                SubscriptionState()
+            }
+        }
+    }
+
+    suspend fun getSubscription(): SubscriptionState {
+        return try {
+            val json = getValue(SUBSCRIPTION_JSON, "").first() ?: ""
+            if (json.isBlank()) {
+                SubscriptionState()
+            } else {
+                val type = object : TypeToken<SubscriptionState>() {}.type
+                gson.fromJson(json, type) ?: SubscriptionState()
+            }
+        } catch (e: Exception) {
+            SubscriptionState()
         }
     }
 }

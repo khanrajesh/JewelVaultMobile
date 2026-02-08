@@ -1,4 +1,4 @@
-package com.velox.jewelvault.utils.backup
+package com.velox.jewelvault.utils.sync
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -6,24 +6,25 @@ import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.velox.jewelvault.R
+import com.velox.jewelvault.utils.logJvSync
 
 /**
- * Helper class for backup/restore notifications
+ * Helper class for sync/restore notifications
  */
-object BackupNotificationHelper {
+object SyncNotificationHelper {
     
     private const val CHANNEL_ID = "backup_channel"
-    private const val CHANNEL_NAME = "Backup & Restore"
-    private const val CHANNEL_DESCRIPTION = "Notifications for backup and restore operations"
+    private const val CHANNEL_NAME = "Sync & Restore"
+    private const val CHANNEL_DESCRIPTION = "Notifications for sync and restore operations"
     
     const val BACKUP_NOTIFICATION_ID = 1001
     const val RESTORE_NOTIFICATION_ID = 1002
     
     /**
-     * Create notification channel for backup operations
+     * Create notification channel for sync operations
      */
     fun createNotificationChannel(context: Context) {
+        logJvSync("SyncNotificationHelper creating notification channel")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -36,11 +37,12 @@ object BackupNotificationHelper {
             
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            logJvSync("SyncNotificationHelper notification channel created")
         }
     }
     
     /**
-     * Create backup progress notification
+     * Create sync progress notification
      */
     fun createBackupNotification(
         context: Context,
@@ -49,6 +51,7 @@ object BackupNotificationHelper {
         progress: Int,
         isIndeterminate: Boolean = false
     ): NotificationCompat.Builder {
+        logJvSync("SyncNotificationHelper creating backup notification: $title - $message ($progress%)")
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
@@ -70,6 +73,7 @@ object BackupNotificationHelper {
         progress: Int,
         isIndeterminate: Boolean = false
     ): NotificationCompat.Builder {
+        logJvSync("SyncNotificationHelper creating restore notification: $title - $message ($progress%)")
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
@@ -90,6 +94,7 @@ object BackupNotificationHelper {
         message: String,
         isSuccess: Boolean
     ): NotificationCompat.Builder {
+        logJvSync("SyncNotificationHelper creating completion notification: $title - $message (success=$isSuccess)")
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(message)
@@ -109,6 +114,7 @@ object BackupNotificationHelper {
         progress: Int,
         message: String
     ) {
+        logJvSync("SyncNotificationHelper updating notification $notificationId: $message ($progress%)")
         notification
             .setProgress(100, progress, false)
             .setContentText(message)
@@ -122,6 +128,7 @@ object BackupNotificationHelper {
      * Cancel notification
      */
     fun cancelNotification(context: Context, notificationId: Int) {
+        logJvSync("SyncNotificationHelper cancelling notification $notificationId")
         with(NotificationManagerCompat.from(context)) {
             cancel(notificationId)
         }

@@ -12,6 +12,9 @@ import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.roomdb.entity.category.SubCategoryEntity
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.data.DataStoreManager
+import com.velox.jewelvault.data.FeatureDefaults
+import com.velox.jewelvault.data.FeatureListState
+import com.velox.jewelvault.data.SubscriptionState
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.utils.ioLaunch
@@ -344,6 +347,7 @@ class ProfileViewModel @Inject constructor(
                 isLoading.value = true
                 val userId = admin.first.first()
                 val storeId = store.first.first()
+                val isFirstStoreSetup = storeId.isBlank()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
 
@@ -390,7 +394,8 @@ class ProfileViewModel @Inject constructor(
                     panNo = panNumber.text.trim().uppercase(),
                     image = finalImageUrl,
                     email = InputValidator.sanitizeText(userEmail.text),
-                    upiId = upiId.text.trim()
+                    upiId = upiId.text.trim(),
+                    lastUpdated = System.currentTimeMillis()
                 )
 
                 // Save to Firestore
@@ -425,19 +430,29 @@ class ProfileViewModel @Inject constructor(
                     if (localResult != -1L) {
                         // Save the final store ID in DataStore
                         _dataStoreManager.saveSelectedStoreInfo(
-                            storeId,
+                            storeEntity.storeId,
                             storeEntity.upiId,
                             storeEntity.name
                         )
+                        if (isFirstStoreSetup) {
+                            initializeDefaultCategories()
+                        }
                     } else {
                         log("Failed to save store to local database")
                         _snackBarState.value = "Failed to save store details. Please try again."
                         onFailure()
                     }
+
+                    if (isFirstStoreSetup) {
+                        initializeFeatureAndSubscriptionDefaults(mobileNumber)
+                    }
                     onSuccess()
                 } else {
                     log("Failed to save to Firestore: ${firestoreResult.exceptionOrNull()?.message}")
                     _snackBarState.value = "Saved locally but failed to sync with cloud"
+                    if (isFirstStoreSetup) {
+                        initializeFeatureAndSubscriptionDefaults(mobileNumber)
+                    }
                     onSuccess() // Still consider it a success since local save worked
                 }
 
@@ -452,6 +467,44 @@ class ProfileViewModel @Inject constructor(
                 isUploadingImage.value = false
             }
         }
+    }
+
+    private suspend fun initializeFeatureAndSubscriptionDefaults(mobileNumber: String) {
+        if (mobileNumber.isBlank()) return
+        val now = System.currentTimeMillis()
+
+        val featureState = FeatureListState(
+            features = FeatureDefaults.defaultFeatureMap(),
+            lastUpdated = now
+        )
+        _dataStoreManager.saveFeatureList(featureState)
+        val featureMap = featureState.features.mapValues { it.value as Any }.toMutableMap()
+        featureMap["lastUpdated"] = now
+        FirebaseUtils.saveFeatureList(
+            _firestore,
+            mobileNumber,
+            featureMap
+        )
+
+        val subscriptionState = SubscriptionState(
+            plan = "trial-pro",
+            isActive = true,
+            startAt = now,
+            endAt = now + java.util.concurrent.TimeUnit.DAYS.toMillis(30),
+            lastUpdated = now
+        )
+        _dataStoreManager.saveSubscription(subscriptionState)
+        FirebaseUtils.saveSubscription(
+            _firestore,
+            mobileNumber,
+            mapOf(
+                "plan" to subscriptionState.plan,
+                "isActive" to subscriptionState.isActive,
+                "startAt" to subscriptionState.startAt,
+                "endAt" to subscriptionState.endAt,
+                "lastUpdated" to subscriptionState.lastUpdated
+            )
+        )
     }
 
 

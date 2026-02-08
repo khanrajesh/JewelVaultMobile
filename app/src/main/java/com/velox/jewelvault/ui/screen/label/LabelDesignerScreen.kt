@@ -85,10 +85,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -97,6 +100,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -108,6 +112,8 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground10
+import com.velox.jewelvault.ui.components.baseBackground9
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.PrintUtils
@@ -421,7 +427,7 @@ fun LabelDesignerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 1f))
+            .baseBackground9()
             .padding(4.dp),
     ) {
         TemplateHeader(
@@ -432,7 +438,7 @@ fun LabelDesignerScreen(
             onTestPrint = {
                 template?.let {
                     printerViewModel.printLabelTemplate(
-                        context = context, template = it, elements = elements
+                        context = context, template = it, elements = elements, testOverlay = true
                     )
                 }
             },
@@ -487,11 +493,11 @@ fun LabelDesignerScreen(
             rowModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+                .baseBackground10(),
             columnModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+                .baseBackground10(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
@@ -960,8 +966,10 @@ fun LabelCanvas(
     val containerHeight = cardHeightDp
     val scaleThickness = 30.dp
 
-    val topRulerPaint = remember(density) { rulerPaint(density, AndroidColor.WHITE) }
-    val leftRulerPaint = remember(density) { rulerPaint(density, AndroidColor.WHITE) }
+    val rulerColor = if (isSystemInDarkTheme()) Color.White else Color.Black
+    val guideColor = MaterialTheme.colorScheme.primary
+    val topRulerPaint = remember(density) { rulerPaint(density, rulerColor.toArgb()) }
+    val leftRulerPaint = remember(density) { rulerPaint(density, rulerColor.toArgb()) }
     val primarySelection = elements.firstOrNull { selectedIds.contains(it.elementId) }
 
     Box(modifier = modifier) {
@@ -976,10 +984,9 @@ fun LabelCanvas(
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val maxMm = template.labelWidth
-                        val tickColor = Color.White
-                        val guideColor = Color.Red
+                        val tickColor = rulerColor
                         val paddingMm = template.labelPadding.coerceAtLeast(0f)
-                        topRulerPaint.color = AndroidColor.WHITE
+                        topRulerPaint.color = rulerColor.toArgb()
                         var idx = 0
                         while (idx.toFloat() <= maxMm + 0.001f) {
                             val mm = idx.toFloat()
@@ -1036,10 +1043,9 @@ fun LabelCanvas(
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val maxMm = template.labelHeight
-                        val tickColor = Color.White
-                        val guideColor = Color.Red
+                        val tickColor = rulerColor
                         val paddingMm = template.labelPadding.coerceAtLeast(0f)
-                        leftRulerPaint.color = AndroidColor.WHITE
+                        leftRulerPaint.color = rulerColor.toArgb()
                         var idx = 0
                         while (idx.toFloat() <= maxMm + 0.001f) {
                             val mm = idx.toFloat()
@@ -1114,6 +1120,24 @@ fun LabelCanvas(
                                     .fillMaxSize()
                                     .padding(contentPadding)
                             ) {
+                                // Guide dots for calibration (match test print overlay)
+                                val guideInsetMm = 0.2f
+                                val guideDotMm = 1.2f
+                                val dotColor =
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val insetPx = mmToPx(guideInsetMm)
+                                    val dotRadius = (mmToPx(guideDotMm) / 2f).coerceAtLeast(1f)
+                                    val leftX = insetPx + dotRadius
+                                    val rightX = size.width - insetPx - dotRadius
+                                    val topY = insetPx + dotRadius
+                                    val bottomY = size.height - insetPx - dotRadius
+                                    drawCircle(color = dotColor, radius = dotRadius, center = Offset(leftX, topY))
+                                    drawCircle(color = dotColor, radius = dotRadius, center = Offset(rightX, topY))
+                                    drawCircle(color = dotColor, radius = dotRadius, center = Offset(leftX, bottomY))
+                                    drawCircle(color = dotColor, radius = dotRadius, center = Offset(rightX, bottomY))
+                                }
+
                                 elements.forEach { element ->
                                     val textProps = parseTextProps(element.properties)
                                     val resolvedContent =
@@ -1835,6 +1859,11 @@ private fun TemplateSetupDialog(
                 .heightIn(max = 560.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            LabelSetupDiagram(
+                padding = padding,
+                gapWidth = gapWidth,
+                gapHeight = gapHeight
+            )
             OutlinedTextField(
                 value = templateName,
                 onValueChange = onTemplateNameChange,
@@ -2135,6 +2164,109 @@ fun TemplateSettingsDialog(
     }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 
+@Composable
+private fun LabelSetupDiagram(
+    padding: String,
+    gapWidth: String,
+    gapHeight: String
+) {
+    val pad = (padding.toFloatOrNull() ?: 1.5f).coerceAtLeast(0f)
+    val gapW = (gapWidth.toFloatOrNull() ?: 2f).coerceAtLeast(0f)
+    val gapH = (gapHeight.toFloatOrNull() ?: 2f).coerceAtLeast(0f)
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            val borderColor = MaterialTheme.colorScheme.primary
+            val paddingColor = MaterialTheme.colorScheme.tertiary
+            val gapColor = MaterialTheme.colorScheme.outline
+            Text(
+                text = "Label setup preview",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .background(Color.Transparent)
+            ) {
+                val labelW = 60f
+                val labelH = 35f
+                val padClamped = pad.coerceAtMost(minOf(labelW, labelH) / 2f - 0.5f)
+
+                val totalW = labelW + gapW + labelW * 0.5f
+                val totalH = labelH + gapH + labelH * 0.5f
+                val scale = minOf(size.width / totalW, size.height / totalH) * 0.9f
+                val originX = (size.width - totalW * scale) / 2f
+                val originY = (size.height - totalH * scale) / 2f
+
+                val mainX = originX
+                val mainY = originY
+                val mainW = labelW * scale
+                val mainH = labelH * scale
+
+                val nextX = originX + (labelW + gapW) * scale
+                val nextY = originY + (labelH + gapH) * scale
+
+                // Main label
+                drawRect(
+                    color = borderColor,
+                    topLeft = Offset(mainX, mainY),
+                    size = Size(mainW, mainH),
+                    style = Stroke(width = 2.dp.toPx())
+                )
+
+                // Padding inset
+                val padPx = padClamped * scale
+                drawRect(
+                    color = paddingColor,
+                    topLeft = Offset(mainX + padPx, mainY + padPx),
+                    size = Size(mainW - padPx * 2f, mainH - padPx * 2f),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+
+                // Next label outlines (right and bottom)
+                drawRect(
+                    color = gapColor,
+                    topLeft = Offset(nextX, mainY),
+                    size = Size(mainW, mainH),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+                drawRect(
+                    color = gapColor,
+                    topLeft = Offset(mainX, nextY),
+                    size = Size(mainW, mainH),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+
+                // Gap indicators
+                drawLine(
+                    color = gapColor,
+                    start = Offset(mainX + mainW, mainY + mainH * 0.5f),
+                    end = Offset(nextX, mainY + mainH * 0.5f),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+                drawLine(
+                    color = gapColor,
+                    start = Offset(mainX + mainW * 0.5f, mainY + mainH),
+                    end = Offset(mainX + mainW * 0.5f, nextY),
+                    strokeWidth = 1.5.dp.toPx()
+                )
+            }
+        }
+    }
+}
+
 private val textBindingOptions = listOf(
     "",
     "item.itemId",
@@ -2153,8 +2285,8 @@ private val textBindingOptions = listOf(
     "item.unit",
     "item.crgType",
     "item.crg",
-    "item.othCrgDes",
-    "item.othCrg",
+    "item.compDes",
+    "item.compCrg",
     "item.cgst",
     "item.sgst",
     "item.igst",
@@ -2193,8 +2325,8 @@ private val previewItemData = mapOf(
     "unit" to "gm",
     "crgType" to "Making",
     "crg" to "1500",
-    "othCrgDes" to "Polish",
-    "othCrg" to "200",
+    "compDes" to "Polish",
+    "compCrg" to "200",
     "cgst" to "3%",
     "sgst" to "3%",
     "igst" to "0%",

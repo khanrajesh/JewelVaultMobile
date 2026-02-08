@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.baseBackground0
 
 @Composable
 fun LabelTemplateListScreen(
@@ -52,7 +53,7 @@ fun LabelTemplateListScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
     ) {
         Column(
             modifier = Modifier
