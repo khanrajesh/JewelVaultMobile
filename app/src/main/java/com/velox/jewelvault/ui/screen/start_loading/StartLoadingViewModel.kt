@@ -135,7 +135,9 @@ class StartLoadingViewModel @Inject constructor(
         if (!adminUser?.mobileNo.isNullOrBlank()) {
             return adminUser?.mobileNo ?: ""
         }
-        return dataStoreManager.getAdminInfo().third.first()
+        val adminFromPrefs = dataStoreManager.getAdminInfo().third.first()
+        if (adminFromPrefs.isNotBlank()) return adminFromPrefs
+        return dataStoreManager.getCurrentLoginUser().mobileNo
     }
 
     private suspend fun resolveLocalStore(selectedStoreId: String): StoreEntity? {

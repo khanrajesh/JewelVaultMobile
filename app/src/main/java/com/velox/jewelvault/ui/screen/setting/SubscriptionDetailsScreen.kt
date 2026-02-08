@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,21 @@ fun SubscriptionDetailsScreen() {
     val subscription by baseViewModel.subscription.collectAsState()
 
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+
+    LaunchedEffect(
+        featureList.lastUpdated,
+        subscription.lastUpdated,
+        featureList.features.size,
+        subscription.plan
+    ) {
+        val needsSync = featureList.lastUpdated == 0L ||
+            subscription.lastUpdated == 0L ||
+            featureList.features.isEmpty() ||
+            subscription.plan.isBlank()
+        if (needsSync) {
+            baseViewModel.refreshFeaturesAndSubscription()
+        }
+    }
 
     Column(
         modifier = Modifier
