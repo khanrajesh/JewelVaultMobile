@@ -616,8 +616,8 @@ class LabelPrintGenerator(private val context: Context) {
                         "unit" -> item?.unit ?: staticValue
                         "crgType" -> item?.crgType ?: staticValue
                         "crg" -> item?.crg?.toString() ?: staticValue
-                        "othCrgDes" -> item?.othCrgDes ?: staticValue
-                        "othCrg" -> item?.othCrg?.toString() ?: staticValue
+                        "compDes" -> item?.othCrgDes ?: staticValue
+                        "compCrg" -> item?.othCrg?.toString() ?: staticValue
                         "cgst" -> item?.cgst?.toString() ?: staticValue
                         "sgst" -> item?.sgst?.toString() ?: staticValue
                         "igst" -> item?.igst?.toString() ?: staticValue

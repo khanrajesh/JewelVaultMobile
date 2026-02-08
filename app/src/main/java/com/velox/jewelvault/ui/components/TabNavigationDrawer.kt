@@ -81,6 +81,7 @@ import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.log
 import kotlinx.coroutines.launch
+import com.velox.jewelvault.ui.components.baseBackground8
 
 @Composable
 @VaultPreview
@@ -603,7 +604,7 @@ private fun BottomNavBubbleBar(
                         modifier = Modifier
                             .size(bubbleSize)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface),
+                            .baseBackground8(),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(

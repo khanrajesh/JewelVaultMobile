@@ -28,6 +28,9 @@ import com.velox.jewelvault.utils.sync.*
 import com.velox.jewelvault.utils.to1FString
 import com.velox.jewelvault.ui.components.RestoreSourceDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
+import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.utils.permissions.getBackupRestorePermissions
 
 /**
@@ -60,7 +63,7 @@ fun BackupSettingsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(
@@ -1008,18 +1011,25 @@ private fun LocalImportDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+                RowOrColumn(
+                    rowModifier = Modifier.fillMaxWidth(),
+                    columnModifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                ) { isLandscapeLayout ->
+                    val buttonModifier = if (isLandscapeLayout) {
+                        Modifier.weight(1f)
+                    } else {
+                        Modifier.fillMaxWidth()
+                    }
+
                     TextButton(
                         onClick = onDismiss,
                         enabled = !isLoading,
-                        modifier = Modifier.weight(1f)
+                        modifier = buttonModifier
                     ) {
                         Text("Cancel")
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    WidthThenHeightSpacer(12.dp)
                     Button(
                         onClick = {
                             if (pendingMode != RestoreMode.MERGE) {
@@ -1038,11 +1048,11 @@ private fun LocalImportDialog(
                             }
                         },
                         enabled = !isLoading && selectedFileUri != null && fileValidationResult?.isValid == true,
-                        modifier = Modifier.weight(1f)
+                        modifier = buttonModifier
                     ) {
                         Text("Merge")
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    WidthThenHeightSpacer(12.dp)
                     OutlinedButton(
                         onClick = {
                             if (pendingMode != RestoreMode.REPLACE) {
@@ -1061,7 +1071,7 @@ private fun LocalImportDialog(
                             }
                         },
                         enabled = !isLoading && selectedFileUri != null && fileValidationResult?.isValid == true,
-                        modifier = Modifier.weight(1f),
+                        modifier = buttonModifier,
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )

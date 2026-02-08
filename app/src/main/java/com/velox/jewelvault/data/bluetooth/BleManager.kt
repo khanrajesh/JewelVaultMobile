@@ -1101,8 +1101,8 @@ class BleManager @Inject constructor(
                 var offset = 0
                 while (offset < data.size) {
                     val end = kotlin.math.min(offset + chunkSize, data.size)
-                    outputStream.write(data, offset, end - offset)
-                    outputStream.flush()
+                    outputStream.write(data, offset, end - offset) // here we are writing the data to the printer
+                    outputStream.flush() // here we are sending data to the printer
                     offset = end
                     try { Thread.sleep(10) } catch (_: InterruptedException) {}
                 }
@@ -1110,7 +1110,7 @@ class BleManager @Inject constructor(
                 return true
             }
             
-            // Try GATT if available
+            // Try GATT if available //todo not implemented
             val gatt = gattMap[address]
             if (gatt != null) {
                 cLog("sendPrintData: Using GATT for $address")

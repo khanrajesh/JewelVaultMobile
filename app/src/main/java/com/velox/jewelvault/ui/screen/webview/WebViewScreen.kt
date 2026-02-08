@@ -20,6 +20,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
+import com.velox.jewelvault.ui.components.baseBackground8
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -82,7 +83,7 @@ fun WebViewScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .baseBackground8()
     ) {
         // Full Screen WebView - Use AndroidView with remember to prevent recreation
         AndroidView(

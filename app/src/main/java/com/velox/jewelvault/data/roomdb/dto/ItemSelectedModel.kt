@@ -20,8 +20,8 @@ data class ItemSelectedModel(
     val purity: String,
     val crgType: String,
     val crg: Double,
-    val othCrgDes: String,
-    val othCrg: Double,
+    val compDes: String,
+    val compCrg: Double,
     val cgst: Double=0.0,
     val sgst: Double=0.0,
     val igst: Double=0.0,
@@ -30,11 +30,10 @@ data class ItemSelectedModel(
     val huid: String,
     val price: Double=0.0,
     val chargeAmount: Double=0.0,
-    val tax: Double=0.0,
     val addDate:Timestamp?=null,
     //seller info
     val sellerFirmId: String,
     val purchaseOrderId: String,
     val purchaseItemId: String,
 
-)
+    )

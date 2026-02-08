@@ -62,6 +62,7 @@ import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.ui.screen.bluetooth.components.DeviceCategory
 import com.velox.jewelvault.ui.screen.bluetooth.components.DeviceDetailsDialog
@@ -128,7 +129,7 @@ fun ScanConnectScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
 

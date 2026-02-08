@@ -75,6 +75,15 @@ import com.velox.jewelvault.ui.components.OptionalUpdateDialog
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground2
+import com.velox.jewelvault.ui.components.baseBackground3
+import com.velox.jewelvault.ui.components.baseBackground4
+import com.velox.jewelvault.ui.components.baseBackground5
+import com.velox.jewelvault.ui.components.baseBackground6
+import com.velox.jewelvault.ui.components.baseBackground7
+import com.velox.jewelvault.ui.components.goldAnimationBackground
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.CalculationUtils
@@ -254,7 +263,7 @@ fun LandscapeDashboardScreen(
         Modifier
             .pullRefresh(pullRefreshState)
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         keyboardController?.hide()
@@ -293,9 +302,7 @@ fun LandscapeDashboardScreen(
                     modifier = Modifier
                         .fillMaxHeight()
                         .width(190.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                        )
+                        .baseBackground1()
                         .padding(5.dp), verticalArrangement = Arrangement.Center
                 ) {
                     Box(
@@ -310,9 +317,7 @@ fun LandscapeDashboardScreen(
                                 navHost.navigate(Screens.SellInvoice.route)
                             }
                             .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                            .baseBackground3(), contentAlignment = Alignment.Center) {
                             Text(
                                 "Create Invoice",
                                 textAlign = TextAlign.Center,
@@ -332,7 +337,7 @@ fun LandscapeDashboardScreen(
                                 .align(Alignment.TopStart)
                                 .padding(2.dp)
                                 .size(30.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .baseBackground5()
                                 .padding(7.dp))
 
 
@@ -356,9 +361,7 @@ fun LandscapeDashboardScreen(
                             }
                             .weight(1f)
                             .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                            .baseBackground2(), contentAlignment = Alignment.Center) {
                             Text("Cam", textAlign = TextAlign.Center)
                         }
                         Spacer(Modifier.width(5.dp))
@@ -378,9 +381,7 @@ fun LandscapeDashboardScreen(
                             }
                             .weight(1f)
                             .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                            ), contentAlignment = Alignment.Center) {
+                            .baseBackground2(), contentAlignment = Alignment.Center) {
                             Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                         }
                     }
@@ -416,7 +417,8 @@ fun PortraitDashboardScreen(
         Modifier
             .pullRefresh(pullRefreshState)
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
+            .goldAnimationBackground()
             .padding(5.dp)
     ) {
         keyboardController?.hide()
@@ -431,9 +433,7 @@ fun PortraitDashboardScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                    )
+                    .baseBackground1()
                     .padding(5.dp), verticalArrangement = Arrangement.Center
             ) {
                 Box(
@@ -448,9 +448,7 @@ fun PortraitDashboardScreen(
                             navHost.navigate(Screens.SellInvoice.route)
                         }
                         .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                        ), contentAlignment = Alignment.Center) {
+                        .baseBackground3(), contentAlignment = Alignment.Center) {
                         Text(
                             "Create Invoice",
                             textAlign = TextAlign.Center,
@@ -471,7 +469,7 @@ fun PortraitDashboardScreen(
                             .padding(2.dp)
                             .fillMaxHeight()
                             .size(30.dp)
-                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .baseBackground5()
                             .padding(7.dp),
                         )
 
@@ -496,9 +494,7 @@ fun PortraitDashboardScreen(
                         }
                         .weight(1f)
                         .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                        ), contentAlignment = Alignment.Center) {
+                        .baseBackground2(), contentAlignment = Alignment.Center) {
                         Text("Cam", textAlign = TextAlign.Center)
                     }
                     Spacer(Modifier.width(5.dp))
@@ -517,9 +513,7 @@ fun PortraitDashboardScreen(
                         }
                         .weight(1f)
                         .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)
-                        ), contentAlignment = Alignment.Center) {
+                        .baseBackground2(), contentAlignment = Alignment.Center) {
                         Text("P.Bill", textAlign = TextAlign.Center, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -575,7 +569,7 @@ fun CategorySales(
 ) {
     Column(
         modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .baseBackground1()
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -601,7 +595,7 @@ fun CategorySales(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                    .baseBackground2()
             ) {
                 dashboardViewModel.topSubCategories.forEach {
                     Row(
@@ -641,7 +635,7 @@ fun CategorySales(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                    .baseBackground2(),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -661,7 +655,7 @@ fun TopFiveSales(
 ) {
     Column(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .baseBackground1()
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -687,7 +681,7 @@ fun TopFiveSales(
             LazyRow(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                    .baseBackground2()
                     .padding(8.dp)
             ) {
                 dashboardViewModel.topSellingItemsMap.entries.forEachIndexed { index, entry ->
@@ -699,7 +693,7 @@ fun TopFiveSales(
                                     .padding(horizontal = 8.dp)
                                     .fillMaxHeight()
                                     .width(1.dp)
-                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                                    .baseBackground4()
                             )
                         }
                     }
@@ -710,7 +704,7 @@ fun TopFiveSales(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                    .baseBackground2(),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -739,7 +733,7 @@ fun MetalRateView(
     val groupedRates = rates.groupBy { it.metal.lowercase() }
     Column(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .baseBackground1()
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(25.dp    )) {
@@ -789,7 +783,7 @@ fun MetalRateView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .baseBackground2()
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
@@ -804,7 +798,7 @@ fun MetalRateView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .baseBackground2()
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -816,7 +810,7 @@ fun MetalRateView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                        .baseBackground2()
                         .padding(8.dp)
                 ) {
                     listOf("Gold", "Silver").forEach { metal ->
@@ -930,7 +924,7 @@ fun FlowOverView(
 ) {
     Column(
         modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .baseBackground1()
             .padding(5.dp),
 
         ) {
@@ -957,7 +951,7 @@ fun FlowOverView(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                    .baseBackground2()
                     .padding(8.dp)
             ) {
                 Spacer(Modifier.weight(1f))
@@ -984,7 +978,7 @@ fun FlowOverView(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp)),
+                    .baseBackground2(),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -1002,7 +996,7 @@ fun CustomerOverview(
 ) {
     Column(
         modifier
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+            .baseBackground1()
             .padding(5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1020,7 +1014,7 @@ fun CustomerOverview(
         Column(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                .baseBackground2()
                 .padding(2.dp)
         ) {
             // Customer Statistics
@@ -1270,19 +1264,13 @@ fun RecentItemSold(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .baseBackground6()
     ) {
         // Colored header with icon
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary
-                        )
-                    ), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                )
+                .baseBackground7()
                 .padding(vertical = 10.dp, horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1347,8 +1335,8 @@ fun RecentItemSold(
                     "₹${item.charge.to3FString()}",
                     "${item.othCrgDes}: ₹${item.othCrg.to3FString()}",
                     "₹${
-                        CalculationUtils.totalPrice(
-                            item.price, item.charge, item.othCrg, item.tax
+                        (
+                            item.price+ item.charge+ item.othCrg+ item.tax
                         ).to3FString()
                     }",
                     item.huid,

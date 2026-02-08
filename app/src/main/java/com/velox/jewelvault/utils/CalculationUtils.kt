@@ -1,6 +1,8 @@
 package com.velox.jewelvault.utils
 
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.velox.jewelvault.data.MetalRate
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
 
 /**
@@ -74,7 +76,7 @@ object CalculationUtils {
      * @param unitPrice Unit price per gram
      * @return Base price before charges and taxes
      */
-    fun basePrice(fineWeight: Double, unitPrice: Double): Double {
+    fun baseMetalPrice(fineWeight: Double, unitPrice: Double): Double {
         return fineWeight * unitPrice
     }
 
@@ -111,7 +113,7 @@ object CalculationUtils {
      * @param igstRate IGST rate percentage
      * @return Total tax amount
      */
-    fun calculateTax(
+    fun calculateTaxPerItem(
         basePrice: Double,
         charge: Double,
         cgstRate: Double = 0.0,
@@ -123,22 +125,6 @@ object CalculationUtils {
         return taxableAmount * (totalTaxRate / 100.0)
     }
 
-    /**
-     * Calculate total price including all charges and taxes
-     * @param basePrice Base price of the item
-     * @param makingCharge Making charge amount
-     * @param otherCharge Other charges amount
-     * @param taxAmount Tax amount
-     * @return Total price including all charges and taxes
-     */
-    fun totalPrice(
-        basePrice: Double,
-        makingCharge: Double,
-        otherCharge: Double = 0.0,
-        taxAmount: Double = 0.0
-    ): Double {
-        return basePrice + makingCharge + otherCharge + taxAmount
-    }
 
     /**
      * Calculate total price with discount applied
@@ -176,7 +162,11 @@ object CalculationUtils {
      * @param items List of selected items
      * @return SummaryCalculationResult containing all totals
      */
-    fun summaryTotals(items: List<ItemSelectedModel>): SummaryCalculationResult {
+    fun summaryTotals(
+        items: List<ItemSelectedModel>,
+        exchangeItemList: SnapshotStateList<ExchangeItemDto>,
+        discount: Double
+    ): SummaryCalculationResult {
         if (items.isEmpty()) {
             return SummaryCalculationResult()
         }
@@ -195,10 +185,12 @@ object CalculationUtils {
         // Calculate financial totals
         val totalBasePrice = items.sumOf { it.price }
         val totalMakingCharges = items.sumOf { it.chargeAmount }
-        val totalOtherCharges = items.sumOf { it.othCrg }
+        val totalOtherCharges = items.sumOf { it.compCrg }
 
-        val totalTax = items.sumOf { it.tax }
-        val totalPriceBeforeTax = totalBasePrice + totalMakingCharges + totalOtherCharges
+        val totalExchangeItems = exchangeItemList.sumOf { it.exchangeValue }
+
+        val totalPriceBeforeTax = totalBasePrice + totalMakingCharges + totalOtherCharges -totalExchangeItems -discount
+        val totalTax = totalPriceBeforeTax * 0.03
         val grandTotal = totalPriceBeforeTax + totalTax
 
         return SummaryCalculationResult(
@@ -206,8 +198,10 @@ object CalculationUtils {
             totalBasePrice = totalBasePrice,
             totalMakingCharges = totalMakingCharges,
             totalOtherCharges = totalOtherCharges,
-            totalTax = totalTax,
+            totalExchangeItems = totalExchangeItems,
+            discount = discount,
             totalPriceBeforeTax = totalPriceBeforeTax,
+            totalTax = totalTax,
             grandTotal = grandTotal
         )
     }
@@ -223,7 +217,7 @@ object CalculationUtils {
         return if (showSeparateCharges) {
             item.price
         } else {
-            item.price + item.chargeAmount + item.othCrg
+            item.price + item.chargeAmount + item.compCrg
         }
     }
 
@@ -297,7 +291,9 @@ data class SummaryCalculationResult(
     val totalOtherCharges: Double = 0.0,
     val totalTax: Double = 0.0,
     val totalPriceBeforeTax: Double = 0.0,
-    val grandTotal: Double = 0.0
+    val grandTotal: Double = 0.0,
+    val totalExchangeItems: Double = 0.0,
+    val discount: Double = 0.0,
 )
 
 /**

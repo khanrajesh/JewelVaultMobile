@@ -77,6 +77,7 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
 import com.velox.jewelvault.utils.ChargeType
@@ -101,7 +102,7 @@ fun ImportItemsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp),
     ) {
         item {

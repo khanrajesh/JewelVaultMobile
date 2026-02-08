@@ -27,6 +27,7 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.ui.components.OptionalUpdateDialog
+import com.velox.jewelvault.ui.components.baseBackground0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +69,7 @@ fun SettingScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(

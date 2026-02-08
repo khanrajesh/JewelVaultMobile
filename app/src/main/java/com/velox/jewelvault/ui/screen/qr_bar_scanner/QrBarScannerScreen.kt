@@ -8,13 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.ArrowBack
-import androidx.compose.material.icons.twotone.ArrowBack
-import androidx.compose.material.icons.twotone.Clear
 import androidx.compose.material.icons.twotone.Delete
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -120,11 +117,10 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                                 if (existing != null) {
                                     val res =
                                         "Id: ${existing.itemId} ${existing.catName} ${existing.subCatName} ${existing.itemAddName}" + "\nWt: ${existing.gsWt.to3FString()}(${existing.fnWt.to3FString()}) gm, ${existing.purity}, E.P: ₹${
-                                            CalculationUtils.totalPrice(
-                                                existing.price,
-                                                existing.chargeAmount,
-                                                existing.othCrg,
-                                                existing.tax
+                                            (
+                                                existing.price+
+                                                existing.chargeAmount+
+                                                existing.compCrg
                                             ).to3FString()
                                         }"
 

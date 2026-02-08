@@ -72,6 +72,8 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground7
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
 import com.velox.jewelvault.utils.TransactionUtils
@@ -204,7 +206,7 @@ fun CustomerDetailScreen(
         }
         Box (  modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)){
             LazyColumn(
                 modifier = Modifier
@@ -602,11 +604,7 @@ fun CompactCustomerInfoCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
-                    .background(
-                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
-                        )
-                    ),
+                    .baseBackground7(),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(

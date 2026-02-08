@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.velox.jewelvault.ui.components.baseBackground8
 
 class InputFieldState(
     initValue: String = "",
@@ -475,7 +476,7 @@ fun CusOutlinedTextFieldInternal(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier
                     .width(200.dp)
-                    .background(MaterialTheme.colorScheme.surface)
+                    .baseBackground8()
             ) {
                 dropdownItems
                     .filter { it.isNotBlank() }

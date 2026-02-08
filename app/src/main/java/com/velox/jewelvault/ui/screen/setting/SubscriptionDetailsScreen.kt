@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.velox.jewelvault.ui.components.baseBackground0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +38,7 @@ fun SubscriptionDetailsScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(16.dp)
     ) {
         // Plan Overview Card

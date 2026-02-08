@@ -40,6 +40,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.R
 import androidx.compose.ui.graphics.Canvas as ComposeCanvas
+import com.velox.jewelvault.ui.components.baseBackground5
 
 @Composable
 fun SignatureBox(
@@ -95,7 +96,7 @@ fun SignatureBox(
 
         Box(modifier = Modifier
             .fillMaxSize()
-            .background(Color.White, RoundedCornerShape(8.dp))
+            .baseBackground5()
             .pointerInput(Unit) {
                 detectDragGestures(onDragStart = { offset ->
                     if (offset.x in 0f..size.width.toFloat() && offset.y in 0f..size.height.toFloat()) {

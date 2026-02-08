@@ -27,10 +27,16 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground3
+import com.velox.jewelvault.ui.components.baseBackground8
+import com.velox.jewelvault.ui.components.baseBackground2
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.*
 import com.velox.jewelvault.utils.CalculationUtils
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,13 +64,13 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
         Column(
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .baseBackground8()
                 .padding(5.dp)
         ) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                    .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { metalRateRefresh() }) {
@@ -98,9 +104,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                         modifier = Modifier
                             .weight(2.5f)
                             .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                            )
+                            .baseBackground1()
                             .padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -119,9 +123,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .background(
-                                MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                            )
+                            .baseBackground1()
                             .padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -138,10 +140,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                                         }
                                     }
                                     .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        RoundedCornerShape(10.dp)
-                                    )
+                                    .baseBackground3()
                                     .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -158,10 +157,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                             Column(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(12.dp)
-                                    )
+                                    .baseBackground1()
                                     .padding(8.dp)
                             ) {
                                 DraftCustomerDetails(viewModel)
@@ -175,10 +171,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                             Column(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(12.dp)
-                                    )
+                                    .baseBackground1()
                                     .padding(8.dp)
                             ) {
                                 DraftItemSection(
@@ -193,10 +186,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                             Column(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant,
-                                        RoundedCornerShape(12.dp)
-                                    )
+                                    .baseBackground1()
                                     .padding(8.dp)
                             ) {
                                 DraftDetailSection(Modifier.fillMaxWidth(), viewModel)
@@ -214,10 +204,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                                             }
                                         }
                                         .fillMaxWidth()
-                                        .background(
-                                            MaterialTheme.colorScheme.primary,
-                                            RoundedCornerShape(10.dp)
-                                        )
+                                        .baseBackground3()
                                         .padding(vertical = 12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -295,7 +282,7 @@ fun DraftCustomerDetails(viewModel: InvoiceViewModel) {
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(5.dp)
     ) {
         Text("Customer Details")
@@ -346,7 +333,7 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
     Column(
         modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(5.dp)
     ) {
         Row(
@@ -380,7 +367,7 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                 // Use CalculationUtils for price and charge calculations
                 val oneUnitPrice =
                     CalculationUtils.metalUnitPrice(item.catName, LocalBaseViewModel.current.metalRates) ?: 0.0
-                val price = CalculationUtils.basePrice(item.fnWt ?: 0.0, oneUnitPrice)
+                val price = CalculationUtils.baseMetalPrice(item.fnWt ?: 0.0, oneUnitPrice)
 
                 val charge = CalculationUtils.makingCharge(
                     chargeType = item.crgType,
@@ -400,7 +387,7 @@ fun DraftItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                     "${item.catName} (${item.purity})",
                     "${item.crg} ${item.crgType}",
-                    "${char}\n+ ${item.othCrg}",
+                    "${char}\n+ ${item.compCrg}",
                     "${(item.cgst ?: 0.0) + (item.sgst ?: 0.0) + (item.igst ?: 0.0)} %",
                 )
             }
@@ -429,7 +416,7 @@ fun DraftAddItemSection(itemId: MutableState<String>, viewModel: InvoiceViewMode
         Modifier
             .height(50.dp)
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            .baseBackground2()
             .padding(3.dp)
     ) {
         Box(
@@ -451,9 +438,7 @@ fun DraftAddItemSection(itemId: MutableState<String>, viewModel: InvoiceViewMode
                 .bounceClick {
                     viewModel.draftShowAddItemDialog.value = true
                 }
-                .background(
-                    MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp)
-                )
+                .baseBackground3()
                 .padding(horizontal = 15.dp), contentAlignment = Alignment.Center
         ) {
             Text("Add Item", color = MaterialTheme.colorScheme.onPrimary)
@@ -491,7 +476,6 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                     textAlign = TextAlign.End
                 )
             }
-            Text("Tax", modifier = Modifier.weight(1f), fontSize = 10.sp, textAlign = TextAlign.End)
             Text(
                 "Total",
                 modifier = Modifier.weight(1.5f),
@@ -534,23 +518,15 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
                             textAlign = TextAlign.End
                         )
                         Text(
-                            item.othCrg.to3FString(),
+                            item.compCrg.to3FString(),
                             modifier = Modifier.weight(1f),
                             fontSize = 10.sp,
                             textAlign = TextAlign.End
                         )
                     }
 
-                    Text(
-                        item.tax.to3FString(),
-                        modifier = Modifier.weight(1f),
-                        fontSize = 10.sp,
-                        textAlign = TextAlign.End
-                    )
-
-                    val itemTotals = CalculationUtils.totalPrice(
-                        item.price, item.crg, item.othCrg, item.tax
-                    )
+                    val itemTotals =
+                        item.price+ item.crg+ item.compCrg
                     Text(
                         itemTotals.to3FString(),
                         modifier = Modifier.weight(1.5f),
@@ -568,7 +544,8 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
 @Composable
 fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
-    val summary = CalculationUtils.summaryTotals(selectedItemList)
+    val summary = CalculationUtils.summaryTotals(selectedItemList,
+        emptyList<ExchangeItemDto>() as SnapshotStateList<ExchangeItemDto>, 0.0)
 
     Column(Modifier.padding(16.dp)) {
         Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)

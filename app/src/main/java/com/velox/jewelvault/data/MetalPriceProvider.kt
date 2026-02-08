@@ -62,6 +62,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.velox.jewelvault.data.remort.RepositoryImpl
 import com.velox.jewelvault.data.remort.model.MetalRatesResponseDto
 import com.velox.jewelvault.ui.components.CalculatorScreen
+import com.velox.jewelvault.ui.components.baseBackground6
+import com.velox.jewelvault.ui.components.baseBackground10
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.handler.handleFlowKtor
 import com.velox.jewelvault.utils.ioScope
@@ -177,7 +179,7 @@ fun EditMetalRatesDialog(
                 Modifier
                     .fillMaxWidth(0.95f)
                     .fillMaxHeight(0.9f)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                    .baseBackground10()
                     .verticalScroll(dialogScroll)
                     .padding(16.dp)
             ) {
@@ -192,10 +194,7 @@ fun EditMetalRatesDialog(
                         CalculatorScreen(
                             Modifier
                                 .weight(0.6f)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(16.dp)
-                                )
+                                .baseBackground6()
                                 .padding(10.dp)
                         )
                         Spacer(Modifier.width(10.dp))
@@ -313,10 +312,7 @@ fun EditMetalRatesDialog(
                         CalculatorScreen(
                             Modifier
                                 .weight(0.6f)
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(16.dp)
-                                )
+                                .baseBackground6()
                                 .padding(10.dp)
                         )
 

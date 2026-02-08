@@ -56,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.data.roomdb.dto.CustomerSummaryDto
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.LocalSubNavController
@@ -100,7 +101,7 @@ fun CustomerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 

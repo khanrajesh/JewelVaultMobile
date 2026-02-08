@@ -66,6 +66,7 @@ import com.velox.jewelvault.utils.permissions.openAppSettings
 import com.velox.jewelvault.utils.permissions.refreshAllPermissions
 import com.velox.jewelvault.utils.permissions.requestPermissionForItem
 import com.velox.jewelvault.utils.permissions.storageState
+import com.velox.jewelvault.ui.components.baseBackground0
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,7 +129,7 @@ fun PermissionSettingsScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(

@@ -108,6 +108,8 @@ import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground10
+import com.velox.jewelvault.ui.components.baseBackground9
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.PrintUtils
@@ -421,7 +423,7 @@ fun LabelDesignerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 1f))
+            .baseBackground9()
             .padding(4.dp),
     ) {
         TemplateHeader(
@@ -487,11 +489,11 @@ fun LabelDesignerScreen(
             rowModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+                .baseBackground10(),
             columnModifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+                .baseBackground10(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
@@ -2153,8 +2155,8 @@ private val textBindingOptions = listOf(
     "item.unit",
     "item.crgType",
     "item.crg",
-    "item.othCrgDes",
-    "item.othCrg",
+    "item.compDes",
+    "item.compCrg",
     "item.cgst",
     "item.sgst",
     "item.igst",
@@ -2193,8 +2195,8 @@ private val previewItemData = mapOf(
     "unit" to "gm",
     "crgType" to "Making",
     "crg" to "1500",
-    "othCrgDes" to "Polish",
-    "othCrg" to "200",
+    "compDes" to "Polish",
+    "compCrg" to "200",
     "cgst" to "3%",
     "sgst" to "3%",
     "igst" to "0%",

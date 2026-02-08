@@ -398,9 +398,7 @@ private fun isPermissionGranted(context: Context, permission: String): Boolean {
         Manifest.permission.MANAGE_EXTERNAL_STORAGE -> {
             Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
         }
-        Manifest.permission.READ_MEDIA_IMAGES,
-        Manifest.permission.READ_MEDIA_VIDEO,
-        Manifest.permission.READ_MEDIA_AUDIO -> {
+        Manifest.permission.READ_MEDIA_IMAGES -> {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
             } else {

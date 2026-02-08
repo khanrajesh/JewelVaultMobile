@@ -65,6 +65,7 @@ import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.PrintUtils
@@ -136,9 +137,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp)
-            )
+            .baseBackground0()
             .padding(8.dp)
 
     ) {

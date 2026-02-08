@@ -36,9 +36,7 @@ fun buildPermissionItems(): List<PermissionItem> {
     val storagePermissions = mutableListOf<String>()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         storagePermissions += listOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO
+            Manifest.permission.READ_MEDIA_IMAGES
         )
     } else {
         storagePermissions += listOf(
@@ -158,8 +156,7 @@ fun requestPermissionForItem(
 fun missingStandardPermissions(context: Context, item: PermissionItem): List<String> {
     return standardPermissions(item).filter {
         when (it) {
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO -> !hasVisualMediaAccess(context)
+            Manifest.permission.READ_MEDIA_IMAGES -> !hasVisualMediaAccess(context)
             else -> ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
     }
@@ -176,10 +173,7 @@ fun requiresManageStorage(item: PermissionItem): Boolean {
 fun storageState(context: Context): StorageState {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val visualGranted = hasVisualMediaAccess(context)
-        val audioGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val anyGranted = visualGranted || audioGranted
-        val fullGranted = visualGranted && audioGranted
-        StorageState(anyGranted = anyGranted, fullGranted = fullGranted)
+        StorageState(anyGranted = visualGranted, fullGranted = visualGranted)
     } else {
         listOf(
             Manifest.permission.READ_EXTERNAL_STORAGE,
@@ -195,8 +189,7 @@ fun storageState(context: Context): StorageState {
 
 private fun hasVisualMediaAccess(context: Context): Boolean {
     val imagesGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-    val videosGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
-    if (imagesGranted || videosGranted) return true
+    if (imagesGranted) return true
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         ContextCompat.checkSelfPermission(context, "android.permission.READ_MEDIA_VISUAL_USER_SELECTED") == PackageManager.PERMISSION_GRANTED
     } else {
@@ -245,13 +238,10 @@ fun filterUngrantedPermissions(context: Context, permissions: List<String>): Lis
                     !Environment.isExternalStorageManager()
                 } else false
             }
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO -> {
+            Manifest.permission.READ_MEDIA_IMAGES -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     when (permission) {
-                        Manifest.permission.READ_MEDIA_IMAGES,
-                        Manifest.permission.READ_MEDIA_VIDEO -> !hasVisualMediaAccess(context)
+                        Manifest.permission.READ_MEDIA_IMAGES -> !hasVisualMediaAccess(context)
                         else -> ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
                     }
                 } else false
@@ -283,9 +273,7 @@ fun getMultiplePermissionMessage(permissions: List<String>): String {
             Manifest.permission.ACCESS_FINE_LOCATION -> "- Location access for nearby shop recommendations."
             Manifest.permission.RECORD_AUDIO -> "- Microphone access for voice search."
             Manifest.permission.POST_NOTIFICATIONS -> "- Notification access to show sync/restore progress."
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO -> "- Media access to read sync files."
+            Manifest.permission.READ_MEDIA_IMAGES -> "- Media access to read sync files."
             else -> null
         }
     }
@@ -307,8 +295,6 @@ fun getPermissionTypeForQueue(permissions: List<String>): PermissionType {
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
             Manifest.permission.MANAGE_EXTERNAL_STORAGE,
             Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO,
             Manifest.permission.READ_EXTERNAL_STORAGE
         ) } -> PermissionType.STORAGE
         else -> PermissionType.STORAGE

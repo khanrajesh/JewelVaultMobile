@@ -693,9 +693,7 @@ fun dismissUpdateDialog() {
         ) == PackageManager.PERMISSION_GRANTED
         val hasMedia =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || listOf(
-                android.Manifest.permission.READ_MEDIA_IMAGES,
-                android.Manifest.permission.READ_MEDIA_VIDEO,
-                android.Manifest.permission.READ_MEDIA_AUDIO
+                android.Manifest.permission.READ_MEDIA_IMAGES
             ).any { perm ->
                 ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
             }

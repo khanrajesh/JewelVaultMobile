@@ -363,6 +363,7 @@ class BleConnect(
 
         val address = device.address
 
+        //closing and removing any existing connection with the device
         if (rfcommSockets.containsKey(address)) {
             log("RFCOMM: cleaning up existing socket for $address before new attempt")
             try {

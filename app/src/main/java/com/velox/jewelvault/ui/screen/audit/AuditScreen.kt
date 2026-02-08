@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.baseBackground1
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.to3FString
 import androidx.camera.core.CameraSelector
@@ -58,10 +59,7 @@ fun AuditScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(12.dp)
-            )
+            .baseBackground1()
     ) {
         // Category/Subcategory Selection
         Column(

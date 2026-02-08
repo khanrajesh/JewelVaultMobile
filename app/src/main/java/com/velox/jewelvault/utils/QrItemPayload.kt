@@ -41,7 +41,7 @@ fun QrItemPayload.toCsvString(): String {
     // Trim trailing empty fields to keep string short
     val trimmed = parts.toMutableList()
     while (trimmed.isNotEmpty() && trimmed.last().isEmpty()) {
-        trimmed.removeLast()
+        trimmed.removeAt(trimmed.lastIndex)
     }
     return QR_PAYLOAD_PREFIX + trimmed.joinToString(separator = ",")
 }

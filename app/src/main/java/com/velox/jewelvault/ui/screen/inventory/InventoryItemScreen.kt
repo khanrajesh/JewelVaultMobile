@@ -63,6 +63,9 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
+import com.velox.jewelvault.ui.components.baseBackground0
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground2
 import com.velox.jewelvault.ui.screen.bluetooth.ManagePrintersViewModel
 import com.velox.jewelvault.ui.theme.LightGreen
 import com.velox.jewelvault.ui.theme.LightRed
@@ -193,7 +196,7 @@ fun LandscapeInventoryItemScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+            .baseBackground0()
             .padding(5.dp)
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -481,7 +484,7 @@ private fun AddItemSection(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                .baseBackground1()
                 .padding(5.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -494,7 +497,7 @@ private fun AddItemSection(
 
             Column(
                 Modifier
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .baseBackground2()
                     .padding(5.dp)
             ) {
                 RowOrColumn(
@@ -837,14 +840,14 @@ private fun AddItemSection(
                 CusOutlinedTextField(
                     modifier = if(it) Modifier.weight(1f) else Modifier,
                     state = viewModel.otherChargeDes,
-                    placeholderText = "Oth Charge Description",
+                    placeholderText = "Jewel Component Description",
                 )
                 WidthThenHeightSpacer(5.dp)
 
                 CusOutlinedTextField(
                     modifier = if(it) Modifier.weight(1f) else Modifier,
                     state = viewModel.othCharge,
-                    placeholderText = "Oth Charge",
+                    placeholderText = "Jewel Component Price (With TAX)",
                     keyboardType = KeyboardType.Number,
                 )
             }

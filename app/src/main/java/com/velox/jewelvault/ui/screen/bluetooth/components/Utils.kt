@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import com.velox.jewelvault.data.roomdb.entity.printer.PrinterEntity
+import com.velox.jewelvault.ui.components.baseBackground9
 
 /**
  * Unified function to determine if a device is a printer
@@ -178,7 +179,7 @@ fun TypeTags(device: BluetoothDeviceDetails, savedPrinters: List<PrinterEntity> 
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .baseBackground9()
                     .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
                 Text(

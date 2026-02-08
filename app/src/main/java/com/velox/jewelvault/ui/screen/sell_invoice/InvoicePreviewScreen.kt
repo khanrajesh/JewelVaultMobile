@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +63,8 @@ import com.velox.jewelvault.ui.components.RowOrColumn
 import com.velox.jewelvault.ui.components.SignatureBox
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
+import com.velox.jewelvault.ui.components.baseBackground1
+import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.components.generateUpiQrCode
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.CalculationUtils
@@ -115,7 +116,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .baseBackground8()
             .padding(8.dp)
     ) {
         // Mode indicator at the top
@@ -173,20 +174,30 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                     .weight(1f),
                 columnModifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
 
                 ItemSummaryCard(
                     title = "Bill Details",
                     invoiceViewModel = invoiceViewModel,
-                    modifier = if (it) Modifier.weight(1f) else Modifier.wrapContentHeight()
+                    modifier = if (it) Modifier.weight(1f) else Modifier
+                        .wrapContentHeight()
                 )
 
                 // Signatures section on the right
 //                    Spacer(modifier = Modifier.width(8.dp))
                 WidthThenHeightSpacer(5.dp)
 
-                PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
+
+                PaymentDetailsSection(
+                    if (it) Modifier.weight(1f) else Modifier
+                        .wrapContentHeight(),
+                    invoiceViewModel,
+                    isDraftMode,
+                    context,
+                    orderCompleted
+                )
             }
         } else {
             var scale by remember { mutableStateOf(1f) }
@@ -210,7 +221,7 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                 .graphicsLayer(
                     scaleX = scale, scaleY = scale, translationX = offsetX, translationY = offsetY
                 )
-                .background(MaterialTheme.colorScheme.surface)
+                .baseBackground8()
 
             val iconBtnOnClick = {
                 scale = 1f
@@ -224,22 +235,22 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                     .fillMaxWidth()
                     .weight(1f),
                 columnModifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .weight(1f)
                     .verticalScroll(rememberScrollState())
             ) {
                 // After PDF generation: PDF on left, item details on right
                 // PDF Viewer on the left
 
-                val boxModifier =
-                    if (it) Modifier
-                        .weight(1f)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .zIndex(1f)
-                    else Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .background(MaterialTheme.colorScheme.surface)
-                        .zIndex(1f)
+                val boxModifier = if (it) Modifier
+                    .weight(1f)
+                    .baseBackground8()
+                    .zIndex(1f)
+                else Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .baseBackground8()
+                    .zIndex(1f)
 
                 Box(
                     modifier = boxModifier
@@ -324,18 +335,19 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun PaymentDetailsSection(
+    modifier: Modifier = Modifier,
     invoiceViewModel: InvoiceViewModel,
     isDraftMode: Boolean,
     context: Context,
     orderCompleted: MutableState<Boolean>
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .heightIn(200.dp)
             .wrapContentHeight()
     ) {
         //payment section
-        val totalAmount = invoiceViewModel.getNetPayableAmount()
+        val totalAmount = invoiceViewModel.getTotalOrderAmount()
         val upiId = invoiceViewModel.upiId.value
         var selectedPaymentMethod by remember { mutableStateOf("Cash") }
         var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
@@ -353,7 +365,7 @@ private fun PaymentDetailsSection(
         val isPaidInFull = selectedPaymentType == "Paid in Full"
         val paidAmount = paidAmountText.toDoubleOrNull() ?: 0.0
         val outstandingAmount =
-            (invoiceViewModel.getNetPayableAmount() - paidAmount).coerceAtLeast(0.0)
+            (invoiceViewModel.getTotalOrderAmount() - paidAmount).coerceAtLeast(0.0)
 
         // Generate QR code for UPI payment - regenerate when payment method, amount, or payment type changes
         val qrCodeBitmap = remember(selectedPaymentMethod, paidAmount, selectedPaymentType) {
@@ -366,6 +378,8 @@ private fun PaymentDetailsSection(
             } else null
         }
 
+        val isLandscape = isLandscape()
+
         // Update paid amount when payment type changes
         LaunchedEffect(selectedPaymentType) {
             if (selectedPaymentType == "Paid in Full") {
@@ -373,12 +387,17 @@ private fun PaymentDetailsSection(
             }
         }
 
-        Column(
-            modifier = Modifier
-//                .weight(1f)
+        val contentModifier =
+            if (isLandscape) Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(8.dp)
+            else Modifier
                 .fillMaxWidth()
-//                .verticalScroll(rememberScrollState())
-                .padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(8.dp)
+
+        Column(
+            modifier = contentModifier
         ) {
             Text(
                 text = "Payment Details",
@@ -397,9 +416,7 @@ private fun PaymentDetailsSection(
                     CusOutlinedTextField(
                         state = invoiceViewModel.invoiceNo,
                         placeholderText = "Invoice number",
-                        modifier = Modifier
-//                            .weight(1f),
-                        ,
+                        modifier = if(isLandscape)Modifier.weight(1f)else Modifier,
                         keyboardType = KeyboardType.Number
                     )
 
@@ -429,10 +446,10 @@ private fun PaymentDetailsSection(
                     }
                     CusOutlinedTextField(
                         state = invoiceViewModel.discount,
-//                             onTextChange = { invoiceViewModel.discount.text = it },
-                        placeholderText = "Discount Amount", modifier = Modifier
-//                            .weight(1f)
-                        , keyboardType = KeyboardType.Number
+                             onTextChange = { invoiceViewModel.discount.text = it },
+                        placeholderText = "Discount Amount",
+                        modifier = if(isLandscape)Modifier.weight(1f) else Modifier,
+                        keyboardType = KeyboardType.Number
                     )
                 }
             }
@@ -448,7 +465,7 @@ private fun PaymentDetailsSection(
 
             RowOrColumn {
                 ExposedDropdownMenuBox(
-//                    modifier = Modifier.weight(1f),
+                    modifier = if(isLandscape)Modifier.weight(1f)else Modifier,
                     expanded = paymentMethodExpanded, onExpandedChange = {
                         paymentMethodExpanded = !paymentMethodExpanded
                     }) {
@@ -478,7 +495,7 @@ private fun PaymentDetailsSection(
                 }
                 WidthThenHeightSpacer()
                 ExposedDropdownMenuBox(
-//                    modifier = Modifier.weight(1f),
+                    modifier = if(isLandscape)Modifier.weight(1f)else Modifier,
                     expanded = paymentTypeExpanded,
                     onExpandedChange = { paymentTypeExpanded = !paymentTypeExpanded }) {
                     OutlinedTextField(
@@ -592,9 +609,7 @@ private fun PaymentDetailsSection(
 //                    .weight(1f)
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                    ),
+                    .baseBackground1(),
                 title = "Customer Signature",
                 check = invoiceViewModel.customerSign.value != null,
                 onSignatureCaptured = { bitmap ->
@@ -610,9 +625,7 @@ private fun PaymentDetailsSection(
 //                    .weight(1f)
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)
-                    ),
+                    .baseBackground1(),
                 title = "Owner Signature",
                 check = invoiceViewModel.ownerSign.value != null,
                 onSignatureCaptured = { bitmap ->
@@ -695,14 +708,27 @@ fun ItemSummaryCard(
     title: String, invoiceViewModel: InvoiceViewModel, modifier: Modifier = Modifier
 ) {
 
-    val summary = CalculationUtils.summaryTotals(invoiceViewModel.selectedItemList.toList())
+    val summary = CalculationUtils.summaryTotals(
+        invoiceViewModel.selectedItemList.toList(),
+        invoiceViewModel.exchangeItemList,
+        invoiceViewModel.discount.text.toDoubleOrNull() ?: 0.0
+    )
 
     val innerModifier = if (isLandscape()) Modifier.padding(8.dp)
-//        .verticalScroll(rememberScrollState())
     else Modifier.padding(8.dp)
 
+    val cardModifier = if (isLandscape()) {
+        modifier.fillMaxHeight()
+    } else {
+        modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+    }
+
     Card(
-        modifier = modifier.fillMaxHeight().defaultMinSize(minHeight = 200.dp), colors = CardDefaults.cardColors(
+        modifier = cardModifier
+            .defaultMinSize(minHeight = 200.dp),
+        colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
@@ -737,7 +763,7 @@ fun ItemSummaryCard(
                         "Gs/Nt.Wt",
                         "Fn.Wt",
                         "Metal",
-                        "Chr",
+                        "Chr/unit",
                         "M.Chr",
                         "Tax",
                     )
@@ -748,7 +774,7 @@ fun ItemSummaryCard(
                         val oneUnitPrice = CalculationUtils.metalUnitPrice(
                             item.catName, LocalBaseViewModel.current.metalRates
                         ) ?: 0.0
-                        val price = CalculationUtils.basePrice(
+                        val price = CalculationUtils.baseMetalPrice(
                             item.fnWt ?: 0.0, oneUnitPrice
                         )
 
@@ -770,7 +796,7 @@ fun ItemSummaryCard(
                             "${item.fnWt}/gm\n${oneUnitPrice.to3FString()}",
                             "${item.catName} (${item.purity})",
                             "${item.crg} ${item.crgType}",
-                            "${char}\n+ ${item.othCrg}",
+                            "${char}\n+ ${item.compCrg}",
                             "${item.cgst + item.sgst + item.igst} %",
                         )
                     }
@@ -915,7 +941,7 @@ fun ItemSummaryCard(
 
                         // Other Charges
                         val totalOtherCharges =
-                            invoiceViewModel.selectedItemList.sumOf { it.othCrg }
+                            invoiceViewModel.selectedItemList.sumOf { it.compCrg }
                         if (totalOtherCharges > 0) {
                             Row(Modifier.fillMaxWidth()) {
                                 Text(
@@ -1048,7 +1074,7 @@ fun ItemSummaryCard(
                             Spacer(modifier = Modifier.height(5.dp))
 
                             val totalExchangeValue = invoiceViewModel.getTotalExchangeValue()
-                            val netPayableAmount = invoiceViewModel.getNetPayableAmount()
+                            val netPayableAmount = invoiceViewModel.getTotalOrderAmount()
 
                             Row(Modifier.fillMaxWidth()) {
                                 Text(

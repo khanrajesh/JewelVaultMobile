@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -60,6 +61,8 @@ import com.velox.jewelvault.R
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ForceUpdateDialog
 import com.velox.jewelvault.ui.components.InputFieldState
+import com.velox.jewelvault.ui.components.goldAnimationBackground
+import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.VaultPreview
@@ -115,7 +118,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().baseBackground8().goldAnimationBackground()) {
 
         if (isLandscape()) LandscapeLoginScreen(
             Modifier, isLogin, mobileNo, password, confirmPassword, savePhoneChecked, loginViewModel
