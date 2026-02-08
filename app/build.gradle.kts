@@ -27,8 +27,8 @@ android {
         applicationId = "com.velox.jewelvault"
         minSdk = 30
         targetSdk = 35
-        versionCode = 22
-        versionName = "0.0.22-test"
+        versionCode = 23
+        versionName = "0.0.23-test"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -177,6 +177,7 @@ dependencies {
 
     implementation (libs.exp4j)
     implementation (libs.androidx.lifecycle.extensions)
+    implementation (libs.play.services.location)
 
     //room
     implementation (libs.androidx.room.runtime)

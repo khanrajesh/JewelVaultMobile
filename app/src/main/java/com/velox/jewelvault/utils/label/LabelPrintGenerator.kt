@@ -117,7 +117,20 @@ class LabelPrintGenerator(private val context: Context) {
             "QR_CODE" -> addTsplQRElement(commands, element, properties, data, xDots, yDots, widthDots, heightDots)
             "BARCODE" -> addTsplBarcodeElement(commands, element, properties, data, xDots, yDots, widthDots, heightDots)
             "LINE" -> addTsplLineElement(commands, element, properties, xDots, yDots, widthDots, heightDots)
+            "DOT" -> addTsplDotElement(commands, xDots, yDots, widthDots, heightDots)
         }
+    }
+
+    private fun addTsplDotElement(
+        commands: TsplCommandBuilder,
+        xDots: Int,
+        yDots: Int,
+        widthDots: Int,
+        heightDots: Int
+    ) {
+        val w = widthDots.coerceAtLeast(2)
+        val h = heightDots.coerceAtLeast(2)
+        commands.append("BAR $xDots,$yDots,$w,$h\r\n")
     }
     
     private fun addTsplTextElement(
@@ -467,6 +480,11 @@ class LabelPrintGenerator(private val context: Context) {
                 // CPCL: BARCODE type x y rotation narrow wide height human-readable data
                 val height = (element.height * 8).roundToInt().coerceAtLeast(24)
                 commands.append("BARCODE $barcodeType $xDots $yDots 0 2 4 $height $barcodeData\r\n")
+            }
+            "DOT" -> {
+                val w = (element.width * 8).roundToInt().coerceAtLeast(2)
+                val h = (element.height * 8).roundToInt().coerceAtLeast(2)
+                commands.append("BOX $xDots $yDots ${xDots + w} ${yDots + h} 2\r\n")
             }
             "LINE" -> {
                 val thicknessDots = 2

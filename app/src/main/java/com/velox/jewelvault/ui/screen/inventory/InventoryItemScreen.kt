@@ -301,7 +301,6 @@ private fun PrintInfoDialog(
         }
         var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
         val logoUri = remember { FileManager.getLogoFileUri(context) }
-        var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
         LaunchedEffect(qrBitmap) {
             if (qrBitmap != null) {
                 try {
@@ -316,17 +315,7 @@ private fun PrintInfoDialog(
                 qrUri = null
             }
         }
-        LaunchedEffect(logoUri) {
-            if (logoUri != null) {
-                try {
-                    context.contentResolver.openInputStream(logoUri)?.use { ins ->
-                        logoBitmap = BitmapFactory.decodeStream(ins)
-                    }
-                } catch (_: Exception) {
-                    logoBitmap = null
-                }
-            } else logoBitmap = null
-        }
+
         AlertDialog(
             onDismissRequest = { showDialog.value = false },
             title = { Text("Item Details") },
@@ -348,21 +337,6 @@ private fun PrintInfoDialog(
                                 Image(
                                     bitmap = qrBitmap.asImageBitmap(),
                                     contentDescription = "QR",
-                                    modifier = Modifier
-                                        .width(80.dp)
-                                        .height(80.dp)
-                                )
-                            }
-                        }
-
-                        if (logoBitmap != null) {
-                            Column {
-                                Spacer(Modifier.height(8.dp))
-                                Text("Store Logo:")
-                                Spacer(Modifier.height(4.dp))
-                                Image(
-                                    bitmap = logoBitmap!!.asImageBitmap(),
-                                    contentDescription = "Logo",
                                     modifier = Modifier
                                         .width(80.dp)
                                         .height(80.dp)
@@ -420,32 +394,32 @@ private fun PrintInfoDialog(
                     }
                     Spacer(Modifier.width(8.dp))
 
-                    Column {
-                        TextButton(onClick = {
-                            if (selectedItem.value != null) {
-                                PrintUtils.generateItemExcelAndPrint(
-                                    context, selectedItem.value!!
-                                ) {
-                                    showDialog.value = false
-                                }
-                            }
-                        }) {
-                            Text("Print", color = MaterialTheme.colorScheme.primary)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = {
-                            if (selectedItem.value != null) {
-                                managePrintersViewModel.printItemLabel(
-                                    selectedItem.value!!, context, qrUri, logoUri
-                                )
-                                showDialog.value = false
-                            }
-                        }) {
-                            Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
-                        }
+//                    Column {
+//                        TextButton(onClick = {
+//                            if (selectedItem.value != null) {
+//                                PrintUtils.generateItemExcelAndPrint(
+//                                    context, selectedItem.value!!
+//                                ) {
+//                                    showDialog.value = false
+//                                }
+//                            }
+//                        }) {
+//                            Text("Print", color = MaterialTheme.colorScheme.primary)
+//                        }
+//                        Spacer(Modifier.height(8.dp))
+//                        TextButton(onClick = {
+//                            if (selectedItem.value != null) {
+//                                managePrintersViewModel.printItemLabel(
+//                                    selectedItem.value!!, context, qrUri, logoUri
+//                                )
+//                                showDialog.value = false
+//                            }
+//                        }) {
+//                            Text("Direct Print", color = MaterialTheme.colorScheme.secondary)
+//                        }
 
-                    }
-                    Spacer(Modifier.width(8.dp))
+//                    }
+//                    Spacer(Modifier.width(8.dp))
                     TextButton(onClick = {
                         if (selectedItem.value != null) {
                             managePrintersViewModel.printItemWithDefaultTemplate(

@@ -136,6 +136,26 @@ class BleScanner(
             if (ok || manager.bluetoothAdapter.isDiscovering) {
                 classicDiscoveringState.value = true
                 manager.classicDiscoveredDevices.value = emptyList()
+            } else {
+                // Retry once after canceling any stale discovery state
+                try {
+                    manager.bluetoothAdapter.cancelDiscovery()
+                } catch (_: Throwable) { }
+                manager.bleManagerScope.launch {
+                    delay(1200)
+                    val retryOk = try {
+                        manager.bluetoothAdapter.startDiscovery()
+                    } catch (t: Throwable) {
+                        log("SCAN: Classic discovery retry error ${t.message}")
+                        false
+                    }
+                    log("SCAN: Classic discovery retry result -> $retryOk")
+                    if (retryOk || manager.bluetoothAdapter.isDiscovering) {
+                        classicDiscoveringState.value = true
+                        manager.classicDiscoveredDevices.value = emptyList()
+                    }
+                    recomputeIsDiscovering()
+                }
             }
         } catch (t: Throwable) {
             log("SCAN: Error starting classic discovery ${t.message}")

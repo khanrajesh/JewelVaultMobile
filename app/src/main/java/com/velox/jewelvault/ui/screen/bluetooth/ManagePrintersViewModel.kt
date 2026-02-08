@@ -16,6 +16,7 @@ import com.velox.jewelvault.utils.FileManager
 import com.velox.jewelvault.utils.PrintUtils
 import com.velox.jewelvault.utils.label.LabelPrintGenerator
 import com.velox.jewelvault.utils.log
+import com.velox.jewelvault.utils.generateId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -73,7 +74,8 @@ class ManagePrintersViewModel @Inject constructor(
         context: Context,
         template: LabelTemplateEntity,
         elements: List<LabelElementEntity>,
-        data: Map<String, Any> = emptyMap()
+        data: Map<String, Any> = emptyMap(),
+        testOverlay: Boolean = false
     ) {
         viewModelScope.launch {
             val connected = bleManager.connectedDevices.value.firstOrNull()
@@ -86,7 +88,13 @@ class ManagePrintersViewModel @Inject constructor(
             _snackBarState.value = "Printing test label on $printerName..."
             try {
                 val generator = LabelPrintGenerator(context.applicationContext)
-                val payload = generator.generatePrintData(template, elements, data, template.printLanguage)
+                val printableElements = if (testOverlay) {
+                    elements + buildTestOverlayElements(template, elements)
+                } else {
+                    elements
+                }
+                val payload =
+                    generator.generatePrintData(template, printableElements, data, template.printLanguage)
                 val success = bleManager.sendPrintData(address, payload)
                 _snackBarState.value = if (success) "Test label sent to $printerName" else "Failed to send label to $printerName"
             } catch (e: Exception) {
@@ -94,6 +102,119 @@ class ManagePrintersViewModel @Inject constructor(
                 _snackBarState.value = "Error printing: ${e.message}"
             }
         }
+    }
+
+    private fun buildTestOverlayElements(
+        template: LabelTemplateEntity,
+        baseElements: List<LabelElementEntity>
+    ): List<LabelElementEntity> {
+        val zBase = (baseElements.maxOfOrNull { it.zIndex } ?: 0) + 100
+        val border = 0.2f
+        val padding = template.labelPadding.coerceAtLeast(0f)
+        val width = template.labelWidth
+        val height = template.labelHeight
+        val usableWidth = (width - (padding * 2f)).coerceAtLeast(border)
+        val usableHeight = (height - (padding * 2f)).coerceAtLeast(border)
+        val frameInset = maxOf(0.2f, border)
+        val inset = frameInset
+        val dotSize = 1.2f
+        val frameWidth = (usableWidth - (frameInset * 2f)).coerceAtLeast(border)
+        val frameHeight = (usableHeight - (frameInset * 2f)).coerceAtLeast(border)
+
+        fun line(id: String, x: Float, y: Float, w: Float, h: Float, z: Int) = LabelElementEntity(
+            elementId = generateId(),
+            templateId = template.templateId,
+            elementType = "LINE",
+            x = x,
+            y = y,
+            width = w,
+            height = h,
+            rotation = 0f,
+            zIndex = z,
+            properties = "{\"thickness\":1}",
+            dataBinding = null,
+            isVisible = true
+        )
+
+        val overlay = mutableListOf<LabelElementEntity>()
+        overlay += line("top", frameInset, frameInset, frameWidth, border, zBase)
+        overlay += line(
+            "bottom",
+            frameInset,
+            (frameInset + frameHeight - border).coerceAtLeast(frameInset),
+            frameWidth,
+            border,
+            zBase + 1
+        )
+        overlay += line("left", frameInset, frameInset, border, frameHeight, zBase + 2)
+        overlay += line(
+            "right",
+            (frameInset + frameWidth - border).coerceAtLeast(frameInset),
+            frameInset,
+            border,
+            frameHeight,
+            zBase + 3
+        )
+
+        // Corner dots (small squares)
+        overlay += LabelElementEntity(
+            elementId = generateId(),
+            templateId = template.templateId,
+            elementType = "DOT",
+            x = inset,
+            y = inset,
+            width = dotSize,
+            height = dotSize,
+            rotation = 0f,
+            zIndex = zBase + 4,
+            properties = "{}",
+            dataBinding = null,
+            isVisible = true
+        )
+        overlay += LabelElementEntity(
+            elementId = generateId(),
+            templateId = template.templateId,
+            elementType = "DOT",
+            x = (frameInset + frameWidth - dotSize).coerceAtLeast(frameInset),
+            y = inset,
+            width = dotSize,
+            height = dotSize,
+            rotation = 0f,
+            zIndex = zBase + 5,
+            properties = "{}",
+            dataBinding = null,
+            isVisible = true
+        )
+        overlay += LabelElementEntity(
+            elementId = generateId(),
+            templateId = template.templateId,
+            elementType = "DOT",
+            x = inset,
+            y = (frameInset + frameHeight - dotSize).coerceAtLeast(frameInset),
+            width = dotSize,
+            height = dotSize,
+            rotation = 0f,
+            zIndex = zBase + 6,
+            properties = "{}",
+            dataBinding = null,
+            isVisible = true
+        )
+        overlay += LabelElementEntity(
+            elementId = generateId(),
+            templateId = template.templateId,
+            elementType = "DOT",
+            x = (frameInset + frameWidth - dotSize).coerceAtLeast(frameInset),
+            y = (frameInset + frameHeight - dotSize).coerceAtLeast(frameInset),
+            width = dotSize,
+            height = dotSize,
+            rotation = 0f,
+            zIndex = zBase + 7,
+            properties = "{}",
+            dataBinding = null,
+            isVisible = true
+        )
+
+        return overlay
     }
 
     /**

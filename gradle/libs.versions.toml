@@ -41,6 +41,7 @@ navigationCompose = "2.8.9"
 lottie = "6.4.0"
 okhttp = "4.12.0"
 playServicesSafetynet = "18.0.1"
+playServicesLocation = "21.3.0"
 poi = "5.4.1"
 poiOoxml = "5.4.1"
 poiScratchpad = "5.4.1"
@@ -125,6 +126,7 @@ ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negoti
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 androidx-room-testing-android = { group = "androidx.room", name = "room-testing-android", version.ref = "roomTestingAndroid" }
 play-services-safetynet = { module = "com.google.android.gms:play-services-safetynet", version.ref = "playServicesSafetynet" }
+play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 poi = { module = "org.apache.poi:poi", version.ref = "poi" }
 poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poiOoxml" }
 poi-ooxml-full = { module = "org.apache.poi:poi-ooxml-full", version.ref = "poiOoxml" }
