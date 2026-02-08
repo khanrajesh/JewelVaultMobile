@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
@@ -401,8 +402,12 @@ class LoginViewModel @Inject constructor(
                 _loadingState.value = false
             } else {
                 _loadingState.value = false
-                val message = task.exception?.message ?: "OTP verification failed"
-                log("LOGIN: OTP verification failed -> ${task.exception?.message}")
+                val exception = task.exception
+                val message = when (exception) {
+                    is FirebaseAuthInvalidCredentialsException -> "Invalid OTP"
+                    else -> "OTP verification failed. Please try again."
+                }
+                log("LOGIN: OTP verification failed -> ${exception?.message}")
                 _snackBarState.value = message
                 onFailure(message)
             }

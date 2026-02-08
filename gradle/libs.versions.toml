@@ -127,6 +127,7 @@ androidx-room-testing-android = { group = "androidx.room", name = "room-testing-
 play-services-safetynet = { module = "com.google.android.gms:play-services-safetynet", version.ref = "playServicesSafetynet" }
 poi = { module = "org.apache.poi:poi", version.ref = "poi" }
 poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "poiOoxml" }
+poi-ooxml-full = { module = "org.apache.poi:poi-ooxml-full", version.ref = "poiOoxml" }
 poi-scratchpad = { module = "org.apache.poi:poi-scratchpad", version.ref = "poiScratchpad" }
 xmlbeans = { module = "org.apache.xmlbeans:xmlbeans", version.ref = "xmlbeans" }
 zxing-android-embedded = { module = "com.journeyapps:zxing-android-embedded", version.ref = "zxingAndroidEmbedded" }

@@ -1,6 +1,7 @@
 package com.velox.jewelvault
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
@@ -12,6 +13,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 
 @HiltAndroidApp
 class BaseApplication : Application(), Configuration.Provider {
@@ -27,6 +29,7 @@ class BaseApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        initPoiTempDir()
         AppLogger.init(this)
         // WorkManager will be initialized via workManagerConfiguration
         val entryPoint = EntryPointAccessors.fromApplication(
@@ -43,4 +46,14 @@ class BaseApplication : Application(), Configuration.Provider {
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().build()
+
+    private fun initPoiTempDir() {
+        try {
+            val poiTempDir = File(cacheDir, "poi-temp").apply { mkdirs() }
+            System.setProperty("java.io.tmpdir", poiTempDir.absolutePath)
+            Log.d("BaseApplication", "POI temp dir set to ${poiTempDir.absolutePath}")
+        } catch (e: Exception) {
+            Log.e("BaseApplication", "Failed to set POI temp dir", e)
+        }
+    }
 }

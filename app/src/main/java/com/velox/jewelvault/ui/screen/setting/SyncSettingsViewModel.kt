@@ -243,19 +243,22 @@ class BackupSettingsViewModel @Inject constructor(
                         )
                     }
                 } else {
+                    val error = result.exceptionOrNull()
+                    val errorText = error?.message ?: error?.javaClass?.simpleName ?: "Unknown error"
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            statusMessage = "Local export failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}",
+                            statusMessage = "Local export failed: $errorText",
                             showResultMessage = true
                         )
                     }
                 }
             } catch (e: Exception) {
+                val errorText = e.message ?: e.javaClass.simpleName
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        statusMessage = "Local export failed: ${e.message}",
+                        statusMessage = "Local export failed: $errorText",
                         showResultMessage = true
                     )
                 }

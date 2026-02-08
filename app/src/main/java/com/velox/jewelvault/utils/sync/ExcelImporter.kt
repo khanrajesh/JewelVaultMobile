@@ -71,8 +71,10 @@ class ExcelImporter(
             logJvSync("Excel import started for ${inputFile.name}")
             onProgress("Reading Excel file...", 5)
             
-            FileInputStream(inputFile).use { inputStream ->
-                XSSFWorkbook(inputStream).use { workbook ->
+            val inputStream = FileInputStream(inputFile)
+            try {
+                val workbook = XSSFWorkbook(inputStream)
+                try {
                     val metadata = readSchemaMetadata(workbook)
                     logJvSync("Excel import started for ${inputFile.name} (schema v${metadata.schemaVersion})")
                     val summary = ImportSummary()
@@ -129,10 +131,14 @@ class ExcelImporter(
                     onProgress("Importing metal exchanges...", 90)
                     importMetalExchangeEntity(workbook, restoreMode, summary)
 
-            log("Excel import completed successfully: $summary")
-            logJvSync("Excel import succeeded for ${inputFile.name}")
-            Result.success(summary)
-        }
+                    log("Excel import completed successfully: $summary")
+                    logJvSync("Excel import succeeded for ${inputFile.name}")
+                    Result.success(summary)
+                } finally {
+                    workbook.close()
+                }
+            } finally {
+                inputStream.close()
             }
             
         } catch (e: Exception) {

@@ -149,7 +149,11 @@ dependencies {
     
     // Apache POI for Excel processing
     implementation (libs.poi)
-    implementation (libs.poi.ooxml)
+    implementation (libs.poi.ooxml) {
+        // Exclude lite schemas to avoid duplicate classes (we use full schemas below)
+        exclude(group = "org.apache.poi", module = "poi-ooxml-lite")
+    }
+    implementation (libs.poi.ooxml.full)
     implementation (libs.poi.scratchpad)
 
     // Optional for Android compatibility

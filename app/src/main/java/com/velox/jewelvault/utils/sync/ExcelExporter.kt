@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.Date
 import android.net.Uri
+import android.util.Log
 
 /**
  * Handles exporting RoomDB entities to Excel format
@@ -150,6 +151,7 @@ class ExcelExporter(private val context: Context) {
         } catch (e: Exception) {
             log("Excel export failed: ${e.message}")
             logJvSync("Excel export failed for $outputUri: ${e.message}")
+            Log.e("ExcelExporter", "Excel export failed for $outputUri", e)
             Result.failure(e)
         }
     }
