@@ -1279,6 +1279,7 @@ private fun AddItemSection(
 
         HardwareScannerCapture(
             enabled = scanInputMode.value != ScanInputMode.CAMERA,
+            reacquireFocusWhenLost = false,
             onScanned = {
                 val scannedId = extractScannedItemId(it)
                 if (scannedId.isNotBlank()) {

@@ -60,7 +60,8 @@ fun HardwareScannerCapture(
     enabled: Boolean,
     onScanned: (String) -> Unit,
     modifier: Modifier = Modifier,
-    duplicateWindowMs: Long = 450L
+    duplicateWindowMs: Long = 450L,
+    reacquireFocusWhenLost: Boolean = true
 ) {
     var buffer by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -118,7 +119,7 @@ fun HardwareScannerCapture(
             .alpha(0f)
             .focusRequester(focusRequester)
             .onFocusChanged { state ->
-                if (enabled && !state.isFocused) {
+                if (enabled && reacquireFocusWhenLost && !state.isFocused) {
                     scope.launch {
                         delay(80)
                         runCatching { focusRequester.requestFocus() }
