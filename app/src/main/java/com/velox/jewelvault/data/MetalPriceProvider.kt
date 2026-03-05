@@ -9,7 +9,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +27,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,7 +34,6 @@ import androidx.compose.material.icons.twotone.Cloud
 import androidx.compose.material.icons.twotone.CloudOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -49,7 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -394,15 +390,13 @@ fun EditMetalRatesDialog(
 fun updateConjugateMetalPrice(
     editedRates: SnapshotStateList<MetalRate>, value24k: Double
 ) {
-    val gold100 = (100 / 99.9) * value24k
-//  val gold100 = value24k
     val updatedList = editedRates.map { metalRate ->
         if (metalRate.metal == "Gold") {
             val updatedPrice = when (metalRate.caratOrPurity) {
                 "24K", "999" -> value24k
-                "22K", "916" -> gold100 * 0.916
-                "20K", "833" -> gold100 * 0.833
-                "18K", "750" -> gold100 * 0.750
+                "22K", "916" -> value24k * 0.916
+                "20K", "833" -> value24k * 0.833
+                "18K", "750" -> value24k * 0.750
                 else -> null
             }
             if (updatedPrice != null) {
@@ -498,7 +492,7 @@ suspend fun fetchAllMetalRates(
         val updated = LocalDateTime.now().toCustomFormat()
 
         val out = mutableListOf<MetalRate>()
-        val gold100 = (100 / 99.9) * (gold24kCached ?: 0.0)
+        val gold100 = (gold24kCached ?: 0.0)
         out.add(MetalRate("Cache", "Gold", "24K", String.format("%.0f", gold24kCached), updated))
         out.add(MetalRate("Cache", "Gold", "22K", String.format("%.0f", gold100 * 0.916), updated))
         out.add(MetalRate("Cache", "Gold", "18K", String.format("%.0f", gold100 * 0.750), updated))
@@ -548,7 +542,6 @@ suspend fun metalRates(
 
             if (gold24kCached != null && silverKgCached != null) {
                 combinedRates.clear()
-                val gold100 = (100 / 99.9) * gold24kCached
                 combinedRates.add(
                     MetalRate(
                         source = "Cache",
@@ -563,7 +556,7 @@ suspend fun metalRates(
                         source = "Cache",
                         metal = "Gold",
                         caratOrPurity = "22K",
-                        price = String.format("%.0f", gold100 * 0.916),
+                        price = String.format("%.0f", gold24kCached * 0.916),
                         updatedDate = updatedTs
                     )
                 )
@@ -572,7 +565,7 @@ suspend fun metalRates(
                         source = "Cache",
                         metal = "Gold",
                         caratOrPurity = "18K",
-                        price = String.format("%.0f", gold100 * 0.750),
+                        price = String.format("%.0f", gold24kCached * 0.750),
                         updatedDate = updatedTs
                     )
                 )
@@ -725,7 +718,6 @@ private fun mapMetalRatesResponse(response: MetalRatesResponseDto?): List<MetalR
         when (rate.metal.lowercase()) {
             "gold" -> {
                 val perGram = price / unitGm
-                val gold100 = (100 / 99.9) * perGram
                 output.add(
                     MetalRate(
                         "API", "Gold", "24K", String.format("%.0f", perGram), updatedDate
@@ -733,12 +725,12 @@ private fun mapMetalRatesResponse(response: MetalRatesResponseDto?): List<MetalR
                 )
                 output.add(
                     MetalRate(
-                        "API", "Gold", "22K", String.format("%.0f", gold100 * 0.916), updatedDate
+                        "API", "Gold", "22K", String.format("%.0f", perGram * 0.916), updatedDate
                     )
                 )
                 output.add(
                     MetalRate(
-                        "API", "Gold", "18K", String.format("%.0f", gold100 * 0.750), updatedDate
+                        "API", "Gold", "18K", String.format("%.0f", perGram * 0.750), updatedDate
                     )
                 )
             }

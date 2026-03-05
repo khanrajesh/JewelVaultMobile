@@ -17,6 +17,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
@@ -27,6 +29,7 @@ fun DeviceDetailsDialog(
     onDismiss: () -> Unit
 ) {
     if (device == null) return
+    val clipboardManager = LocalClipboardManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -120,8 +123,17 @@ fun DeviceDetailsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Close")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = {
+                    clipboardManager.setText(AnnotatedString(device.address))
+                }) {
+                    Text("Copy MAC")
+                }
+                Button(onClick = onDismiss) {
+                    Text("Close")
+                }
             }
         }
     )

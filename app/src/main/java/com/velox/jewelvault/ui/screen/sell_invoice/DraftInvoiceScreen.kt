@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.MoreVert
 import androidx.compose.material.icons.twotone.Refresh
@@ -13,7 +12,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,7 +33,7 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.*
 import com.velox.jewelvault.utils.CalculationUtils
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.mutableStateListOf
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import kotlinx.coroutines.launch
 
@@ -222,7 +220,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                 .offset(y = 15.dp, x = (-55).dp)
                 .wrapContentHeight()
                 .wrapContentWidth()
-                .background(Color.White, RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
                 .padding(5.dp)
         ) {
             Column {
@@ -423,7 +421,7 @@ fun DraftAddItemSection(itemId: MutableState<String>, viewModel: InvoiceViewMode
             modifier = Modifier
                 .fillMaxHeight()
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
+                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
                 )
                 .padding(horizontal = 10.dp), contentAlignment = Alignment.Center
         ) {
@@ -544,8 +542,8 @@ fun DraftDetailSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 
 @Composable
 fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
-    val summary = CalculationUtils.summaryTotals(selectedItemList,
-        emptyList<ExchangeItemDto>() as SnapshotStateList<ExchangeItemDto>, 0.0)
+    val emptyExchangeList = remember { mutableStateListOf<ExchangeItemDto>() }
+    val summary = CalculationUtils.summaryTotals(selectedItemList, emptyExchangeList, 0.0)
 
     Column(Modifier.padding(16.dp)) {
         Text("Summary", fontSize = 12.sp, fontWeight = FontWeight.Bold)

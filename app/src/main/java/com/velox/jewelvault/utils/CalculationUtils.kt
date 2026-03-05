@@ -32,8 +32,6 @@ object CalculationUtils {
                             it.caratOrPurity.equals("1000", true)
                 }?.price?.let(::parsePrice)
 
-                val goldFrom24 = price24k?.let { (100.0 / 99.9) * it }
-
                 val price22k = goldRates.firstOrNull {
                     it.caratOrPurity.contains("22", true) ||
                             it.caratOrPurity.contains("916", true)
@@ -46,7 +44,7 @@ object CalculationUtils {
                 }?.price?.let(::parsePrice)
                 val goldFrom18 = price18k?.let { it / 0.750 }
 
-                goldFrom24 ?: goldFrom22 ?: goldFrom18
+                price24k ?: goldFrom22 ?: goldFrom18
                 ?: goldRates.firstOrNull()?.price?.let(::parsePrice)
             }
             "silver" -> {

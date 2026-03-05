@@ -19,13 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -157,7 +157,7 @@ fun TextListView(
                                             modifier = Modifier
                                                 .width(1.dp)
                                                 .fillMaxHeight()
-                                                .background(Color.Gray)
+                                                .background(MaterialTheme.colorScheme.outlineVariant)
                                         )
                                     }
                                 }
@@ -169,7 +169,13 @@ fun TextListView(
                                 modifier = Modifier
                                     .height(if (isHeader) 3.dp else 1.dp)
                                     .width(totalWidth)
-                                    .background(if (isHeader) Color.Black else Color.Gray)
+                                    .background(
+                                        if (isHeader) {
+                                            MaterialTheme.colorScheme.outline
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant
+                                        }
+                                    )
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                         }

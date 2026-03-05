@@ -57,6 +57,7 @@ class ProfileViewModel @Inject constructor(
     val propName = InputFieldState()
     val shopImage = InputFieldState()
     val address = InputFieldState()
+    val jurisdiction = InputFieldState()
     val registrationNo = InputFieldState()
     val gstinNo = InputFieldState()
     val panNumber = InputFieldState()
@@ -81,6 +82,7 @@ class ProfileViewModel @Inject constructor(
             userEmail,
             userMobile,
             address,
+            jurisdiction,
             registrationNo,
             gstinNo,
             panNumber,
@@ -104,6 +106,7 @@ class ProfileViewModel @Inject constructor(
         shopName.text = InputValidator.sanitizeText(shopName.text)
         propName.text = InputValidator.sanitizeText(propName.text)
         address.text = InputValidator.sanitizeText(address.text)
+        jurisdiction.text = InputValidator.sanitizeText(jurisdiction.text)
         registrationNo.text = InputValidator.sanitizeText(registrationNo.text).uppercase()
         gstinNo.text = gstinNo.text.trim().uppercase()
         panNumber.text = panNumber.text.trim().uppercase()
@@ -127,6 +130,7 @@ class ProfileViewModel @Inject constructor(
 
         if (address.text.isBlank()) return setError(address, "Store address is required")
         if (address.text.length < 10) return setError(address, "Please enter a complete address (min 10 characters)")
+        if (jurisdiction.text.isBlank()) return setError(jurisdiction, "Jurisdiction is required")
 
         if (registrationNo.text.isBlank()) return setError(registrationNo, "Registration number is required")
 
@@ -243,9 +247,14 @@ class ProfileViewModel @Inject constructor(
                     val result =
                         FirebaseUtils.getStoreDataFromFirestore(_firestore, mobileNumber, storeId)
                     if (result.isSuccess) {
-                        val storeFromFirestore =
-                            FirebaseUtils.mapToStoreEntity(result.getOrNull()!!)
-                        storeEntity.value = storeFromFirestore
+                        val storeData = result.getOrNull()
+                        if (storeData != null) {
+                            val storeFromFirestore = FirebaseUtils.mapToStoreEntity(storeData)
+                            storeEntity.value = storeFromFirestore
+                        } else {
+                            log("No store data found in Firestore for storeId: $storeId")
+                            _snackBarState.value = "No store data found in cloud"
+                        }
                     } else {
                         log("Error getting store data from Firestore: ${result.exceptionOrNull()?.message}")
                         _snackBarState.value = "Failed to load store data"
@@ -313,6 +322,7 @@ class ProfileViewModel @Inject constructor(
                     shopName.text = it.name
                     shopImage.text = it.image
                     address.text = it.address
+                    jurisdiction.text = it.jurisdiction
                     registrationNo.text = it.registrationNo
                     gstinNo.text = it.gstinNo
                     panNumber.text = it.panNo
@@ -382,6 +392,13 @@ class ProfileViewModel @Inject constructor(
                     isUploadingImage.value = false
                 }
 
+                val existingStore = if (storeId.isNotBlank()) {
+                    appDatabase.storeDao().getStoreById(storeId)
+                } else {
+                    null
+                }
+                val existingInvoiceNo = existingStore?.invoiceNo ?: this@ProfileViewModel.storeEntity.value?.invoiceNo ?: 0
+
                 var storeEntity = StoreEntity(
                     storeId = storeId,
                     userId = userId,
@@ -389,11 +406,13 @@ class ProfileViewModel @Inject constructor(
                     name = InputValidator.sanitizeText(shopName.text),
                     phone = userMobile.text.trim(),
                     address = InputValidator.sanitizeText(address.text),
+                    jurisdiction = InputValidator.sanitizeText(jurisdiction.text),
                     registrationNo = InputValidator.sanitizeText(registrationNo.text),
                     gstinNo = gstinNo.text.trim().uppercase(),
                     panNo = panNumber.text.trim().uppercase(),
                     image = finalImageUrl,
                     email = InputValidator.sanitizeText(userEmail.text),
+                    invoiceNo = existingInvoiceNo,
                     upiId = upiId.text.trim(),
                     lastUpdated = System.currentTimeMillis()
                 )
@@ -555,7 +574,7 @@ class ProfileViewModel @Inject constructor(
                     val storeFromFirestore = FirebaseUtils.mapToStoreEntity(firestoreData)
 
                     // Update or insert in local database
-                    val existingStore = appDatabase.storeDao().getStoreById(userId)
+                    val existingStore = appDatabase.storeDao().getStoreById(storeId)
                     val result = if (existingStore != null) {
                         appDatabase.storeDao().updateStore(storeFromFirestore)
                     } else {
@@ -582,6 +601,7 @@ class ProfileViewModel @Inject constructor(
                         shopName.text = storeFromFirestore.name
                         shopImage.text = storeFromFirestore.image
                         address.text = storeFromFirestore.address
+                        jurisdiction.text = storeFromFirestore.jurisdiction
                         registrationNo.text = storeFromFirestore.registrationNo
                         gstinNo.text = storeFromFirestore.gstinNo
                         panNumber.text = storeFromFirestore.panNo

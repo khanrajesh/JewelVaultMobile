@@ -262,7 +262,7 @@ private fun LandscapeLoginScreen(
     ) {
 
         Image(
-            painter = painterResource(id = R.drawable.logo_1),
+            painter = painterResource(id = R.drawable.logo),
             contentDescription = "Splash Logo",
             modifier = Modifier
                 .weight(1f)
@@ -307,7 +307,7 @@ private fun PortraitLoginScreen(
     ) {
 
         Image(
-            painter = painterResource(id = R.drawable.logo_1),
+            painter = painterResource(id = R.drawable.logo),
             contentDescription = "Splash Logo",
             modifier = Modifier
                 .weight(0.4f)

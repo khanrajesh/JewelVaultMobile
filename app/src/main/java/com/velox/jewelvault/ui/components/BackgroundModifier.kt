@@ -20,6 +20,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
+import com.velox.jewelvault.ui.theme.AppThemeStyle
+import com.velox.jewelvault.ui.theme.LocalAppCornerRadius
+import com.velox.jewelvault.ui.theme.LocalAppThemeStyle
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -36,20 +39,26 @@ import com.velox.jewelvault.ui.components.baseBackground11
 import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.components.baseBackground9
 
+private fun corner(radius: Int, delta: Int = 0) = (radius + delta).coerceAtLeast(0).dp
+
 fun Modifier.baseBackground0(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 18.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = corner(radius, 6)))
 }
 
 fun Modifier.baseBackground1(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(corner(radius)))
 }
 
 fun Modifier.baseBackground2(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(corner(radius, -2)))
 }
 
 fun Modifier.baseBackground3(): Modifier = composed {
-    background(MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.primary, RoundedCornerShape(corner(radius, -2)))
 }
 
 fun Modifier.baseBackground4(): Modifier = composed {
@@ -57,19 +66,31 @@ fun Modifier.baseBackground4(): Modifier = composed {
 }
 
 fun Modifier.baseBackground5(): Modifier = composed {
-    background(Color.White, RoundedCornerShape(8.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(corner(radius, -4)))
 }
 
 fun Modifier.baseBackground6(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(corner(radius, 4)))
 }
 
 fun Modifier.baseBackground7(): Modifier = composed {
+    val radius = LocalAppCornerRadius.current
+    val isMinimal = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val gradientColors = if (isMinimal) {
+        listOf(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surface
+        )
+    } else {
+        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+    }
     background(
         brush = Brush.horizontalGradient(
-            colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+            colors = gradientColors
         ),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(topStart = corner(radius, 4), topEnd = corner(radius, 4))
     )
 }
 
@@ -82,14 +103,20 @@ fun Modifier.baseBackground9(): Modifier = composed {
 }
 
 fun Modifier.baseBackground10(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(corner(radius, 4)))
 }
 
 fun Modifier.baseBackground11(): Modifier = composed {
-    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
+    val radius = LocalAppCornerRadius.current
+    background(MaterialTheme.colorScheme.surface, RoundedCornerShape(corner(radius, -8)))
 }
 
 fun Modifier.goldAnimationBackground(): Modifier = composed {
+    val isMinimal = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val glowColor1 = if (isMinimal) MaterialTheme.colorScheme.onSurface else Color(0xFFFFF3B0)
+    val glowColor2 = if (isMinimal) MaterialTheme.colorScheme.outline else Color(0xFFFFD54F)
+    val glowColor3 = if (isMinimal) MaterialTheme.colorScheme.outlineVariant else Color(0xFFFFA000)
     val infiniteTransition = rememberInfiniteTransition(label = "aniBackground")
 
     val t1 by infiniteTransition.animateFloat(
@@ -130,15 +157,11 @@ fun Modifier.goldAnimationBackground(): Modifier = composed {
         val radius1 = size.minDimension * 0.35f
         val radius2 = size.minDimension * 0.45f
 
-        val gold1 = Color(0xFFFFF3B0)
-        val gold2 = Color(0xFFFFD54F)
-        val gold3 = Color(0xFFFFA000)
-
         val brush1 = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to gold1.copy(alpha = 0.70f),
-                0.35f to gold2.copy(alpha = 0.55f),
-                0.70f to gold3.copy(alpha = 0.35f),
+                0.00f to glowColor1.copy(alpha = 0.70f),
+                0.35f to glowColor2.copy(alpha = 0.55f),
+                0.70f to glowColor3.copy(alpha = 0.35f),
                 1.00f to Color.Transparent,
             ),
             center = center1,
@@ -147,8 +170,8 @@ fun Modifier.goldAnimationBackground(): Modifier = composed {
 
         val brush2 = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to gold2.copy(alpha = 0.50f),
-                0.45f to gold3.copy(alpha = 0.35f),
+                0.00f to glowColor2.copy(alpha = 0.50f),
+                0.45f to glowColor3.copy(alpha = 0.35f),
                 1.00f to Color.Transparent,
             ),
             center = center2,

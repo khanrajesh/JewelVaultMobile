@@ -14,12 +14,15 @@ import com.velox.jewelvault.data.roomdb.entity.order.OrderDetailsEntity
 import com.velox.jewelvault.data.roomdb.entity.StoreEntity
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.ui.components.InputFieldState
-import com.velox.jewelvault.utils.generateInvoicePdf
-import com.velox.jewelvault.utils.createDraftInvoiceData
+import com.velox.jewelvault.utils.pdf.generateInvoicePdf
+import com.velox.jewelvault.utils.pdf.createDraftInvoiceData
 import com.velox.jewelvault.utils.to3FString
 import com.velox.jewelvault.utils.SecurityUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -52,7 +55,10 @@ class OrderItemViewModel @Inject constructor(
     var isPdfGenerating by mutableStateOf(false)
         private set
 
-    val invoiceNo = InputFieldState(initValue = "${System.currentTimeMillis() % 10000}")
+    val invoiceNo = InputFieldState("0000")
+    val invoiceDate = InputFieldState(
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+    )
 
 
     fun loadOrderDetails(orderId: String) {
@@ -64,6 +70,9 @@ class OrderItemViewModel @Inject constructor(
                 // Get order with items
                 val orderData = appDatabase.orderDao().getOrderWithItems(orderId)
                 orderDetailsEntity = orderData
+                invoiceNo.text = resolveInvoiceNo(orderData)
+                invoiceDate.text =
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(orderData.order.orderDate)
                 
                 // Get customer details
                 val customerData = appDatabase.customerDao().getCustomerByMobile(orderData.order.customerMobile)
@@ -127,7 +136,14 @@ class OrderItemViewModel @Inject constructor(
                         storeId = orderItem.orderId
                     )
                 }
-                
+
+                val resolvedInvoiceNo = invoiceNo.text.trim().ifBlank {
+                    resolveInvoiceNo(orderDetailsEntity!!)
+                }
+                val resolvedInvoiceDate = invoiceDate.text.trim().ifBlank {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(orderDetailsEntity!!.order.orderDate)
+                }
+
                 // Create DraftInvoiceData object
                 val invoiceData = createDraftInvoiceData(
                     store = store!!,
@@ -144,7 +160,8 @@ class OrderItemViewModel @Inject constructor(
                     oldExchange = orderDetailsEntity!!.exchangeItems.sumOf { it.exchangeValue }.to3FString(),
                     roundOff = "0.00",
                     dataStoreManager = _dataStoreManager,
-                    invoiceNo = invoiceNo.text
+                    invoiceNo = resolvedInvoiceNo,
+                    invoiceDate = resolvedInvoiceDate
                 )
                 
                 generateInvoicePdf(
@@ -165,6 +182,16 @@ class OrderItemViewModel @Inject constructor(
     
     fun clearPdf() {
         generatedPdfUri = null
+    }
+
+    private fun resolveInvoiceNo(orderData: OrderDetailsEntity): String {
+        val orderInvoiceNo = orderData.order.invoiceNo.trim()
+        if (orderInvoiceNo.isNotEmpty()) return orderInvoiceNo
+
+        val firstItemInvoiceNo = orderData.items.firstOrNull()?.invoiceNo?.trim().orEmpty()
+        if (firstItemInvoiceNo.isNotEmpty()) return firstItemInvoiceNo
+
+        return orderData.order.orderId
     }
     
     

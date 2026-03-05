@@ -1,9 +1,9 @@
 package com.velox.jewelvault.utils.sync
 
 object ExcelSchema {
-    const val CURRENT_SCHEMA_VERSION = 2
+    const val CURRENT_SCHEMA_VERSION = 4
 
-    private val baseHeaders = mapOf(
+    private val schemaV2Headers = mapOf(
         "UsersEntity" to listOf("id", "name", "email", "mobileNo", "token", "pin", "role", "lastUpdated"),
         "UserAdditionalInfoEntity" to listOf(
             "userId",
@@ -235,9 +235,82 @@ object ExcelSchema {
         )
     )
 
+    private val schemaV3Headers = schemaV2Headers + mapOf(
+        "StoreEntity" to listOf(
+            "storeId",
+            "userId",
+            "proprietor",
+            "name",
+            "email",
+            "phone",
+            "address",
+            "jurisdiction",
+            "registrationNo",
+            "gstinNo",
+            "panNo",
+            "image",
+            "invoiceNo",
+            "upiId"
+        )
+    )
+
+    private val schemaV4Headers = schemaV3Headers + mapOf(
+        "OrderEntity" to listOf(
+            "orderId",
+            "customerMobile",
+            "storeId",
+            "userId",
+            "orderDate",
+            "totalAmount",
+            "totalTax",
+            "totalCharge",
+            "discount",
+            "invoiceNo",
+            "note"
+        ),
+        "OrderItemEntity" to listOf(
+            "orderItemId",
+            "orderId",
+            "orderDate",
+            "itemId",
+            "customerMobile",
+            "invoiceNo",
+            "catId",
+            "catName",
+            "itemAddName",
+            "subCatId",
+            "subCatName",
+            "entryType",
+            "quantity",
+            "gsWt",
+            "ntWt",
+            "fnWt",
+            "fnMetalPrice",
+            "purity",
+            "crgType",
+            "crg",
+            "compDes",
+            "compCrg",
+            "cgst",
+            "sgst",
+            "igst",
+            "huid",
+            "addDesKey",
+            "addDesValue",
+            "price",
+            "charge",
+            "tax",
+            "sellerFirmId",
+            "purchaseOrderId",
+            "purchaseItemId"
+        )
+    )
+
     val requiredHeadersByVersion: Map<Int, Map<String, List<String>>> = mapOf(
-        1 to baseHeaders,
-        CURRENT_SCHEMA_VERSION to baseHeaders
+        1 to schemaV2Headers,
+        2 to schemaV2Headers,
+        3 to schemaV3Headers,
+        CURRENT_SCHEMA_VERSION to schemaV4Headers
     )
 
     val earliestKnownVersion: Int = requiredHeadersByVersion.keys.minOrNull() ?: 1

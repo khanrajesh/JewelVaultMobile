@@ -48,6 +48,7 @@ class DataStoreManager @Inject constructor(
 
         // Display & UI Settings
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val FORCE_SOFT_KEYBOARD_WITH_HID = booleanPreferencesKey("force_soft_keyboard_with_hid")
         val FONT_SIZE = stringPreferencesKey("font_size")
 
         // Business Settings

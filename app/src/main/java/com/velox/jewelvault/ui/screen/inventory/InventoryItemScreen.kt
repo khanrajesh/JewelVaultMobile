@@ -952,10 +952,10 @@ private fun AddItemSection(
                                 return@ioScope
                             }
 
-                            if (!InputValidator.isValidHUID(viewModel.huid.text)) {
-                                viewModel.snackBarState.value = "Invalid HUID format"
-                                return@ioScope
-                            }
+//                            if (!InputValidator.isValidHUID(viewModel.huid.text)) {
+//                                viewModel.snackBarState.value = "Invalid HUID format"
+//                                return@ioScope
+//                            }
 
 
                             val userId = viewModel.dataStoreManager.getAdminInfo().first.first()

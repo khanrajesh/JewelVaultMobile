@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Delete
@@ -101,7 +100,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 .fillMaxWidth()
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                    MaterialTheme.shapes.medium
                 )
                 .padding(8.dp)
         ) {
@@ -145,7 +144,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 .fillMaxWidth()
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                    MaterialTheme.shapes.medium
                 )
         ) {
             // Header with expand/collapse
@@ -190,7 +189,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                         .fillMaxWidth()
                                         .background(
                                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                            RoundedCornerShape(8.dp)
+                                            MaterialTheme.shapes.small
                                         )
                                         .padding(12.dp)
                                 ) {
@@ -229,7 +228,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                         .fillMaxWidth()
                                         .background(
                                             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                            RoundedCornerShape(8.dp)
+                                            MaterialTheme.shapes.small
                                         )
                                         .padding(12.dp),
                                     text = "${index + 1}. ${exchange.catName} | Fine Weight: ${exchange.fnWeight.to3FString()} gm",
@@ -255,7 +254,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 .fillMaxWidth()
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                    MaterialTheme.shapes.medium
                 )
         ) {
             // Header with expand/collapse
@@ -355,7 +354,8 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 12.dp)
+                    MaterialTheme.colorScheme.surface,
+                    MaterialTheme.shapes.medium
                 )
         ) {
             Row(
@@ -477,7 +477,7 @@ private fun FirmDetails(
         Column(
             modifier = Modifier
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
+                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
                 )
                 .padding(5.dp)
         ) {

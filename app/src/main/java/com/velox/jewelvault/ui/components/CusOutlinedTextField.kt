@@ -1,5 +1,7 @@
 package com.velox.jewelvault.ui.components
 
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +22,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import com.velox.jewelvault.ui.components.baseBackground8
+import com.velox.jewelvault.ui.theme.LocalForceSoftKeyboardWithHid
 
 class InputFieldState(
     initValue: String = "",
@@ -298,8 +303,30 @@ fun CusOutlinedTextFieldInternal(
 ) {
     val haptic = LocalHapticFeedback.current
     var expanded by remember { mutableStateOf(false) }
+    var isFieldFocused by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val rootView = LocalView.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val forceSoftKeyboardWithHid = LocalForceSoftKeyboardWithHid.current
     val formatter = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
+    val isEditableField = enabled &&
+        !readOnly &&
+        (dropdownItems.isEmpty() || allowEditOnDropdown) &&
+        !isDatePicker
+
+    LaunchedEffect(isFieldFocused, forceSoftKeyboardWithHid, isEditableField) {
+        if (isFieldFocused && forceSoftKeyboardWithHid && isEditableField) {
+            keyboardController?.show()
+            rootView.post {
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                val targetView = rootView.findFocus() ?: rootView
+                val shown = imm?.showSoftInput(targetView, InputMethodManager.SHOW_IMPLICIT) ?: false
+                if (!shown) {
+                    imm?.showSoftInput(targetView, InputMethodManager.SHOW_FORCED)
+                }
+            }
+        }
+    }
 
     // Create default keyboard actions that handle focus management
     val enhancedKeyboardActions = remember(keyboardActions, nextFocusRequester) {
@@ -361,6 +388,7 @@ fun CusOutlinedTextFieldInternal(
                 modifier = Modifier
                     .fillMaxWidth()
                     .onFocusChanged {
+                        isFieldFocused = it.isFocused
                         if (dropdownItems.isNotEmpty() && !allowEditOnDropdown) {
                             expanded = it.isFocused
                         }

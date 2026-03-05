@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.bluetooth
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
@@ -42,6 +43,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,6 +62,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -74,6 +81,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
 import android.content.Context
+import androidx.compose.foundation.text.KeyboardOptions
 import com.velox.jewelvault.data.bluetooth.BluetoothDeviceDetails
 import com.velox.jewelvault.ui.components.PermissionRequester
 import com.velox.jewelvault.ui.components.RowOrColumn
@@ -106,6 +114,9 @@ fun ScanConnectScreen(
     var showDiscoveredDevices by remember { mutableStateOf(true) }
     val permissionRequestKey = remember { mutableStateOf(0) }
     val pendingStartScan = remember { mutableStateOf(false) }
+    var showMacConnectDialog by remember { mutableStateOf(false) }
+    var manualMacRaw by remember { mutableStateOf("") }
+    var manualMacTouched by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
     val bluetoothManager = viewModel.bluetoothReceiver
@@ -168,6 +179,65 @@ fun ScanConnectScreen(
             }
         }
     }
+
+    fun filterMacHex(input: String): String {
+        return input
+            .uppercase()
+            .filter { (it in '0'..'9') || (it in 'A'..'F') }
+            .take(12)
+    }
+
+    fun formatMacAddressDisplay(raw: String): String {
+        if (raw.isEmpty()) return ""
+        return raw.chunked(2).joinToString(":")
+    }
+
+    val macAddressTransformation = remember {
+        VisualTransformation { text ->
+            val raw = text.text
+            val formatted = formatMacAddressDisplay(raw)
+            val offsetMapping = object : OffsetMapping {
+                override fun originalToTransformed(offset: Int): Int {
+                    if (offset <= 1) return offset
+                    val colons = (offset - 1) / 2
+                    return offset + colons
+                }
+
+                override fun transformedToOriginal(offset: Int): Int {
+                    if (offset <= 0) return offset
+                    val colons = offset / 3
+                    return offset - colons
+                }
+            }
+            TransformedText(AnnotatedString(formatted), offsetMapping)
+        }
+    }
+
+    fun bondStateLabel(state: Int?): String {
+        return when (state) {
+            BluetoothDevice.BOND_BONDED -> "BONDED"
+            BluetoothDevice.BOND_BONDING -> "BONDING"
+            BluetoothDevice.BOND_NONE -> "NOT BONDED"
+            else -> "UNKNOWN"
+        }
+    }
+
+    val manualMacFormatted = formatMacAddressDisplay(manualMacRaw).uppercase()
+    val normalizedManualMac = manualMacFormatted.trim()
+    val manualMacValid = manualMacRaw.length == 12
+    val manualConnectedDevice =
+        connectedDevices.firstOrNull { it.address.equals(normalizedManualMac, ignoreCase = true) }
+    val manualConnectingDevice =
+        connectingDevices.firstOrNull { it.address.equals(normalizedManualMac, ignoreCase = true) }
+    val manualDiscoveredDevice =
+        allDiscoveredDevices.firstOrNull { it.address.equals(normalizedManualMac, ignoreCase = true) }
+    val manualBondedDevice =
+        unconnectedPairedDevices.firstOrNull { it.address.equals(normalizedManualMac, ignoreCase = true) }
+    val manualDeviceDetails =
+        manualConnectedDevice ?: manualConnectingDevice ?: manualDiscoveredDevice ?: manualBondedDevice
+    val manualInRange = manualConnectedDevice != null ||
+        manualConnectingDevice != null ||
+        manualDiscoveredDevice != null
 
     val locationSettingsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -343,6 +413,19 @@ fun ScanConnectScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Labels")
                 }
+                Spacer(Modifier.width(5.dp))
+                OutlinedButton(
+                    onClick = { showMacConnectDialog = true },
+                    modifier = Modifier
+                ) {
+                    Icon(
+                        imageVector = Icons.TwoTone.Bluetooth,
+                        contentDescription = "Connect by MAC",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("MAC")
+                }
             }
 
         }
@@ -364,17 +447,20 @@ fun ScanConnectScreen(
                 }
 
                 items(connectedDevices) { device ->
+                    val isPrinter = isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
                     UnifiedDeviceCard(
                         device = device,
                         category = DeviceCategory.CONNECTED,
-                        isSavedPrinter = isPrinterDevice(
-                            device, savedPrintersWithStatus.map { it.first }),
+                        isSavedPrinter = isPrinter,
                         rssi = device.extraInfo["rssi"]?.toIntOrNull(),
                         connectionMethod = device.extraInfo["connectionMethod"],
-                        onLeftButtonClick = null, // Gone
+                        onLeftButtonClick = if (!isPrinter) {
+                            {
+                                selectedDevice = device
+                                showAddPrinterDialog = true
+                            }
+                        } else null,
                         onCenterButtonClick = {
-                            val isPrinter =
-                                isPrinterDevice(device, savedPrintersWithStatus.map { it.first })
                             if (isPrinter) {
                                 navController.navigate(SubScreens.BluetoothManagePrinters.route)
                             } else {
@@ -785,6 +871,126 @@ fun ScanConnectScreen(
             // Show snackbar
             viewModel.clearMessage()
         }
+    }
+
+    if (showMacConnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showMacConnectDialog = false },
+            title = {
+                Text(
+                    text = "CONNECT BY MAC ADDRESS",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = manualMacRaw,
+                        onValueChange = { input ->
+                            manualMacTouched = true
+                            manualMacRaw = filterMacHex(input)
+                        },
+                        label = { Text("MAC ADDRESS") },
+                        placeholder = { Text("AA:BB:CC:DD:EE:FF") },
+                        isError = manualMacTouched && manualMacRaw.isNotEmpty() && !manualMacValid,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Ascii,
+                            autoCorrect = false
+                        ),
+                        visualTransformation = macAddressTransformation,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (manualMacTouched && manualMacRaw.isNotEmpty() && !manualMacValid) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "INVALID MAC ADDRESS. USE AA:BB:CC:DD:EE:FF",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (normalizedManualMac.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = when {
+                                manualConnectedDevice != null -> "STATUS: CONNECTED"
+                                manualConnectingDevice != null -> "STATUS: CONNECTING"
+                                manualInRange -> "STATUS: IN RANGE"
+                                manualBondedDevice != null -> "STATUS: PAIRED (NOT IN RANGE)"
+                                else -> "STATUS: NOT IN RANGE"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (normalizedManualMac.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (manualDeviceDetails != null) {
+                            Text(
+                                text = "NAME: ${manualDeviceDetails.name ?: "UNKNOWN"}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "ADDRESS: ${manualDeviceDetails.address}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "BOND STATE: ${bondStateLabel(manualDeviceDetails.bondState)}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                text = "TYPE: ${manualDeviceDetails.type ?: "UNKNOWN"}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            val rssi = manualDeviceDetails.extraInfo["rssi"]
+                            if (!rssi.isNullOrBlank()) {
+                                Text(
+                                    text = "RSSI: $rssi",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "DETAILS: NOT AVAILABLE",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { showMacConnectDialog = false }) {
+                        Text("CLOSE")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (manualMacValid) {
+                                viewModel.connectByMacAddress(
+                                    deviceAddress = normalizedManualMac,
+                                    isPrinter = false
+                                )
+                                scope.launch { listState.animateScrollToItem(0) }
+                            } else {
+                                manualMacTouched = true
+                            }
+                        },
+                        enabled = manualMacValid
+                    ) {
+                        Text(text = "CONNECT")
+                    }
+                }
+            }
+        )
     }
 
     // Add Printer Dialog
