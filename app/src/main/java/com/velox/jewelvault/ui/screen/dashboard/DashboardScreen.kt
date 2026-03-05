@@ -759,7 +759,7 @@ fun MetalRateView(
                 )
             }
 
-            IconButton(
+            com.velox.jewelvault.ui.components.AppIconButton(
                 onClick = {
                     if (!baseViewModel.metalRatesLoading.value) {
                         ioScope {
@@ -1230,7 +1230,7 @@ fun TimeRangeSelectionDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = onDismiss, modifier = Modifier.padding(horizontal = 8.dp)
             ) {
                 Text(
@@ -1360,3 +1360,4 @@ fun RecentItemSold(
         }
     }
 }
+

@@ -251,7 +251,7 @@ fun UnifiedDeviceCard(
                 when (category) {
                     DeviceCategory.CONNECTED -> {
                         if (onLeftButtonClick != null) {
-                            IconButton(
+                            com.velox.jewelvault.ui.components.AppIconButton(
                                 onClick = { onLeftButtonClick.invoke() },
                                 enabled = true
                             ) {
@@ -271,7 +271,7 @@ fun UnifiedDeviceCard(
                     }
                     DeviceCategory.PAIRED -> {
                         // Add as Printer
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = { onLeftButtonClick?.invoke() },
                             enabled = true
                         ) {
@@ -289,7 +289,7 @@ fun UnifiedDeviceCard(
 
                 // Center Button (Main Action)
                 if (onCenterButtonClick != null)
-                IconButton(
+                com.velox.jewelvault.ui.components.AppIconButton(
                     onClick = { onCenterButtonClick.invoke() },
                 ) {
                     Icon(
@@ -321,7 +321,7 @@ fun UnifiedDeviceCard(
                 when (category) {
                     DeviceCategory.CONNECTED -> {
                         // Disconnect
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
@@ -336,7 +336,7 @@ fun UnifiedDeviceCard(
                     }
                     DeviceCategory.CONNECTING -> {
                         // Cancel
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
@@ -351,7 +351,7 @@ fun UnifiedDeviceCard(
                     }
                     DeviceCategory.PAIRED -> {
                         // Forget
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = { onRightButtonClick?.invoke() }
                         ) {
                             Icon(
@@ -369,3 +369,4 @@ fun UnifiedDeviceCard(
         }
     }
 }
+

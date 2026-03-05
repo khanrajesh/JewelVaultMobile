@@ -203,7 +203,7 @@ private fun ImportHeaderActions(
     Row(
         modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = onExportExample, modifier = Modifier.weight(1f)
         ) {
             Icon(
@@ -215,7 +215,7 @@ private fun ImportHeaderActions(
             }
         }
 
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = onChooseFile, modifier = Modifier.weight(1f)
         ) {
             Icon(
@@ -227,7 +227,7 @@ private fun ImportHeaderActions(
             }
         }
 
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = onClearImport, modifier = Modifier.weight(1f)
         ) {
 
@@ -348,7 +348,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = { viewModel.applyBulkMapping() }, modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -358,7 +358,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
                     Text("Apply Mapping")
                 }
 
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = { viewModel.exportErrors() }, modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -371,7 +371,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedButton(
+            com.velox.jewelvault.ui.components.AppOutlinedButton(
                 onClick = { viewModel.autoMapSimilarRows() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = viewModel.importSummary.value.needsMappingRows > 0
@@ -385,7 +385,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedButton(
+            com.velox.jewelvault.ui.components.AppOutlinedButton(
                 onClick = {
                     val appliedCount = viewModel.applyAllSuggestions()
                     if (appliedCount > 0) {
@@ -404,7 +404,7 @@ private fun CompactBulkMappingActions(viewModel: ImportItemsViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedButton(
+            com.velox.jewelvault.ui.components.AppOutlinedButton(
                 onClick = { viewModel.exportImprovementsReport() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = viewModel.importedRows.isNotEmpty()
@@ -450,7 +450,7 @@ private fun LazyListScope.importedRowsList(
             }
             WidthThenHeightSpacer()
 
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = { viewModel.showConfirmImportDialog.value = true },
                 enabled = viewModel.isImportReady()
             ) {
@@ -1020,7 +1020,7 @@ private fun ImportedRowItem(
                         columnModifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OutlinedButton(
+                        com.velox.jewelvault.ui.components.AppOutlinedButton(
                             onClick = { viewModel.showMappingDialogForRow(row) },
                             modifier = if (it) Modifier.wrapContentWidth() else Modifier.fillMaxWidth()
                         ) {
@@ -1036,7 +1036,7 @@ private fun ImportedRowItem(
                         // Quick Fix button only for items that need mapping (not for errors)
                         if (row.status == ImportRowStatus.NEEDS_MAPPING) {
                             WidthThenHeightSpacer(8.dp)
-                            OutlinedButton(
+                            com.velox.jewelvault.ui.components.AppOutlinedButton(
                                 onClick = {
                                     if (viewModel.applyBestSuggestion(row)) {
                                         // Success - row is now mapped
@@ -1061,7 +1061,7 @@ private fun ImportedRowItem(
                 }
 
                 // Right side: Remove button for all rows
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = { viewModel.removeItem(row) },
                     modifier = if (isLandscape) Modifier.wrapContentWidth() else Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -1178,7 +1178,7 @@ private fun CategoryMappingDialog(
             )
         }
     }, confirmButton = {
-        TextButton(
+        com.velox.jewelvault.ui.components.AppTextButton(
             onClick = {
                 if (selectedCategoryId != null && selectedSubCategoryId != null) {
                     row.status = ImportRowStatus.VALID
@@ -1190,7 +1190,7 @@ private fun CategoryMappingDialog(
             Text("Apply")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -1258,7 +1258,7 @@ private fun ConfirmImportDialog(
             Text("This action cannot be undone. Continue?")
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = {
                 viewModel.confirmImport()
                 onDismiss()
@@ -1266,7 +1266,7 @@ private fun ConfirmImportDialog(
             Text("Import Items")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })

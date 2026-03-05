@@ -101,10 +101,10 @@ fun KhataBookPlansScreen(
             )
 
             Row {
-                IconButton(onClick = { showCalculatorDialog = true }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { showCalculatorDialog = true }) {
                     Icon(Icons.TwoTone.Calculate, contentDescription = "Calculator")
                 }
-                IconButton(onClick = { showAddPlanDialog = true }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { showAddPlanDialog = true }) {
                     Icon(Icons.TwoTone.Add, contentDescription = "Add Plan")
                 }
             }
@@ -310,12 +310,12 @@ fun KhataBookPlanCard(
                     modifier = Modifier.weight(1f)
                 )
                 Row {
-                    IconButton(
+                    com.velox.jewelvault.ui.components.AppIconButton(
                         onClick = onEdit,
                         modifier = Modifier.semantics { contentDescription = "Edit Plan" }) {
                         Icon(Icons.TwoTone.Edit, contentDescription = "Edit Plan")
                     }
-                    IconButton(
+                    com.velox.jewelvault.ui.components.AppIconButton(
                         onClick = onDelete,
                         modifier = Modifier.semantics { contentDescription = "Delete Plan" }) {
                         Icon(Icons.TwoTone.Delete, contentDescription = "Delete Plan")
@@ -448,10 +448,10 @@ fun ConfirmDeleteDialog(plan: KhataBookPlan, onDismiss: () -> Unit, onConfirm: (
         title = { Text("Delete Plan") },
         text = { Text("Are you sure you want to delete the plan '${plan.name}'?") },
         confirmButton = {
-            Button(onClick = onConfirm) { Text("Delete") }
+            com.velox.jewelvault.ui.components.AppButton(onClick = onConfirm) { Text("Delete") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) { Text("Cancel") }
         })
 }
 
@@ -496,7 +496,7 @@ fun AddKhataBookPlanDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = {
                     val pay = payMonths.toIntOrNull() ?: 0
                     val benefit = benefitMonths.toIntOrNull() ?: 0
@@ -508,7 +508,7 @@ fun AddKhataBookPlanDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) { Text("Cancel") }
         })
 }
 
@@ -556,7 +556,7 @@ fun KhataBookCalculatorDialog(
             }
 
             selectedPlan?.let { plan ->
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = {
                         val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
                         calculatedResults = calculateKhataBook(amount, plan)
@@ -600,7 +600,7 @@ fun KhataBookCalculatorDialog(
             }
         }
     }, confirmButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Close")
         }
     })
@@ -637,7 +637,7 @@ fun PlanDetailsDialog(
                 })
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = { 
                 val amount = monthlyAmount.toDoubleOrNull() ?: 0.0
                 onApply(customerMobile, amount) 
@@ -647,7 +647,7 @@ fun PlanDetailsDialog(
             Text("Apply Plan")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -718,3 +718,4 @@ fun InfoRow(label: String, value: String) {
 private fun String.capitalize(): String {
     return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 } 
+

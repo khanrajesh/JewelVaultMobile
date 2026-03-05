@@ -19,11 +19,17 @@ interface OrderDao {
     @Insert
     suspend fun insertOrder(order: OrderEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertOrder(order: OrderEntity): Long
+
     @Insert
     suspend fun insertItems(items: List<OrderItemEntity>): List<Long>
     
     @Insert
     suspend fun insertOrderItem(orderItem: OrderItemEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertOrderItem(orderItem: OrderItemEntity): Long
 
     @Transaction
     @Query("SELECT * FROM `${TableNames.ORDER}` WHERE orderId = :id")

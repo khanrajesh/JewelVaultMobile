@@ -127,7 +127,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                     }
 
                     Box {
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = { showDropdownMenu = true },
                             modifier = Modifier.padding(end = 4.dp)
                         ) {
@@ -258,7 +258,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         )
 
                         // Reset button
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = {
                                 scale = 1f
                                 offsetX = 0f
@@ -294,12 +294,15 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 if (pdfFile != null) {
                                     sharePdf(context, pdfFile)
                                 }
-                            }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondary,
                                 contentColor = MaterialTheme.colorScheme.onSecondary
                             )
@@ -309,10 +312,13 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                             Text("Share PDF")
                         }
 
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 viewModel.clearPdf()
-                            }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -357,7 +363,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                 )
             }
         }, confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = {
                     if (adminPin.text.isNotEmpty()) {
                         showDeleteDialog = false
@@ -378,7 +384,9 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                     } else {
                         viewModel.snackBar.value = "Please enter Admin PIN"
                     }
-                }, colors = ButtonDefaults.buttonColors(
+                },
+                shape = MaterialTheme.shapes.medium,
+                colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
                 )
@@ -386,7 +394,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                 Text("Delete")
             }
         }, dismissButton = {
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = {
                     showDeleteDialog = false
                     adminPin.clear()
@@ -710,7 +718,7 @@ fun OrderSummaryCard(
         Spacer(modifier = Modifier.weight(1f))
 
         // Generate PDF Button
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = {
                 if (viewModel.invoiceNo.text.isNotEmpty() && viewModel.invoiceNo.text.isNotBlank()) {
                     onGeneratePdf()
@@ -720,6 +728,7 @@ fun OrderSummaryCard(
             },
             enabled = !isGenerating,
             modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -742,4 +751,5 @@ fun OrderSummaryCard(
     }
 
 }
+
 

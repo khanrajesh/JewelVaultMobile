@@ -106,7 +106,7 @@ fun WebViewScreen(
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                IconButton(
+                com.velox.jewelvault.ui.components.AppIconButton(
                     onClick = {
                         subNavController.popBackStack()
                     }
@@ -177,7 +177,7 @@ fun WebViewScreen(
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 viewModel.clearError()
                                 subNavController.popBackStack()
@@ -207,3 +207,4 @@ fun TermsAndConditionsScreen() {
         url = "https://www.termsfeed.com/live/0b90f51e-104f-42cf-bd1b-e75febbf3e6b"
     )
 }
+

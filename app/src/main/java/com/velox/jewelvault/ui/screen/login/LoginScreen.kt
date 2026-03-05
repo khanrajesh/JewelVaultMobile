@@ -149,12 +149,12 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
             AlertDialog(
                 onDismissRequest = { loginViewModel.handleBiometricOptInDecision(false) },
                 confirmButton = {
-                    TextButton(onClick = { loginViewModel.handleBiometricOptInDecision(true) }) {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = { loginViewModel.handleBiometricOptInDecision(true) }) {
                         Text("Enable")
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { loginViewModel.handleBiometricOptInDecision(false) }) {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = { loginViewModel.handleBiometricOptInDecision(false) }) {
                         Text("Not now")
                     }
                 },
@@ -228,7 +228,7 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { loginViewModel.clearActiveDeviceBlock() }) {
+                        com.velox.jewelvault.ui.components.AppButton(onClick = { loginViewModel.clearActiveDeviceBlock() }) {
                             Text("OK")
                         }
                     }
@@ -715,7 +715,7 @@ private fun AuthScreen(
                         Text("Save Number")
                     }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                         forgotPassClick.value = true
                     }) {
                         Text("Forgot PIN?")
@@ -750,7 +750,7 @@ private fun AuthScreen(
                             color = textColor
                         )
                     } else {
-                        TextButton(
+                        com.velox.jewelvault.ui.components.AppTextButton(
                             onClick = {
                                 loginViewModel.startPhoneVerification(
                                     activity = activity, phoneNumber = mobileNo.text
@@ -767,7 +767,7 @@ private fun AuthScreen(
                 }
             }
 
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 modifier = Modifier
                     .padding(top = 16.dp)
                     .fillMaxWidth(), onClick = {
@@ -788,7 +788,7 @@ private fun AuthScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (!forgotPassClick.value) {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     isLogin.value = !isLogin.value
                     loginViewModel.resetOtpStates() // Reset timer when switching modes
                 }) {
@@ -797,7 +797,7 @@ private fun AuthScreen(
                     )
                 }
             } else {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     forgotPassClick.value = false
                     isLogin.value = true
                     loginViewModel.resetOtpStates() // Reset timer when going back to login

@@ -72,9 +72,12 @@ import androidx.compose.ui.window.Dialog
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.ExchangeItemDialog
+import com.velox.jewelvault.ui.components.HardwareScannerCapture
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.RowOrColumn
+import com.velox.jewelvault.ui.components.ScanInputMode
+import com.velox.jewelvault.ui.components.ScanInputModeSelector
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.WidthThenHeightSpacer
 import com.velox.jewelvault.ui.components.bounceClick
@@ -88,6 +91,7 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.extractScannedItemId
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
@@ -101,6 +105,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
     val navControl = LocalNavController.current
     val context = LocalContext.current
     val showQrBarScanner = remember { mutableStateOf(false) }
+    val scanInputMode = remember { mutableStateOf(ScanInputMode.AUTO) }
     val itemId = remember { mutableStateOf("") }
     val isLandscapeMode = isLandscape()
 
@@ -126,15 +131,18 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
             isLandscapeMode = isLandscapeMode,
             showQrBarScanner = showQrBarScanner,
             viewModel = invoiceViewModel,
-            itemId = itemId
+            itemId = itemId,
+            scanInputMode = scanInputMode
         )
     } else {
         QrBarScannerPage(showPage = showQrBarScanner, scanAndClose = true, onCodeScanned = { code ->
             showQrBarScanner.value = false
-            itemId.value = code
-            if (code.isNotEmpty()) {
-                invoiceViewModel.getItemById(itemId.value, onFailure = {
-                    invoiceViewModel.snackBarState.value = "No item found with the id: $code"
+            val scannedId = extractScannedItemId(code)
+            itemId.value = scannedId
+            if (scannedId.isNotEmpty()) {
+                invoiceViewModel.snackBarState.value = "Scanned $scannedId"
+                invoiceViewModel.getItemById(scannedId, onFailure = {
+                    invoiceViewModel.snackBarState.value = "No item found with the id: $scannedId"
                 }, onSuccess = {
                     invoiceViewModel.showAddItemDialog.value = true
                 })
@@ -142,7 +150,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
             } else {
                 invoiceViewModel.snackBarState.value = "Please Scan Valid Code"
             }
-        }, overlayContent = {
+        }, allowHardwareScanner = scanInputMode.value != ScanInputMode.CAMERA, overlayContent = {
             BackHandler(enabled = true) {
                 // Do nothing = disable back button
             }
@@ -171,7 +179,8 @@ fun SellInvoiceContent(
     isLandscapeMode: Boolean,
     showQrBarScanner: MutableState<Boolean>,
     viewModel: InvoiceViewModel,
-    itemId: MutableState<String>
+    itemId: MutableState<String>,
+    scanInputMode: MutableState<ScanInputMode>
 ) {
     val context = LocalContext.current
     val navHost = LocalNavController.current
@@ -206,7 +215,7 @@ fun SellInvoiceContent(
                     .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { metalRateRefresh() }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { metalRateRefresh() }) {
                     Icon(
                         imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
@@ -219,7 +228,7 @@ fun SellInvoiceContent(
                 )
                 Text(text = currentDateTime.value)
                 Spacer(Modifier.width(10.dp))
-                IconButton(onClick = optionClick) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = optionClick) {
                     Icon(
                         imageVector = Icons.TwoTone.MoreVert, contentDescription = "More options"
                     )
@@ -241,7 +250,7 @@ fun SellInvoiceContent(
                             .padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         item { CustomerDetails(viewModel) }
-                        item { AddItemSection(showQrBarScanner, viewModel, itemId) }
+                        item { AddItemSection(showQrBarScanner, viewModel, itemId, scanInputMode) }
                         item {
                             ItemSection(
                                 modifier = Modifier
@@ -292,7 +301,7 @@ fun SellInvoiceContent(
                             CustomerDetails(viewModel)
 
                             Spacer(Modifier.height(8.dp))
-                            AddItemSection(showQrBarScanner, viewModel, itemId)
+                            AddItemSection(showQrBarScanner, viewModel, itemId, scanInputMode)
                         }
                     }
 
@@ -719,7 +728,7 @@ fun ViewAddItemDialog(
                 ) {
                     // Remove button (only show when editing)
                     if (isEditing) {
-                        TextButton(
+                        com.velox.jewelvault.ui.components.AppTextButton(
                             onClick = onRemove, colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
@@ -732,11 +741,11 @@ fun ViewAddItemDialog(
 
                     // Action buttons
                     Row {
-                        TextButton(onClick = onDismiss) {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                             Text("Cancel")
                         }
                         Spacer(Modifier.width(8.dp))
-                        TextButton(onClick = { onSave() }) {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = { onSave() }) {
                             Text(if (isEditing) "Update" else "Add")
                         }
                     }
@@ -1134,124 +1143,150 @@ fun ItemSection(modifier: Modifier, viewModel: InvoiceViewModel) {
 private fun AddItemSection(
     showQrBarScanner: MutableState<Boolean>,
     viewModel: InvoiceViewModel,
-    itemId: MutableState<String>
+    itemId: MutableState<String>,
+    scanInputMode: MutableState<ScanInputMode>
 ) {
     val focusManager = LocalFocusManager.current
-
-    Row(
-        Modifier
-            .height(50.dp)
-            .fillMaxWidth()
-            .baseBackground2()
-            .padding(3.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
-                )
-                .bounceClick {
-                    viewModel.showExchangeItemDialog.value = true
-                }
-                .padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Exchange Item (${viewModel.exchangeItemList.size})",
-            )
+    val submitCode: (String) -> Unit = { raw ->
+        val parsedId = extractScannedItemId(raw)
+        if (parsedId.isBlank()) {
+            viewModel.snackBarState.value = "Please Scan Valid Code"
+        } else {
+            viewModel.getItemById(parsedId, onFailure = {
+                viewModel.snackBarState.value = "No item found with the id: $parsedId"
+            }, onSuccess = {
+                viewModel.showAddItemDialog.value = true
+            })
         }
-        Spacer(Modifier.weight(1f))
+    }
+
+    Column {
         Row(
             Modifier
-                .fillMaxHeight()
-                .wrapContentWidth()
-                .background(
-                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
-                )
+                .height(50.dp)
+                .fillMaxWidth()
+                .baseBackground2()
                 .padding(3.dp)
-                .align(Alignment.CenterVertically),
-
-            ) {
-            Icon(Icons.TwoTone.CameraAlt, null, modifier = Modifier
-                .bounceClick {
-                    showQrBarScanner.value = !showQrBarScanner.value
-                }
-                .fillMaxHeight()
-                .aspectRatio(1f)
-                .baseBackground3()
-                .padding(5.dp))
-            Spacer(Modifier.width(5.dp))
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .width(100.dp)
-                    .baseBackground2(),
-                contentAlignment = Alignment.Center // this centers the text vertically and horizontally
-            ) {
-                BasicTextField(
-                    value = itemId.value,
-                    onValueChange = {
-                        itemId.value = it
-                    },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(onDone = {
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
+                    )
+                    .bounceClick {
+                        viewModel.showExchangeItemDialog.value = true
+                    }
+                    .padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Exchange Item (${viewModel.exchangeItemList.size})",
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Row(
+                Modifier
+                    .fillMaxHeight()
+                    .wrapContentWidth()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
+                    )
+                    .padding(3.dp)
+                    .align(Alignment.CenterVertically),
+
+                ) {
+                Icon(Icons.TwoTone.CameraAlt, null, modifier = Modifier
+                    .bounceClick {
+                        showQrBarScanner.value = !showQrBarScanner.value
+                    }
+                    .fillMaxHeight()
+                    .aspectRatio(1f)
+                    .baseBackground3()
+                    .padding(5.dp))
+                Spacer(Modifier.width(5.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(100.dp)
+                        .baseBackground2(),
+                    contentAlignment = Alignment.Center // this centers the text vertically and horizontally
+                ) {
+                    BasicTextField(
+                        value = itemId.value,
+                        onValueChange = {
+                            itemId.value = it
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (itemId.value.isNotEmpty()) {
+                                submitCode(itemId.value)
+                                itemId.value = ""
+                            }
+                            focusManager.clearFocus()
+                        }),
+                        textStyle = TextStyle(
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp), // optional inner padding
+                        decorationBox = { innerTextField ->
+                            Box(contentAlignment = Alignment.Center) {
+                                if (itemId.value.isEmpty()) {
+                                    Text(
+                                        text = "Item Id", style = TextStyle(
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                        )
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        })
+                }
+                Spacer(Modifier.width(5.dp))
+                Box(modifier = Modifier
+                    .bounceClick {
                         if (itemId.value.isNotEmpty()) {
-                            viewModel.getItemById(itemId.value, onFailure = {}, onSuccess = {
-                                viewModel.showAddItemDialog.value = true
-                            })
+                            submitCode(itemId.value)
                             itemId.value = ""
                         }
                         focusManager.clearFocus()
-                    }),
-                    textStyle = TextStyle(
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp), // optional inner padding
-                    decorationBox = { innerTextField ->
-                        Box(contentAlignment = Alignment.Center) {
-                            if (itemId.value.isEmpty()) {
-                                Text(
-                                    text = "Item Id", style = TextStyle(
-                                        fontSize = 12.sp,
-                                        textAlign = TextAlign.Center,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    })
-            }
-            Spacer(Modifier.width(5.dp))
-            Box(modifier = Modifier
-                .bounceClick {
-                    if (itemId.value.isNotEmpty()) {
-                        viewModel.getItemById(itemId.value, onFailure = {
-
-                        }, onSuccess = {
-                            viewModel.showAddItemDialog.value = true
-                        })
-                        itemId.value = ""
                     }
-                    focusManager.clearFocus()
-                }
-                .fillMaxHeight()
-                .baseBackground3(), contentAlignment = Alignment.Center) {
-                Row {
-                    Spacer(Modifier.width(5.dp))
-                    Icon(
-                        Icons.TwoTone.Add,
-                        null,
-                    )
-                    Spacer(Modifier.width(5.dp))
+                    .fillMaxHeight()
+                    .baseBackground3(), contentAlignment = Alignment.Center) {
+                    Row {
+                        Spacer(Modifier.width(5.dp))
+                        Icon(
+                            Icons.TwoTone.Add,
+                            null,
+                        )
+                        Spacer(Modifier.width(5.dp))
+                    }
                 }
             }
         }
+
+        Spacer(Modifier.height(6.dp))
+        ScanInputModeSelector(
+            mode = scanInputMode.value,
+            onModeChange = { scanInputMode.value = it }
+        )
+
+        HardwareScannerCapture(
+            enabled = scanInputMode.value != ScanInputMode.CAMERA,
+            onScanned = {
+                val scannedId = extractScannedItemId(it)
+                if (scannedId.isNotBlank()) {
+                    viewModel.snackBarState.value = "Scanned $scannedId"
+                }
+                submitCode(it)
+            }
+        )
     }
 }
 
@@ -1332,6 +1367,7 @@ fun CustomerDetails(viewModel: InvoiceViewModel) {
 
     }
 }
+
 
 
 

@@ -351,7 +351,7 @@ private fun PrintInfoDialog(
             confirmButton = {
                 Row {
                     Column {
-                        TextButton(onClick = {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                             ioScope {
                                 if (selectedItem.value != null) {
                                     itemBeingUpdated.value = selectedItem.value
@@ -368,7 +368,7 @@ private fun PrintInfoDialog(
                             Text("Update", color = MaterialTheme.colorScheme.primary)
                         }
                         Spacer(Modifier.height(8.dp))
-                        TextButton(onClick = {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                             if (selectedItem.value != null) {
                                 inventoryViewModel.safeDeleteItem(
                                     itemId = selectedItem.value!!.itemId,
@@ -395,7 +395,7 @@ private fun PrintInfoDialog(
                     Spacer(Modifier.width(8.dp))
 
 //                    Column {
-//                        TextButton(onClick = {
+//                        com.velox.jewelvault.ui.components.AppTextButton(onClick = {
 //                            if (selectedItem.value != null) {
 //                                PrintUtils.generateItemExcelAndPrint(
 //                                    context, selectedItem.value!!
@@ -407,7 +407,7 @@ private fun PrintInfoDialog(
 //                            Text("Print", color = MaterialTheme.colorScheme.primary)
 //                        }
 //                        Spacer(Modifier.height(8.dp))
-//                        TextButton(onClick = {
+//                        com.velox.jewelvault.ui.components.AppTextButton(onClick = {
 //                            if (selectedItem.value != null) {
 //                                managePrintersViewModel.printItemLabel(
 //                                    selectedItem.value!!, context, qrUri, logoUri
@@ -420,7 +420,7 @@ private fun PrintInfoDialog(
 
 //                    }
 //                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                         if (selectedItem.value != null) {
                             managePrintersViewModel.printItemWithDefaultTemplate(
                                 selectedItem.value!!, context
@@ -433,7 +433,7 @@ private fun PrintInfoDialog(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     showDialog.value = false
                 }) {
                     Text("Cancel")
@@ -478,7 +478,7 @@ private fun AddItemSection(
                     rowModifier = Modifier.fillMaxWidth(), columnModifier = Modifier.fillMaxWidth()
                 ) { //purchase order section
 
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             viewModel.isSelf.value = !viewModel.isSelf.value
                             // Clear validation errors when switching modes
@@ -576,7 +576,7 @@ private fun AddItemSection(
                                             }
                                         },
                                         confirmButton = {
-                                            TextButton(
+                                            com.velox.jewelvault.ui.components.AppTextButton(
                                                 onClick = { showDetailsDialog = false }) {
                                                 Text("Close")
                                             }

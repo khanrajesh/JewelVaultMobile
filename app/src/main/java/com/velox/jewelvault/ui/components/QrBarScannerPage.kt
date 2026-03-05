@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
+import com.velox.jewelvault.utils.normalizeScannedCode
 
 
 @androidx.annotation.OptIn(ExperimentalGetImage::class)
@@ -39,6 +40,7 @@ fun QrBarScannerPage(
     scanAndClose:Boolean = false,
     onCodeScanned: (String) -> Unit = {},
     valueProcessing: (String) -> String = { it },
+    allowHardwareScanner: Boolean = false,
     overlayContent: @Composable ( List<Pair<RectF, String>>) -> Unit = {}
 ) {
     if (showPage.value){
@@ -47,8 +49,22 @@ fun QrBarScannerPage(
         val previewView = remember { PreviewView(context) }
 
         var barcodeResults by remember { mutableStateOf(listOf<Pair<RectF, String>>()) }
-        val lastEmitted = remember { mutableStateOf<String?>(null) }
+        val lastEmitted = remember { mutableStateOf<Pair<String, Long>?>(null) }
         val previewSize = remember { mutableStateOf(Size.Zero) }
+        fun emitCode(raw: String) {
+            val code = normalizeScannedCode(raw)
+            if (code.isBlank()) return
+
+            val now = System.currentTimeMillis()
+            val previous = lastEmitted.value
+            if (previous != null && previous.first == code && now - previous.second <= 500L) return
+
+            lastEmitted.value = code to now
+            onCodeScanned(code)
+            if (scanAndClose) {
+                showPage.value = false
+            }
+        }
         fun scaleRectToPreview(rect: Rect, imageWidth: Int, imageHeight: Int, previewWidth: Int, previewHeight: Int): RectF {
             val scaleX = previewWidth.toFloat() / imageWidth
             val scaleY = previewHeight.toFloat() / imageHeight
@@ -108,13 +124,7 @@ fun QrBarScannerPage(
 
                                         // Emit the first barcode value when it changes
                                         barcodeResults.firstOrNull()?.let { res ->
-                                            if (lastEmitted.value != res.second) {
-                                                lastEmitted.value = res.second
-                                                onCodeScanned(res.second)
-                                                if (scanAndClose) {
-                                                    showPage.value = false
-                                                }
-                                            }
+                                            emitCode(res.second)
                                         }
                                     }
                                     .addOnCompleteListener {
@@ -246,6 +256,26 @@ fun QrBarScannerPage(
                 .fillMaxWidth()
                 .padding(16.dp)) {
                 overlayContent(barcodeResults)
+            }
+
+            if (allowHardwareScanner) {
+                HardwareScannerCapture(
+                    enabled = true,
+                    onScanned = { emitCode(it) }
+                )
+                Box(
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.BottomCenter)
+                        .padding(bottom = 12.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Hardware scanner ready",
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
 

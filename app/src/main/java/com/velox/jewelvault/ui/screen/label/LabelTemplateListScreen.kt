@@ -176,7 +176,7 @@ fun LabelTemplateCard(
                     modifier = if(it)Modifier.weight(2f) else Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = onEdit,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -185,7 +185,7 @@ fun LabelTemplateCard(
                         Text("Edit")
                     }
 
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = onDelete,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -196,7 +196,7 @@ fun LabelTemplateCard(
                 }
                 if (!it)Spacer(Modifier.width(8.dp))
                 if (!template.isDefault) {
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = onSetDefault,
                         modifier =if(it) Modifier.weight(1f) else Modifier.fillMaxWidth(),
 

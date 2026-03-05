@@ -352,7 +352,7 @@ fun CustomerDetailScreen(
                             )
 
                             if (permissions?.canDelete == true) {
-                                TextButton(
+                                com.velox.jewelvault.ui.components.AppTextButton(
                                     onClick = {
                                         showDeleteDialog = true
                                         showEditDialog = false
@@ -379,7 +379,7 @@ fun CustomerDetailScreen(
                         }
                     },
                     confirmButton = {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 viewModel.updateCustomerProfile(
                                     customerEntity.mobileNo,
@@ -396,7 +396,7 @@ fun CustomerDetailScreen(
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showEditDialog = false }) {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = { showEditDialog = false }) {
                             Text("Cancel")
                         }
                     }
@@ -414,7 +414,7 @@ fun CustomerDetailScreen(
                         Text("This will permanently remove the customer record. Are you sure?")
                     },
                     confirmButton = {
-                        TextButton(onClick = {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                             viewModel.deleteCustomer(customerEntity.mobileNo)
                             showDeleteDialog = false
                             subNavController.popBackStack()
@@ -423,7 +423,7 @@ fun CustomerDetailScreen(
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showDeleteDialog = false }) {
+                        com.velox.jewelvault.ui.components.AppTextButton(onClick = { showDeleteDialog = false }) {
                             Text("Cancel")
                         }
                     }
@@ -634,7 +634,7 @@ fun CompactCustomerInfoCard(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             StatusChip(isActive = activeKhataBooks.isNotEmpty())
-                            IconButton(
+                            com.velox.jewelvault.ui.components.AppIconButton(
                                 onClick = onEditClick,
                                 modifier = Modifier.size(32.dp)
                             ) {
@@ -898,7 +898,7 @@ fun CombinedPaymentsCard(
                 
                 // Action Buttons
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = onAddOutstanding,
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                         modifier = Modifier.height(32.dp)
@@ -911,7 +911,7 @@ fun CombinedPaymentsCard(
                         Spacer(modifier = Modifier.width(2.dp))
                         Text("Outstanding", style = MaterialTheme.typography.labelSmall)
                     }
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = onAddPayment,
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Green),
                         modifier = Modifier.height(32.dp)
@@ -987,7 +987,7 @@ fun CompactTransactionItemWithDelete(
                 )
                 
                 // Delete button
-                IconButton(
+                com.velox.jewelvault.ui.components.AppIconButton(
                     onClick = { onDelete(transaction) },
                     modifier = Modifier.size(24.dp)
                 ) {
@@ -1041,7 +1041,7 @@ fun KhataBookCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (khataBooks.isEmpty()) {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = onAddKhataBook,
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
                         ) {
@@ -1054,7 +1054,7 @@ fun KhataBookCard(
                             Text("Create Plan", style = MaterialTheme.typography.bodySmall)
                         }
                     } else {
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = onViewDetails, 
                             modifier = Modifier.size(32.dp)
                         ) {
@@ -1220,7 +1220,7 @@ fun KhataBookPlanItem(
                     )
                     // Complete plan button (only show for active plans)
                     if (khataBook.status == "active") {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = { 
                                 onCompletePlan(khataBook)
                             },
@@ -1420,7 +1420,7 @@ fun AddOutstandingDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = { onConfirm(amount, type, description, notes) },
                 enabled = amount.isNotEmpty() && !isLoading
             ) {
@@ -1434,7 +1434,7 @@ fun AddOutstandingDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         })
@@ -1550,7 +1550,7 @@ fun AddKhataBookDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = { onConfirm(monthlyAmount, totalMonths, planName, notes) },
             enabled = monthlyAmount.isNotEmpty() && totalMonths.isNotEmpty() && planName.isNotEmpty() && !isLoading
         ) {
@@ -1563,7 +1563,7 @@ fun AddKhataBookDialog(
             }
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -1648,7 +1648,7 @@ fun AddKhataPaymentDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = { onConfirm(month, amount, type, notes) },
             enabled = month.isNotEmpty() && amount.isNotEmpty() && !isLoading
         ) {
@@ -1661,7 +1661,7 @@ fun AddKhataPaymentDialog(
             }
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -1715,7 +1715,7 @@ fun AddRegularPaymentDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = { onConfirm(amount, type, method, reference, notes) },
             enabled = amount.isNotEmpty() && !isLoading
         ) {
@@ -1728,7 +1728,7 @@ fun AddRegularPaymentDialog(
             }
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -1975,7 +1975,7 @@ fun KhataBookDetailsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Close")
             }
         })
@@ -2028,7 +2028,7 @@ fun PaymentHistoryItem(
                 )
                 
                 // Delete button
-                IconButton(
+                com.velox.jewelvault.ui.components.AppIconButton(
                     onClick = { onDelete(payment) },
                     modifier = Modifier.size(32.dp)
                 ) {
@@ -2437,7 +2437,7 @@ fun MonthPaymentDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = { onConfirm(amount, notes) },
             enabled = amount.isNotEmpty() && amount.toDoubleOrNull() != null && amount.toDoubleOrNull()!! > 0 && !isLoading,
             colors = ButtonDefaults.buttonColors(containerColor = Color.Green)
@@ -2457,7 +2457,7 @@ fun MonthPaymentDialog(
             }
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
@@ -2861,7 +2861,7 @@ fun CompletePlanConfirmationDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onConfirm,
                 enabled = completedPayMonths >= requiredPayMonths && !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
@@ -2883,7 +2883,7 @@ fun CompletePlanConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
@@ -3003,7 +3003,7 @@ fun DeleteTransactionConfirmationDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
@@ -3017,7 +3017,7 @@ fun DeleteTransactionConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
@@ -3138,7 +3138,7 @@ fun TransactionHistoryDeleteDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
@@ -3146,9 +3146,10 @@ fun TransactionHistoryDeleteDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }
     )
 }
+

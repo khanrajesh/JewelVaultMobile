@@ -338,7 +338,7 @@ fun SettingScreen() {
             title = { Text("Wipe All Data?") },
             text = { Text("This will permanently delete all your data and logout. This action cannot be undone.") },
             confirmButton = {
-                TextButton(
+                com.velox.jewelvault.ui.components.AppTextButton(
                     onClick = {
                         baseViewModel.showDataWipeConfirmation.value = false
                         baseViewModel.initiateDataWipe()
@@ -348,7 +348,7 @@ fun SettingScreen() {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { baseViewModel.showDataWipeConfirmation.value = false }) {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = { baseViewModel.showDataWipeConfirmation.value = false }) {
                     Text("CANCEL")
                 }
             }
@@ -369,7 +369,10 @@ fun SettingScreen() {
                 )
             },
             confirmButton = {
-                Button(onClick = { baseViewModel.verifyPinForWipe(pin) }) {
+                com.velox.jewelvault.ui.components.AppButton(
+                    onClick = { baseViewModel.verifyPinForWipe(pin) },
+                    shape = MaterialTheme.shapes.medium
+                ) {
                     Text("Verify")
                 }
             }
@@ -394,12 +397,15 @@ fun SettingScreen() {
                 }
             },
             confirmButton = {
-                Button(onClick = { baseViewModel.verifyOtpForWipe(otp) }) {
+                com.velox.jewelvault.ui.components.AppButton(
+                    onClick = { baseViewModel.verifyOtpForWipe(otp) },
+                    shape = MaterialTheme.shapes.medium
+                ) {
                     Text("Confirm Wipe")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { baseViewModel.resendOtpForWipe() }) {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = { baseViewModel.resendOtpForWipe() }) {
                     Text("Resend OTP")
                 }
             }
@@ -573,7 +579,7 @@ fun SettingsTextInputItem(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     onValueChange(textValue)
                     isEditing = false
                 }) {
@@ -581,7 +587,7 @@ fun SettingsTextInputItem(
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     textValue = value
                     isEditing = false
                 }) {

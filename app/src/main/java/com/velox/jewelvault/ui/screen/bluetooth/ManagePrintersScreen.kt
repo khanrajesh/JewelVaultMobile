@@ -83,7 +83,7 @@ fun ManagePrintersScreen(
             )
             
             // Navigate to Label Templates
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = { subNavController.navigate("label_template_list") }
             ) {
                 Icon(Icons.AutoMirrored.TwoTone.Label, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -336,7 +336,7 @@ fun PrinterManagementCard(
                 ) {
                     // Set as Default button
                     if (!isDefault) {
-                        OutlinedButton(
+                        com.velox.jewelvault.ui.components.AppOutlinedButton(
                             onClick = onSetDefault,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -351,7 +351,7 @@ fun PrinterManagementCard(
                     }
 
                     // Check Connection button
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = onCheckConnection,
                         modifier = Modifier.weight(1f)
                     ) {
@@ -365,7 +365,7 @@ fun PrinterManagementCard(
                     }
 
                     // Connect/Disconnect button
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = if (isConnected) onDisconnect else onConnect,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
@@ -388,7 +388,7 @@ fun PrinterManagementCard(
                     }
 
                     // Remove button
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = onRemove,
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(

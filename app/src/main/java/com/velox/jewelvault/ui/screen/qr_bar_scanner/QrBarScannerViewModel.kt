@@ -57,9 +57,11 @@ class QrBarScannerViewModel @Inject constructor(
 
         // Use CalculationUtils for all calculations
         val oneUnitPrice = CalculationUtils.metalUnitPrice(item.catName, metalRates.toList())
-        if (oneUnitPrice == null) return@withIo "Id: $id\nPlease load metal price"
+        if (requiresLiveMetalRate(item.catName) && oneUnitPrice == null) {
+            return@withIo "Id: $id\nPlease load metal price"
+        }
 
-        val price = CalculationUtils.baseMetalPrice(item.fnWt, oneUnitPrice)
+        val price = oneUnitPrice?.let { CalculationUtils.baseMetalPrice(item.fnWt, it) } ?: 0.0
         val charge = CalculationUtils.makingCharge(
             chargeType = item.crgType,
             chargeRate = item.crg,
@@ -74,11 +76,22 @@ class QrBarScannerViewModel @Inject constructor(
             sgstRate = item.sgst,
             igstRate = item.igst
         )
-        val updatedItem = item.copy(price = price, chargeAmount = charge)
+        val updatedItem = item.copy(
+            fnMetalPrice = oneUnitPrice ?: 0.0,
+            price = price,
+            chargeAmount = charge
+        )
         selectedItemList.add(id to updatedItem)
 
         val total = (price+ charge+ item.compCrg+ tax)
         return@withIo "Id: $id\nWt: ${item.gsWt.to3FString()} (${item.fnWt.to3FString()})\n(${item.purity}) P: $${total.to3FString()}"
+    }
+
+    private fun requiresLiveMetalRate(categoryName: String): Boolean {
+        return when (categoryName.trim().lowercase()) {
+            "gold", "silver" -> true
+            else -> false
+        }
     }
 
     private suspend fun getItemByIdSync(itemId: String): ItemSelectedModel? = withIo {

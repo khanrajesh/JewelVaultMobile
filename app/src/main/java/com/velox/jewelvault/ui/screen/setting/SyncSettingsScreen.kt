@@ -96,7 +96,7 @@ fun BackupSettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
+                                com.velox.jewelvault.ui.components.AppButton(
                                     onClick = { viewModel.startBackup() },
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
@@ -106,7 +106,7 @@ fun BackupSettingsScreen(
                                     Text("Sync Now")
                                 }
                                 
-                                OutlinedButton(
+                                com.velox.jewelvault.ui.components.AppOutlinedButton(
                                     onClick = { viewModel.showRestoreSourceDialog() },
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
@@ -123,7 +123,7 @@ fun BackupSettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OutlinedButton(
+                                com.velox.jewelvault.ui.components.AppOutlinedButton(
                                     onClick = { viewModel.startLocalExport() },
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
@@ -133,7 +133,7 @@ fun BackupSettingsScreen(
                                     Text("Export File")
                                 }
 
-                                OutlinedButton(
+                                com.velox.jewelvault.ui.components.AppOutlinedButton(
                                     onClick = { showLocalImportDialog = true },
                                     modifier = Modifier.weight(1f),
                                     enabled = !uiState.isLoading
@@ -423,7 +423,7 @@ private fun EnhancedBackupDialog(
                         fontWeight = FontWeight.Bold
                     )
                     if (!isLoading) {
-                        IconButton(onClick = onDismiss) {
+                        com.velox.jewelvault.ui.components.AppIconButton(onClick = onDismiss) {
                             Icon(Icons.TwoTone.Close, contentDescription = "Close")
                         }
                     }
@@ -462,7 +462,7 @@ private fun EnhancedBackupDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = onBackupRequested,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -470,7 +470,7 @@ private fun EnhancedBackupDialog(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Sync Now")
                         }
-                        OutlinedButton(
+                        com.velox.jewelvault.ui.components.AppOutlinedButton(
                             onClick = { /* Refresh backup list */ },
                             modifier = Modifier.weight(1f)
                         ) {
@@ -599,7 +599,7 @@ private fun BackupItem(
             }
             var showRestoreOptions by remember { mutableStateOf(false) }
             
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = { showRestoreOptions = true },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -739,17 +739,17 @@ private fun RestoreModeDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             if (pendingMode != RestoreMode.MERGE) {
                                 pendingMode = RestoreMode.MERGE
                                 termsAccepted = false
                                 confirmError = false
-                                return@Button
+                                return@AppButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@Button
+                                return@AppButton
                             }
                             onRestoreSelected(RestoreMode.MERGE)
                         },
@@ -758,17 +758,17 @@ private fun RestoreModeDialog(
                         Text("Merge")
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = {
                             if (pendingMode != RestoreMode.REPLACE) {
                                 pendingMode = RestoreMode.REPLACE
                                 termsAccepted = false
                                 confirmError = false
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             onRestoreSelected(RestoreMode.REPLACE)
                         },
@@ -781,7 +781,7 @@ private fun RestoreModeDialog(
                     }
                 }
                 
-                TextButton(
+                com.velox.jewelvault.ui.components.AppTextButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -855,7 +855,7 @@ private fun LocalImportDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = {
                         filePickerLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     },
@@ -1022,7 +1022,7 @@ private fun LocalImportDialog(
                         Modifier.fillMaxWidth()
                     }
 
-                    TextButton(
+                    com.velox.jewelvault.ui.components.AppTextButton(
                         onClick = onDismiss,
                         enabled = !isLoading,
                         modifier = buttonModifier
@@ -1030,17 +1030,17 @@ private fun LocalImportDialog(
                         Text("Cancel")
                     }
                     WidthThenHeightSpacer(12.dp)
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             if (pendingMode != RestoreMode.MERGE) {
                                 pendingMode = RestoreMode.MERGE
                                 termsAccepted = false
                                 confirmError = false
-                                return@Button
+                                return@AppButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@Button
+                                return@AppButton
                             }
                             val fileUri = selectedFileUri
                             if (fileUri != null) {
@@ -1053,17 +1053,17 @@ private fun LocalImportDialog(
                         Text("Merge")
                     }
                     WidthThenHeightSpacer(12.dp)
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = {
                             if (pendingMode != RestoreMode.REPLACE) {
                                 pendingMode = RestoreMode.REPLACE
                                 termsAccepted = false
                                 confirmError = false
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             val fileUri = selectedFileUri
                             if (fileUri != null) {
@@ -1083,5 +1083,6 @@ private fun LocalImportDialog(
         }
     }
 }
+
 
 

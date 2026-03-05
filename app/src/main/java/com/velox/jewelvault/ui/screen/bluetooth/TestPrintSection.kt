@@ -106,11 +106,11 @@ fun ProtocolTestButton(
     var testState by remember { mutableStateOf<TestState>(if (isAlreadySupported) TestState.Pass else TestState.Idle) }
     var showConfirmationDialog by remember { mutableStateOf(false) }
     
-    Button(
+    com.velox.jewelvault.ui.components.AppButton(
         onClick = {
             if (isAlreadySupported) {
                 // Already supported, no need to test again
-                return@Button
+                return@AppButton
             }
             testState = TestState.Testing
             onTestPrint(protocol)
@@ -233,7 +233,7 @@ fun TestResultConfirmationDialog(
             )
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onPass,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF4CAF50)
@@ -249,7 +249,7 @@ fun TestResultConfirmationDialog(
             }
         },
         dismissButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onFail,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFF44336)

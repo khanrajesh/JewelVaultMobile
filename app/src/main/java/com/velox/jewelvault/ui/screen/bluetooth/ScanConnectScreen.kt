@@ -346,7 +346,7 @@ fun ScanConnectScreen(
                             modifier = if (it) Modifier else Modifier.weight(1f)
                         )
                         Spacer(Modifier.width(5.dp))
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 if (isDiscovering) {
                                     viewModel.stopScanning()
@@ -390,7 +390,7 @@ fun ScanConnectScreen(
             WidthThenHeightSpacer()
 
             Row() {
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = { viewModel.refreshAllDeviceLists() }, modifier = Modifier
                 ) {
                     Icon(
@@ -401,7 +401,7 @@ fun ScanConnectScreen(
                 }
                 Spacer(Modifier.width(5.dp))
 
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = { navController.navigate(SubScreens.LabelTemplateList.route) },
                     modifier = Modifier.weight(1f)
                 ) {
@@ -414,7 +414,7 @@ fun ScanConnectScreen(
                     Text("Labels")
                 }
                 Spacer(Modifier.width(5.dp))
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = { showMacConnectDialog = true },
                     modifier = Modifier
                 ) {
@@ -968,11 +968,11 @@ fun ScanConnectScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = { showMacConnectDialog = false }) {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = { showMacConnectDialog = false }) {
                         Text("CLOSE")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             if (manualMacValid) {
                                 viewModel.connectByMacAddress(
@@ -1057,7 +1057,7 @@ fun AddPrinterDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = onConfirm, colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             )
@@ -1071,7 +1071,7 @@ fun AddPrinterDialog(
             Text("Add Printer")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })

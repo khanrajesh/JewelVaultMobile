@@ -12,6 +12,9 @@ interface CustomerDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertCustomer(customer: CustomerEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCustomer(customer: CustomerEntity): Long
+
     // Insert multiple customers
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(customers: List<CustomerEntity>)

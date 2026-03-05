@@ -17,6 +17,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -162,17 +163,25 @@ fun JewelVaultTheme(
 
     val fixedCorner = if (themeStyle == AppThemeStyle.MINIMAL) 0 else 12
     val shapes = Shapes(
+        extraSmall = RoundedCornerShape((fixedCorner - 6).coerceAtLeast(0).dp),
         small = RoundedCornerShape((fixedCorner - 4).coerceAtLeast(0).dp),
         medium = RoundedCornerShape(fixedCorner.dp),
-        large = RoundedCornerShape((fixedCorner + 4).coerceAtMost(32).dp)
+        large = RoundedCornerShape((fixedCorner + 4).coerceAtMost(32).dp),
+        extraLarge = RoundedCornerShape((fixedCorner + 8).coerceAtMost(36).dp)
     )
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            val systemBarColor = colorScheme.surface.toArgb()
+            val useDarkIcons = colorScheme.surface.luminance() > 0.5f
+            window.statusBarColor = systemBarColor
+            window.navigationBarColor = systemBarColor
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = useDarkIcons
+                isAppearanceLightNavigationBars = useDarkIcons
+            }
         }
     }
 

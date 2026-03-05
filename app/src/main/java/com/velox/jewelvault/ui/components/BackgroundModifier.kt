@@ -39,7 +39,11 @@ import com.velox.jewelvault.ui.components.baseBackground11
 import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.components.baseBackground9
 
-private fun corner(radius: Int, delta: Int = 0) = (radius + delta).coerceAtLeast(0).dp
+private fun corner(radius: Int, delta: Int = 0) = if (radius == 0) {
+    0.dp
+} else {
+    (radius + delta).coerceAtLeast(0).dp
+}
 
 fun Modifier.baseBackground0(): Modifier = composed {
     val radius = LocalAppCornerRadius.current

@@ -22,6 +22,30 @@ data class QrItemPayload(
 
 private const val QR_PAYLOAD_PREFIX = ""
 private const val QR_PAYLOAD_PREFIX_V1 = "JV1|"
+private val CONTROL_SUFFIX_REGEX = Regex("[\\r\\n\\u0000]+$")
+private val CONTROL_PREFIX_REGEX = Regex("^[\\u0000\\u0002\\u0003]+")
+
+/**
+ * Normalize scanner output by trimming control prefixes/suffixes and whitespace.
+ * Handles common HID scanner suffixes like CR/LF.
+ */
+fun normalizeScannedCode(raw: String): String {
+    return raw
+        .trim()
+        .replace(CONTROL_PREFIX_REGEX, "")
+        .replace(CONTROL_SUFFIX_REGEX, "")
+        .trim()
+}
+
+/**
+ * Extract a candidate item id from scanner output.
+ * Prefers JV payload id when available, otherwise uses normalized raw value.
+ */
+fun extractScannedItemId(raw: String): String {
+    val normalized = normalizeScannedCode(raw)
+    if (normalized.isBlank()) return ""
+    return parseQrItemPayload(normalized)?.id ?: normalized
+}
 
 /**
  * Serialize to versioned CSV. Empty/unknown values become blank segments to keep positions stable.
@@ -51,10 +75,10 @@ fun QrItemPayload.toCsvString(): String {
  * Attempt to parse a QR payload. Returns null for unknown formats or validation failures.
  */
 fun parseQrItemPayload(raw: String): QrItemPayload? {
+    val normalized = normalizeScannedCode(raw)
     val body = when {
-        raw.startsWith(QR_PAYLOAD_PREFIX_V1) -> raw.removePrefix(QR_PAYLOAD_PREFIX_V1)
-        raw.startsWith(QR_PAYLOAD_PREFIX) -> raw.removePrefix(QR_PAYLOAD_PREFIX)
-        else -> raw
+        normalized.startsWith(QR_PAYLOAD_PREFIX_V1) -> normalized.removePrefix(QR_PAYLOAD_PREFIX_V1)
+        else -> normalized
     }
     val tokens = body.split(',')
     if (tokens.isEmpty()) return null

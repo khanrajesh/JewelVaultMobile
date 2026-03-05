@@ -17,6 +17,9 @@ interface CategoryDao {
     suspend fun insertCategory(category: CategoryEntity): Long
     // Returns new row ID if successful, or -1 if failed
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCategory(category: CategoryEntity): Long
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAllCategories(categories: List<CategoryEntity>)
     // List of row IDs

@@ -34,10 +34,9 @@ import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.ui.components.QrBarScannerPage
 import com.velox.jewelvault.ui.components.bounceClick
 import com.velox.jewelvault.ui.screen.inventory.InventoryViewModel
-import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.parseQrItemPayload
+import com.velox.jewelvault.utils.extractScannedItemId
 import com.velox.jewelvault.utils.to3FString
 
 @Composable
@@ -46,18 +45,24 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
     val navHost = LocalNavController.current
     var menuExpanded by remember { mutableStateOf(false) }
     var deleteModeEnabled by remember { mutableStateOf(false) }
-
-
-
-    QrBarScannerPage(valueProcessing = { raw ->
-        val parsedId = parseQrItemPayload(raw)?.id ?: raw
-        if (baseViewModel.metalRates.isNotEmpty()) {
-            viewModel.processScan(parsedId, baseViewModel.metalRates)
-            "Processing ID: $parsedId"
-        } else {
-            "Load Metal Rate"
-        }
-    }, overlayContent = {
+    QrBarScannerPage(
+        onCodeScanned = { raw ->
+            val parsedId = extractScannedItemId(raw)
+            if (parsedId.isNotBlank()) {
+                baseViewModel.snackBarState = "Scanned $parsedId"
+                viewModel.processScan(parsedId, baseViewModel.metalRates)
+            }
+        },
+        valueProcessing = { raw ->
+            val parsedId = extractScannedItemId(raw)
+            when {
+                parsedId.isBlank() -> "Invalid code"
+                baseViewModel.metalRates.isEmpty() -> "Processing ID: $parsedId (rate pending)"
+                else -> "Processing ID: $parsedId"
+            }
+        },
+        allowHardwareScanner = true,
+        overlayContent = {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -160,7 +165,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                                             title = { Text("Delete Item?") },
                                             text = { Text("Are you sure you want to delete ${existing.itemAddName} (${existing.itemId})?") },
                                             confirmButton = {
-                                                TextButton(onClick = {
+                                                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                                                     inventoryViewModel.safeDeleteItem(
                                                         itemId = existing.itemId,
                                                         catId = existing.catId,
@@ -178,7 +183,7 @@ fun QrBarScannerScreen(viewModel: QrBarScannerViewModel, inventoryViewModel: Inv
                                                 }) { Text("Delete", color = Color.Red) }
                                             },
                                             dismissButton = {
-                                                TextButton(onClick = {
+                                                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                                                     showDeleteDialog.value = false
                                                 }) { Text("Cancel") }
                                             })

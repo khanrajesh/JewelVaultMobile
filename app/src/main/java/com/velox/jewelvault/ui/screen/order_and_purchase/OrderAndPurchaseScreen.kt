@@ -266,8 +266,9 @@ fun DeleteConfirmationDialog(
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onConfirm,
+                shape = MaterialTheme.shapes.medium,
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError
@@ -277,7 +278,7 @@ fun DeleteConfirmationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
         }

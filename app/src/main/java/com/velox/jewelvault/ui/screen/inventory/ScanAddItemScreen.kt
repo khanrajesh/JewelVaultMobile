@@ -58,6 +58,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.velox.jewelvault.ui.components.HardwareScannerCapture
+import com.velox.jewelvault.ui.components.ScanInputMode
+import com.velox.jewelvault.ui.components.ScanInputModeSelector
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
@@ -68,6 +71,7 @@ import com.velox.jewelvault.utils.ChargeType
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.Purity
+import com.velox.jewelvault.utils.normalizeScannedCode
 import com.velox.jewelvault.utils.parseQrItemPayload
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -76,11 +80,33 @@ fun ScanAddItemScreen(inventoryViewModel: InventoryViewModel) {
     inventoryViewModel.currentScreenHeadingState.value = "Scan & Add"
 
     val baseVm = LocalBaseViewModel.current
-    val lastScan = remember { mutableStateOf<String?>(null) }
+    val lastScan = remember { mutableStateOf<Pair<String, Long>?>(null) }
+    val scanInputMode = remember { mutableStateOf(ScanInputMode.AUTO) }
     val status = remember { mutableStateOf("Scan the item's QR to extract details.") }
     val scannedItems = inventoryViewModel.scannedItems
     val listState = rememberLazyListState()
     val lastCount = remember { mutableStateOf(0) }
+    val onRawScan: (String) -> Unit = scan@{ raw ->
+        val normalizedRaw = normalizeScannedCode(raw)
+        if (normalizedRaw.isBlank()) return@scan
+
+        val now = System.currentTimeMillis()
+        val previous = lastScan.value
+        if (previous != null && previous.first == normalizedRaw && now - previous.second <= 500L) {
+            return@scan
+        }
+        lastScan.value = normalizedRaw to now
+
+        val payload = parseQrItemPayload(normalizedRaw)
+        if (payload != null) {
+            baseVm.snackBarState = "Scanned ${payload.id}"
+            inventoryViewModel.addScannedItemFromQr(payload)
+            status.value = "Scanned: ${payload.id}"
+        } else {
+            status.value = "Unrecognized QR. Ensure it uses JV1 CSV format."
+            baseVm.snackBarState = "Cannot parse QR payload"
+        }
+    }
 
     LaunchedEffect(true) {
         inventoryViewModel.getCategoryAndSubCategoryDetails()
@@ -157,16 +183,8 @@ fun ScanAddItemScreen(inventoryViewModel: InventoryViewModel) {
                     ) {
                         EmbeddedScanCamera(
                             onCodeScanned = { raw ->
-                                if (raw == lastScan.value) return@EmbeddedScanCamera
-                                lastScan.value = raw
-                                val payload = parseQrItemPayload(raw)
-                                if (payload != null) {
-                                    inventoryViewModel.addScannedItemFromQr(payload)
-                                    status.value = "Scanned: ${payload.id}"
-                                } else {
-                                    status.value = "Unrecognized QR. Ensure it uses JV1 CSV format."
-                                    baseVm.snackBarState = "Cannot parse QR payload"
-                                }
+                                if (scanInputMode.value == ScanInputMode.HARDWARE) return@EmbeddedScanCamera
+                                onRawScan(raw)
                             }
                         )
                     }
@@ -190,6 +208,17 @@ fun ScanAddItemScreen(inventoryViewModel: InventoryViewModel) {
                     style = MaterialTheme.typography.labelMedium
                 )
             }
+
+            Spacer(Modifier.height(6.dp))
+            ScanInputModeSelector(
+                mode = scanInputMode.value,
+                onModeChange = { scanInputMode.value = it }
+            )
+
+            HardwareScannerCapture(
+                enabled = scanInputMode.value != ScanInputMode.CAMERA,
+                onScanned = { onRawScan(it) }
+            )
 
             Spacer(Modifier.height(8.dp))
 
@@ -215,13 +244,13 @@ fun ScanAddItemScreen(inventoryViewModel: InventoryViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = { inventoryViewModel.addValidScannedItems() },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Add Valid Items")
                     }
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = { inventoryViewModel.clearScannedItems() },
                         modifier = Modifier.weight(1f)
                     ) {

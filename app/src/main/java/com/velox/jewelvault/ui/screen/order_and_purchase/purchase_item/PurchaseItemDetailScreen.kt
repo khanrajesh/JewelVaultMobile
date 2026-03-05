@@ -402,7 +402,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 Text("Are you sure you want to delete this purchase order? This action cannot be undone and will also delete all associated items and exchange metals.")
             },
             confirmButton = {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = {
                         showDeleteDialog = false
                         viewModel.deletePurchaseWithItems(
@@ -417,7 +417,9 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                                 // Show error message via snackbar
                                 viewModel.snackBar.value = error
                             })
-                    }, colors = ButtonDefaults.buttonColors(
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     )
@@ -426,7 +428,7 @@ fun PurchaseItemDetailScreen(viewModel: PurchaseItemViewModel, purchaseOrderId: 
                 }
             },
             dismissButton = {
-                TextButton(
+                com.velox.jewelvault.ui.components.AppTextButton(
                     onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
                 }
@@ -439,7 +441,7 @@ private fun MoreOption(
     showDropdownMenu: Boolean, onMenuChange: (Boolean) -> Unit, onDeleteClick: () -> Unit
 ) {
     Box {
-        IconButton(
+        com.velox.jewelvault.ui.components.AppIconButton(
             onClick = { onMenuChange(true) }, modifier = Modifier.size(25.dp)
         ) {
             Icon(
@@ -567,3 +569,4 @@ private fun OrderDetails(modifier: Modifier = Modifier, pur: PurchaseOrderWithDe
         }
     }
 }
+

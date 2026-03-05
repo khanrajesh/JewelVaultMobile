@@ -1,4 +1,4 @@
-﻿package com.velox.jewelvault.ui.screen.purchase
+package com.velox.jewelvault.ui.screen.purchase
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -150,7 +150,7 @@ fun LandscapePurchaseScreen(viewModel: PurchaseViewModel) {
                     .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = {
                     ioScope {
                         baseViewModel.refreshMetalRates(context = context)
                     }
@@ -221,11 +221,11 @@ fun DetailSection(modifier: Modifier, viewModel: PurchaseViewModel) {
 
     val goldText = """
            GOLD: Gs:${goldGsWt}g | Fn:${purGoldFnWt}g | Exc:${exchangeGoldFnWt.to3FString()}g | Wastage:${purGoldFnWtWastage.to3FString()}g | Extra:${purGoldExtraCharge.to3FString()}
-           Settling: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to3FString()}g | Amount: ƒ,1${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt) * goldFnWtRate).to3FString()}
+           Settling: ${((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt).to3FString()}g | Amount: �,1${(((purGoldFnWt + purGoldFnWtWastage) - exchangeGoldFnWt) * goldFnWtRate).to3FString()}
         """
     val silverText ="""
                     SILVER: Gs:${silverGsWt}g | Fn:${purSilverFnWt}g | Exc:${exchangeSilverFnWt.to3FString()}g | Wastage:${purSilverFnWtWastage.to3FString()}g | Extra:${purSilverExtraCharge.to3FString()}
-                    Settling: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to3FString()}g | Amount: ƒ,1${(((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt) * silverFnWtRate).to3FString()}
+                    Settling: ${((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt).to3FString()}g | Amount: �,1${(((purSilverFnWt + purSilverFnWtWastage) - exchangeSilverFnWt) * silverFnWtRate).to3FString()}
         """
     val addToReg ={
         if (viewModel.purchaseItemList.isNotEmpty() && viewModel.addBillNo.text.isNotBlank() && viewModel.addBillDate.text.isNotBlank() && viewModel.firmName.text.isNotBlank() && viewModel.sellerName.text.isNotBlank() && viewModel.sellerMobile.text.isNotBlank() && viewModel.firmMobile.text.isNotBlank() && viewModel.purchaseItemList.none { it.fnRatePerGm == 0.0 || it.fnWt == 0.0 }) {
@@ -665,7 +665,7 @@ fun PurchaseItemListComponent(items: List<PurchaseItemInputDto>) {
                         )
                         Text("GS Wt: ${item.gsWt}, Purity: ${item.purity}, FN Wt: ${item.fnWt}")
                         if (item.extraChargeDes.isNotEmpty()) {
-                            Text("Extra: ${item.extraChargeDes} - â‚¹${item.extraCharge}")
+                            Text("Extra: ${item.extraChargeDes} - ₹${item.extraCharge}")
                         }
                     }
                 }
@@ -1072,6 +1072,7 @@ private fun AddItemComponent(viewModel: PurchaseViewModel) {
         }
     }
 }
+
 
 
 

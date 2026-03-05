@@ -126,12 +126,12 @@ fun DeviceDetailsDialog(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(onClick = {
+                com.velox.jewelvault.ui.components.AppButton(onClick = {
                     clipboardManager.setText(AnnotatedString(device.address))
                 }) {
                     Text("Copy MAC")
                 }
-                Button(onClick = onDismiss) {
+                com.velox.jewelvault.ui.components.AppButton(onClick = onDismiss) {
                     Text("Close")
                 }
             }

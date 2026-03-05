@@ -8,12 +8,17 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import com.velox.jewelvault.ui.theme.LocalAppCornerRadius
 
 fun Modifier.bounceClick(onClick: () -> Unit = {}) = composed {
     // State to track the button's state (pressed or idle)
     var buttonState by remember { mutableStateOf(ButtonState.Idle) }
+    val cornerRadius = LocalAppCornerRadius.current
     // State to animate the scale of the button for the bounce effect
     val scale by animateFloatAsState(
         if (buttonState == ButtonState.Pressed) 0.90f else 1f,
@@ -25,6 +30,7 @@ fun Modifier.bounceClick(onClick: () -> Unit = {}) = composed {
         scaleX = scale
         scaleY = scale
     }
+        .clip(RoundedCornerShape(cornerRadius.dp))
         // Make the button clickable
         .clickable(
             interactionSource = remember { MutableInteractionSource() },

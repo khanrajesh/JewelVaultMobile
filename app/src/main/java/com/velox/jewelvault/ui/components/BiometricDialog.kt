@@ -95,14 +95,14 @@ fun BiometricAuthDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(
+                    com.velox.jewelvault.ui.components.AppTextButton(
                         onClick = onCancel,
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Cancel")
                     }
                     
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             isLoading = true
                             errorMessage = null

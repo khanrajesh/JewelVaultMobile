@@ -71,7 +71,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                     .baseBackground1()
                     .padding(5.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { metalRateRefresh() }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { metalRateRefresh() }) {
                     Icon(
                         imageVector = Icons.TwoTone.Refresh, contentDescription = "Refresh"
                     )
@@ -83,7 +83,7 @@ fun DraftInvoiceScreen(viewModel: InvoiceViewModel) {
                 )
                 Text(text = currentDateTime.value)
                 Spacer(Modifier.width(10.dp))
-                IconButton(onClick = optionClick) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = optionClick) {
                     Icon(
                         imageVector = Icons.TwoTone.MoreVert, contentDescription = "Options"
                     )
@@ -848,18 +848,18 @@ fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
         confirmButton = {
             Row {
                 if (viewModel.draftEditingItemIndex.value != null) {
-                    TextButton(onClick = { viewModel.draftRemoveEditingItem() }) {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = { viewModel.draftRemoveEditingItem() }) {
                         Text("Delete")
                     }
                 }
                 Spacer(Modifier.width(8.dp))
-                TextButton(onClick = { viewModel.draftAddItem() }) {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = { viewModel.draftAddItem() }) {
                     Text(if (viewModel.draftEditingItemIndex.value != null) "Update" else "Add Item")
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = {
+            com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                 viewModel.draftShowAddItemDialog.value = false
             }) {
                 Text("Cancel")
@@ -867,3 +867,4 @@ fun DraftViewAddItemDialog(viewModel: InvoiceViewModel) {
         }
     )
 }
+

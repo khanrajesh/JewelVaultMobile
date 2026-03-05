@@ -67,7 +67,7 @@ fun SignatureBox(
             Text(title, modifier = Modifier.weight(1.5f))
 
             Spacer(modifier = Modifier.width(8.dp))
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = {
                     paths = emptyList()
                     currentPath = emptyList()
@@ -79,7 +79,7 @@ fun SignatureBox(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = {
                     val widthPx = with(density) { 500.dp.roundToPx() }
                     val heightPx = with(density) { 500.dp.roundToPx() }

@@ -403,7 +403,7 @@ class ExcelImporter(
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
-                        database.categoryDao().insertCategory(category)
+                        database.categoryDao().upsertCategory(category)
                         summary.categoriesAdded++
                     }
                 }
@@ -563,7 +563,7 @@ class ExcelImporter(
                             purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", ItemCols.PURCHASEORDERID)),
                             purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", ItemCols.PURCHASEITEMID))
                         )
-                        database.itemDao().insertItem(item)
+                        database.itemDao().upsertItem(item)
                         summary.itemsAdded++
                     }
                 }
@@ -623,7 +623,7 @@ class ExcelImporter(
                             userId = currentUserId,
                             storeId = currentStoreId
                         )
-                        database.customerDao().insertCustomer(customer)
+                        database.customerDao().upsertCustomer(customer)
                         summary.customersAdded++
                     }
                 }
@@ -873,7 +873,7 @@ class ExcelImporter(
                             invoiceNo = getCellValueAsString(cell(row, headerMap, "invoiceNo", OrderCols.INVOICENO)),
                             note = getCellValueAsString(cell(row, headerMap, "note", OrderCols.NOTE))
                         )
-                        database.orderDao().insertOrder(order)
+                        database.orderDao().upsertOrder(order)
                         summary.ordersAdded++
                     }
                 }
@@ -977,7 +977,7 @@ class ExcelImporter(
                             purchaseOrderId = getCellValueAsString(cell(row, headerMap, "purchaseOrderId", OrderItemCols.PURCHASEORDERID)),
                             purchaseItemId = getCellValueAsString(cell(row, headerMap, "purchaseItemId", OrderItemCols.PURCHASEITEMID))
                         )
-                        database.orderDao().insertOrderItem(orderItem)
+                        database.orderDao().upsertOrderItem(orderItem)
                         summary.orderItemsAdded++
                     }
                 }
@@ -1083,7 +1083,7 @@ class ExcelImporter(
                             gstNumber = getCellValueAsString(cell(row, headerMap, "gstNumber", FirmCols.GSTNUMBER)),
                             address = getCellValueAsString(cell(row, headerMap, "address", FirmCols.ADDRESS))
                         )
-                        database.purchaseDao().insertFirm(firm)
+                        database.purchaseDao().upsertFirm(firm)
                         summary.firmsAdded++
                     }
                 }
@@ -1145,7 +1145,7 @@ class ExcelImporter(
                             sgstPercent = getCellValueAsDouble(cell(row, headerMap, "sgstPercent", PurchaseOrderCols.SGSTPERCENT)),
                             igstPercent = getCellValueAsDouble(cell(row, headerMap, "igstPercent", PurchaseOrderCols.IGSTPERCENT))
                         )
-                        database.purchaseDao().insertPurchaseOrder(purchaseOrder)
+                        database.purchaseDao().upsertPurchaseOrder(purchaseOrder)
                         summary.purchaseOrdersAdded++
                     }
                 }
@@ -1205,7 +1205,7 @@ class ExcelImporter(
                             fnRate = getCellValueAsDouble(cell(row, headerMap, "fnRate", PurchaseOrderItemCols.FNRATE)),
                             wastagePercent = getCellValueAsDouble(cell(row, headerMap, "wastagePercent", PurchaseOrderItemCols.WASTAGEPERCENT))
                         )
-                        database.purchaseDao().insertPurchaseOrderItem(purchaseOrderItem)
+                        database.purchaseDao().upsertPurchaseOrderItem(purchaseOrderItem)
                         summary.purchaseOrderItemsAdded++
                     }
                 }
@@ -1255,7 +1255,7 @@ class ExcelImporter(
                             subCatName = getCellValueAsString(cell(row, headerMap, "subCatName", MetalExchangeCols.SUBCATNAME)),
                             fnWeight = getCellValueAsDouble(cell(row, headerMap, "fnWeight", MetalExchangeCols.FNWEIGHT))
                         )
-                        database.purchaseDao().insertMetalExchange(metalExchange)
+                        database.purchaseDao().upsertMetalExchange(metalExchange)
                         summary.metalExchangesAdded++
                     }
                 }

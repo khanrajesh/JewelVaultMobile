@@ -21,6 +21,9 @@ interface ItemDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertItem(item: ItemEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertItem(item: ItemEntity): Long
+
     @Query("SELECT * FROM ${TableNames.ITEM} ORDER BY addDate DESC")
     fun getAll(): Flow<List<ItemEntity>>
 

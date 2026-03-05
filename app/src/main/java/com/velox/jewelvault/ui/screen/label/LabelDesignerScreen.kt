@@ -1,4 +1,4 @@
-﻿package com.velox.jewelvault.ui.screen.label
+package com.velox.jewelvault.ui.screen.label
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -723,7 +723,7 @@ private fun TemplateHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(onClick = onSave, modifier = Modifier) {
+            com.velox.jewelvault.ui.components.AppButton(onClick = onSave, modifier = Modifier) {
                 Icon(
                     Icons.TwoTone.Save, contentDescription = null, modifier = Modifier.size(16.dp)
                 )
@@ -731,7 +731,7 @@ private fun TemplateHeader(
                 Text("Save")
             }
 
-            Button(onClick = onTestPrint) {
+            com.velox.jewelvault.ui.components.AppButton(onClick = onTestPrint) {
                 Icon(
                     Icons.TwoTone.Print, contentDescription = null, modifier = Modifier.size(16.dp)
                 )
@@ -827,7 +827,7 @@ private fun QuickActionsBar(
         )
         ActionChipButton(
             icon = Icons.AutoMirrored.TwoTone.RotateRight,
-            label = "Rotate 90�",
+            label = "Rotate 90?",
             onClick = onRotate,
             enabled = selectedCount > 0
         )
@@ -1575,7 +1575,7 @@ fun ElementPropertiesForm(
                 label = { Text(bindingLabelText) },
                 readOnly = true,
                 trailingIcon = {
-                    IconButton(onClick = { bindingMenuExpanded = !bindingMenuExpanded }) {
+                    com.velox.jewelvault.ui.components.AppIconButton(onClick = { bindingMenuExpanded = !bindingMenuExpanded }) {
                         Icon(Icons.TwoTone.Settings, contentDescription = "Choose Binding")
                     }
                 },
@@ -1690,7 +1690,7 @@ fun ElementPropertiesForm(
                 ) {
                     Text("Dither", style = MaterialTheme.typography.bodySmall)
                     listOf(
-                        "floyd" to "Floyd–Steinberg", "ordered" to "Ordered 4x4", "none" to "None"
+                        "floyd" to "Floyd�Steinberg", "ordered" to "Ordered 4x4", "none" to "None"
                     ).forEach { (value, label) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1817,9 +1817,9 @@ private fun BindingPickerDialog(
             }
         }
     }, confirmButton = {
-        Button(onClick = onConfirm) { Text("Add") }
+        com.velox.jewelvault.ui.components.AppButton(onClick = onConfirm) { Text("Add") }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) { Text("Cancel") }
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) { Text("Cancel") }
     })
 }
 
@@ -1954,7 +1954,7 @@ private fun TemplateSetupDialog(
                     val isNormalSelected = direction != "1"
                     AssistChip(
                         onClick = { onDirectionChange("0") },
-                        label = { Text("0 � Normal") },
+                        label = { Text("0 ? Normal") },
                         leadingIcon = {
                             Icon(
                                 if (isNormalSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
@@ -1964,7 +1964,7 @@ private fun TemplateSetupDialog(
                     val isReverseSelected = direction == "1"
                     AssistChip(
                         onClick = { onDirectionChange("1") },
-                        label = { Text("1 � Reverse") },
+                        label = { Text("1 ? Reverse") },
                         leadingIcon = {
                             Icon(
                                 if (isReverseSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
@@ -2001,9 +2001,9 @@ private fun TemplateSetupDialog(
             )
         }
     }, confirmButton = {
-        Button(onClick = onConfirm) { Text("Start designing") }
+        com.velox.jewelvault.ui.components.AppButton(onClick = onConfirm) { Text("Start designing") }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) { Text("Use defaults") }
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) { Text("Use defaults") }
     })
 }
 
@@ -2100,7 +2100,7 @@ fun TemplateSettingsDialog(
                     val isNormalSelected = direction != "1"
                     AssistChip(
                         onClick = { direction = "0" },
-                        label = { Text("0 � Normal") },
+                        label = { Text("0 ? Normal") },
                         leadingIcon = {
                             Icon(
                                 if (isNormalSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
@@ -2110,7 +2110,7 @@ fun TemplateSettingsDialog(
                     val isReverseSelected = direction == "1"
                     AssistChip(
                         onClick = { direction = "1" },
-                        label = { Text("1 � Reverse") },
+                        label = { Text("1 ? Reverse") },
                         leadingIcon = {
                             Icon(
                                 if (isReverseSelected) Icons.TwoTone.CheckBox else Icons.TwoTone.CheckBoxOutlineBlank,
@@ -2135,7 +2135,7 @@ fun TemplateSettingsDialog(
             }
         }
     }, confirmButton = {
-        TextButton(
+        com.velox.jewelvault.ui.components.AppTextButton(
             onClick = {
                 val resolvedWidth = width.toFloatOrNull() ?: template.labelWidth
                 val resolvedHeight = height.toFloatOrNull() ?: template.labelHeight
@@ -2161,7 +2161,7 @@ fun TemplateSettingsDialog(
                     )
                 )
             }) { Text("Save") }
-    }, dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } })
+    }, dismissButton = { com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) { Text("Cancel") } })
 }
 
 @Composable
@@ -2786,6 +2786,7 @@ private fun toMonochromeDither(
     }
     return result
 }
+
 
 
 

@@ -263,7 +263,7 @@ fun StartLoadingScreen() {
                 }
             },
             confirmButton = {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = { requestAllPermissions() },
                     enabled = !permissionRequestInProgress.value
                 ) {
@@ -291,7 +291,7 @@ fun StartLoadingScreen() {
                 )
             },
             confirmButton = {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = { viewModel.onBackupRestoreConfirmed() },
                     enabled = !backupRestoreInProgress
                 ) {
@@ -299,7 +299,7 @@ fun StartLoadingScreen() {
                 }
             },
             dismissButton = {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = { viewModel.onBackupRestoreCancelled() },
                     enabled = !backupRestoreInProgress
                 ) {

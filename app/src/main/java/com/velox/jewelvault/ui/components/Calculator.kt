@@ -86,7 +86,7 @@ fun CalculatorScreen(modifier: Modifier) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     val buttonWidth = this@BoxWithConstraints.maxWidth / row.size
                     for (label in row) {
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 expression = when (label) {
                                     "C" -> ""

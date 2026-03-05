@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.twotone.KeyboardArrowRight
@@ -121,10 +120,12 @@ fun DrawerItem(
     item: InputIconState, drawerState: TabDrawerState, onClick: () -> Unit
 ) {
     val isSelected = item.selected
+    val isMinimalStyle = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
     val containerColor =
         if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val contentColor =
         if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val iconContainerShape = if (isMinimalStyle) MaterialTheme.shapes.small else CircleShape
 
     Surface(
         color = containerColor,
@@ -141,7 +142,8 @@ fun DrawerItem(
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        color = contentColor.copy(alpha = 0.12f), shape = CircleShape
+                        color = contentColor.copy(alpha = 0.12f),
+                        shape = iconContainerShape
                     ), contentAlignment = Alignment.Center
             ) {
                 when (val icon = item.icon) {
@@ -364,7 +366,7 @@ private fun PortraitNavView(
     val topBarModifier = if (isMinimalStyle) {
         Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
     } else {
-        Modifier.background(GoldBackground)
+        Modifier
     }
 
     val bottomNavItems = inputIconStates.filter { item ->
@@ -404,11 +406,11 @@ private fun PortraitNavView(
                         text = (baseViewModel.storeName.value
                         ?: "Jewel Vault").substringBefore(" "),
                         fontSize = 22.sp,
-                        fontFamily = ZenFontFamily,
+//                        fontFamily = ZenFontFamily,
                         fontWeight = FontWeight.Bold,
                         color = headerContentColor,
                         modifier = Modifier
-                            .bounceClick {
+                            .clickable {
                                 ioScope.launch {
                                     baseViewModel.refreshOnlineMetalRates(context = context)
                                 }
@@ -488,6 +490,7 @@ private fun PortraitNavView(
                     Text(
                         text = baseViewModel.storeName.value ?: "Jewel Vault",
                         color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = ZenFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         maxLines = 1,
@@ -587,6 +590,8 @@ private fun BottomNavBubbleBar(
     onItemSelected: (InputIconState) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isMinimalStyle = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val bubbleShape = if (isMinimalStyle) MaterialTheme.shapes.small else CircleShape
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = Color.Transparent,
@@ -614,7 +619,7 @@ private fun BottomNavBubbleBar(
                     Box(
                         modifier = Modifier
                             .size(bubbleSize)
-                            .clip(CircleShape)
+                            .clip(bubbleShape)
                             .baseBackground8(),
                         contentAlignment = Alignment.Center
                     ) {
@@ -622,7 +627,7 @@ private fun BottomNavBubbleBar(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(bubbleBorderWidth)
-                                .clip(CircleShape)
+                                .clip(bubbleShape)
                                 .background(bubbleColor),
                             contentAlignment = Alignment.Center
                         ) {
@@ -668,6 +673,26 @@ private fun LandscapeNavView(
     } else {
         Modifier.background(GoldBackground)
     }
+    val railContentColor = if (isMinimalStyle) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    val selectedRailIndicatorColor = if (isMinimalStyle) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
+    val headerBackgroundColor = if (isMinimalStyle) {
+        MaterialTheme.colorScheme.surfaceVariant
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val headerContentColor = if (isMinimalStyle) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
 
     val isDrawerOpen = drawerState.isOpen
     val width = if (isDrawerOpen) 200.dp else 60.dp
@@ -711,7 +736,7 @@ private fun LandscapeNavView(
                                             imageVector = icon,
                                             contentDescription = item.text,
                                             Modifier.size(28.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimary
+                                            tint = railContentColor
                                         )
                                     } else {
                                         Image(
@@ -725,7 +750,7 @@ private fun LandscapeNavView(
                                     Spacer(Modifier.width(12.dp))
                                     Text(
                                         item.text,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        color = railContentColor,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp
                                     )
@@ -740,8 +765,8 @@ private fun LandscapeNavView(
                                         .fillMaxWidth(0.8f)
                                         .height(4.dp)
                                         .background(
-                                            MaterialTheme.colorScheme.onPrimary,
-                                            RoundedCornerShape(2.dp)
+                                            selectedRailIndicatorColor,
+                                            MaterialTheme.shapes.extraSmall
                                         )
                                 )
                             }
@@ -770,7 +795,7 @@ private fun LandscapeNavView(
                         else Icons.AutoMirrored.TwoTone.KeyboardArrowRight,
                         contentDescription = if (drawerState.isOpen) "Close drawer" else "Open drawer",
                         modifier = Modifier.size(40.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = railContentColor
                     )
                 }
 
@@ -820,7 +845,7 @@ private fun LandscapeNavView(
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .background(
-                        color = MaterialTheme.colorScheme.primary
+                        color = headerBackgroundColor
                     )
             ) {
                 Row(
@@ -836,7 +861,7 @@ private fun LandscapeNavView(
                             fontSize = 22.sp,
                             fontFamily = ZenFontFamily,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = headerContentColor,
                             modifier = Modifier
                                 .bounceClick {
                                     ioScope.launch {
@@ -851,7 +876,7 @@ private fun LandscapeNavView(
                                 text = baseViewModel.currentScreenHeading,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onPrimary,
+                                color = headerContentColor,
                                 modifier = Modifier
                                     .padding(start = 10.dp)
                                     .offset(y = (-7).dp)
@@ -877,7 +902,7 @@ private fun LandscapeNavView(
                                     style = SpanStyle(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = headerContentColor
                                     )
                                 ) {
                                     append(currentUser?.name?.uppercase())
@@ -927,6 +952,12 @@ class InputIconState(
 fun ProfileImage(size: Dp = 60.dp, onProfileClick: () -> Unit) {
     val baseViewModel = LocalBaseViewModel.current
     val context = LocalContext.current
+    val isMinimalStyle = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val profileContentColor = if (isMinimalStyle) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        MaterialTheme.colorScheme.onPrimary
+    }
 
 
     LaunchedEffect(Unit) {
@@ -979,7 +1010,7 @@ fun ProfileImage(size: Dp = 60.dp, onProfileClick: () -> Unit) {
                     .clip(CircleShape)
                     .border(
                         width = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                        color = profileContentColor.copy(alpha = 0.3f),
                         shape = CircleShape
                     ),
                 contentScale = ContentScale.Crop
@@ -990,12 +1021,12 @@ fun ProfileImage(size: Dp = 60.dp, onProfileClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.1f),
+                        color = profileContentColor.copy(alpha = 0.1f),
                         shape = CircleShape
                     )
                     .border(
                         width = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                        color = profileContentColor.copy(alpha = 0.3f),
                         shape = CircleShape
                     ), contentAlignment = Alignment.Center
             ) {
@@ -1003,9 +1034,10 @@ fun ProfileImage(size: Dp = 60.dp, onProfileClick: () -> Unit) {
                     imageVector = Icons.TwoTone.Person,
                     contentDescription = "Profile",
                     modifier = Modifier.fillMaxSize(),
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = profileContentColor
                 )
             }
         }
     }
 }
+

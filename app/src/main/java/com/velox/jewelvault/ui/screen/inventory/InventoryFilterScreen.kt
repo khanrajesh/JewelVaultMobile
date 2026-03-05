@@ -405,7 +405,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                             singleLine = true
                         )
                         WidthThenHeightSpacer()
-                        Button(onClick = {
+                        com.velox.jewelvault.ui.components.AppButton(onClick = {
                             viewModel.filterItems()
                             isFilterPanelExpanded.value = !isFilterPanelExpanded.value
                         }) {
@@ -483,7 +483,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
             },
             confirmButton = {
                 Row {
-                    TextButton(onClick = {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                         if (selectedItem.value != null) {
                             PrintUtils.generateItemExcelAndPrint(context, selectedItem.value!!) {
                                 showPrintDialog.value = false
@@ -493,7 +493,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                         Text("Print", color = MaterialTheme.colorScheme.primary)
                     }
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                         if (selectedItem.value != null) {
                             PrintUtils.printThermalLabel(context, selectedItem.value!!) {
                                 showPrintDialog.value = false
@@ -505,7 +505,7 @@ fun InventoryFilterScreen(viewModel: InventoryViewModel) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = {
                     showPrintDialog.value = false
                 }) {
                     Text("Cancel")
@@ -551,7 +551,7 @@ private fun HeaderSection(
             Row(
                 modifier = Modifier, verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onSortMenuToggle) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = onSortMenuToggle) {
                     Icon(
                         imageVector = Icons.AutoMirrored.TwoTone.Sort,
                         contentDescription = "Sort",
@@ -605,13 +605,13 @@ private fun HeaderSection(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                TextButton(onClick = onClearFilters) {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = onClearFilters) {
                     Text("Clear")
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Button(onClick = onExport) {
+                com.velox.jewelvault.ui.components.AppButton(onClick = onExport) {
                     Text("Export")
                 }
 
@@ -619,7 +619,7 @@ private fun HeaderSection(
                 if (exportedFileUri != null) {
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = { onPrint(exportedFileUri!!) }) {
                         Icon(
                             imageVector = Icons.TwoTone.Print,
@@ -656,6 +656,7 @@ private fun HeaderSection(
 
 
 }
+
 
 
 

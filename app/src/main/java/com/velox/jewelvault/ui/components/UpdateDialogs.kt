@@ -134,7 +134,7 @@ fun ForceUpdateDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onUpdateClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -270,7 +270,7 @@ fun OptionalUpdateDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = { showBackupDialog = true },
                     modifier = Modifier.weight(1f)
                 ) {
@@ -283,7 +283,7 @@ fun OptionalUpdateDialog(
                     Text("Sync & Update")
                 }
 
-                OutlinedButton(
+                com.velox.jewelvault.ui.components.AppOutlinedButton(
                     onClick = onUpdateClick,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -298,7 +298,7 @@ fun OptionalUpdateDialog(
             }
         },
         dismissButton = {
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -354,7 +354,7 @@ fun BackupBeforeUpdateDialog(
             }
         },
         confirmButton = {
-            Button(
+            com.velox.jewelvault.ui.components.AppButton(
                 onClick = onBackupClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -368,7 +368,7 @@ fun BackupBeforeUpdateDialog(
             }
         },
         dismissButton = {
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth()
             ) {

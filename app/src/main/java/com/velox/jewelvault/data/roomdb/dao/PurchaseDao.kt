@@ -25,6 +25,9 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertFirm(firm: FirmEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFirm(firm: FirmEntity): Long
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSeller(seller: SellerEntity): Long
 
@@ -51,6 +54,9 @@ interface PurchaseDao {
     // ------------------------
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPurchaseOrder(order: PurchaseOrderEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPurchaseOrder(order: PurchaseOrderEntity): Long
 
     @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER} WHERE purchaseOrderId = :orderId")
     suspend fun getPurchaseOrderById(orderId: Long): PurchaseOrderEntity?
@@ -85,6 +91,9 @@ interface PurchaseDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPurchaseOrderItem(item: PurchaseOrderItemEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertPurchaseOrderItem(item: PurchaseOrderItemEntity): Long
+
     @Query("SELECT * FROM ${TableNames.PURCHASE_ORDER_ITEM} WHERE purchaseOrderId = :orderId")
     suspend fun getItemsByOrderId(orderId: String): List<PurchaseOrderItemEntity>
 
@@ -100,6 +109,9 @@ interface PurchaseDao {
     
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMetalExchange(exchange: MetalExchangeEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertMetalExchange(exchange: MetalExchangeEntity): Long
 
     @Query("SELECT * FROM ${TableNames.METAL_EXCHANGE} WHERE purchaseOrderId = :orderId")
     suspend fun getExchangeByOrderId(orderId: Long): List<MetalExchangeEntity>

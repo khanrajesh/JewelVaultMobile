@@ -234,7 +234,7 @@ fun PermissionSettingsScreen() {
                 )
             },
             confirmButton = {
-                TextButton(
+                com.velox.jewelvault.ui.components.AppTextButton(
             onClick = {
                 disableTarget = null
                 if (item.id == "manage_storage" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -248,7 +248,7 @@ fun PermissionSettingsScreen() {
         }
             },
             dismissButton = {
-                TextButton(onClick = { disableTarget = null }) {
+                com.velox.jewelvault.ui.components.AppTextButton(onClick = { disableTarget = null }) {
                     Text("Cancel")
                 }
             }

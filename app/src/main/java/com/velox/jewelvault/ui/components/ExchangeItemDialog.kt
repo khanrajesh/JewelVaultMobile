@@ -87,7 +87,7 @@ fun ExchangeItemDialog(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(onClick = onDismiss) {
+                    com.velox.jewelvault.ui.components.AppIconButton(onClick = onDismiss) {
                         Icon(Icons.TwoTone.Close, contentDescription = "Close")
                     }
                 }
@@ -106,7 +106,7 @@ fun ExchangeItemDialog(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        TextButton(
+                        com.velox.jewelvault.ui.components.AppTextButton(
                             onClick = {
                                 localExchangeItems = emptyList()
                                 onClearAll()
@@ -147,7 +147,7 @@ fun ExchangeItemDialog(
                                     )
                                 }
                                 Row {
-                                    IconButton(
+                                    com.velox.jewelvault.ui.components.AppIconButton(
                                         onClick = { 
                                             // Edit existing item - remove it and add to form
                                             metalType = item.metalType
@@ -167,7 +167,7 @@ fun ExchangeItemDialog(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    IconButton(
+                                    com.velox.jewelvault.ui.components.AppIconButton(
                                         onClick = { 
                                             // Delete individual item from local list
                                             localExchangeItems = localExchangeItems.filter { it.exchangeItemId != item.exchangeItemId }
@@ -329,13 +329,13 @@ fun ExchangeItemDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
                         Text("Cancel")
                     }
                     
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             val newExchangeItem = ExchangeItemDto(
                                 exchangeItemId = generateId(),
@@ -363,20 +363,22 @@ fun ExchangeItemDialog(
                                  purity.isNotBlank() && 
                                  grossWeight.isNotBlank() && 
                                  fineWeight.isNotBlank() &&
-                                 (isExchangedByMetal || price.isNotBlank())
+                                 (isExchangedByMetal || price.isNotBlank()),
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Add")
                     }
                     
                     Spacer(modifier = Modifier.width(8.dp))
                     
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             // Save all items (both existing and newly added)
                             onSave(localExchangeItems)
                             onDismiss()
                         },
-                        enabled = localExchangeItems.isNotEmpty()
+                        enabled = localExchangeItems.isNotEmpty(),
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Text("Save All")
                     }
@@ -385,3 +387,4 @@ fun ExchangeItemDialog(
         }
     }
 }
+

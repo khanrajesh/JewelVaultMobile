@@ -101,11 +101,11 @@ fun UserManagementScreen(userManagementViewModel: UserManagementViewModel = hilt
                 modifier = Modifier.padding(start = 10.dp)
             )
             Spacer(Modifier.weight(1f))
-            IconButton(
+            com.velox.jewelvault.ui.components.AppIconButton(
                 onClick = { userManagementViewModel.syncUsersFromFirestore() }) {
                 Icon(Icons.TwoTone.Sync, contentDescription = "Sync from Cloud")
             }
-            IconButton(
+            com.velox.jewelvault.ui.components.AppIconButton(
                 onClick = {
                     selectedUserForEdit = null
                     userManagementViewModel.clearForm()
@@ -663,7 +663,7 @@ fun AddEditUserDialog(
     }, confirmButton = {
         if (isEditing && !isEditMode && !isAdmin) {
             // Show Edit button for non-admin users
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = { isEditMode = true }, colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.primary
                 )
@@ -672,7 +672,7 @@ fun AddEditUserDialog(
             }
         } else {
             // Show Save/Update button
-            TextButton(
+            com.velox.jewelvault.ui.components.AppTextButton(
                 onClick = onSave, colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.primary
                 )
@@ -681,7 +681,7 @@ fun AddEditUserDialog(
             }
         }
     }, dismissButton = {
-        TextButton(
+        com.velox.jewelvault.ui.components.AppTextButton(
             onClick = onDismiss, colors = ButtonDefaults.textButtonColors(
                 contentColor = MaterialTheme.colorScheme.error
             )
@@ -690,3 +690,4 @@ fun AddEditUserDialog(
         }
     })
 } 
+

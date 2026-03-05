@@ -131,10 +131,10 @@ fun CustomerScreen(
                     leadingIcon = Icons.TwoTone.Clear,
                     onLeadingIconClick = onSearchByLeading)
 
-                IconButton(onClick = { showKhataBookPlans = true }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { showKhataBookPlans = true }) {
                     Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
                 }
-                IconButton(onClick = { showAddCustomerDialog = true }) {
+                com.velox.jewelvault.ui.components.AppIconButton(onClick = { showAddCustomerDialog = true }) {
                     Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
                 }
             }
@@ -156,10 +156,10 @@ fun CustomerScreen(
                         leadingIcon = Icons.TwoTone.Clear,
                         onLeadingIconClick = onSearchByLeading)
 
-                    IconButton(onClick = { showKhataBookPlans = true }) {
+                    com.velox.jewelvault.ui.components.AppIconButton(onClick = { showKhataBookPlans = true }) {
                         Icon(Icons.TwoTone.Book, contentDescription = "Khata Book Plans")
                     }
-                    IconButton(onClick = { showAddCustomerDialog = true }) {
+                    com.velox.jewelvault.ui.components.AppIconButton(onClick = { showAddCustomerDialog = true }) {
                         Icon(Icons.TwoTone.Add, contentDescription = "Add Customer")
                     }
                 }
@@ -556,9 +556,9 @@ fun AddCustomerDialog(
             )
         }
     }, confirmButton = {
-        Button(
+        com.velox.jewelvault.ui.components.AppButton(
             onClick = {
-                if (!validateForm()) return@Button
+                if (!validateForm()) return@AppButton
                 onConfirm(
                     InputValidator.sanitizeText(nameState.text),
                     mobileState.text.trim(),
@@ -572,8 +572,9 @@ fun AddCustomerDialog(
             Text("Add Customer")
         }
     }, dismissButton = {
-        TextButton(onClick = onDismiss) {
+        com.velox.jewelvault.ui.components.AppTextButton(onClick = onDismiss) {
             Text("Cancel")
         }
     })
 } 
+

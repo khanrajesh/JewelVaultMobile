@@ -224,7 +224,7 @@ fun RestoreSourceDialog(
                 if (selectedSource == RestoreSource.LOCAL) {
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             isSelectingFile = true
                             filePickerLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -365,17 +365,17 @@ fun RestoreSourceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Button(
+                    com.velox.jewelvault.ui.components.AppButton(
                         onClick = {
                             if (pendingMode != RestoreMode.MERGE) {
                                 pendingMode = RestoreMode.MERGE
                                 termsAccepted = false
                                 confirmError = false
-                                return@Button
+                                return@AppButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@Button
+                                return@AppButton
                             }
                             val currentSource = selectedSource
                             if (currentSource != null) {
@@ -388,17 +388,17 @@ fun RestoreSourceDialog(
                         Text("Merge")
                     }
                     Spacer(modifier = Modifier.width(12.dp))
-                    OutlinedButton(
+                    com.velox.jewelvault.ui.components.AppOutlinedButton(
                         onClick = {
                             if (pendingMode != RestoreMode.REPLACE) {
                                 pendingMode = RestoreMode.REPLACE
                                 termsAccepted = false
                                 confirmError = false
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             if (!termsAccepted) {
                                 confirmError = true
-                                return@OutlinedButton
+                                return@AppOutlinedButton
                             }
                             val currentSource = selectedSource
                             if (currentSource != null) {
@@ -435,7 +435,7 @@ fun RestoreSourceDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                TextButton(
+                com.velox.jewelvault.ui.components.AppTextButton(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {

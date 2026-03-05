@@ -18,9 +18,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
+import com.velox.jewelvault.ui.components.HardwareScannerCapture
+import com.velox.jewelvault.ui.components.ScanInputMode
+import com.velox.jewelvault.ui.components.ScanInputModeSelector
 import com.velox.jewelvault.ui.components.baseBackground1
 import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.to3FString
+import com.velox.jewelvault.utils.extractScannedItemId
+import com.velox.jewelvault.utils.normalizeScannedCode
 import com.velox.jewelvault.utils.parseQrItemPayload
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
@@ -56,6 +61,24 @@ fun AuditScreen(
 ) {
     val navController = LocalNavController.current
     viewModel.currentScreenHeadingState.value = "Audit"
+    val scanInputMode = remember { mutableStateOf(ScanInputMode.AUTO) }
+    val lastScan = remember { mutableStateOf<Pair<String, Long>?>(null) }
+    val onRawScan: (String) -> Unit = scan@{ raw ->
+        val normalizedRaw = normalizeScannedCode(raw)
+        if (normalizedRaw.isBlank()) return@scan
+
+        val itemId = extractScannedItemId(normalizedRaw)
+        if (itemId.isBlank()) return@scan
+
+        val now = System.currentTimeMillis()
+        val previous = lastScan.value
+        if (previous != null && previous.first == itemId && now - previous.second <= 500L) {
+            return@scan
+        }
+        lastScan.value = itemId to now
+        viewModel.snackBarState.value = "Scanned $itemId"
+        viewModel.processScannedItem(itemId)
+    }
 
     Column(
         modifier = Modifier
@@ -84,7 +107,7 @@ fun AuditScreen(
                                 .fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(
+                            com.velox.jewelvault.ui.components.AppTextButton(
                                 onClick = { viewModel.clearScannedItems() }
                             ) {
                                 Text("Clear Scanned (${viewModel.getScannedCount()})")
@@ -201,6 +224,15 @@ fun AuditScreen(
                         fontSize = 14.sp,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
+                    ScanInputModeSelector(
+                        mode = scanInputMode.value,
+                        onModeChange = { scanInputMode.value = it },
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    HardwareScannerCapture(
+                        enabled = scanInputMode.value != ScanInputMode.CAMERA,
+                        onScanned = { onRawScan(it) }
+                    )
 
                     // Embedded Camera Preview
                     EmbeddedCameraView(
@@ -208,7 +240,8 @@ fun AuditScreen(
                             .fillMaxWidth()
                             .height(150.dp) ,
                         onCodeScanned = { scannedId ->
-                            viewModel.processScannedItem(scannedId)
+                            if (scanInputMode.value == ScanInputMode.HARDWARE) return@EmbeddedCameraView
+                            onRawScan(scannedId)
                         },
                         selectedCategory = viewModel.selectedCategory.text,
                         selectedSubCategory = viewModel.selectedSubCategory.text
@@ -321,6 +354,7 @@ private fun EmbeddedCameraView(
 
     var barcodeResults by remember { mutableStateOf(listOf<Pair<RectF, String>>()) }
     val previewSize = remember { mutableStateOf(Size.Zero) }
+    val lastEmit = remember { mutableStateOf<Pair<String, Long>?>(null) }
 
     fun scaleRectToPreview(
         rect: Rect,
@@ -399,9 +433,16 @@ private fun EmbeddedCameraView(
 
                                     // Process the first detected barcode
                                     barcodeResults.firstOrNull()?.let { result ->
-                                        val rawValue = result.second.trim()
+                                        val rawValue = normalizeScannedCode(result.second)
                                         val normalizedId = parseQrItemPayload(rawValue)?.id ?: rawValue
-                                        onCodeScanned(normalizedId)
+                                        if (normalizedId.isNotBlank()) {
+                                            val now = System.currentTimeMillis()
+                                            val previous = lastEmit.value
+                                            if (previous == null || previous.first != normalizedId || now - previous.second > 700L) {
+                                                lastEmit.value = normalizedId to now
+                                                onCodeScanned(normalizedId)
+                                            }
+                                        }
                                     }
                                 }
                                 .addOnCompleteListener {

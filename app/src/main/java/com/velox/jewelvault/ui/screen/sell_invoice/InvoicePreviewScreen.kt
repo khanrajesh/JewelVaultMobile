@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -230,14 +229,15 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                         )
 
                         // Reset button
-                        IconButton(
+                        com.velox.jewelvault.ui.components.AppIconButton(
                             onClick = iconBtnOnClick,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(16.dp)
                                 .size(36.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp)
+                                    MaterialTheme.colorScheme.background,
+                                    MaterialTheme.shapes.large
                                 )
                         ) {
                             Icon(Icons.TwoTone.Refresh, contentDescription = "Reset Zoom/Pan")
@@ -265,13 +265,15 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Button(
-                            onClick = { sharePdf(context, pdfFile) }, modifier = Modifier.weight(1f)
+                        com.velox.jewelvault.ui.components.AppButton(
+                            onClick = { sharePdf(context, pdfFile) },
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Text("Share PDF")
                         }
 
-                        Button(
+                        com.velox.jewelvault.ui.components.AppButton(
                             onClick = {
                                 if (isDraftMode) {
                                     invoiceViewModel.draftClearData()
@@ -283,7 +285,9 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
                                         inclusive = true
                                     }
                                 }
-                            }, modifier = Modifier.weight(1f)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = MaterialTheme.shapes.medium
                         ) {
                             Text("Exit")
                         }
@@ -611,7 +615,7 @@ private fun PaymentDetailsSection(
 
             if (isDraftMode) {
                 // Draft mode: Generate PDF button
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = {
                         if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
                             invoiceViewModel.draftCompleteOrder(
@@ -627,13 +631,15 @@ private fun PaymentDetailsSection(
                         } else {
                             invoiceViewModel.snackBarState.value = "Please Sign"
                         }
-                    }, modifier = Modifier.fillMaxWidth()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Generate Draft Invoice")
                 }
             } else {
                 // Regular mode: Payment and order completion
-                Button(
+                com.velox.jewelvault.ui.components.AppButton(
                     onClick = {
                         if (invoiceViewModel.invoiceNo.text.isNotEmpty() && invoiceViewModel.invoiceNo.text.isNotBlank()) {
                             if (invoiceViewModel.customerSign.value != null && invoiceViewModel.ownerSign.value != null) {
@@ -670,7 +676,9 @@ private fun PaymentDetailsSection(
                         } else {
                             invoiceViewModel.snackBarState.value = "invoice number can't be blank"
                         }
-                    }, modifier = Modifier.fillMaxWidth()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Complete Order")
                 }
@@ -1099,5 +1107,6 @@ fun ItemSummaryCard(
         }
     }
 }
+
 
 
