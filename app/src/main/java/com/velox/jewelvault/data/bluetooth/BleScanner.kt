@@ -213,6 +213,23 @@ class BleScanner(
                 svcMap[uuid.uuid] = bytes
             }
 
+            // Log raw advertisement bytes and look for MAC-like sequences in manufacturer/service data.
+            val advHints = buildList {
+                manuMap.forEach { (id, bytes) ->
+                    val hex = bytes.toHexString()
+                    val macs = findMacCandidates(bytes)
+                    add("mfgId=$id hex=$hex macs=${if (macs.isEmpty()) "<none>" else macs.joinToString(", ")}")
+                }
+                svcMap.forEach { (uuid, bytes) ->
+                    val hex = bytes.toHexString()
+                    val macs = findMacCandidates(bytes)
+                    add("svcUuid=$uuid hex=$hex macs=${if (macs.isEmpty()) "<none>" else macs.joinToString(", ")}")
+                }
+            }
+            if (advHints.isNotEmpty()) {
+                log("SCAN: BLE adv data -> ${advHints.joinToString(" | ")}")
+            }
+
             logDevice("record: $record, manuMap: $manuMap, svcMap: $svcMap, result: $result",device)
             val details = manager.buildBluetoothDevice(
                 device,
@@ -236,5 +253,36 @@ class BleScanner(
 
     private fun recomputeIsDiscovering() {
         isDiscovering.value = classicDiscoveringState.value || leDiscoveringState.value
+    }
+
+    private fun ByteArray.toHexString(): String {
+        return joinToString(separator = " ") { String.format("%02X", it) }
+    }
+
+    private fun findMacCandidates(bytes: ByteArray): List<String> {
+        if (bytes.size < 6) return emptyList()
+        val out = mutableSetOf<String>()
+        for (i in 0..bytes.size - 6) {
+            val slice = bytes.copyOfRange(i, i + 6)
+            if (isPlausibleMac(slice)) {
+                out.add("off=$i ${formatMac(slice)}")
+            }
+            val rev = slice.reversedArray()
+            if (isPlausibleMac(rev)) {
+                out.add("off=$i rev ${formatMac(rev)}")
+            }
+        }
+        return out.toList()
+    }
+
+    private fun isPlausibleMac(bytes: ByteArray): Boolean {
+        if (bytes.size != 6) return false
+        val allZero = bytes.all { it.toInt() == 0x00 }
+        val allFf = bytes.all { it.toInt() == 0xFF.toByte().toInt() }
+        return !(allZero || allFf)
+    }
+
+    private fun formatMac(bytes: ByteArray): String {
+        return bytes.joinToString(":") { String.format("%02X", it) }
     }
 }

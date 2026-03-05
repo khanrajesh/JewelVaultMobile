@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.velox.jewelvault.ui.components.TextListView
 import com.velox.jewelvault.ui.components.baseBackground0
@@ -271,10 +269,11 @@ fun DeleteConfirmationDialog(
             Button(
                 onClick = onConfirm,
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = Color.Red
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
                 )
             ) {
-                Text("Delete", color = Color.White)
+                Text("Delete")
             }
         },
         dismissButton = {

@@ -2,7 +2,6 @@ package com.velox.jewelvault.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Close
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -69,7 +67,7 @@ fun ExchangeItemDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 700.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(
@@ -114,7 +112,7 @@ fun ExchangeItemDialog(
                                 onClearAll()
                             }
                         ) {
-                            Text("Clear All", color = Color.Red)
+                            Text("Clear All", color = MaterialTheme.colorScheme.error)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -178,7 +176,7 @@ fun ExchangeItemDialog(
                                         Icon(
                                             Icons.TwoTone.Delete,
                                             contentDescription = "Delete",
-                                            tint = Color.Red
+                                            tint = MaterialTheme.colorScheme.error
                                         )
                                     }
                                 }

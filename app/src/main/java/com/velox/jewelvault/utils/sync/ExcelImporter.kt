@@ -40,7 +40,7 @@ class ExcelImporter(
     
     // --- Constants for column indexes ---
     private object UserCols { const val ID = 0; const val NAME = 1; const val EMAIL = 2; const val MOBILENO = 3; const val TOKEN = 4; const val PIN = 5; const val ROLE = 6; const val LASTUPDATED = 7 }
-    private object StoreCols { const val STOREID = 0; const val USERID = 1; const val PROPRIETOR = 2; const val NAME = 3; const val EMAIL = 4; const val PHONE = 5; const val ADDRESS = 6; const val REGNO = 7; const val GSTIN = 8; const val PAN = 9; const val IMAGE = 10; const val INVOICENO = 11; const val UPIID = 12; const val LASTUPDATED = 13 }
+    private object StoreCols { const val STOREID = 0; const val USERID = 1; const val PROPRIETOR = 2; const val NAME = 3; const val EMAIL = 4; const val PHONE = 5; const val ADDRESS = 6; const val JURISDICTION = 7; const val REGNO = 8; const val GSTIN = 9; const val PAN = 10; const val IMAGE = 11; const val INVOICENO = 12; const val UPIID = 13; const val LASTUPDATED = 14 }
     private object CategoryCols { const val CATID = 0; const val CATNAME = 1; const val GSWt = 2; const val FNWt = 3; const val USERID = 4; const val STOREID = 5 }
     private object SubCategoryCols { const val SUBCATID = 0; const val CATID = 1; const val USERID = 2; const val STOREID = 3; const val CATNAME = 4; const val SUBCATNAME = 5; const val QUANTITY = 6; const val GSWt = 7; const val FNWt = 8 }
     private object ItemCols { const val ITEMID = 0; const val ITEMADDNAME = 1; const val CATID = 2; const val USERID = 3; const val STOREID = 4; const val CATNAME = 5; const val SUBCATID = 6; const val SUBCATNAME = 7; const val ENTRYTYPE = 8; const val QUANTITY = 9; const val GSWt = 10; const val NTWt = 11; const val FNWt = 12; const val PURITY = 13; const val CRGTYPE = 14; const val CRG = 15; const val OTHCRGDES = 16; const val OTHCRG = 17; const val CGST = 18; const val SGST = 19; const val IGST = 20; const val HUID = 21; const val UNIT = 22; const val ADDDESKEY = 23; const val ADDDESVALUE = 24; const val ADDDATE = 25; const val MODIFIEDDATE = 26; const val SELLERFIRMID = 27; const val PURCHASEORDERID = 28; const val PURCHASEITEMID = 29 }
@@ -48,8 +48,8 @@ class ExcelImporter(
     private object KhataBookPlanCols { const val PLANID = 0; const val NAME = 1; const val PAYMONTHS = 2; const val BENEFITMONTHS = 3; const val DESCRIPTION = 4; const val BENEFITPERCENTAGE = 5; const val USERID = 6; const val STOREID = 7; const val CREATEDAT = 8; const val UPDATEDAT = 9 }
     private object KhataBookCols { const val KHATABOOKID = 0; const val CUSTOMERMOBILE = 1; const val PLANNAME = 2; const val STARTDATE = 3; const val ENDDATE = 4; const val MONTHLYAMOUNT = 5; const val TOTALMONTHS = 6; const val TOTALAMOUNT = 7; const val STATUS = 8; const val NOTES = 9; const val USERID = 10; const val STOREID = 11 }
     private object TransactionCols { const val TRANSACTIONID = 0; const val CUSTOMERMOBILE = 1; const val TRANSACTIONDATE = 2; const val AMOUNT = 3; const val TRANSACTIONTYPE = 4; const val CATEGORY = 5; const val DESCRIPTION = 6; const val REFERENCENUMBER = 7; const val PAYMENTMETHOD = 8; const val KHATABOOKID = 9; const val MONTHNUMBER = 10; const val NOTES = 11; const val USERID = 12; const val STOREID = 13 }
-    private object OrderCols { const val ORDERID = 0; const val CUSTOMERMOBILE = 1; const val STOREID = 2; const val USERID = 3; const val ORDERDATE = 4; const val TOTALAMOUNT = 5; const val TOTALTAX = 6; const val TOTALCHARGE = 7; const val DISCOUNT = 8 ; const val NOTE = 9 }
-    private object OrderItemCols { const val ORDERITEMID = 0; const val ORDERID = 1; const val ORDERDATE = 2; const val ITEMID = 3; const val CUSTOMERMOBILE = 4; const val CATID = 5; const val CATNAME = 6; const val ITEMADDNAME = 7; const val SUBCATID = 8; const val SUBCATNAME = 9; const val ENTRYTYPE = 10; const val QUANTITY = 11; const val GSWt = 12; const val NTWt = 13; const val FNWt = 14; const val FNMETALPRICE = 15; const val PURITY = 16; const val CRGTYPE = 17; const val CRG = 18; const val OTHCRGDES = 19; const val OTHCRG = 20; const val CGST = 21; const val SGST = 22; const val IGST = 23; const val HUID = 24; const val ADDDESKEY = 25; const val ADDDESVALUE = 26; const val PRICE = 27; const val CHARGE = 28; const val TAX = 29; const val SELLERFIRMID = 30; const val PURCHASEORDERID = 31; const val PURCHASEITEMID = 32 }
+    private object OrderCols { const val ORDERID = 0; const val CUSTOMERMOBILE = 1; const val STOREID = 2; const val USERID = 3; const val ORDERDATE = 4; const val TOTALAMOUNT = 5; const val TOTALTAX = 6; const val TOTALCHARGE = 7; const val DISCOUNT = 8; const val INVOICENO = 9; const val NOTE = 10 }
+    private object OrderItemCols { const val ORDERITEMID = 0; const val ORDERID = 1; const val ORDERDATE = 2; const val ITEMID = 3; const val CUSTOMERMOBILE = 4; const val INVOICENO = 5; const val CATID = 6; const val CATNAME = 7; const val ITEMADDNAME = 8; const val SUBCATID = 9; const val SUBCATNAME = 10; const val ENTRYTYPE = 11; const val QUANTITY = 12; const val GSWt = 13; const val NTWt = 14; const val FNWt = 15; const val FNMETALPRICE = 16; const val PURITY = 17; const val CRGTYPE = 18; const val CRG = 19; const val OTHCRGDES = 20; const val OTHCRG = 21; const val CGST = 22; const val SGST = 23; const val IGST = 24; const val HUID = 25; const val ADDDESKEY = 26; const val ADDDESVALUE = 27; const val PRICE = 28; const val CHARGE = 29; const val TAX = 30; const val SELLERFIRMID = 31; const val PURCHASEORDERID = 32; const val PURCHASEITEMID = 33 }
     private object ExchangeItemCols { const val EXCHANGEITEMID = 0; const val ORDERID = 1; const val ORDERDATE = 2; const val CUSTOMERMOBILE = 3; const val METALTYPE = 4; const val PURITY = 5; const val GROSSWEIGHT = 6; const val FINEWEIGHT = 7; const val PRICE = 8; const val ISEXCHANGEDBYMETAL = 9; const val EXCHANGEVALUE = 10; const val ADDDATE = 11 }
     private object FirmCols { const val FIRMID = 0; const val FIRMNAME = 1; const val FIRMMOBILENUMBER = 2; const val GSTNUMBER = 3; const val ADDRESS = 4 }
     private object PurchaseOrderCols { const val PURCHASEORDERID = 0; const val SELLERID = 1; const val BILLNO = 2; const val BILLDATE = 3; const val ENTRYDATE = 4; const val EXTRACHARGEDESCRIPTION = 5; const val EXTRACHARGE = 6; const val TOTALFINALWEIGHT = 7; const val TOTALFINALAMOUNT = 8; const val NOTES = 9; const val CGSTPERCENT = 10; const val SGSTPERCENT = 11; const val IGSTPERCENT = 12 }
@@ -310,6 +310,7 @@ class ExcelImporter(
                                 email = getCellValueAsString(cell(row, headerMap, "email", StoreCols.EMAIL)),
                                 phone = getCellValueAsString(cell(row, headerMap, "phone", StoreCols.PHONE)),
                                 address = getCellValueAsString(cell(row, headerMap, "address", StoreCols.ADDRESS)),
+                                jurisdiction = getCellValueAsString(cell(row, headerMap, "jurisdiction", StoreCols.JURISDICTION)),
                                 registrationNo = getCellValueAsString(cell(row, headerMap, "registrationNo", StoreCols.REGNO)),
                                 gstinNo = getCellValueAsString(cell(row, headerMap, "gstinNo", StoreCols.GSTIN)),
                                 panNo = getCellValueAsString(cell(row, headerMap, "panNo", StoreCols.PAN)),
@@ -336,6 +337,7 @@ class ExcelImporter(
                                 email = getCellValueAsString(cell(row, headerMap, "email", StoreCols.EMAIL)),
                                 phone = getCellValueAsString(cell(row, headerMap, "phone", StoreCols.PHONE)),
                                 address = getCellValueAsString(cell(row, headerMap, "address", StoreCols.ADDRESS)),
+                                jurisdiction = getCellValueAsString(cell(row, headerMap, "jurisdiction", StoreCols.JURISDICTION)),
                                 registrationNo = getCellValueAsString(cell(row, headerMap, "registrationNo", StoreCols.REGNO)),
                                 gstinNo = getCellValueAsString(cell(row, headerMap, "gstinNo", StoreCols.GSTIN)),
                                 panNo = getCellValueAsString(cell(row, headerMap, "panNo", StoreCols.PAN)),
@@ -848,6 +850,7 @@ class ExcelImporter(
                                 totalTax = getCellValueAsDouble(cell(row, headerMap, "totalTax", OrderCols.TOTALTAX)),
                                 totalCharge = getCellValueAsDouble(cell(row, headerMap, "totalCharge", OrderCols.TOTALCHARGE)),
                                 discount = getCellValueAsDouble(cell(row, headerMap, "discount", OrderCols.DISCOUNT)),
+                                invoiceNo = getCellValueAsString(cell(row, headerMap, "invoiceNo", OrderCols.INVOICENO)),
                                 note = getCellValueAsString(cell(row, headerMap, "note", OrderCols.NOTE))
                             )
                             database.orderDao().insertOrder(order)
@@ -867,6 +870,7 @@ class ExcelImporter(
                             totalTax = getCellValueAsDouble(cell(row, headerMap, "totalTax", OrderCols.TOTALTAX)),
                             totalCharge = getCellValueAsDouble(cell(row, headerMap, "totalCharge", OrderCols.TOTALCHARGE)),
                             discount = getCellValueAsDouble(cell(row, headerMap, "discount", OrderCols.DISCOUNT)),
+                            invoiceNo = getCellValueAsString(cell(row, headerMap, "invoiceNo", OrderCols.INVOICENO)),
                             note = getCellValueAsString(cell(row, headerMap, "note", OrderCols.NOTE))
                         )
                         database.orderDao().insertOrder(order)
@@ -900,6 +904,7 @@ class ExcelImporter(
                                 orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderItemCols.ORDERDATE))),
                                 itemId = getCellValueAsString(cell(row, headerMap, "itemId", OrderItemCols.ITEMID)),
                                 customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderItemCols.CUSTOMERMOBILE)),
+                                invoiceNo = getCellValueAsString(cell(row, headerMap, "invoiceNo", OrderItemCols.INVOICENO)),
                                 catId = getCellValueAsString(cell(row, headerMap, "catId", OrderItemCols.CATID)),
                                 catName = getCellValueAsString(cell(row, headerMap, "catName", OrderItemCols.CATNAME)),
                                 itemAddName = getCellValueAsString(cell(row, headerMap, "itemAddName", OrderItemCols.ITEMADDNAME)),
@@ -942,6 +947,7 @@ class ExcelImporter(
                             orderDate = parseDateString(getCellValueAsString(cell(row, headerMap, "orderDate", OrderItemCols.ORDERDATE))),
                             itemId = getCellValueAsString(cell(row, headerMap, "itemId", OrderItemCols.ITEMID)),
                             customerMobile = getCellValueAsString(cell(row, headerMap, "customerMobile", OrderItemCols.CUSTOMERMOBILE)),
+                            invoiceNo = getCellValueAsString(cell(row, headerMap, "invoiceNo", OrderItemCols.INVOICENO)),
                             catId = getCellValueAsString(cell(row, headerMap, "catId", OrderItemCols.CATID)),
                             catName = getCellValueAsString(cell(row, headerMap, "catName", OrderItemCols.CATNAME)),
                             itemAddName = getCellValueAsString(cell(row, headerMap, "itemAddName", OrderItemCols.ITEMADDNAME)),

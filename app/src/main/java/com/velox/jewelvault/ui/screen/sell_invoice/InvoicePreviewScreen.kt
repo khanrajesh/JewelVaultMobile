@@ -70,9 +70,9 @@ import com.velox.jewelvault.ui.nav.Screens
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.LocalNavController
-import com.velox.jewelvault.utils.PdfRendererPreview
+import com.velox.jewelvault.utils.pdf.PdfRendererPreview
 import com.velox.jewelvault.utils.isLandscape
-import com.velox.jewelvault.utils.sharePdf
+import com.velox.jewelvault.utils.pdf.sharePdf
 import com.velox.jewelvault.utils.to3FString
 
 
@@ -133,40 +133,6 @@ fun SellPreviewScreen(invoiceViewModel: InvoiceViewModel) {
         if (pdfFile == null) {
             // Before PDF generation: Item details on left, signatures on right
             // Item Details Card
-            /*  if (isLandscape()) {
-                  Row(
-                      modifier = Modifier
-                          .fillMaxWidth()
-                          .weight(1f)
-                  ) {
-                      ItemSummaryCard(
-                          title = "Bill Details",
-                          invoiceViewModel = invoiceViewModel,
-                          modifier = Modifier.weight(1f)
-                      )
-
-                      // Signatures section on the right
-                      Spacer(modifier = Modifier.width(8.dp))
-
-                      PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
-                  }
-
-              } else {
-                  Column(Modifier
-                      .fillMaxWidth()
-                      .verticalScroll(rememberScrollState())) {
-  //                    ItemSummaryCard(
-  //                        title = "Bill Details",
-  //                        invoiceViewModel = invoiceViewModel,
-  //                        modifier = Modifier.wrapContentHeight()
-  //                    )
-  //
-  //                    // Signatures section on the right
-  //                    Spacer(modifier = Modifier.height(8.dp))
-
-                      PaymentDetailsSection(invoiceViewModel, isDraftMode, context, orderCompleted)
-                  }
-              }*/
 
             RowOrColumn(
                 rowModifier = Modifier
@@ -413,12 +379,21 @@ private fun PaymentDetailsSection(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 RowOrColumn {
-                    CusOutlinedTextField(
-                        state = invoiceViewModel.invoiceNo,
-                        placeholderText = "Invoice number",
-                        modifier = if(isLandscape)Modifier.weight(1f)else Modifier,
-                        keyboardType = KeyboardType.Number
-                    )
+                    Column(
+                        modifier = if (isLandscape) Modifier.weight(1f) else Modifier
+                    ) {
+                        CusOutlinedTextField(
+                            state = invoiceViewModel.invoiceNo,
+                            placeholderText = "Invoice number",
+                            keyboardType = KeyboardType.Number
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CusOutlinedTextField(
+                            state = invoiceViewModel.invoiceDate,
+                            placeholderText = "Invoice date (dd/MM/yyyy)",
+                            keyboardType = KeyboardType.Text
+                        )
+                    }
 
                     Column(
                         modifier = Modifier.padding(12.dp)
@@ -642,6 +617,7 @@ private fun PaymentDetailsSection(
                             invoiceViewModel.draftCompleteOrder(
                                 context = context,
                                 invoiceNo = invoiceViewModel.invoiceNo.text,
+                                invoiceDate = invoiceViewModel.invoiceDate.text,
                                 onSuccess = {
                                     invoiceViewModel.snackBarState.value = "Draft Invoice Generated"
                                 },
@@ -678,6 +654,7 @@ private fun PaymentDetailsSection(
 
                                 invoiceViewModel.completeOrder(
                                     invoiceNo = invoiceViewModel.invoiceNo.text,
+                                    invoiceDate = invoiceViewModel.invoiceDate.text,
                                     onSuccess = {
 
                                         orderCompleted.value = true

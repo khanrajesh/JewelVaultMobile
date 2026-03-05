@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.*
 import androidx.compose.material3.*
@@ -110,6 +109,34 @@ fun SettingScreen() {
                         subtitle = "Automatically refresh metal prices",
                         checked = baseViewModel.autoRefreshMetalRates.value,
                         onCheckedChange = { baseViewModel.updateSetting("auto_refresh_metal_rates", it) }
+                    )
+                }
+
+                // UI Appearance Settings
+                item {
+                    SettingsSectionHeader("UI Appearance", Icons.TwoTone.Settings)
+                }
+
+                item {
+                    val selectedThemeLabel =
+                        if (baseViewModel.uiThemeStyle.value.lowercase() == "minimal") "Minimal" else "Gold"
+                    SettingsDropdownItem(
+                        title = "Theme Style",
+                        subtitle = "Pick a color style for the app",
+                        selectedLabel = selectedThemeLabel,
+                        options = listOf("Gold" to "gold", "Minimal" to "minimal"),
+                        onOptionSelected = { baseViewModel.updateSetting("ui_theme_style", it) }
+                    )
+                }
+
+                item {
+                    SettingsSwitchItem(
+                        title = "Show Keyboard with HID",
+                        subtitle = "Keep on-screen keyboard visible even with physical/HID keyboard",
+                        checked = baseViewModel.forceSoftKeyboardWithHid.value,
+                        onCheckedChange = {
+                            baseViewModel.updateSetting("force_soft_keyboard_with_hid", it)
+                        }
                     )
                 }
 
@@ -414,7 +441,7 @@ fun SettingsActionItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -460,7 +487,7 @@ fun SettingsSwitchItem(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -502,7 +529,7 @@ fun SettingsTextInputItem(
 
     Surface(
         onClick = { isEditing = true },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -575,7 +602,7 @@ fun SettingsSliderItem(
     steps: Int
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -614,7 +641,7 @@ fun SettingsInfoItem(
     subtitle: String
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -634,6 +661,73 @@ fun SettingsInfoItem(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsDropdownItem(
+    title: String,
+    subtitle: String,
+    selectedLabel: String,
+    options: List<Pair<String, String>>,
+    onOptionSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        Surface(
+            onClick = { expanded = true },
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = selectedLabel,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.TwoTone.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { (label, value) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onOptionSelected(value)
+                        expanded = false
+                    }
                 )
             }
         }

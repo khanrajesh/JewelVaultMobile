@@ -14,11 +14,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Bluetooth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -53,10 +53,10 @@ fun BluetoothToggleIcon(
     }
 
     val iconColor = when (bluetoothState.currentState) {
-        BluetoothAdapter.STATE_ON -> Color.Blue
-        BluetoothAdapter.STATE_OFF -> Color(0xFF55565B)
-        BluetoothAdapter.STATE_TURNING_ON, BluetoothAdapter.STATE_TURNING_OFF -> Color(0xFFFAC03A)
-        else -> Color.Gray
+        BluetoothAdapter.STATE_ON -> MaterialTheme.colorScheme.primary
+        BluetoothAdapter.STATE_OFF -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        BluetoothAdapter.STATE_TURNING_ON, BluetoothAdapter.STATE_TURNING_OFF -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.outline
     }
 
     // Debug logging for icon color changes

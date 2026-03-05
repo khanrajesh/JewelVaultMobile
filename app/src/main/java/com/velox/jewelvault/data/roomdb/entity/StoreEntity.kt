@@ -14,6 +14,7 @@ data class StoreEntity (
     val email: String,
     val phone: String,
     val address: String,
+    val jurisdiction: String = "",
     val registrationNo:String,
     val gstinNo:String,
     val panNo:String,

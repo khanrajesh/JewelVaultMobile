@@ -24,6 +24,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -41,7 +43,9 @@ import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.bluetooth.BleManager
 import com.velox.jewelvault.ui.nav.AppNavigation
 import com.velox.jewelvault.ui.nav.Screens
+import com.velox.jewelvault.ui.theme.AppThemeStyle
 import com.velox.jewelvault.ui.theme.JewelVaultTheme
+import com.velox.jewelvault.ui.theme.appThemeStyleFromKey
 import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.fcm.NotificationConstants.EXTRA_TARGET_ARG
 import com.velox.jewelvault.utils.fcm.NotificationConstants.EXTRA_TARGET_ROUTE
@@ -93,10 +97,32 @@ class MainActivity : FragmentActivity() {
             val navController = rememberNavController()
             val baseViewModel: BaseViewModel = hiltViewModel()
             val networkCheckEnabled = remember { mutableStateOf(true) }
+            val themeModeFlow = remember {
+                dataStoreManager.getValue(DataStoreManager.THEME_MODE, AppThemeStyle.GOLD.key)
+            }
+            val forceKeyboardWithHidFlow = remember {
+                dataStoreManager.getValue(DataStoreManager.FORCE_SOFT_KEYBOARD_WITH_HID, true)
+            }
+            val persistedThemeMode by themeModeFlow.collectAsState(initial = AppThemeStyle.GOLD.key)
+            val persistedForceKeyboardWithHid by forceKeyboardWithHidFlow.collectAsState(initial = true)
+            val shouldForceKeyboardWithHid = persistedForceKeyboardWithHid ?: true
 
             LaunchedEffect(Unit) {
                 incomingIntents.collectLatest { navIntent ->
                     navIntent?.let { handleNotificationIntent(it, baseViewModel) }
+                }
+            }
+
+            LaunchedEffect(persistedThemeMode) {
+                val selectedTheme = persistedThemeMode ?: AppThemeStyle.GOLD.key
+                if (baseViewModel.uiThemeStyle.value != selectedTheme) {
+                    baseViewModel.uiThemeStyle.value = selectedTheme
+                }
+            }
+
+            LaunchedEffect(shouldForceKeyboardWithHid) {
+                if (baseViewModel.forceSoftKeyboardWithHid.value != shouldForceKeyboardWithHid) {
+                    baseViewModel.forceSoftKeyboardWithHid.value = shouldForceKeyboardWithHid
                 }
             }
 
@@ -165,7 +191,10 @@ class MainActivity : FragmentActivity() {
                 }
             }
 
-            JewelVaultTheme {
+            JewelVaultTheme(
+                themeStyle = appThemeStyleFromKey(persistedThemeMode ?: AppThemeStyle.GOLD.key),
+                forceSoftKeyboardWithHid = shouldForceKeyboardWithHid
+            ) {
                 LaunchedEffect(baseViewModel.snackBarState) {
                     log("snackMessage: ${baseViewModel.snackBarState}")
                     if (baseViewModel.snackBarState.isNotBlank()) delay(5000)

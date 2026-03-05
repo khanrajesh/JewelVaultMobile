@@ -32,6 +32,7 @@ import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.utils.SecurityUtils
 import com.velox.jewelvault.utils.sync.SyncManager
 import com.velox.jewelvault.utils.sync.SyncService
+import com.velox.jewelvault.ui.theme.AppThemeStyle
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.log
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -121,6 +122,8 @@ class BaseViewModel @Inject constructor(
     val defaultCgst = mutableStateOf("1.5")
     val defaultSgst = mutableStateOf("1.5")
     val defaultIgst = mutableStateOf("0.0")
+    val uiThemeStyle = mutableStateOf(AppThemeStyle.GOLD.key)
+    val forceSoftKeyboardWithHid = mutableStateOf(true)
 
     // Data wipe verification state
     val showDataWipeConfirmation = mutableStateOf(false)
@@ -577,6 +580,12 @@ fun dismissUpdateDialog() {
                 defaultIgst.value =
                     _dataStoreManager.getValue(DataStoreManager.DEFAULT_IGST, "0.0").first()
                         ?: "0.0"
+                uiThemeStyle.value =
+                    _dataStoreManager.getValue(DataStoreManager.THEME_MODE, AppThemeStyle.GOLD.key)
+                        .first() ?: AppThemeStyle.GOLD.key
+                forceSoftKeyboardWithHid.value =
+                    _dataStoreManager.getValue(DataStoreManager.FORCE_SOFT_KEYBOARD_WITH_HID, true)
+                        .first() ?: true
             } catch (e: Exception) {
                 _snackBarState.value = "Failed to load settings: ${e.message}"
             }
@@ -662,6 +671,27 @@ fun dismissUpdateDialog() {
                         _dataStoreManager.setValue(DataStoreManager.DEFAULT_IGST, value as String)
                         defaultIgst.value = value as String
                         _snackBarState.value = "IGST rate updated to ${value as String}%"
+                    }
+
+                    "ui_theme_style" -> {
+                        val selectedTheme = when ((value as String).trim().lowercase()) {
+                            AppThemeStyle.MINIMAL.key -> AppThemeStyle.MINIMAL.key
+                            else -> AppThemeStyle.GOLD.key
+                        }
+                        uiThemeStyle.value = selectedTheme
+                        _dataStoreManager.setValue(DataStoreManager.THEME_MODE, selectedTheme)
+                        _snackBarState.value = "Theme changed to ${selectedTheme.replaceFirstChar { it.uppercase() }}"
+                    }
+
+                    "force_soft_keyboard_with_hid" -> {
+                        val enabled = value as Boolean
+                        _dataStoreManager.setValue(
+                            DataStoreManager.FORCE_SOFT_KEYBOARD_WITH_HID,
+                            enabled
+                        )
+                        forceSoftKeyboardWithHid.value = enabled
+                        _snackBarState.value =
+                            if (enabled) "On-screen keyboard with HID enabled" else "On-screen keyboard with HID disabled"
                     }
                 }
             } catch (e: Exception) {
@@ -847,6 +877,8 @@ fun dismissUpdateDialog() {
         defaultCgst.value = "1.5"
         defaultSgst.value = "1.5"
         defaultIgst.value = "0.0"
+        uiThemeStyle.value = AppThemeStyle.GOLD.key
+        forceSoftKeyboardWithHid.value = true
     }
 
     private fun hasBackupPermission(context: Context): Boolean {

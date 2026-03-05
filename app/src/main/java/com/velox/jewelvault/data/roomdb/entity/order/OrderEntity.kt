@@ -18,6 +18,7 @@ data class OrderEntity(
     val totalTax: Double = 0.0,
     val totalCharge: Double = 0.0,
     val discount: Double,
+    val invoiceNo: String = "",
     val note: String? = null
 )
 

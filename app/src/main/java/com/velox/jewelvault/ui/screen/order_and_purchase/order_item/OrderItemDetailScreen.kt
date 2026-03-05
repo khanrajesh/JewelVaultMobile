@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.twotone.Close
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.velox.jewelvault.ui.components.CusOutlinedTextField
 import com.velox.jewelvault.ui.components.InputFieldState
 import com.velox.jewelvault.ui.components.RowOrColumn
@@ -66,12 +64,13 @@ import com.velox.jewelvault.ui.components.baseBackground0
 import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.ui.nav.SubScreens
 import com.velox.jewelvault.utils.LocalSubNavController
-import com.velox.jewelvault.utils.PdfRendererPreview
-import com.velox.jewelvault.utils.VaultPreview
+import com.velox.jewelvault.utils.pdf.PdfRendererPreview
 import com.velox.jewelvault.utils.formatDate
 import com.velox.jewelvault.utils.mainScope
-import com.velox.jewelvault.utils.sharePdf
+import com.velox.jewelvault.utils.pdf.sharePdf
 import com.velox.jewelvault.utils.to3FString
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /*@Composable
 @VaultPreview
@@ -166,7 +165,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                     modifier = Modifier
                         .padding(8.dp)
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)
+                            MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
                         )
                         .padding(8.dp)
                         .bounceClick {
@@ -270,7 +269,7 @@ fun OrderItemDetailScreen(viewModel: OrderItemViewModel, orderId: String) {
                                 .padding(16.dp)
                                 .size(36.dp)
                                 .background(
-                                    MaterialTheme.colorScheme.background, RoundedCornerShape(18.dp)
+                                    MaterialTheme.colorScheme.background, MaterialTheme.shapes.large
                                 )
                         ) {
                             Icon(Icons.TwoTone.Refresh, contentDescription = "Reset Zoom/Pan")
@@ -532,11 +531,23 @@ fun OrderSummaryCard(
         )
         CusOutlinedTextField(
             state = viewModel.invoiceNo,
-//                             onTextChange = { invoiceViewModel.discount.text = it },
             placeholderText = "Invoice number",
             modifier = Modifier,
             keyboardType = KeyboardType.Number,
-            enabled = false
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        CusOutlinedTextField(
+            state = viewModel.invoiceDate,
+            placeholderText = "Invoice date (dd/MM/yyyy)",
+            modifier = Modifier,
+            keyboardType = KeyboardType.Text,
+            isDatePicker = true,
+            initialDate = runCatching {
+                LocalDate.parse(
+                    viewModel.invoiceDate.text,
+                    DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                )
+            }.getOrDefault(LocalDate.now())
         )
 
         viewModel.orderDetailsEntity?.let { orderDetails ->

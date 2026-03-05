@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -269,7 +268,7 @@ private fun PermissionToggleCard(
     val accentColor = MaterialTheme.colorScheme.primary
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
@@ -309,16 +308,6 @@ private fun PermissionToggleCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    val statusText = when {
-                        !enabled -> "Not required on this device"
-                        checked -> "Enabled"
-                        else -> "Disabled"
-                    }
-                    val statusColor = when {
-                        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
-                        checked -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.bodySmall,

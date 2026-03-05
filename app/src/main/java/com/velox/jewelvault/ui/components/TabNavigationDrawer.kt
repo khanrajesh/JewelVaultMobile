@@ -74,6 +74,8 @@ import com.velox.jewelvault.BaseViewModel
 import com.velox.jewelvault.data.MetalRatesTicker
 import com.velox.jewelvault.data.roomdb.entity.users.UsersEntity
 import com.velox.jewelvault.ui.theme.GoldBackground
+import com.velox.jewelvault.ui.theme.AppThemeStyle
+import com.velox.jewelvault.ui.theme.LocalAppThemeStyle
 import com.velox.jewelvault.ui.theme.ZenFontFamily
 import com.velox.jewelvault.utils.LocalBaseViewModel
 import com.velox.jewelvault.utils.VaultPreview
@@ -126,7 +128,7 @@ fun DrawerItem(
 
     Surface(
         color = containerColor,
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -280,7 +282,7 @@ private fun MenuHeaderCard(
     Surface(
         modifier = modifier.bounceClick(onProfileClick),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(16.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top
@@ -356,6 +358,15 @@ private fun PortraitNavView(
     currentUser: UsersEntity? = null,
     content: @Composable (() -> Unit)
 ) {
+    val isMinimalStyle = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val headerContentColor =
+        if (isMinimalStyle) MaterialTheme.colorScheme.onSurface else Color.Black
+    val topBarModifier = if (isMinimalStyle) {
+        Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+    } else {
+        Modifier.background(GoldBackground)
+    }
+
     val bottomNavItems = inputIconStates.filter { item ->
         item.text.equals("Dashboard", ignoreCase = true) || item.text.equals(
             "Inventory", ignoreCase = true
@@ -376,7 +387,7 @@ private fun PortraitNavView(
                 Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .background(GoldBackground),
+                    .then(topBarModifier),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = {
@@ -385,7 +396,7 @@ private fun PortraitNavView(
                     Icon(
                         imageVector = Icons.TwoTone.Menu,
                         contentDescription = "Menu",
-                        tint = Color.Black
+                        tint = headerContentColor
                     )
                 }
                 Box(contentAlignment = Alignment.TopStart) {
@@ -395,7 +406,7 @@ private fun PortraitNavView(
                         fontSize = 22.sp,
                         fontFamily = ZenFontFamily,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = headerContentColor,
                         modifier = Modifier
                             .bounceClick {
                                 ioScope.launch {
@@ -410,7 +421,7 @@ private fun PortraitNavView(
                             text = baseViewModel.currentScreenHeading,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.Black,
+                            color = headerContentColor,
                             modifier = Modifier.offset(y = (17).dp)
                         )
                     }
@@ -651,6 +662,13 @@ private fun LandscapeNavView(
     currentUser: UsersEntity? = null,
     content: @Composable (() -> Unit)
 ) {
+    val isMinimalStyle = LocalAppThemeStyle.current == AppThemeStyle.MINIMAL
+    val railModifier = if (isMinimalStyle) {
+        Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+    } else {
+        Modifier.background(GoldBackground)
+    }
+
     val isDrawerOpen = drawerState.isOpen
     val width = if (isDrawerOpen) 200.dp else 60.dp
 
@@ -659,9 +677,7 @@ private fun LandscapeNavView(
             Modifier
                 .fillMaxHeight()
                 .width(width)
-                .background(
-                    GoldBackground
-                )
+                .then(railModifier)
                 .padding(8.dp)
         ) {
 
@@ -820,7 +836,7 @@ private fun LandscapeNavView(
                             fontSize = 22.sp,
                             fontFamily = ZenFontFamily,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier
                                 .bounceClick {
                                     ioScope.launch {
@@ -835,7 +851,7 @@ private fun LandscapeNavView(
                                 text = baseViewModel.currentScreenHeading,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.Black,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier
                                     .padding(start = 10.dp)
                                     .offset(y = (-7).dp)

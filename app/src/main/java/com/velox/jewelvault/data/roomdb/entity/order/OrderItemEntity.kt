@@ -24,6 +24,7 @@ data class OrderItemEntity(
     val orderDate: Timestamp,
     val itemId: String,
     val customerMobile:String,
+    val invoiceNo: String = "",
     val catId: String,
     val catName: String,
     val itemAddName: String,

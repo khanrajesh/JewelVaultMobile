@@ -10,8 +10,10 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import com.velox.jewelvault.data.DataStoreManager
 import com.velox.jewelvault.data.MetalRate
+import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.data.roomdb.AppDatabase
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
@@ -25,9 +27,9 @@ import com.velox.jewelvault.ui.components.PaymentInfo
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.EntryType
 import com.velox.jewelvault.utils.InputValidator
-import com.velox.jewelvault.utils.createDraftInvoiceData
+import com.velox.jewelvault.utils.pdf.createDraftInvoiceData
 import com.velox.jewelvault.utils.generateId
-import com.velox.jewelvault.utils.generateInvoicePdf
+import com.velox.jewelvault.utils.pdf.generateInvoicePdf
 import com.velox.jewelvault.utils.ioLaunch
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.log
@@ -39,7 +41,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.sql.Timestamp
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -51,6 +56,7 @@ class InvoiceViewModel @Inject constructor(
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
     private val _metalRates: SnapshotStateList<MetalRate>
 ) : ViewModel() {
+    private val firestore = FirebaseFirestore.getInstance()
 
     /**
      * return Triple of Flow<String> for userId, userName, mobileNo
@@ -87,7 +93,10 @@ class InvoiceViewModel @Inject constructor(
     val showPaymentDialog = mutableStateOf(false)
     val paymentInfo = mutableStateOf<PaymentInfo?>(null)
     val discount = InputFieldState()
-    val invoiceNo = InputFieldState(initValue = "${System.currentTimeMillis() % 10000}")
+    val invoiceNo = InputFieldState(initValue = "1")
+    val invoiceDate = InputFieldState(
+        initValue = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+    )
     val upiId = mutableStateOf("")
     val storeName = mutableStateOf("Merchant")
 
@@ -100,6 +109,7 @@ class InvoiceViewModel @Inject constructor(
                 _dataStoreManager.getValue(DataStoreManager.SHOW_SEPARATE_CHARGE).first() ?: false
         }
         loadUpiSettings()
+        loadStoreInvoiceDefaults()
     }
 
     private fun loadUpiSettings() {
@@ -108,6 +118,52 @@ class InvoiceViewModel @Inject constructor(
         }
         viewModelScope.launch {
             storeName.value = store.third.first()
+        }
+    }
+
+    private fun loadStoreInvoiceDefaults() {
+        ioLaunch {
+            try {
+                val selectedStoreId = store.first.first()
+                if (selectedStoreId.isBlank()) return@ioLaunch
+                val storeEntity = appDatabase.storeDao().getStoreById(selectedStoreId) ?: return@ioLaunch
+                val nextInvoiceNo = (storeEntity.invoiceNo + 1).coerceAtLeast(1)
+                invoiceNo.text = nextInvoiceNo.toString()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun updateStoreInvoiceCounter(storeId: String, userId: String, usedInvoiceNo: String) {
+        val usedInvoiceNoInt = usedInvoiceNo.toIntOrNull() ?: return
+        ioLaunch {
+            try {
+                val existingStore = appDatabase.storeDao().getStoreById(storeId) ?: return@ioLaunch
+                val latestInvoiceNo = maxOf(existingStore.invoiceNo, usedInvoiceNoInt)
+                if (latestInvoiceNo == existingStore.invoiceNo) {
+                    invoiceNo.text = (latestInvoiceNo + 1).toString()
+                    return@ioLaunch
+                }
+
+                val updatedStore = existingStore.copy(
+                    invoiceNo = latestInvoiceNo,
+                    lastUpdated = System.currentTimeMillis()
+                )
+                appDatabase.storeDao().updateStore(updatedStore)
+
+                val mobileNumber = appDatabase.userDao().getUserById(userId)?.mobileNo.orEmpty()
+                if (mobileNumber.isNotBlank()) {
+                    FirebaseUtils.saveOrUpdateStoreData(
+                        firestore = firestore,
+                        mobileNumber = mobileNumber,
+                        storeData = FirebaseUtils.storeEntityToMap(updatedStore),
+                        storeId = updatedStore.storeId
+                    )
+                }
+
+                invoiceNo.text = (latestInvoiceNo + 1).toString()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -212,10 +268,19 @@ class InvoiceViewModel @Inject constructor(
     }
 
     fun completeOrder(
-        invoiceNo: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        invoiceNo: String,
+        invoiceDate: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
     ) {
         ioLaunch {
             try {
+                val invoiceNoTrimmed = invoiceNo.trim()
+                if (invoiceNoTrimmed.isBlank() || invoiceNoTrimmed.toIntOrNull() == null) {
+                    onFailure("Invoice number must be numeric")
+                    return@ioLaunch
+                }
+
                 //1. check if customer exist
                 val mobile = customerMobile.text.trim()
 
@@ -261,6 +326,7 @@ class InvoiceViewModel @Inject constructor(
                     userId = userId,
                     storeId = storeId,
                     mobile = mobile,
+                    invoiceNo = invoiceNoTrimmed,
                     discount = discount.text.toDoubleOrNull() ?: 0.0,
                     totalAmount = totalAmount,
                     totalTax = totalTax,
@@ -306,11 +372,17 @@ class InvoiceViewModel @Inject constructor(
 
                                     //6. remove item from items, subcategory, category
                                     removeItemSafely(onSuccess = {
+                                        updateStoreInvoiceCounter(
+                                            storeId = storeId,
+                                            userId = userId,
+                                            usedInvoiceNo = invoiceNoTrimmed
+                                        )
                                         //7. generate the pdf
                                         generateInvoice(
-                                            invoiceNo = invoiceNo,
-                                            storeId,
-                                            cus,
+                                            invoiceNo = invoiceNoTrimmed,
+                                            invoiceDate = invoiceDate,
+                                            storeId = storeId,
+                                            cus = cus,
                                             onSuccess = onSuccess,
                                             onFailure = onFailure
                                         )
@@ -334,6 +406,7 @@ class InvoiceViewModel @Inject constructor(
         userId: String,
         storeId: String,
         mobile: String,
+        invoiceNo: String,
         discount: Double,
         totalAmount: Double,
         totalTax: Double,
@@ -358,6 +431,7 @@ class InvoiceViewModel @Inject constructor(
                         totalAmount = totalAmount,
                         totalTax = totalTax,
                         totalCharge = totalCharge,
+                        invoiceNo = invoiceNo,
                         note = paymentInfo.toNoteString()
                     )
 
@@ -371,6 +445,7 @@ class InvoiceViewModel @Inject constructor(
                                 orderDate = justNowTime,
                                 itemId = it.itemId,
                                 customerMobile = mobile,
+                                invoiceNo = invoiceNo,
                                 itemAddName = it.itemAddName,
                                 catId = it.catId,
                                 catName = it.catName,
@@ -550,6 +625,7 @@ class InvoiceViewModel @Inject constructor(
 
     private fun generateInvoice(
         invoiceNo: String,
+        invoiceDate: String,
         storeId: String,
         cus: CustomerEntity,
         onSuccess: () -> Unit,
@@ -578,7 +654,8 @@ class InvoiceViewModel @Inject constructor(
                         oldExchange = oldExchange.to3FString(),
                         roundOff = "0.00",
                         dataStoreManager = _dataStoreManager,
-                        invoiceNo = invoiceNo
+                        invoiceNo = invoiceNo,
+                        invoiceDate = invoiceDate
                     )
 
 
@@ -611,6 +688,8 @@ class InvoiceViewModel @Inject constructor(
         showPaymentDialog.value = false
         paymentInfo.value = null
         generatedPdfFile = null
+        invoiceDate.text = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+        loadStoreInvoiceDefaults()
     }
 
     //region Draft Invoice - Using same variables as regular invoice
@@ -1021,11 +1100,16 @@ class InvoiceViewModel @Inject constructor(
         generatedPdfFile = null
         showPaymentDialog.value = false
         paymentInfo.value = null
+        invoiceDate.text = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
     }
 
 
     fun draftCompleteOrder(
-        context: Context, invoiceNo: String, onSuccess: () -> Unit, onFailure: (String) -> Unit
+        context: Context,
+        invoiceNo: String,
+        invoiceDate: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
     ) {
         ioLaunch {
             try {
@@ -1042,14 +1126,15 @@ class InvoiceViewModel @Inject constructor(
 
                     val store = StoreEntity(
                         userId = generateId(),
-                        proprietor = "Raj Kumar",
-                        name = "RAJ JEWELLERS",
-                        email = "rajjewellers@gmail.com",
-                        phone = "9437206994",
-                        address = "Old Medical Road, Malkangiri, Odisha - 764048",
+                        proprietor = "Ram Kumar",
+                        name = "JEWELLERS BABA",
+                        email = "email@gmail.com",
+                        phone = "",
+                        address = "Store Address",
+                        jurisdiction = "",
                         registrationNo = "RAJ-REG-001",
-                        gstinNo = "21APEPK7976C1ZZ",
-                        panNo = "APEPK7976C",
+                        gstinNo = "21XXXXX7976X1XX",
+                        panNo = "XXXXX7976X",
                         image = "",
                         invoiceNo = 0,
                         storeId = generateId()
@@ -1073,7 +1158,8 @@ class InvoiceViewModel @Inject constructor(
                         oldExchange = "0.00",
                         roundOff = "0.00",
                         dataStoreManager = _dataStoreManager,
-                        invoiceNo = invoiceNo
+                        invoiceNo = invoiceNo,
+                        invoiceDate = invoiceDate
                     )
 
                     generateInvoicePdf(

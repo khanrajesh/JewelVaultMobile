@@ -250,7 +250,18 @@ fun UnifiedDeviceCard(
                 // Left Button
                 when (category) {
                     DeviceCategory.CONNECTED -> {
-                        // Gone/Invisible
+                        if (onLeftButtonClick != null) {
+                            IconButton(
+                                onClick = { onLeftButtonClick.invoke() },
+                                enabled = true
+                            ) {
+                                Icon(
+                                    imageVector = Icons.TwoTone.Print,
+                                    contentDescription = "Add as Printer",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                     DeviceCategory.CONNECTING -> {
                         // Disabled/Invisible

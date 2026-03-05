@@ -141,7 +141,9 @@ object AppModule {
                 RoomMigration.MIGRATION_11_12,
                 RoomMigration.MIGRATION_12_13,
                 RoomMigration.MIGRATION_13_14,
-                RoomMigration.MIGRATION_14_15
+                RoomMigration.MIGRATION_14_15,
+                RoomMigration.MIGRATION_15_16,
+                RoomMigration.MIGRATION_16_17
             )
             .build()
     }

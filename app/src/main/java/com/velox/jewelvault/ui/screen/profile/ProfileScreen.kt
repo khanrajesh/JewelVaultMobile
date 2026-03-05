@@ -129,6 +129,14 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
             else -> null
         }
     }
+    val jurisdictionValidation: (String) -> String? = { input ->
+        val normalized = InputValidator.sanitizeText(input)
+        when {
+            normalized.isBlank() -> "Jurisdiction is required"
+            normalized.length < 2 -> "Enter a valid jurisdiction"
+            else -> null
+        }
+    }
     val registrationValidation: (String) -> String? = { input ->
         val normalized = InputValidator.sanitizeText(input).uppercase()
         when {
@@ -498,6 +506,19 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                 modifier = Modifier
                                     .padding(vertical = 5.dp)
                                     .fillMaxWidth(),
+                                state = profileViewModel.jurisdiction,
+                                placeholderText = "Jurisdiction",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.jurisdiction.text = it
+                                },
+                                validation = jurisdictionValidation
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
                                 state = profileViewModel.registrationNo,
                                 placeholderText = "Registration No",
                                 keyboardType = KeyboardType.Text,
@@ -652,6 +673,19 @@ fun ProfileScreen(profileViewModel: ProfileViewModel, firstLaunch: Boolean) {
                                     profileViewModel.address.text = it
                                 },
                                 validation = addressValidation
+                            )
+                            CusOutlinedTextField(
+                                modifier = Modifier
+                                    .padding(vertical = 5.dp)
+                                    .fillMaxWidth(),
+                                state = profileViewModel.jurisdiction,
+                                placeholderText = "Jurisdiction",
+                                keyboardType = KeyboardType.Text,
+                                readOnly = !isEditable.value,
+                                onTextChange = {
+                                    profileViewModel.jurisdiction.text = it
+                                },
+                                validation = jurisdictionValidation
                             )
                             CusOutlinedTextField(
                                 modifier = Modifier

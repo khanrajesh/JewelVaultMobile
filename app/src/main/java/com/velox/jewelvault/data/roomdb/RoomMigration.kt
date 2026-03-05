@@ -460,4 +460,27 @@ object RoomMigration {
             }
         }
     }
+
+    val MIGRATION_15_16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            try {
+                db.execSQL("ALTER TABLE `order` ADD COLUMN invoiceNo TEXT NOT NULL DEFAULT ''")
+            } catch (e: Exception) {
+            }
+
+            try {
+                db.execSQL("ALTER TABLE order_item ADD COLUMN invoiceNo TEXT NOT NULL DEFAULT ''")
+            } catch (e: Exception) {
+            }
+        }
+    }
+
+    val MIGRATION_16_17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            try {
+                db.execSQL("ALTER TABLE store ADD COLUMN jurisdiction TEXT NOT NULL DEFAULT ''")
+            } catch (e: Exception) {
+            }
+        }
+    }
 }

@@ -73,8 +73,52 @@ class ScanConnectViewModel @Inject constructor(
         bleManager.leDiscoveredDevices
     ) { classic, le ->
         val merged = (classic + le).distinctBy { it.address }
-        val (named, unnamed) = merged.partition { !it.name.isNullOrBlank() && it.name != "Unknown Device" }
-        named.sortedBy { it.name?.lowercase() } + unnamed.sortedBy { it.name ?: "~" }
+
+        fun isUnknownName(device: BluetoothDeviceDetails): Boolean {
+            val name = device.name?.trim()
+            return name.isNullOrBlank() || name == "Unknown Device"
+        }
+
+        fun nameKey(device: BluetoothDeviceDetails): String {
+            val name = device.name?.trim()
+            return if (!name.isNullOrBlank() && name != "Unknown Device") {
+                name.lowercase()
+            } else {
+                "~"
+            }
+        }
+
+        fun macClusterKey(address: String): String {
+            val clean = address.uppercase().replace(":", "")
+            // Use first 5 bytes to keep near-matching MACs close (dual Classic/LE variants).
+            return if (clean.length >= 10) clean.substring(0, 10) else clean
+        }
+
+        val named = merged
+            .filterNot { isUnknownName(it) }
+            .sortedWith(compareBy<BluetoothDeviceDetails>({ nameKey(it) }, { it.address.lowercase() }))
+
+        val unknown = merged.filter { isUnknownName(it) }
+        val unknownByMac = unknown
+            .groupBy { macClusterKey(it.address) }
+            .mapValues { entry ->
+                entry.value.sortedBy { it.address.lowercase() }
+            }
+            .toMutableMap()
+
+        val ordered = mutableListOf<BluetoothDeviceDetails>()
+
+        for (device in named) {
+            ordered.add(device)
+            val key = macClusterKey(device.address)
+            val related = unknownByMac.remove(key)
+            if (!related.isNullOrEmpty()) {
+                ordered.addAll(related)
+            }
+        }
+
+        val remainingUnknown = unknownByMac.values.flatten().sortedBy { it.address.lowercase() }
+        ordered + remainingUnknown
     }.stateIn(
         scope = viewModelScope,
         started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
@@ -191,6 +235,7 @@ class ScanConnectViewModel @Inject constructor(
                             _uiState.value = _uiState.value.copy(isLoading = false)
                             _snackBarState.value = "Failed to connect: ${t.message ?: "Unknown error"}"
                             log("CONNECT_VIEWMODEL: Connection failed: ${t.message}")
+                            bleManager.removeDevice(bleManager.connectingDevices, deviceAddress)
                         }
                     }
                 )
@@ -198,6 +243,48 @@ class ScanConnectViewModel @Inject constructor(
                 log("CONNECT_VIEWMODEL: Error connecting to device: ${e.message}")
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 _snackBarState.value = "Failed to connect: ${e.message}"
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun connectByMacAddress(deviceAddress: String, isPrinter: Boolean) {
+        viewModelScope.launch {
+            try {
+                log("MAC_CONNECT: Starting MAC connect for $deviceAddress")
+                _uiState.value = _uiState.value.copy(isLoading = true)
+
+                val deviceDetails = bleManager.getDiscoveredClassicDevice(deviceAddress)
+                    ?: bleManager.getDiscoveredLeDevice(deviceAddress)
+                    ?: bleManager.getBondedDevice(deviceAddress)
+
+                val isBonded = deviceDetails?.bondState == BluetoothDevice.BOND_BONDED
+                if (isBonded) {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    connectToDevice(deviceAddress, isPrinter)
+                    return@launch
+                }
+
+                bleManager.addConnectingPlaceholder(
+                    address = deviceAddress,
+                    name = deviceDetails?.name,
+                    extraInfo = mapOf("stage" to "pairing", "source" to "manual_mac")
+                )
+
+                val pairingInitiated = bleManager.createBond(deviceAddress)
+                _uiState.value = _uiState.value.copy(isLoading = false)
+
+                if (pairingInitiated) {
+                    _snackBarState.value = "Pairing initiated for ${deviceDetails?.name ?: deviceAddress}"
+                    startPairingMonitor(deviceAddress, isPrinter)
+                } else {
+                    _snackBarState.value = "Pairing failed. Trying direct connect..."
+                    connectToDevice(deviceAddress, isPrinter)
+                }
+            } catch (e: Exception) {
+                log("MAC_CONNECT: Error connecting by MAC: ${e.message}")
+                _uiState.value = _uiState.value.copy(isLoading = false)
+                _snackBarState.value = "MAC connect failed: ${e.message}"
             }
         }
     }
@@ -293,7 +380,10 @@ class ScanConnectViewModel @Inject constructor(
     private fun startPairingMonitor(deviceAddress: String, isPrinter: Boolean) {
         viewModelScope.launch {
             var attempts = 0
-            val maxAttempts = 30 // Monitor for 30 seconds (1 second intervals)
+            val maxAttempts = 60 // Monitor for 60 seconds (1 second intervals)
+            var bondingStarted = false
+            var retryCount = 0
+            val maxRetries = 1
 
             while (attempts < maxAttempts) {
                 delay(1000) // Check every second
@@ -303,11 +393,43 @@ class ScanConnectViewModel @Inject constructor(
                     val deviceDetails = bleManager.getDiscoveredClassicDevice(deviceAddress)
                         ?: bleManager.getDiscoveredLeDevice(deviceAddress)
                         ?: bleManager.getBondedDevice(deviceAddress)
-                    if (deviceDetails != null && deviceDetails.bondState == BluetoothDevice.BOND_BONDED) {
+                    val bondState = deviceDetails?.bondState
+
+                    if (bondState == BluetoothDevice.BOND_BONDING) {
+                        bondingStarted = true
+                    }
+
+                    if (bondState == BluetoothDevice.BOND_BONDED) {
                         log("PAIR: Pairing completed for $deviceAddress, starting connection")
-                        _snackBarState.value = "Pairing completed! Connecting to ${deviceDetails.name ?: deviceAddress}..."
+                        _snackBarState.value = "Pairing completed! Connecting to ${deviceDetails?.name ?: deviceAddress}..."
                         connectToDevice(deviceAddress, isPrinter)
                         return@launch
+                    }
+
+            if (bondingStarted && bondState == BluetoothDevice.BOND_NONE) {
+                        if (retryCount < maxRetries) {
+                            retryCount += 1
+                            bondingStarted = false
+                            log("PAIR: Pairing failed for $deviceAddress, retrying ($retryCount/$maxRetries)")
+                            _snackBarState.value = "Pairing failed. Please enter PIN again."
+                            try {
+                                bleManager.removeBond(deviceAddress)
+                            } catch (_: Exception) {
+                            }
+                            delay(800)
+                            val retry = bleManager.createBond(deviceAddress)
+                            if (retry) {
+                                _snackBarState.value = "Retrying pairing... Please enter PIN."
+                            } else {
+                                _snackBarState.value = "Pairing retry failed. Please try again."
+                                bleManager.removeDevice(bleManager.connectingDevices, deviceAddress)
+                                return@launch
+                            }
+                        } else {
+                            _snackBarState.value = "Pairing failed. Please try again."
+                            bleManager.removeDevice(bleManager.connectingDevices, deviceAddress)
+                            return@launch
+                        }
                     }
                 } catch (e: Exception) {
                     log("PAIR: Error monitoring pairing for $deviceAddress: ${e.message}")
@@ -316,6 +438,7 @@ class ScanConnectViewModel @Inject constructor(
 
             log("PAIR: Pairing monitor timeout for $deviceAddress")
             _snackBarState.value = "Pairing timeout. Please try connecting manually."
+            bleManager.removeDevice(bleManager.connectingDevices, deviceAddress)
         }
     }
 
@@ -368,6 +491,7 @@ class ScanConnectViewModel @Inject constructor(
                             log("CONNECT_PRINTER: Connection failed: ${t.message}")
                             // Refresh device lists even on failure to update UI
                             bleManager.refreshAllDeviceLists()
+                            bleManager.removeDevice(bleManager.connectingDevices, address)
                         }
                     }
                 )

@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -58,7 +57,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -152,7 +150,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
                 Row(Modifier.fillMaxWidth()) {
                     Text(
                         "Please scan the item code to add.",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.weight(1f))
@@ -160,7 +158,7 @@ fun SellInvoiceScreen(invoiceViewModel: InvoiceViewModel) {
                         .bounceClick {
                             showQrBarScanner.value = false
                         }
-                        .size(50.dp), tint = Color.White)
+                        .size(50.dp), tint = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         })
@@ -353,7 +351,7 @@ fun SellInvoiceContent(
                 .offset(y = 15.dp, x = (-55).dp)
                 .wrapContentHeight()
                 .wrapContentWidth()
-                .background(Color.White, RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
                 .padding(5.dp)
         ) {
             Column {
@@ -517,7 +515,7 @@ fun ViewAddItemDialog(
     Dialog(onDismissRequest = onDismiss) {
         val dialogScrollState = rememberScrollState()
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = MaterialTheme.shapes.medium,
             tonalElevation = 4.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -723,7 +721,7 @@ fun ViewAddItemDialog(
                     if (isEditing) {
                         TextButton(
                             onClick = onRemove, colors = ButtonDefaults.textButtonColors(
-                                contentColor = Color.Red
+                                contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
                             Text("Remove")
@@ -1151,7 +1149,7 @@ private fun AddItemSection(
             modifier = Modifier
                 .fillMaxHeight()
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
+                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
                 )
                 .bounceClick {
                     viewModel.showExchangeItemDialog.value = true
@@ -1167,7 +1165,7 @@ private fun AddItemSection(
                 .fillMaxHeight()
                 .wrapContentWidth()
                 .background(
-                    MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp)
+                    MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.small
                 )
                 .padding(3.dp)
                 .align(Alignment.CenterVertically),
