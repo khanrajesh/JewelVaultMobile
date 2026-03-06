@@ -368,7 +368,7 @@ class ManagePrintersViewModel @Inject constructor(
         // Build rotated logo (90°) to mitigate vertical banding
         val logoCommand: String = try {
             val localLogoUri =
-                logoUri ?: FileManager.getLogoFileUri(context)
+                logoUri ?: FileManager.getLogoFileUri(context, item.storeId)
             log("generateTsplItemLabel: store logo uri=$localLogoUri")
             if (localLogoUri != null) {
                 val inputStream = context.contentResolver.openInputStream(localLogoUri)

@@ -1,13 +1,11 @@
 package com.velox.jewelvault.utils
 
 import android.app.Application
-import android.content.Intent
 import android.os.Build
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.velox.jewelvault.MainActivity
 import com.velox.jewelvault.data.DataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,10 +60,13 @@ class DeviceSessionTracker(
         scope.launch {
             try {
                 val adminMobile = dataStoreManager.getAdminInfo().third.first()
-                if (adminMobile.isBlank()) return@launch
+                val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+                if (adminMobile.isBlank() || storeId.isBlank()) return@launch
                 val deviceId = buildDeviceId(adminMobile)
                 val devicesRef = firestore.collection("users")
                     .document(adminMobile)
+                    .collection("stores")
+                    .document(storeId)
                     .collection("devices")
 
                 val payload = mapOf(

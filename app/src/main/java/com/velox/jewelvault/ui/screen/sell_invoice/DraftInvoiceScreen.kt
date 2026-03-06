@@ -576,7 +576,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
         Row(Modifier.fillMaxWidth()) {
             Text("Price (before tax)", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "ƒ,1${totalPrice.to3FString()}",
+                "\u20B9${totalPrice.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
@@ -585,7 +585,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
         Row(Modifier.fillMaxWidth()) {
             Text("Total Tax", modifier = Modifier.weight(1.5f), fontSize = 10.sp)
             Text(
-                "ƒ,1${totalTax.to3FString()}",
+                "\u20B9${totalTax.to3FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 10.sp,
                 textAlign = TextAlign.End
@@ -599,7 +599,7 @@ fun DraftSummarySection(selectedItemList: List<ItemSelectedModel>) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                "ƒ,1${grandTotal.to3FString()}",
+                "\u20B9${grandTotal.to0FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

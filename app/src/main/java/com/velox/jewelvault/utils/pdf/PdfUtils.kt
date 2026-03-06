@@ -46,6 +46,8 @@ import com.velox.jewelvault.ui.components.baseBackground8
 import com.velox.jewelvault.utils.CalculationUtils
 import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.numberToWords
+import com.velox.jewelvault.utils.to0FString
+import com.velox.jewelvault.utils.to2FString
 import com.velox.jewelvault.utils.to3FString
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -174,6 +176,13 @@ fun createDraftInvoiceData(
     val subTotalAmount = summary.totalPriceBeforeTax
     val totalTaxAmount = summary.totalTax
     val itemGrandTotalAmount = summary.grandTotal
+    val computedRoundOff = itemGrandTotalAmount - (subTotalAmount + totalTaxAmount)
+    val explicitRoundOff = roundOff.toDoubleOrNull()
+    val resolvedRoundOff = if (explicitRoundOff == null || explicitRoundOff == 0.0) {
+        computedRoundOff
+    } else {
+        explicitRoundOff
+    }
 
     // Get actual metal rates from passed parameter
     // Log available metal rates for debugging
@@ -234,9 +243,9 @@ fun createDraftInvoiceData(
             gstLabel = gstLabel,
             discount = discount,
             cardCharges = cardCharges,
-            totalAmountBeforeOldExchange = "${itemGrandTotalAmount.to3FString()}",
+            totalAmountBeforeOldExchange = itemGrandTotalAmount.to0FString(),
             oldExchange = oldExchange,
-            roundOff = roundOff,
+            roundOff = resolvedRoundOff.to2FString(),
             netAmountPayable = "₹${netAmountPayable.to3FString()}",
             amountInWords = "Indian Rupee ${numberToWords(netAmountPayable.roundToInt())} Only"
         ),
@@ -1014,10 +1023,4 @@ data class InvoiceData(
         val cashAmount1: String,
         // Add more fields if multiple payment modes are common
     )
-
-
 }
-
-
-
-

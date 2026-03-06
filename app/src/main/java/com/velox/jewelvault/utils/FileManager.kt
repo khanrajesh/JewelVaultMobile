@@ -17,7 +17,7 @@ import java.util.*
 object FileManager {
     
     private const val JEWEL_VAULT_FOLDER = "JewelVault"
-    private const val LOGO_FILENAME = "store_logo.jpg"
+    private const val LEGACY_LOGO_FILENAME = "store_logo.jpg"
 
     fun getJewelVaultFolderPath(context: Context): File {
         return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), JEWEL_VAULT_FOLDER)
@@ -66,16 +66,16 @@ object FileManager {
     /**
      * Get the local logo file path
      */
-    fun getLogoFilePath(context: Context): File {
+    fun getLogoFilePath(context: Context, storeId: String? = null): File {
         val logoFolder = getJewelVaultFolderPath(context)
-        return File(logoFolder, LOGO_FILENAME)
+        return File(logoFolder, resolveLogoFileName(storeId))
     }
     
     /**
      * Get the local logo file URI
      */
-    fun getLogoFileUri(context: Context): Uri? {
-        val logoFile = getLogoFilePath(context)
+    fun getLogoFileUri(context: Context, storeId: String? = null): Uri? {
+        val logoFile = getLogoFilePath(context, storeId)
         return if (logoFile.exists()) {
             Uri.fromFile(logoFile)
         } else {
@@ -86,15 +86,19 @@ object FileManager {
     /**
      * Check if local logo file exists
      */
-    fun isLogoFileExists(context: Context): Boolean {
-        val logoFile = getLogoFilePath(context)
+    fun isLogoFileExists(context: Context, storeId: String? = null): Boolean {
+        val logoFile = getLogoFilePath(context, storeId)
         return logoFile.exists()
     }
     
     /**
      * Download and save logo from URL to local storage
      */
-    suspend fun downloadAndSaveLogo(context: Context, imageUrl: String): Result<Uri> = withContext(Dispatchers.IO) {
+    suspend fun downloadAndSaveLogo(
+        context: Context,
+        imageUrl: String,
+        storeId: String? = null
+    ): Result<Uri> = withContext(Dispatchers.IO) {
         try {
             log("FileManager: Starting logo download from: $imageUrl")
             
@@ -106,7 +110,7 @@ object FileManager {
             }
             
             // Get the logo file path
-            val logoFile = getLogoFilePath(context)
+            val logoFile = getLogoFilePath(context, storeId)
             
             // Download the image
             val url = java.net.URL(imageUrl)
@@ -135,9 +139,9 @@ object FileManager {
     /**
      * Delete local logo file
      */
-    suspend fun deleteLogoFile(context: Context): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun deleteLogoFile(context: Context, storeId: String? = null): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val logoFile = getLogoFilePath(context)
+            val logoFile = getLogoFilePath(context, storeId)
             if (logoFile.exists()) {
                 val deleted = logoFile.delete()
                 if (deleted) {
@@ -160,8 +164,8 @@ object FileManager {
     /**
      * Get logo file info
      */
-    suspend fun getLogoFileInfo(context: Context): FileItem? = withContext(Dispatchers.IO) {
-        val logoFile = getLogoFilePath(context)
+    suspend fun getLogoFileInfo(context: Context, storeId: String? = null): FileItem? = withContext(Dispatchers.IO) {
+        val logoFile = getLogoFilePath(context, storeId)
         if (logoFile.exists()) {
             FileItem(
                 name = logoFile.name,
@@ -174,6 +178,17 @@ object FileManager {
             )
         } else {
             null
+        }
+    }
+
+    private fun resolveLogoFileName(storeId: String?): String {
+        val safeStoreId = storeId?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.replace(Regex("[^A-Za-z0-9_-]"), "_")
+        return if (safeStoreId.isNullOrBlank()) {
+            LEGACY_LOGO_FILENAME
+        } else {
+            "store_logo_${safeStoreId}.jpg"
         }
     }
     

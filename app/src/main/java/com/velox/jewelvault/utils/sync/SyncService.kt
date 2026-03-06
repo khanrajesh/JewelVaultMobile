@@ -713,9 +713,19 @@ class SyncService : Service() {
         logJvSync("SyncService: refreshActiveDeviceInfo started")
         try {
             val adminMobile = dataStoreManager.getAdminInfo().third.first()
-            if (adminMobile.isBlank()) return
+            val storeId = dataStoreManager.getSelectedStoreInfo().first.first()
+            if (adminMobile.isBlank() || storeId.isBlank()) {
+                activeDeviceLabel = null
+                activeDeviceAt = null
+                dataStoreManager.setValue(DataStoreManager.ACTIVE_DEVICE_LABEL, "")
+                dataStoreManager.setValue(DataStoreManager.ACTIVE_DEVICE_AT, 0L)
+                updateMonitorNotification()
+                return
+            }
             val snapshot = firestore.collection("users")
                 .document(adminMobile)
+                .collection("stores")
+                .document(storeId)
                 .collection("devices")
                 .get()
                 .await()

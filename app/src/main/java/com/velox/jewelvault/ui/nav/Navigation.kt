@@ -53,6 +53,7 @@ import com.velox.jewelvault.ui.screen.setting.BackupSettingsScreen
 import com.velox.jewelvault.ui.screen.setting.PermissionSettingsScreen
 import com.velox.jewelvault.ui.screen.setting.SettingScreen
 import com.velox.jewelvault.ui.screen.setting.SubscriptionDetailsScreen
+import com.velox.jewelvault.ui.screen.store_selection.StoreSelectionScreen
 import com.velox.jewelvault.ui.screen.start_loading.StartLoadingScreen
 import com.velox.jewelvault.ui.screen.user_management.UserManagementScreen
 import com.velox.jewelvault.ui.screen.webview.PrivacyPolicyScreen
@@ -80,6 +81,9 @@ fun AppNavigation(
             }
             composable(Screens.Login.route) {
                 LoginScreen(hiltViewModel<LoginViewModel>())
+            }
+            composable(Screens.StoreSelection.route) {
+                StoreSelectionScreen()
             }
             composable(Screens.StartLoading.route) {
                 StartLoadingScreen()

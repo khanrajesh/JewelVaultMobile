@@ -54,6 +54,16 @@ fun SettingScreen() {
             baseViewModel.wipeCompleted.value = false
         }
     }
+
+    // Handle backup + logout completion
+    LaunchedEffect(baseViewModel.backupLogoutCompleted.value) {
+        if (baseViewModel.backupLogoutCompleted.value) {
+            mainNavController.navigate(Screens.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+            baseViewModel.consumeBackupLogoutCompleted()
+        }
+    }
     
     // Handle settings updates
     LaunchedEffect(baseViewModel.snackBarState) {
@@ -327,6 +337,16 @@ fun SettingScreen() {
                         }
                     )
                 }
+
+                item {
+                    SettingsActionItem(
+                        title = "Backup & Logout",
+                        subtitle = "Backup to cloud, clear local data, and sign out",
+                        icon = Icons.TwoTone.PowerSettingsNew,
+                        onClick = { baseViewModel.openBackupLogoutDialog() },
+                        isDestructive = true
+                    )
+                }
             }
         }
     }
@@ -352,6 +372,54 @@ fun SettingScreen() {
                     Text("CANCEL")
                 }
             }
+        )
+    }
+
+    if (baseViewModel.showBackupLogoutDialog.value) {
+        AlertDialog(
+            onDismissRequest = { baseViewModel.dismissBackupLogoutDialog() },
+            title = { Text("Backup & Logout?") },
+            text = {
+                Text("This will create a backup first, then clear local app data and sign out.")
+            },
+            confirmButton = {
+                com.velox.jewelvault.ui.components.AppTextButton(
+                    onClick = { baseViewModel.backupAndLogout() }
+                ) {
+                    Text("BACKUP & LOGOUT", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                com.velox.jewelvault.ui.components.AppTextButton(
+                    onClick = { baseViewModel.dismissBackupLogoutDialog() }
+                ) {
+                    Text("CANCEL")
+                }
+            }
+        )
+    }
+
+    if (baseViewModel.backupLogoutInProgress.value) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Backup & Logout in progress") },
+            text = {
+                Column {
+                    Text(baseViewModel.backupLogoutStepMessage.value.ifBlank { "Processing..." })
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LinearProgressIndicator(
+                        progress = { (baseViewModel.backupLogoutProgress.value / 100f).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${baseViewModel.backupLogoutProgress.value}%",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {}
         )
     }
 

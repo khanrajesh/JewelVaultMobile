@@ -72,6 +72,7 @@ import com.velox.jewelvault.utils.LocalNavController
 import com.velox.jewelvault.utils.pdf.PdfRendererPreview
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.pdf.sharePdf
+import com.velox.jewelvault.utils.to0FString
 import com.velox.jewelvault.utils.to3FString
 
 
@@ -323,7 +324,7 @@ private fun PaymentDetailsSection(
         var selectedPaymentType by remember { mutableStateOf("Paid in Full") }
         var paidAmountText by remember {
             mutableStateOf(
-                invoiceViewModel.getTotalOrderAmount().to3FString()
+                invoiceViewModel.getTotalOrderAmount().to0FString()
             )
         }
         var paymentMethodExpanded by remember { mutableStateOf(false) }
@@ -353,7 +354,7 @@ private fun PaymentDetailsSection(
         // Update paid amount when payment type changes
         LaunchedEffect(selectedPaymentType) {
             if (selectedPaymentType == "Paid in Full") {
-                paidAmountText = invoiceViewModel.getTotalOrderAmount().to3FString()
+                paidAmountText = invoiceViewModel.getTotalOrderAmount().to0FString()
             }
         }
 
@@ -410,7 +411,7 @@ private fun PaymentDetailsSection(
                             fontSize = 10.sp
                         )
                         Text(
-                            text = "Net Amount: \n₹${totalAmount.to3FString()}",
+                            text = "Net Amount: \n₹${totalAmount.to0FString()}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
@@ -1016,7 +1017,7 @@ fun ItemSummaryCard(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "₹${grandTotal.to3FString()}",
+                                "₹${grandTotal.to0FString()}",
                                 modifier = Modifier.weight(1f),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold,

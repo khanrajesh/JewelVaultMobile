@@ -4,6 +4,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.roomdb.dto.ExchangeItemDto
 import com.velox.jewelvault.data.roomdb.dto.ItemSelectedModel
+import kotlin.math.ceil
 
 /**
  * Utility class for all calculation operations in the JewelVault project.
@@ -189,7 +190,8 @@ object CalculationUtils {
 
         val totalPriceBeforeTax = totalBasePrice + totalMakingCharges + totalOtherCharges -totalExchangeItems -discount
         val totalTax = totalPriceBeforeTax * 0.03
-        val grandTotal = totalPriceBeforeTax + totalTax
+        val rawGrandTotal = totalPriceBeforeTax + totalTax
+        val grandTotal = ceil(rawGrandTotal)
 
         return SummaryCalculationResult(
             metalSummaries = metalSummaries,

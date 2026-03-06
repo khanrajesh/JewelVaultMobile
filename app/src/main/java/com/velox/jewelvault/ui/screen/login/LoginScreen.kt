@@ -1,7 +1,6 @@
 package com.velox.jewelvault.ui.screen.login
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
@@ -46,7 +44,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -175,65 +172,33 @@ fun LoginScreen(loginViewModel: LoginViewModel) {
             )
         }
 
-        val activeSessionInfo = loginViewModel.activeDeviceBlock.value
-        if (activeSessionInfo != null) {
+        val blockedInfo = loginViewModel.blockedDeviceInfo.value
+        if (blockedInfo != null) {
             val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()) }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.8f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .wrapContentHeight(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Session Active on Another Device",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
+            val lastLoginText = if (blockedInfo.lastLoginAt > 0L) {
+                dateFormat.format(Date(blockedInfo.lastLoginAt))
+            } else {
+                "Unknown"
+            }
+            AlertDialog(
+                onDismissRequest = { loginViewModel.dismissBlockedDeviceDialog() },
+                title = { Text("Session Active on Another Device") },
+                text = {
+                    Column {
+                        Text("This store is already active on another device.")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "You are already logged in on another device.",
-                            fontSize = 14.sp,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Device: ${activeSessionInfo.manufacturer} ${activeSessionInfo.model}",
-                            fontSize = 13.sp,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                        val lastLoginText = if (activeSessionInfo.lastLoginAt > 0L) {
-                            dateFormat.format(Date(activeSessionInfo.lastLoginAt))
-                        } else {
-                            "Unknown"
-                        }
-                        Text(
-                            text = "Last login: $lastLoginText",
-                            fontSize = 13.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        com.velox.jewelvault.ui.components.AppButton(onClick = { loginViewModel.clearActiveDeviceBlock() }) {
-                            Text("OK")
-                        }
+                        Text("Device: ${blockedInfo.manufacturer} ${blockedInfo.model}")
+                        Text("Last login: $lastLoginText")
+                    }
+                },
+                confirmButton = {
+                    com.velox.jewelvault.ui.components.AppButton(
+                        onClick = { loginViewModel.dismissBlockedDeviceDialog() }
+                    ) {
+                        Text("OK")
                     }
                 }
-            }
+            )
         }
 
     }
@@ -828,11 +793,13 @@ private fun loginAction(
                 pin = password.text,
                 savePhone = savePhoneChecked.value,
                 onSuccess = {
-                    mainScope {
-                        keyboardController?.hide()
-                        navHost.navigate(Screens.StartLoading.route) {
-                            popUpTo(Screens.Login.route) {
-                                inclusive = true
+                    loginViewModel.checkSelectedStoreDeviceAndContinue {
+                        mainScope {
+                            keyboardController?.hide()
+                            navHost.navigate(Screens.StoreSelection.route) {
+                                popUpTo(Screens.Login.route) {
+                                    inclusive = true
+                                }
                             }
                         }
                     }
@@ -858,13 +825,15 @@ private fun loginAction(
             pin = password.text,
             savePhone = savePhoneChecked.value,
             onSuccess = {
-                mainScope {
-                    navHost.navigate(Screens.StartLoading.route) {
-                        popUpTo(Screens.Login.route) {
-                            inclusive = true
+                loginViewModel.checkSelectedStoreDeviceAndContinue {
+                    mainScope {
+                        navHost.navigate(Screens.StoreSelection.route) {
+                            popUpTo(Screens.Login.route) {
+                                inclusive = true
+                            }
                         }
+                        keyboardController?.hide()
                     }
-                    keyboardController?.hide()
                 }
             },
             onFailure = {

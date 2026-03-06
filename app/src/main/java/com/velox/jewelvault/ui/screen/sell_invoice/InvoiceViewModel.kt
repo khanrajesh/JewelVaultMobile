@@ -312,7 +312,7 @@ class InvoiceViewModel @Inject constructor(
                 val storeId = store.first.first()
 
                 // Get payment info or use default (full cash payment)
-                val grandTotal = totalAmount + totalTax + totalCharge
+                val grandTotal = summary.grandTotal
                 val payment = paymentInfo.value ?: PaymentInfo(
                     paymentMethod = "Cash",
                     totalAmount = grandTotal,

@@ -277,7 +277,12 @@ class StartLoadingViewModel @Inject constructor(
         } else {
             false
         }
-        val isFreshInstall = appDatabase.storeDao().getAllStores().size == 1 && !hasCategories
+        val hasSelectedStoreLocally = if (storeId.isNotBlank()) {
+            appDatabase.storeDao().getStoreById(storeId) != null
+        } else {
+            false
+        }
+        val isFreshInstall = hasSelectedStoreLocally && !hasCategories
         val adminMobile = getAdminMobile()
 
         if (!isFreshInstall || adminMobile.isBlank() || storeId.isBlank()) {

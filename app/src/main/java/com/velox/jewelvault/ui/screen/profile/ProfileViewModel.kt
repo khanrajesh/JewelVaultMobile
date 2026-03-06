@@ -1,6 +1,7 @@
 package com.velox.jewelvault.ui.screen.profile
 
 import android.net.Uri
+import android.content.Context
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -22,6 +23,7 @@ import com.velox.jewelvault.utils.log
 import com.velox.jewelvault.utils.InputValidator
 import com.velox.jewelvault.utils.generateId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -29,6 +31,7 @@ import javax.inject.Named
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val _dataStoreManager: DataStoreManager,
     private val appDatabase: AppDatabase,
     @Named("snackMessage") private val _snackBarState: MutableState<String>,
@@ -356,10 +359,19 @@ class ProfileViewModel @Inject constructor(
             try {
                 isLoading.value = true
                 val userId = admin.first.first()
-                val storeId = store.first.first()
-                val isFirstStoreSetup = storeId.isBlank()
+                val currentStoreId = store.first.first().trim()
+                val isFirstStoreSetup = currentStoreId.isBlank()
                 val userData = appDatabase.userDao().getUserById(userId)
                 val mobileNumber = userData?.mobileNo ?: ""
+                val resolvedStoreId = if (currentStoreId.isNotBlank()) {
+                    currentStoreId
+                } else {
+                    _firestore.collection("users")
+                        .document(mobileNumber)
+                        .collection("stores")
+                        .document()
+                        .id
+                }
 
                 // Handle image upload if there's a new image file
                 var finalImageUrl = selectedImageUri.value ?: ""
@@ -368,7 +380,8 @@ class ProfileViewModel @Inject constructor(
                     val uploadResult = FirebaseUtils.uploadImageToStorage(
                         _firebaseStorage,
                         selectedImageFileUri.value!!,
-                        mobileNumber
+                        mobileNumber,
+                        resolvedStoreId
                     )
 
                     if (uploadResult.isSuccess) {
@@ -377,7 +390,7 @@ class ProfileViewModel @Inject constructor(
                         log("Image uploaded successfully: $finalImageUrl")
                         
                         // Download and cache the logo locally
-                        downloadAndCacheLogo(finalImageUrl)
+                        downloadAndCacheLogo(finalImageUrl, resolvedStoreId)
                         
                         // Notify that image was updated
                         onImageUpdated?.invoke()
@@ -392,15 +405,15 @@ class ProfileViewModel @Inject constructor(
                     isUploadingImage.value = false
                 }
 
-                val existingStore = if (storeId.isNotBlank()) {
-                    appDatabase.storeDao().getStoreById(storeId)
+                val existingStore = if (currentStoreId.isNotBlank()) {
+                    appDatabase.storeDao().getStoreById(currentStoreId)
                 } else {
                     null
                 }
                 val existingInvoiceNo = existingStore?.invoiceNo ?: this@ProfileViewModel.storeEntity.value?.invoiceNo ?: 0
 
                 var storeEntity = StoreEntity(
-                    storeId = storeId,
+                    storeId = resolvedStoreId,
                     userId = userId,
                     proprietor = InputValidator.sanitizeText(propName.text),
                     name = InputValidator.sanitizeText(shopName.text),
@@ -423,24 +436,20 @@ class ProfileViewModel @Inject constructor(
                     _firestore,
                     mobileNumber,
                     firestoreData,
-                    storeId = storeId
+                    storeId = resolvedStoreId
 
                 )
 
                 if (firestoreResult.isSuccess) {
 
-                    val generatedId = firestoreResult.getOrNull()
-
-                    // If this is a new store, assign generatedId
-                    if (generatedId != null) {
-                        storeEntity = storeEntity.copy(storeId = generatedId)
-                    }
+                    val finalStoreId = firestoreResult.getOrNull() ?: resolvedStoreId
+                    storeEntity = storeEntity.copy(storeId = finalStoreId)
 
                     log("Store data saved to both local database and Firestore")
                     _snackBarState.value = "Store details saved successfully"
 
                     // Save to local database
-                    val localResult = if (storeId != "") {
+                    val localResult = if (currentStoreId.isNotBlank()) {
                         appDatabase.storeDao().updateStore(storeEntity)
                     } else {
                         appDatabase.storeDao().insertStore(storeEntity)
@@ -537,11 +546,11 @@ class ProfileViewModel @Inject constructor(
     /**
      * Download and cache logo from URL to local storage
      */
-    private fun downloadAndCacheLogo(imageUrl: String) {
+    private fun downloadAndCacheLogo(imageUrl: String, storeId: String) {
         ioLaunch {
             try {
                 log("ProfileViewModel: Starting logo download and cache from: $imageUrl")
-                val result = FileManager.downloadAndSaveLogo(android.app.Application(), imageUrl)
+                val result = FileManager.downloadAndSaveLogo(appContext, imageUrl, storeId)
                 
                 if (result.isSuccess) {
                     log("ProfileViewModel: Logo downloaded and cached successfully: ${result.getOrNull()}")

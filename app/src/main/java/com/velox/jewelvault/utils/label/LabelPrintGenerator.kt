@@ -191,7 +191,7 @@ class LabelPrintGenerator(private val context: Context) {
         val imageDpi = properties["dpi"]?.jsonPrimitive?.content?.toIntOrNull()?.coerceIn(150, 600) ?: 203
 
         val boundBitmap = when (element.dataBinding) {
-            "store.logo" -> loadStoreLogoBitmap()
+            "store.logo" -> loadStoreLogoBitmap(data)
             "store.bsiMark" -> loadBsiMarkBitmap()
             else -> null
         }
@@ -415,7 +415,7 @@ class LabelPrintGenerator(private val context: Context) {
                 val imageDpi = properties["dpi"]?.jsonPrimitive?.content?.toIntOrNull()?.coerceIn(150, 600) ?: 203
 
                 val boundBitmap = when (element.dataBinding) {
-                    "store.logo" -> loadStoreLogoBitmap()
+                    "store.logo" -> loadStoreLogoBitmap(data)
                     "store.bsiMark" -> loadBsiMarkBitmap()
                     else -> null
                 }
@@ -572,9 +572,10 @@ class LabelPrintGenerator(private val context: Context) {
         }
     }
 
-    private fun loadStoreLogoBitmap(): Bitmap? {
+    private fun loadStoreLogoBitmap(data: Map<String, Any>): Bitmap? {
         return try {
-            val logoUri = FileManager.getLogoFileUri(context)
+            val storeId = (data["store"] as? com.velox.jewelvault.data.roomdb.entity.StoreEntity)?.storeId
+            val logoUri = FileManager.getLogoFileUri(context, storeId)
             if (logoUri != null) {
                 context.contentResolver.openInputStream(logoUri)?.use { BitmapFactory.decodeStream(it) }
             } else {

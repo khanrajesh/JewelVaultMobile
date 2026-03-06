@@ -1095,7 +1095,7 @@ object PrintUtils {
 
         // Load store logo from local file or use provided store logo
         val storeLogoBase64 = try {
-            val localLogoUri = FileManager.getLogoFileUri(context)
+            val localLogoUri = FileManager.getLogoFileUri(context, item.storeId)
             if (localLogoUri != null) {
                 val inputStream = context.contentResolver.openInputStream(localLogoUri)
                 val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)

@@ -95,6 +95,7 @@ import com.velox.jewelvault.utils.extractScannedItemId
 import com.velox.jewelvault.utils.ioScope
 import com.velox.jewelvault.utils.isLandscape
 import com.velox.jewelvault.utils.rememberCurrentDateTime
+import com.velox.jewelvault.utils.to0FString
 import com.velox.jewelvault.utils.to3FString
 import kotlinx.coroutines.launch
 
@@ -971,7 +972,7 @@ fun SummarySection(viewModel: InvoiceViewModel) {
                 fontWeight = FontWeight.Medium
             )
             Text(
-                "₹${summary.grandTotal.to3FString()}",
+                "₹${summary.grandTotal.to0FString()}",
                 modifier = Modifier.weight(1f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,

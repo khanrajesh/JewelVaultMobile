@@ -13,6 +13,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import com.velox.jewelvault.data.MetalRate
 import com.velox.jewelvault.data.UpdateInfo
 import com.velox.jewelvault.data.fetchAllMetalRates
@@ -30,7 +32,9 @@ import com.velox.jewelvault.data.firebase.RemoteConfigManager
 import com.velox.jewelvault.data.firebase.FirebaseUtils
 import com.velox.jewelvault.data.metalRates
 import com.velox.jewelvault.utils.SecurityUtils
+import com.velox.jewelvault.utils.SessionManager
 import com.velox.jewelvault.utils.sync.SyncManager
+import com.velox.jewelvault.utils.sync.SyncScheduler
 import com.velox.jewelvault.utils.sync.SyncService
 import com.velox.jewelvault.ui.theme.AppThemeStyle
 import com.velox.jewelvault.utils.ioLaunch
@@ -49,7 +53,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Named
@@ -66,6 +72,7 @@ class BaseViewModel @Inject constructor(
     private val _remoteConfigManager: RemoteConfigManager,
     private val _appUpdateManager: AppUpdateManager,
     private val _syncManager: SyncManager,
+    private val _sessionManager: SessionManager,
     private val _auth: FirebaseAuth,
     private val _Internal_bluetoothManager: BleManager,
     private val _repository: RepositoryImpl,
@@ -135,6 +142,13 @@ class BaseViewModel @Inject constructor(
     val otpVerificationId = mutableStateOf<String?>(null)
     private val otpResendToken = mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null)
     val wipeCompleted = mutableStateOf(false)
+
+    // Backup + logout flow state
+    val showBackupLogoutDialog = mutableStateOf(false)
+    val backupLogoutInProgress = mutableStateOf(false)
+    val backupLogoutProgress = mutableStateOf(0)
+    val backupLogoutStepMessage = mutableStateOf("")
+    val backupLogoutCompleted = mutableStateOf(false)
 
     init {
         loadSettings()
@@ -339,12 +353,12 @@ class BaseViewModel @Inject constructor(
                 storeImage.value = store?.image
                 
                 // Load local logo file if available
-                loadLocalLogo()
+                loadLocalLogo(storeId)
                 
                 // If no local logo but there's a URL in database, download and cache it
                 if (!hasLocalLogo() && !store?.image.isNullOrBlank()) {
                     log("No local logo found, downloading from URL: ${store?.image}")
-                    downloadAndCacheLogo(appContext, store?.image ?: "")
+                    downloadAndCacheLogo(appContext, store?.image ?: "", storeId)
                 }
             } catch (e: Exception) {
                 log("Error loading store image: ${e.message}")
@@ -355,10 +369,12 @@ class BaseViewModel @Inject constructor(
     /**
      * Load local logo file URI
      */
-    fun loadLocalLogo() {
+    fun loadLocalLogo(storeId: String? = null) {
         ioLaunch {
             try {
-                val logoUri = FileManager.getLogoFileUri(appContext)
+                val resolvedStoreId = storeId?.trim().takeUnless { it.isNullOrBlank() }
+                    ?: _dataStoreManager.getSelectedStoreInfo().first.first().trim()
+                val logoUri = FileManager.getLogoFileUri(appContext, resolvedStoreId)
                 localLogoUri.value = logoUri
                 log("Local logo URI loaded: $logoUri")
             } catch (e: Exception) {
@@ -371,11 +387,13 @@ class BaseViewModel @Inject constructor(
     /**
      * Download and cache logo from URL
      */
-    fun downloadAndCacheLogo(context: Context = appContext, imageUrl: String) {
+    fun downloadAndCacheLogo(context: Context = appContext, imageUrl: String, storeId: String? = null) {
         ioLaunch {
             try {
                 log("Starting logo download and cache from: $imageUrl")
-                val result = FileManager.downloadAndSaveLogo(context, imageUrl)
+                val resolvedStoreId = storeId?.trim().takeUnless { it.isNullOrBlank() }
+                    ?: _dataStoreManager.getSelectedStoreInfo().first.first().trim()
+                val result = FileManager.downloadAndSaveLogo(context, imageUrl, resolvedStoreId)
                 
                 if (result.isSuccess) {
                     localLogoUri.value = result.getOrNull()
@@ -414,7 +432,7 @@ class BaseViewModel @Inject constructor(
                 
                 if (!store?.image.isNullOrBlank()) {
                     log("Force refreshing logo from URL: ${store?.image}")
-                    downloadAndCacheLogo(context, store?.image ?: "")
+                    downloadAndCacheLogo(context, store?.image ?: "", storeId)
                 }
             } catch (e: Exception) {
                 log("Error force refreshing logo: ${e.message}")
@@ -865,6 +883,131 @@ fun dismissUpdateDialog() {
                 isWipeInProgress.value = false
             }
         }
+    }
+
+    fun openBackupLogoutDialog() {
+        if (backupLogoutInProgress.value) return
+        showBackupLogoutDialog.value = true
+    }
+
+    fun dismissBackupLogoutDialog() {
+        if (backupLogoutInProgress.value) return
+        showBackupLogoutDialog.value = false
+    }
+
+    fun consumeBackupLogoutCompleted() {
+        backupLogoutCompleted.value = false
+        backupLogoutProgress.value = 0
+        backupLogoutStepMessage.value = ""
+    }
+
+    fun backupAndLogout() {
+        if (backupLogoutInProgress.value) return
+
+        showBackupLogoutDialog.value = false
+        backupLogoutCompleted.value = false
+        backupLogoutInProgress.value = true
+        backupLogoutProgress.value = 0
+        backupLogoutStepMessage.value = "Checking prerequisites..."
+
+        ioLaunch {
+            try {
+                updateBackupLogoutProgress(5, "Checking prerequisites...")
+
+                val adminMobile = resolveAdminMobile().trim()
+                val storeId = _dataStoreManager.getSelectedStoreInfo().first.first().trim()
+                if (adminMobile.isBlank() || storeId.isBlank()) {
+                    throw IllegalStateException("Admin mobile or selected store is missing.")
+                }
+
+                updateBackupLogoutProgress(10, "Stopping sync service...")
+                SyncService.stopMonitoring(appContext)
+                SyncScheduler(appContext).cancelAutomaticBackup()
+
+                updateBackupLogoutProgress(15, "Creating backup file...")
+                val backupResult = _syncManager.performBackup { message, progress ->
+                    val boundedProgress = progress.coerceIn(0, 100)
+                    backupLogoutProgress.value = 15 + ((boundedProgress * 45) / 100)
+                    backupLogoutStepMessage.value = message
+                }
+                if (backupResult.isFailure) {
+                    throw Exception(backupResult.exceptionOrNull()?.message ?: "Backup failed.")
+                }
+
+                updateBackupLogoutProgress(65, "Clearing device session from Firebase...")
+                clearCurrentStoreDeviceSession(adminMobile, storeId)
+
+                updateBackupLogoutProgress(72, "Clearing remote notification token...")
+                clearRemoteFcmToken(adminMobile)
+
+                updateBackupLogoutProgress(80, "Clearing local database...")
+                _appDatabase.clearAllTables()
+
+                updateBackupLogoutProgress(86, "Clearing session...")
+                _sessionManager.endSession()
+
+                updateBackupLogoutProgress(90, "Clearing app preferences...")
+                _dataStoreManager.clearAllData()
+
+                updateBackupLogoutProgress(94, "Clearing local messaging token...")
+                runCatching { FirebaseMessaging.getInstance().deleteToken().await() }
+
+                updateBackupLogoutProgress(97, "Signing out...")
+                _auth.signOut()
+
+                updateBackupLogoutProgress(100, "Completed")
+                backupLogoutCompleted.value = true
+                snackBarState = "Backup and logout completed"
+            } catch (e: Exception) {
+                log("BackupLogout failed: ${e.message}")
+                snackBarState = "Backup & logout failed: ${e.message ?: "Unknown error"}"
+            } finally {
+                backupLogoutInProgress.value = false
+            }
+        }
+    }
+
+    private suspend fun clearCurrentStoreDeviceSession(adminMobile: String, storeId: String) {
+        val deviceId = buildStoreDeviceId(adminMobile)
+        _firestore.collection("users")
+            .document(adminMobile)
+            .collection("stores")
+            .document(storeId)
+            .collection("devices")
+            .document(deviceId)
+            .set(
+                mapOf(
+                    "isActive" to false,
+                    "lastSeenAt" to System.currentTimeMillis()
+                ),
+                SetOptions.merge()
+            )
+            .await()
+    }
+
+    private suspend fun clearRemoteFcmToken(adminMobile: String) {
+        runCatching {
+            _firestore.collection("users")
+                .document(adminMobile)
+                .update("fcmToken", "")
+                .await()
+        }.onFailure {
+            log("BackupLogout: Failed to clear remote FCM token -> ${it.message}")
+        }
+    }
+
+    private fun buildStoreDeviceId(adminMobile: String): String {
+        val manufacturer = Build.MANUFACTURER.ifBlank { "unknown" }
+        val model = Build.MODEL.ifBlank { "unknown" }
+        val raw = "${manufacturer}_${model}_${adminMobile}"
+        return raw.lowercase(Locale.getDefault())
+            .replace(Regex("[^a-z0-9]+"), "_")
+            .trim('_')
+    }
+
+    private fun updateBackupLogoutProgress(progress: Int, message: String) {
+        backupLogoutProgress.value = progress.coerceIn(0, 100)
+        backupLogoutStepMessage.value = message
     }
 
     private fun resetAllSettings() {

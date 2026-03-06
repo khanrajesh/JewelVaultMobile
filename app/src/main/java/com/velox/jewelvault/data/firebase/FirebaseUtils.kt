@@ -239,10 +239,14 @@ class FirebaseUtils {
         suspend fun uploadImageToStorage(
             storage: FirebaseStorage,
             imageUri: Uri,
-            mobileNumber: String
+            mobileNumber: String,
+            storeId: String
         ): Result<String> {
             return try {
-                val fileName = "${STORE_IMAGES_FOLDER}/${mobileNumber}_${UUID.randomUUID()}.jpg"
+                val safeStoreId = storeId.trim().ifBlank { "unknown_store" }
+                    .replace(Regex("[^A-Za-z0-9_-]"), "_")
+                val fileName =
+                    "${STORE_IMAGES_FOLDER}/${mobileNumber}_${UUID.randomUUID()}/${safeStoreId}.jpg"
                 val storageRef: StorageReference = storage.reference.child(fileName)
 
                 val uploadTask = storageRef.putFile(imageUri).await()

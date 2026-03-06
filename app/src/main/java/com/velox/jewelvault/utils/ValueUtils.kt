@@ -135,6 +135,15 @@ fun Double.to2FString(): String{
 
 fun Double.to1FString() = String.format(Locale.US, "%.1f", this)
 
+@SuppressLint("DefaultLocale")
+fun Double.to0FString(): String {
+    return try {
+        String.format(Locale.US, "%.0f", this)
+    } catch (_: Exception) {
+        "NULL"
+    }
+}
+
 fun numberToWords(number: Int): String {
     if (number == 0) return "Zero"
 

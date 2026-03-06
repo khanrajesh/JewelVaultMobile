@@ -300,7 +300,9 @@ private fun PrintInfoDialog(
             PrintUtils.generateQRCode(PrintUtils.buildItemQrPayload(itemForDialog), 128)
         }
         var qrUri by remember(itemForDialog.itemId) { mutableStateOf<Uri?>(null) }
-        val logoUri = remember { FileManager.getLogoFileUri(context) }
+        val logoUri = remember(itemForDialog.storeId) {
+            FileManager.getLogoFileUri(context, itemForDialog.storeId)
+        }
         LaunchedEffect(qrBitmap) {
             if (qrBitmap != null) {
                 try {
